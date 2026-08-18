@@ -1,0 +1,50 @@
+"""Declarative workflow-pack registry; executable adapters are explicitly registered."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Protocol
+
+from .canonical import canonical_bytes, sha256_bytes
+from .contracts import WorkflowPackDefinition
+
+
+class WorkflowAdapter(Protocol):
+    def inspect(self, selector: dict[str, Any]) -> dict[str, Any]: ...
+    def command(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]: ...
+
+
+class WorkflowRegistry:
+    def __init__(self, pack_root: Path):
+        self.pack_root = pack_root.resolve()
+        self.adapters: dict[str, WorkflowAdapter] = {}
+
+    def register(self, pack_id: str, adapter: WorkflowAdapter) -> None:
+        if pack_id in self.adapters:
+            raise ValueError(f"workflow adapter already registered: {pack_id}")
+        self.adapters[pack_id] = adapter
+
+    def load(self, pack_id: str) -> dict[str, Any]:
+        path = (self.pack_root / pack_id / "pack.json").resolve()
+        if not path.is_relative_to(self.pack_root):
+            raise ValueError("workflow pack escaped its root")
+        raw = path.read_bytes()
+        definition = WorkflowPackDefinition.model_validate_json(raw)
+        if definition.pack_id != pack_id:
+            raise ValueError("workflow pack identity does not match its path")
+        return {"definition": definition.model_dump(mode="json"), "source_sha256": sha256_bytes(raw), "canonical_sha256": sha256_bytes(canonical_bytes(definition.model_dump(mode="json")))}
+
+    def inspect(self, pack_id: str, selector: dict[str, Any]) -> dict[str, Any]:
+        self.load(pack_id)
+        try:
+            return self.adapters[pack_id].inspect(selector)
+        except KeyError as error:
+            raise ValueError(f"workflow has no registered adapter: {pack_id}") from error
+
+    def command(self, pack_id: str, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        self.load(pack_id)
+        try:
+            return self.adapters[pack_id].command(operation, arguments)
+        except KeyError as error:
+            raise ValueError(f"workflow has no registered adapter: {pack_id}") from error

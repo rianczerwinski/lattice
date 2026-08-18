@@ -4,7 +4,24 @@ Loom is a local-first conversational lattice harness: a user progressively autho
 
 The graph is not primarily a workflow drawn in advance. It is the durable, inspectable record of thought and action as it develops. A successful path may later be extracted into a reusable workflow, but automation is downstream of understanding the path.
 
-This document is the canonical product and architecture contract for Loom. The implementation is not yet instantiated. The multilingual quaternary-literature program is the first workflow that must exercise the contract end to end.
+This document is the canonical product and architecture contract for Loom. The implementation lives beside it: a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, subscription-authenticated Claude and Codex routes, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
+
+## Run it
+
+```bash
+portctl start loom
+```
+
+Loom opens at `http://127.0.0.1:9010` and appears in Panels. The service stores private runtime state under `axis/psyche/recollection/loom/data/`; that directory is local and ignored by Git. The source layout is:
+
+```text
+loom/                  backend contracts, ledger, compositor, execution, imports, workflow adapters
+tests/                 truth-typed kernel, API, supervisor, workflow, and mutation checks
+web/                   response-first Svelte cockpit and production build
+workflow_packs/        versioned declarative first-party workflow definitions
+```
+
+The manual Loom acceptance path has been exercised through authenticated Claude and Codex subscriptions: independent prompts, a common-parent fork to both providers, reciprocal cross-feed, a two-parent join, exact manifest reconstruction, provider failure receipt, restart, and continuation. The German Slate slice is live and presently reports the authoritative quaternary generation as `calibrating`; Loom does not mislabel that workflow as closed.
 
 ## Telos
 

@@ -1,0 +1,89 @@
+from __future__ import annotations
+
+import json
+import sqlite3
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from loom.context_modules import ContextModuleError, ContextModuleRunner
+from loom.contracts import ContextModuleDefinition, ContextModuleMode
+from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError
+from loom.workflows import WorkflowRegistry
+
+
+@pytest.mark.contract
+def test_quaternary_adapter_reads_authoritative_state_without_writing(tmp_path: Path):
+    database = tmp_path / "quaternary.sqlite3"
+    with sqlite3.connect(database) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE qe_language_preparations(preparation_id TEXT, language_code TEXT, generation INTEGER, state TEXT);
+            CREATE TABLE qe_preparation_actions(action_id TEXT, preparation_id TEXT, action_kind TEXT, role TEXT, status TEXT, request_sha256 TEXT, created_at TEXT, completed_at TEXT);
+            CREATE TABLE qe_language_readiness(preparation_id TEXT, state TEXT, dependency_set_sha256 TEXT, proof_limits_json TEXT, verified_at TEXT, verifier TEXT);
+            INSERT INTO qe_language_preparations VALUES('prep-de-1','de',1,'calibrating');
+            INSERT INTO qe_preparation_actions VALUES('action-1','prep-de-1','native_consultation','native_partner','pending','abc','now',NULL);
+            """
+        )
+    before = database.read_bytes()
+    adapter = QuaternaryAdapter(database, tmp_path / "gatherctl.py")
+    result = adapter.inspect({"language": "de"})
+    assert result["preparations"][0]["actions"][0]["role"] == "native_partner"
+    assert database.read_bytes() == before
+
+
+@pytest.mark.regression
+def test_quaternary_boundary_rejects_arbitrary_commands_and_arguments(tmp_path: Path):
+    adapter = QuaternaryAdapter(tmp_path / "db", tmp_path / "gatherctl.py")
+    with pytest.raises(QuaternaryBoundaryError, match="unsupported"):
+        adapter.command("execute-arbitrary-python", {})
+
+    def planted_runner(command, **_kwargs):
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"ok": True}), stderr="")
+
+    adapter = QuaternaryAdapter(tmp_path / "db", tmp_path / "gatherctl.py", runner=planted_runner)
+    with pytest.raises(QuaternaryBoundaryError, match="undeclared argument"):
+        adapter.command("language-status", {"shell": "rm"})
+
+
+@pytest.mark.oracle
+def test_workflow_pack_has_blinded_challenger_and_deterministic_authority():
+    root = Path(__file__).parents[1] / "workflow_packs"
+    registry = WorkflowRegistry(root)
+    pack = registry.load("quaternary")["definition"]
+    assert any(role["role_id"] == "verifier" and role["authority"] == "challenge-only" for role in pack["roles"])
+    assert {trigger["trigger"] for trigger in pack["triggers"]} == {"closure-proposed", "query-accepted"}
+    assert pack["closure_contract"]["self_certification_forbidden"] is True
+
+
+@pytest.mark.contract
+def test_file_context_module_is_root_bounded_and_receipted(tmp_path: Path):
+    root = tmp_path / "allowed"
+    root.mkdir()
+    source = root / "SURFACE.json"
+    source.write_text('{"status":"current"}', encoding="utf-8")
+    runner = ContextModuleRunner(allowed_file_roots=(root,), octopus_base_url="http://127.0.0.1:8000")
+    definition = ContextModuleDefinition(module_id="surface.current", version=1, mode=ContextModuleMode.manual, source_kind="surface", capabilities=["read-local-file"], configuration={"path": str(source)})
+    result = runner.resolve(definition)
+    assert result.content == source.read_bytes()
+    assert result.receipt["content_sha256"]
+
+    outside = tmp_path / "secret"
+    outside.write_text("no", encoding="utf-8")
+    planted_escape = definition.model_copy(update={"configuration": {"path": str(outside)}})
+    with pytest.raises(ContextModuleError, match="outside"):
+        runner.resolve(planted_escape)
+
+
+@pytest.mark.regression
+def test_workflow_project_bootstrap_is_atomic(loom_env):
+    store = loom_env["store"]
+    before = len(store.list_projects())
+    duplicated_roles = [
+        {"name": "same", "authority": "proposal", "instructions": "one"},
+        {"name": "same", "authority": "proposal", "instructions": "two"},
+    ]
+    with pytest.raises(sqlite3.IntegrityError):
+        store.create_workflow_project_atomic(title="must roll back", purpose="negative control", workflow_pack="quaternary", role_specs=duplicated_roles, blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref="slate:atomic-negative")
+    assert len(store.list_projects()) == before

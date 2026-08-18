@@ -1,0 +1,36 @@
+{
+  "pack_id": "quaternary",
+  "version": 1,
+  "title": "German quaternary research",
+  "roles": [
+    {"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "authority": "propose-only"},
+    {"role_id": "native-partner", "name": "German native-language partner", "provider": "google", "harness": "gemini", "authority": "language-proposal-only"},
+    {"role_id": "deterministic-searcher", "name": "Deterministic searcher", "provider": "local", "authority": "execute-frozen-query-bytes"},
+    {"role_id": "terminology-surfacer", "name": "Terminology surfacer", "provider": "google", "harness": "gemini", "authority": "terminology-proposal-only"},
+    {"role_id": "countersearcher", "name": "Countersearcher", "provider": "local", "authority": "execute-frozen-counterqueries"},
+    {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "authority": "challenge-only"},
+    {"role_id": "human-peephole", "name": "Human peephole", "provider": "operator", "authority": "judgment"}
+  ],
+  "context_modules": [],
+  "allowed_transitions": [
+    {"from": "semantic-intent", "to": "native-query-proposal"},
+    {"from": "native-query-proposal", "to": "frozen-query"},
+    {"from": "frozen-query", "to": "search-receipts"},
+    {"from": "search-receipts", "to": "terminology-amendment"},
+    {"from": "terminology-amendment", "to": "countersearch"},
+    {"from": "countersearch", "to": "closure-candidate"},
+    {"from": "closure-candidate", "to": "blinded-challenge"}
+  ],
+  "triggers": [
+    {"trigger": "closure-proposed", "required_action": "create-independent-blinded-challenger", "automatic": true},
+    {"trigger": "query-accepted", "required_action": "freeze-exact-query-bytes-before-execution", "automatic": true}
+  ],
+  "closure_contract": {
+    "model_suggestions_are_proposals": true,
+    "query_bytes_must_be_frozen": true,
+    "all_results_must_be_preserved": true,
+    "independent_recomputation_required": true,
+    "self_certification_forbidden": true,
+    "authoritative_system": "quaternary"
+  }
+}
