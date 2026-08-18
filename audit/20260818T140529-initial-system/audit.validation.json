@@ -1,0 +1,1881 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "attestation",
+    "kind": "audit-validation",
+    "schema": {
+      "name": "audit-planes-validation",
+      "version": 4
+    },
+    "artifact_id": "artifact:b8ef40e1-7a2e-5996-89ee-08421ad46500",
+    "generated_at": "20260818T140529",
+    "producer": {
+      "name": "audit-planes-validator",
+      "version": "4.0.0"
+    },
+    "subject": "audit:loom-initial-system",
+    "sources": [
+      {
+        "ref": "AUDIT.json",
+        "revision": "1",
+        "sha256": "79576fedf8340c4983f49857a3a44469942c177532b4766aa223a02a79380acc"
+      }
+    ],
+    "binding": {
+      "artifact_id": "artifact:f37e023d-9879-5ac5-9a03-910f383c1ec7",
+      "sha256": "79576fedf8340c4983f49857a3a44469942c177532b4766aa223a02a79380acc"
+    },
+    "validator": {
+      "name": "audit-planes-validator",
+      "version": "4.0.0"
+    },
+    "result": "failed"
+  },
+  "artifact_sha256": "79576fedf8340c4983f49857a3a44469942c177532b4766aa223a02a79380acc",
+  "contract_valid": true,
+  "evidentiary_assurance": "candidate",
+  "admissible_state": "adversarial-review",
+  "errors": [],
+  "blockers": [
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 2 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 3 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 4 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 5 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 6 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 7 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 8 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 9 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 10 target standard exceeds derived none",
+    "subject:7b170973-d145-588d-a5fc-6192e21d2592 plane 11 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 1 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 2 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 3 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 4 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 6 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 7 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 8 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 9 target standard exceeds derived none",
+    "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6 plane 10 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 2 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 3 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 4 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 6 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 7 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 8 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 9 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 10 target standard exceeds derived none",
+    "subject:7b872e2e-8428-55f9-9d56-8c069b13f136 plane 12 target standard exceeds derived none",
+    "subject:7eca51c8-648b-5322-9254-502fdb52dc41 plane 3 target standard exceeds derived none",
+    "subject:7eca51c8-648b-5322-9254-502fdb52dc41 plane 4 target standard exceeds derived none",
+    "subject:7eca51c8-648b-5322-9254-502fdb52dc41 plane 6 target standard exceeds derived none",
+    "subject:7eca51c8-648b-5322-9254-502fdb52dc41 plane 8 target standard exceeds derived none",
+    "subject:7eca51c8-648b-5322-9254-502fdb52dc41 plane 9 target standard exceeds derived none",
+    "subject:7eca51c8-648b-5322-9254-502fdb52dc41 plane 10 target standard exceeds derived none",
+    "subject:7eca51c8-648b-5322-9254-502fdb52dc41 plane 11 target standard exceeds derived none",
+    "subject:7eca51c8-648b-5322-9254-502fdb52dc41 plane 12 target standard exceeds derived none",
+    "active material findings remain: ['finding:5caf7b10-7ed3-5925-a5ff-6320e39c0b81', 'finding:ea5107c2-62fd-5632-b9f3-649eb208fb92', 'finding:6f54f5fd-e79e-5a3e-8aa5-a18d6570cd71', 'finding:0baef75f-9b6d-50ff-b934-5de166e7765a', 'finding:9a3e943d-7991-5bfa-b068-03ee36cc6cd6', 'finding:ac20454d-1f3e-5b13-aa62-0f20a50a2344', 'finding:667eb591-f5bc-56d9-88c6-0076904c893b', 'finding:d6bea7db-bdf9-57cf-a2f8-ff9bc827a955', 'finding:4d96729d-056a-5024-8f78-41258fea9fbc', 'finding:0de2e74e-3ecf-57f5-b486-d52973f65de5', 'finding:e808ffcc-d6d8-5391-89f9-53b5422673b9']",
+    "blocking residuals remain: ['residual:06179420-12c4-528b-9294-84dc97d24d96', 'residual:8545c491-1713-51ce-9a79-410249821a32']"
+  ],
+  "atom_depths": [
+    {
+      "assessment_id": "assessment:ab1d405f-1fa7-58e7-8fe3-261e4c3f3bdb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "discoverability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:b6fe9f77-0076-55c5-a0af-02fc0152a115",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "dead-code",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:be84a174-5668-5f15-9c9b-7aa1cbd951f1",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "duplication",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:57bad295-d533-58e9-8b23-dd7f46c10a82",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "file-cohesion",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:772457bd-6f3f-5f0e-9b64-4bb56bbce4c3",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "layering",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:6ca6f171-79e4-5717-a7aa-af8dc83fb96a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "dependency-graph-health",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f81c4ddf-4813-548b-9401-3b72b58e7aeb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:2d45db21-8236-58b1-8168-f862605cceca",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:d8304bc2-23cf-56ba-b51b-dc80e5efe220",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:02e6d389-0be1-5f92-97f9-4552a75af5eb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:8e8f5c15-9c17-5d61-8387-d0cf5104daf9",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "error-model",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:83d68143-a477-5187-b66a-39e6ccb80dce",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "state-model",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:3fe98ae6-177c-5376-bd7a-40598697ce7d",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "testability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:bbef027e-1cd6-5474-81a2-f391e8fcb025",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a4c56c86-7d1b-506d-9033-7c9c0a29b632",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:8ccd6b31-92b5-5dc0-b955-7db3e3b60fe9",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ccdc456a-7ddc-5440-8626-531606531781",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:abbd5305-eaa3-5382-8496-665093ef31e9",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:76fb3377-1a6c-5c31-a9fc-7b03dcf0d93b",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:91f844df-04b4-56c8-b97b-99ccdeafe4bf",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:548650d9-0691-5c7b-acf2-22218249c607",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:b3f01d6b-7cf8-5670-a985-dc8cc6ad3031",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:891f4e60-2b8c-5b25-a935-fd519d4faeab",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e5e1acc9-e58f-5f3d-a020-68ac2f481fe0",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:8444bcea-8d49-51b8-badb-7748c7623b38",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f9f5a1ed-54ce-5737-b2c6-0c85926bb720",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e9cc31aa-21ee-5c91-90ef-1976b5ec165e",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:863050cb-c3a0-519c-be70-5db0ffcf628a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a58f7723-d7e5-5ee5-abc3-7d06505b092c",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:88ef2daa-851a-573e-9009-e0f4c9f08e0a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:37f61d59-8b96-5874-bfc0-8e2a042e07ac",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ecf1014e-408b-5299-b490-9796ad5f43d4",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e9d67107-e4a9-5c0b-80c0-d4862b765548",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:b2662586-d8d0-52c8-998b-dd70ec523512",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ae719bea-bb11-5eba-8b24-6186279be781",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7b63d6cc-aa29-5498-acdc-e9b7cc06a7c6",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:02b9d768-62b5-58c6-9c40-11cc593fe69b",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f650502f-8c45-5af1-969e-d2196848f68e",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:05591130-03d8-531a-957c-5da9382f254f",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "toctou",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f974201b-132f-543c-99cf-48a5408576ad",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:eafd3a20-48d2-5ea6-a505-4c0532c8db57",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ee537892-cca7-5bef-90e3-48c10a0e4984",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:3f3f3492-ba4d-53f9-98e9-a996e9046db2",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:9e575819-e94e-5511-9ec6-357a5cab1aea",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0196a0ee-2416-52c5-9c28-cba6d544cf43",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:2bd85665-f577-5773-a64e-9171e4114f66",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0a17859e-c669-5f12-9d6a-c6bbe2b5d657",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e7b598dc-2ed7-5097-ad20-3d2236aa6ffb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:3e43b2b5-09f0-5eb3-87a1-37960926ab0a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:6982f9d4-8efc-5bf6-861b-0821636d0fd7",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7d6f6bb3-b2d7-5d4c-b406-a7eef332c1cd",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:8cefe21d-c64e-5052-a6da-2e7c70ecd693",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:4bec6e06-7357-5251-8cba-5595703034f4",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:cdc10e39-8ed8-5ba8-865b-289cf15040fa",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:10c61874-edeb-5d22-82ed-80818d2c7106",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ba2e9d76-fcad-5cff-9098-76a7db22cf29",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e839875b-37d7-51cd-97e3-e5475de7420f",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0c362602-9fdc-5307-ba74-0d4e136643df",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:1edbe933-bde6-53ea-a6ba-e90f0d188758",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:75248825-4e5b-55d2-8840-39d3eea4c5d1",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:888aeb42-d778-5273-95ce-95206cfad8ce",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:5743b6e0-2127-5981-9f5b-64c3572efbf1",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "error-model",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:db94bd29-5b31-5140-a2fc-35ca5a4dab01",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "state-model",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:34508aa3-56d4-5934-a7c8-91ba12c385bb",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "testability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:de051625-7760-5293-a82f-f6495c08739d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:eb6fd76e-b462-57d4-a3cb-d7193bb18969",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:c06edbc3-8b8f-5c25-b2e7-d870605ba975",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:75734160-8d2b-5452-95d3-45f9c94db996",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:70d1a5b5-f1ec-56c1-8277-e5c2163af333",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:648a3859-fe0f-5fef-b22a-e71b79a6dda8",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:860d58ae-e7d3-50c6-beb0-f95c616f8338",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a826d819-7e90-51ca-9052-cde8829ec53d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:6d347735-be58-56cd-9eb0-debebec61347",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:cefb55ee-47bc-568c-898a-b7559891c0b3",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:c41eedda-c396-5d19-bd63-8fadb6d4297b",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:3dda7154-143d-5496-ad80-c118803c59c5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:25512d25-e719-5b48-82d6-e0698c66433f",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:65822cd2-b039-54b2-8934-5b82a3c456a7",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0f1318e0-00a0-5c4f-8a17-4cc2612ee667",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:8f8f9224-266d-5e59-9a97-d934f8f4d673",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "redundant-computation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:5ee2a201-2819-5b95-8b48-3c808c098690",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "hot-loop-vectorization",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:48180478-4c72-54bd-971d-ac872ed8f562",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "inner-loop-allocation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:15d88eb9-4aea-56de-9053-c61d8efffb77",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "memory-layout",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:fc934a03-4afb-59c7-b785-832713f1ca06",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "realtime-budget",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e9f79a4e-5768-5a2b-92e0-315a8efe9a92",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "resource-amortization",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:613039e9-7a15-58dd-bb70-dc228406b297",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:94a9cec3-c6a2-5fa8-a7cf-8ee5a2bc3df7",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:8839c348-98f2-598c-850d-70a2edf5e6dc",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:2aed6911-c465-53c8-ae02-bf816b9f9617",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:176e9278-b989-5f9c-8b8e-7ec1142112c2",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:35729e38-3085-59f3-8f93-d9fc06fedc18",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:24b77803-402e-5874-8d35-b2cb05ee159a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:78590a84-6109-5bda-9c5e-382cfc8edcb8",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:53b8f438-57bf-5a3a-9f6b-ae0b1cb740f1",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:51d3d184-e43e-588f-9fa9-ae1d1eb130a4",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ecc0328e-aac7-5338-bd0c-74f5facfc707",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "toctou",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:15918cae-98eb-5f7c-8010-1831e3f8596e",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f5b87105-a63f-507c-860d-5724224d0e0a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:553a0edd-59ed-530a-82e7-753e8140403a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:858b320c-eb48-50d9-a917-81cd6baa1bd5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:5e84a3c7-10c6-52bd-b84f-28b953e5e85c",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a4654f76-26eb-5baf-8044-0ddf724750b9",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e5f69b57-30ee-5a1c-ad02-297ff6f2eb33",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:99df03c4-c304-51f8-b436-550d10713303",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f1ba40fd-7d93-51e0-be83-1c928742ea8c",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:39e83e2d-9cbb-5b14-bc06-72cef45284ec",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:da947bce-39cf-5a51-9fe4-c5db48b07290",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ad355c3c-b89c-5bbe-93f0-7a36709a4475",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:70096579-b63d-597b-84a6-cc03662c6030",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:b66fbd8b-5114-5bf4-8f09-af3425af0766",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:62f7a255-172e-545b-aaf4-a32b90fe796d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:bf4d7fad-11cb-5564-8c74-7649d0fa008f",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f4943aef-c83f-5bd0-b10f-3d399c402374",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:aef0b7b5-80ef-5225-a479-ed7a8a4f5faf",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:15ac38b9-165f-5055-989b-07f5e0ca3b65",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "metadata",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:79e48a0a-17ee-5c34-83d6-9fd0157f19c5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "dependency-spec",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:605b2d0d-0d34-5b07-8d18-dbc7642553e9",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "clean-build",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:11062555-f8c8-5727-b8da-257055779865",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "asset-inclusion",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0b08f876-557b-5a11-95f6-f9fa95fcd6af",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "clean-install",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0903b035-1ad3-5e58-aca0-65f444755df5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "path-resolution",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f6e000a3-63b9-5cc0-b6aa-016fedc0b89f",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7236e059-6d8f-52e1-b0a1-97229d0e7486",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:23b2289b-232c-5806-9a6e-9944cfaf27e8",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:90223653-b679-5050-aacc-14fc2003452d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:c5b41603-a901-55bc-8a70-1e89f96c7080",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:22380ef0-e052-5bb4-bec3-a2fb622707b8",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:85c02aa8-b5c5-57b8-af90-c38da5b19d35",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0c3b597d-e352-538f-ba1a-57cc31f3f6f6",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f3ff9905-a524-5b4c-bc30-fc3a550b638d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a9432a39-521e-581f-92a3-a222f2222b23",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:c2b8a65e-f46a-5450-8ad4-359e43151aa5",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:5e6ac21a-8a9d-5ca4-b762-f0dda9c265b3",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e10f4eb5-3ee7-5abe-8475-cbe130111980",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:c563a7c3-4154-543f-90e4-df0fbf69e79a",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ac759211-b001-5e49-936a-82753e6d6465",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ce258586-2cf8-5cf5-b1da-4d174fc9b50a",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:bb1223c9-8f59-5c95-9329-d34a93faa860",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:2545db2b-4a11-5749-9f98-ee51d9619edf",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ccd3044a-af78-5f32-98a5-67af07453c05",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:be1dce12-1cde-577b-9bc4-581cadab0191",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:54256005-19bc-5710-bcf9-60e60609fa31",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f595097e-b15f-504c-a498-4270dba34a7c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:28c5c380-a74c-5deb-92d4-72c22973913f",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:dcc83093-3cb9-58a5-8f4c-e317f4b1c121",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:fe26b43e-68c9-57aa-ae3f-f3ed2a336fce",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:5846cded-0253-5ee1-85d4-70db3ac1ddaf",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:b9987002-5179-5086-bc36-564c4deafacc",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:9e395a75-e417-5b58-bb9a-712718c7b2d5",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f535f9ad-eaa3-5509-8888-c4b302420162",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:fec1dca3-1bad-5521-884a-130d6eaaf8bb",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:eaf26db2-8356-5618-b979-a96fdf4e4e6e",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:fe5518ce-f239-58f6-8d66-a6b8e2bc59ea",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:66d4261a-b5b3-5f42-80e8-ad1e80ea5542",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7bd2fc05-0556-5343-9596-c8aa06eb9fc2",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f07685de-630a-5656-8c82-389c6c2df520",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a2f22913-a7c7-5096-9eb2-438f380f22ab",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:6b3453c1-c3bf-512d-bfe4-72026ce11af9",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:55c47971-4adf-5f9f-9c7b-af020c1b559f",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "metadata",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0d32547b-4bb2-5066-ba5c-2d34749e45a7",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "dependency-spec",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0ea1a1f5-2aed-5906-b78b-da993e86f66c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "clean-build",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7ad0b4f4-fab6-5d68-ac7d-5c9a048762e5",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "asset-inclusion",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:df10a2df-5cc2-5e8f-956f-83ba0dfa13c9",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "clean-install",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:41caf55a-8409-5bea-999b-e2972f061f88",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "path-resolution",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e4e8825d-524b-5860-b3cb-18377b3e06b2",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "audience-framing",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:6529cddb-aa06-51ad-9b4b-7527592e6ed2",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "first-run",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:889626d6-03bd-5f63-afb8-be6423e2b1a6",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "positioning",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:5ffa0872-eca0-5164-978f-a63630fb214a",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "doc-coverage",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:d9e656c7-03f8-5eee-a9af-8ed3aceecc8b",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "accessibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e79fe87c-06b2-5d1c-80a9-21a4b0299d94",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "community-infra",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ad5a3e80-e40e-5057-9fee-832d16d0c488",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:61ecc41d-f3ea-55af-8bdc-c5bbeeb395a9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:3eb92b9e-9352-54ed-9757-261e6df70320",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:45ada0e8-28c2-5953-b454-ddc2caca96e6",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:19f31e5a-276b-5a2a-90de-0fb1f9450988",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "error-model",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:6843f74a-f347-5531-8840-92b09aac26f4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "state-model",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a7bd409c-02a3-5809-af55-5b2c747d9764",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "testability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:c410dc24-13f6-536d-a7d0-a7d493ed64ae",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:8c0dca96-bc0e-579c-b20f-0b99276e2156",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:754eaf2a-8d6b-59b1-97eb-fddef575f469",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0c4bbbf7-d209-5938-ae92-b66051844807",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:5420972c-17bc-50c3-8238-755d60d7be33",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:268f9f1d-4391-5a34-bbfb-b53b6721ef6c",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:c3f594cc-7d0e-5950-82c1-b9a6d41c19bc",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:4bc3bee5-62ea-58c0-a7ff-e6acff729853",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7ee14c17-3b0c-5432-a41c-c6ef2378a715",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:4f97b3ad-bde8-59b9-a4b5-bea63ab691f6",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:cec922ce-3a07-5336-bc11-d4aec7302be9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:36f69309-2521-5ba2-9183-fc639f330352",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:04aa26b7-54e4-5772-af03-193a4e88342a",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:69ccdba5-a529-5c84-96a2-7024cde0c042",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e1b10707-f47c-564b-8ccf-bf511127924c",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a9076bc3-1443-54be-80ea-fab95cf13c83",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:43ba5b1b-7b6e-59f0-9500-0395ca65fac5",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7a099530-fc96-5384-b229-c40a13aacc1d",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ff1db9f9-ff72-5735-9120-df8d67ca1b14",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:28cbc4da-c716-5064-9677-91cdb2d328d8",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:2df2cc78-167a-5eea-8ae1-be09bd7f26af",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:55d402af-1dff-5bc6-a100-296fd62b46df",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:e17a3884-6dc3-5898-bedd-7619bd89e05b",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:8a144412-1190-5e70-bdb8-2eac6debaafb",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:6deb6a71-ca34-550e-a4c8-f07619d11060",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:574dc23c-d708-530b-8a7c-3724b9de581f",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "toctou",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:18837642-a685-51a4-98c3-0ad10928c1dd",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:119166f6-a82e-5816-84bc-059638729155",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:b1220b5c-2ba1-5e62-9a96-efcf3999c3e8",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:53906fbb-00fd-566e-a417-cb939f3a2b9e",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:5e10fd42-e94c-50b6-b903-dea924215242",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:9a9d8a1e-ba95-5030-b701-5a535e76be97",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:33f7ae49-9135-5168-b6f3-3ab7b1e60450",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f5976849-1589-5156-9c40-36b7bfa1f148",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:c2adc642-036e-58cc-9aa9-26b7ab2d3932",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7748fbb6-120a-55b6-b23d-d96800894122",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:f7a9fe74-9751-55ee-ba31-8be2d68c31e3",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:3f6f4d12-c53d-513f-8f7a-89d4e00a6ad4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:4f6bddb9-e6bf-5d96-a878-8b524944bcb4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:ef6c96ca-b8b5-5640-b0dc-a10f1668c3eb",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0935a783-089c-5264-b4c9-ed18d2256caf",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:6253ad67-8a40-5499-874e-058935e39c82",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:3d7342bc-334d-5800-9cd0-8aa61e54f192",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:d2daee53-39a5-51a3-a73c-a56daa476804",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:0500c79f-7c36-51fd-8252-fea8d351f34f",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "audience-framing",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:7f31bf79-ac72-5356-aac0-4ad153eac230",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "first-run",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:b8c13071-bfb5-5d5e-806e-96c9aefdf9a9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "positioning",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:d5abf7e4-f518-5d2b-9d1e-7f0b27ae0ad6",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "doc-coverage",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:a4eded77-a892-50b7-8986-057703dfce8c",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "accessibility",
+      "achieved": "none"
+    },
+    {
+      "assessment_id": "assessment:95f702a3-bc18-5f0b-9341-9eb9dff24752",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "community-infra",
+      "achieved": "none"
+    }
+  ],
+  "achieved_depths": [
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "target": "standard",
+      "achieved": "none"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "target": "standard",
+      "achieved": "none"
+    }
+  ]
+}

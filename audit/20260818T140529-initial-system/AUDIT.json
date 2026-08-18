@@ -1,0 +1,5166 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "canonical",
+    "kind": "audit",
+    "schema": {
+      "name": "audit-planes",
+      "version": 4
+    },
+    "artifact_id": "artifact:f37e023d-9879-5ac5-9a03-910f383c1ec7",
+    "generated_at": "20260818T140529",
+    "producer": {
+      "name": "audit-planes",
+      "version": "4.0.0"
+    },
+    "subject": "audit:loom-initial-system",
+    "sources": [
+      {
+        "ref": "git:/Users/rian/AXISVI",
+        "revision": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+        "sha256": null
+      }
+    ]
+  },
+  "schema_version": "audit-planes/v4",
+  "audit_id": "audit:loom-initial-system",
+  "audit_version": 1,
+  "lifecycle": "adversarial-review",
+  "source": {
+    "root": "/Users/rian/AXISVI",
+    "subtree": "axis/chariots/loom and named integration dependencies",
+    "revision": "7b44a0ffd5e3216a60c13542c373b7be605a91d2"
+  },
+  "surface_binding": {
+    "path": "/Users/rian/AXISVI/axis/chariots/loom/SURFACE.json",
+    "artifact_id": "artifact:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+    "sha256": "f3f6c4a4cc93769a0f717542f24faaa95b52a123b66e0e2bf2b14b4cbfe4a104",
+    "content_census_sha256": "d2e6728e58b7bd380cd64100a0467cee0968247909901c11343021ba036b571a",
+    "excluded_generated_paths": [
+      "SURFACE.json",
+      "SURFACE.md",
+      "surface.validation.json"
+    ]
+  },
+  "telos": {
+    "statement": "Determine whether Loom truthfully supports arbitrary one-edge multi-model conversation, exact observable context, durable execution, and the governed German workflow without losing personal-operational-graph provenance.",
+    "owner_claims": [
+      {
+        "claim_id": "claim:bb67d93a-4174-5068-a065-2df2974746de",
+        "statement": "Every invocation must answer what exact world the agent was shown and name provider-owned proof limits.",
+        "authority": "owner-confirmed",
+        "owner_source_id": "owner:ed686e81-5484-5197-af34-8492347e2bc5"
+      },
+      {
+        "claim_id": "claim:dd49d1c5-1505-5fea-a5f3-e5f073d626c3",
+        "statement": "The user experiences a live conversation with routing powers rather than a workflow IDE.",
+        "authority": "owner-confirmed",
+        "owner_source_id": "owner:ed686e81-5484-5197-af34-8492347e2bc5"
+      }
+    ]
+  },
+  "subjects": [
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "label": "Durable lattice and context truth kernel",
+      "entry_paths": [
+        "axis/chariots/loom/loom/canonical.py",
+        "axis/chariots/loom/loom/blob_store.py",
+        "axis/chariots/loom/loom/contracts.py",
+        "axis/chariots/loom/loom/store.py",
+        "axis/chariots/loom/loom/compositor.py",
+        "axis/chariots/loom/loom/manifest_reader.py",
+        "axis/chariots/loom/loom/operations.py"
+      ],
+      "plane_ids": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "consequence": "C1-critical"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "label": "Subscription execution and operator authority",
+      "entry_paths": [
+        "axis/chariots/loom/loom/security.py",
+        "axis/chariots/loom/loom/supervisor.py",
+        "axis/chariots/loom/loom/server.py",
+        "axis/tools/model-runner/axis_model_runner/adapters.py",
+        "axis/tools/model-runner/axis_model_runner/process.py",
+        "axis/tools/model-runner/axis_model_runner/journal.py",
+        "axis/tools/model-runner/axis_model_runner/checkpoint.py"
+      ],
+      "plane_ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "consequence": "C1-critical"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "label": "Response-first cockpit and clean installation",
+      "entry_paths": [
+        "axis/chariots/loom/web/src/App.svelte",
+        "axis/chariots/loom/web/src/api.ts",
+        "axis/chariots/loom/web/src/types.ts",
+        "axis/chariots/loom/pyproject.toml",
+        "axis/chariots/loom/web/package.json",
+        "axis/chariots/loom/loom/config.py"
+      ],
+      "plane_ids": [
+        3,
+        4,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "consequence": "C2-material"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "label": "Quaternary, Octopus, Slate, and Axial integration",
+      "entry_paths": [
+        "axis/chariots/loom/loom/context_modules.py",
+        "axis/chariots/loom/loom/octopus_import.py",
+        "axis/chariots/loom/loom/workflows.py",
+        "axis/chariots/loom/loom/quaternary.py",
+        "axis/chariots/loom/workflow_packs/quaternary/pack.json",
+        "axis/tools/slate-mirror/server.js",
+        "sui/console/axial/scripts/project-loom.ts"
+      ],
+      "plane_ids": [
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12
+      ],
+      "consequence": "C1-critical"
+    }
+  ],
+  "target_depths": [
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "target": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "target": "standard"
+    }
+  ],
+  "risk_paths": [
+    {
+      "risk_path_id": "risk:f6d213bc-f371-5b10-9ccf-658696c490e3",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "path": "axis/chariots/loom/loom/canonical.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/canonical.py can violate the durable lattice and context truth kernel contract."
+    },
+    {
+      "risk_path_id": "risk:f7a51dfa-cb3e-5e2b-99e4-06949a1ceb06",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "path": "axis/chariots/loom/loom/blob_store.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/blob_store.py can violate the durable lattice and context truth kernel contract."
+    },
+    {
+      "risk_path_id": "risk:8d9ed9e7-dcc7-5b5d-b83a-53cb12cb2aca",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "path": "axis/chariots/loom/loom/contracts.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/contracts.py can violate the durable lattice and context truth kernel contract."
+    },
+    {
+      "risk_path_id": "risk:9682f3c5-1335-5db9-956d-344090aedd8a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "path": "axis/chariots/loom/loom/store.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/store.py can violate the durable lattice and context truth kernel contract."
+    },
+    {
+      "risk_path_id": "risk:045bd504-da38-54eb-a97b-5b1fa01da5b8",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "path": "axis/chariots/loom/loom/compositor.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/compositor.py can violate the durable lattice and context truth kernel contract."
+    },
+    {
+      "risk_path_id": "risk:ce078877-6ada-568b-9079-1c53793bba47",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "path": "axis/chariots/loom/loom/manifest_reader.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/manifest_reader.py can violate the durable lattice and context truth kernel contract."
+    },
+    {
+      "risk_path_id": "risk:d6d57fa8-2380-56ae-943e-b223b1ac3469",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "path": "axis/chariots/loom/loom/operations.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/operations.py can violate the durable lattice and context truth kernel contract."
+    },
+    {
+      "risk_path_id": "risk:0c0f8af8-a536-569c-9082-facff605c48a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "path": "axis/chariots/loom/loom/security.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/security.py can violate the subscription execution and operator authority contract."
+    },
+    {
+      "risk_path_id": "risk:cb951e83-b8ba-5519-8716-0761e96ce8a5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "path": "axis/chariots/loom/loom/supervisor.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/supervisor.py can violate the subscription execution and operator authority contract."
+    },
+    {
+      "risk_path_id": "risk:1ee90af8-235b-58b2-ada5-8f45dc4e0298",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "path": "axis/chariots/loom/loom/server.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/server.py can violate the subscription execution and operator authority contract."
+    },
+    {
+      "risk_path_id": "risk:cdf85b86-ce18-5b1f-8bda-5e04e3d17791",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "path": "axis/tools/model-runner/axis_model_runner/adapters.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/tools/model-runner/axis_model_runner/adapters.py can violate the subscription execution and operator authority contract."
+    },
+    {
+      "risk_path_id": "risk:06fa6266-be57-5cab-890e-79e4e4e78117",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "path": "axis/tools/model-runner/axis_model_runner/process.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/tools/model-runner/axis_model_runner/process.py can violate the subscription execution and operator authority contract."
+    },
+    {
+      "risk_path_id": "risk:c1aee789-bc90-5518-9435-f6cac97b8012",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "path": "axis/tools/model-runner/axis_model_runner/journal.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/tools/model-runner/axis_model_runner/journal.py can violate the subscription execution and operator authority contract."
+    },
+    {
+      "risk_path_id": "risk:a4f23c44-e94c-5893-8772-b3a93ef2fbf4",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "path": "axis/tools/model-runner/axis_model_runner/checkpoint.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/tools/model-runner/axis_model_runner/checkpoint.py can violate the subscription execution and operator authority contract."
+    },
+    {
+      "risk_path_id": "risk:30d8a7f1-90cd-5dc8-a3fc-02146a035acb",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "path": "axis/chariots/loom/web/src/App.svelte",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/web/src/App.svelte can violate the response-first cockpit and clean installation contract."
+    },
+    {
+      "risk_path_id": "risk:e44812cf-9a4b-50fb-be3b-05b51c250521",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "path": "axis/chariots/loom/web/src/api.ts",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/web/src/api.ts can violate the response-first cockpit and clean installation contract."
+    },
+    {
+      "risk_path_id": "risk:31eacba5-acb2-58ae-96e1-ca7105c41c5e",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "path": "axis/chariots/loom/web/src/types.ts",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/web/src/types.ts can violate the response-first cockpit and clean installation contract."
+    },
+    {
+      "risk_path_id": "risk:f82d21bf-a4ea-5f99-90bf-8283c7efde01",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "path": "axis/chariots/loom/pyproject.toml",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/pyproject.toml can violate the response-first cockpit and clean installation contract."
+    },
+    {
+      "risk_path_id": "risk:802e1187-99c8-5605-bb39-07822d86a4c9",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "path": "axis/chariots/loom/web/package.json",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/web/package.json can violate the response-first cockpit and clean installation contract."
+    },
+    {
+      "risk_path_id": "risk:8c499d9d-3b3b-53e8-9790-85d789f974eb",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "path": "axis/chariots/loom/loom/config.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/config.py can violate the response-first cockpit and clean installation contract."
+    },
+    {
+      "risk_path_id": "risk:24871c20-73a4-546a-be8e-e149e1aae8a3",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "path": "axis/chariots/loom/loom/context_modules.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/context_modules.py can violate the quaternary, octopus, slate, and axial integration contract."
+    },
+    {
+      "risk_path_id": "risk:b03a4a0d-713b-5804-8416-f5e114acdb9a",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "path": "axis/chariots/loom/loom/octopus_import.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/octopus_import.py can violate the quaternary, octopus, slate, and axial integration contract."
+    },
+    {
+      "risk_path_id": "risk:89605875-456d-5622-bec6-a7cbba1b822b",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "path": "axis/chariots/loom/loom/workflows.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/workflows.py can violate the quaternary, octopus, slate, and axial integration contract."
+    },
+    {
+      "risk_path_id": "risk:20448d71-3973-5c13-9a91-d1d910a01aca",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "path": "axis/chariots/loom/loom/quaternary.py",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/loom/quaternary.py can violate the quaternary, octopus, slate, and axial integration contract."
+    },
+    {
+      "risk_path_id": "risk:b775e2ed-17d9-5584-bf37-515b08a1adb3",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "path": "axis/chariots/loom/workflow_packs/quaternary/pack.json",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/chariots/loom/workflow_packs/quaternary/pack.json can violate the quaternary, octopus, slate, and axial integration contract."
+    },
+    {
+      "risk_path_id": "risk:7a27753a-4ee0-59d3-8477-08091e95c1cb",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "path": "axis/tools/slate-mirror/server.js",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at axis/tools/slate-mirror/server.js can violate the quaternary, octopus, slate, and axial integration contract."
+    },
+    {
+      "risk_path_id": "risk:a4de2248-c269-5e4f-ab93-2895e40200df",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "path": "sui/console/axial/scripts/project-loom.ts",
+      "entry_symbol": null,
+      "failure_consequence": "Failure at sui/console/axial/scripts/project-loom.ts can violate the quaternary, octopus, slate, and axial integration contract."
+    }
+  ],
+  "assessments": [
+    {
+      "assessment_id": "assessment:ab1d405f-1fa7-58e7-8fe3-261e4c3f3bdb",
+      "claim_id": "claim:ab1d405f-1fa7-58e7-8fe3-261e4c3f3bdb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "discoverability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:b6fe9f77-0076-55c5-a0af-02fc0152a115",
+      "claim_id": "claim:b6fe9f77-0076-55c5-a0af-02fc0152a115",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "dead-code",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:be84a174-5668-5f15-9c9b-7aa1cbd951f1",
+      "claim_id": "claim:be84a174-5668-5f15-9c9b-7aa1cbd951f1",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "duplication",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:57bad295-d533-58e9-8b23-dd7f46c10a82",
+      "claim_id": "claim:57bad295-d533-58e9-8b23-dd7f46c10a82",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "file-cohesion",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:772457bd-6f3f-5f0e-9b64-4bb56bbce4c3",
+      "claim_id": "claim:772457bd-6f3f-5f0e-9b64-4bb56bbce4c3",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "layering",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:6ca6f171-79e4-5717-a7aa-af8dc83fb96a",
+      "claim_id": "claim:6ca6f171-79e4-5717-a7aa-af8dc83fb96a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "dependency-graph-health",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f81c4ddf-4813-548b-9401-3b72b58e7aeb",
+      "claim_id": "claim:f81c4ddf-4813-548b-9401-3b72b58e7aeb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:2d45db21-8236-58b1-8168-f862605cceca",
+      "claim_id": "claim:2d45db21-8236-58b1-8168-f862605cceca",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:d8304bc2-23cf-56ba-b51b-dc80e5efe220",
+      "claim_id": "claim:d8304bc2-23cf-56ba-b51b-dc80e5efe220",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:02e6d389-0be1-5f92-97f9-4552a75af5eb",
+      "claim_id": "claim:02e6d389-0be1-5f92-97f9-4552a75af5eb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:8e8f5c15-9c17-5d61-8387-d0cf5104daf9",
+      "claim_id": "claim:8e8f5c15-9c17-5d61-8387-d0cf5104daf9",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "error-model",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:83d68143-a477-5187-b66a-39e6ccb80dce",
+      "claim_id": "claim:83d68143-a477-5187-b66a-39e6ccb80dce",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "state-model",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:3fe98ae6-177c-5376-bd7a-40598697ce7d",
+      "claim_id": "claim:3fe98ae6-177c-5376-bd7a-40598697ce7d",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "testability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:bbef027e-1cd6-5474-81a2-f391e8fcb025",
+      "claim_id": "claim:bbef027e-1cd6-5474-81a2-f391e8fcb025",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a4c56c86-7d1b-506d-9033-7c9c0a29b632",
+      "claim_id": "claim:a4c56c86-7d1b-506d-9033-7c9c0a29b632",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:8ccd6b31-92b5-5dc0-b955-7db3e3b60fe9",
+      "claim_id": "claim:8ccd6b31-92b5-5dc0-b955-7db3e3b60fe9",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ccdc456a-7ddc-5440-8626-531606531781",
+      "claim_id": "claim:ccdc456a-7ddc-5440-8626-531606531781",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:abbd5305-eaa3-5382-8496-665093ef31e9",
+      "claim_id": "claim:abbd5305-eaa3-5382-8496-665093ef31e9",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:76fb3377-1a6c-5c31-a9fc-7b03dcf0d93b",
+      "claim_id": "claim:76fb3377-1a6c-5c31-a9fc-7b03dcf0d93b",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:91f844df-04b4-56c8-b97b-99ccdeafe4bf",
+      "claim_id": "claim:91f844df-04b4-56c8-b97b-99ccdeafe4bf",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:548650d9-0691-5c7b-acf2-22218249c607",
+      "claim_id": "claim:548650d9-0691-5c7b-acf2-22218249c607",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:b3f01d6b-7cf8-5670-a985-dc8cc6ad3031",
+      "claim_id": "claim:b3f01d6b-7cf8-5670-a985-dc8cc6ad3031",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:891f4e60-2b8c-5b25-a935-fd519d4faeab",
+      "claim_id": "claim:891f4e60-2b8c-5b25-a935-fd519d4faeab",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e5e1acc9-e58f-5f3d-a020-68ac2f481fe0",
+      "claim_id": "claim:e5e1acc9-e58f-5f3d-a020-68ac2f481fe0",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:8444bcea-8d49-51b8-badb-7748c7623b38",
+      "claim_id": "claim:8444bcea-8d49-51b8-badb-7748c7623b38",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f9f5a1ed-54ce-5737-b2c6-0c85926bb720",
+      "claim_id": "claim:f9f5a1ed-54ce-5737-b2c6-0c85926bb720",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e9cc31aa-21ee-5c91-90ef-1976b5ec165e",
+      "claim_id": "claim:e9cc31aa-21ee-5c91-90ef-1976b5ec165e",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:863050cb-c3a0-519c-be70-5db0ffcf628a",
+      "claim_id": "claim:863050cb-c3a0-519c-be70-5db0ffcf628a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "provenance",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a58f7723-d7e5-5ee5-abc3-7d06505b092c",
+      "claim_id": "claim:a58f7723-d7e5-5ee5-abc3-7d06505b092c",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:88ef2daa-851a-573e-9009-e0f4c9f08e0a",
+      "claim_id": "claim:88ef2daa-851a-573e-9009-e0f4c9f08e0a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:37f61d59-8b96-5874-bfc0-8e2a042e07ac",
+      "claim_id": "claim:37f61d59-8b96-5874-bfc0-8e2a042e07ac",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ecf1014e-408b-5299-b490-9796ad5f43d4",
+      "claim_id": "claim:ecf1014e-408b-5299-b490-9796ad5f43d4",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e9d67107-e4a9-5c0b-80c0-d4862b765548",
+      "claim_id": "claim:e9d67107-e4a9-5c0b-80c0-d4862b765548",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:b2662586-d8d0-52c8-998b-dd70ec523512",
+      "claim_id": "claim:b2662586-d8d0-52c8-998b-dd70ec523512",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ae719bea-bb11-5eba-8b24-6186279be781",
+      "claim_id": "claim:ae719bea-bb11-5eba-8b24-6186279be781",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7b63d6cc-aa29-5498-acdc-e9b7cc06a7c6",
+      "claim_id": "claim:7b63d6cc-aa29-5498-acdc-e9b7cc06a7c6",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:02b9d768-62b5-58c6-9c40-11cc593fe69b",
+      "claim_id": "claim:02b9d768-62b5-58c6-9c40-11cc593fe69b",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f650502f-8c45-5af1-969e-d2196848f68e",
+      "claim_id": "claim:f650502f-8c45-5af1-969e-d2196848f68e",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:05591130-03d8-531a-957c-5da9382f254f",
+      "claim_id": "claim:05591130-03d8-531a-957c-5da9382f254f",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "toctou",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f974201b-132f-543c-99cf-48a5408576ad",
+      "claim_id": "claim:f974201b-132f-543c-99cf-48a5408576ad",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:eafd3a20-48d2-5ea6-a505-4c0532c8db57",
+      "claim_id": "claim:eafd3a20-48d2-5ea6-a505-4c0532c8db57",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ee537892-cca7-5bef-90e3-48c10a0e4984",
+      "claim_id": "claim:ee537892-cca7-5bef-90e3-48c10a0e4984",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:3f3f3492-ba4d-53f9-98e9-a996e9046db2",
+      "claim_id": "claim:3f3f3492-ba4d-53f9-98e9-a996e9046db2",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:9e575819-e94e-5511-9ec6-357a5cab1aea",
+      "claim_id": "claim:9e575819-e94e-5511-9ec6-357a5cab1aea",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0196a0ee-2416-52c5-9c28-cba6d544cf43",
+      "claim_id": "claim:0196a0ee-2416-52c5-9c28-cba6d544cf43",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:2bd85665-f577-5773-a64e-9171e4114f66",
+      "claim_id": "claim:2bd85665-f577-5773-a64e-9171e4114f66",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0a17859e-c669-5f12-9d6a-c6bbe2b5d657",
+      "claim_id": "claim:0a17859e-c669-5f12-9d6a-c6bbe2b5d657",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e7b598dc-2ed7-5097-ad20-3d2236aa6ffb",
+      "claim_id": "claim:e7b598dc-2ed7-5097-ad20-3d2236aa6ffb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:3e43b2b5-09f0-5eb3-87a1-37960926ab0a",
+      "claim_id": "claim:3e43b2b5-09f0-5eb3-87a1-37960926ab0a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:6982f9d4-8efc-5bf6-861b-0821636d0fd7",
+      "claim_id": "claim:6982f9d4-8efc-5bf6-861b-0821636d0fd7",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7d6f6bb3-b2d7-5d4c-b406-a7eef332c1cd",
+      "claim_id": "claim:7d6f6bb3-b2d7-5d4c-b406-a7eef332c1cd",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:8cefe21d-c64e-5052-a6da-2e7c70ecd693",
+      "claim_id": "claim:8cefe21d-c64e-5052-a6da-2e7c70ecd693",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:4bec6e06-7357-5251-8cba-5595703034f4",
+      "claim_id": "claim:4bec6e06-7357-5251-8cba-5595703034f4",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:cdc10e39-8ed8-5ba8-865b-289cf15040fa",
+      "claim_id": "claim:cdc10e39-8ed8-5ba8-865b-289cf15040fa",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:10c61874-edeb-5d22-82ed-80818d2c7106",
+      "claim_id": "claim:10c61874-edeb-5d22-82ed-80818d2c7106",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ba2e9d76-fcad-5cff-9098-76a7db22cf29",
+      "claim_id": "claim:ba2e9d76-fcad-5cff-9098-76a7db22cf29",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e839875b-37d7-51cd-97e3-e5475de7420f",
+      "claim_id": "claim:e839875b-37d7-51cd-97e3-e5475de7420f",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0c362602-9fdc-5307-ba74-0d4e136643df",
+      "claim_id": "claim:0c362602-9fdc-5307-ba74-0d4e136643df",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:1edbe933-bde6-53ea-a6ba-e90f0d188758",
+      "claim_id": "claim:1edbe933-bde6-53ea-a6ba-e90f0d188758",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:75248825-4e5b-55d2-8840-39d3eea4c5d1",
+      "claim_id": "claim:75248825-4e5b-55d2-8840-39d3eea4c5d1",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:888aeb42-d778-5273-95ce-95206cfad8ce",
+      "claim_id": "claim:888aeb42-d778-5273-95ce-95206cfad8ce",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:5743b6e0-2127-5981-9f5b-64c3572efbf1",
+      "claim_id": "claim:5743b6e0-2127-5981-9f5b-64c3572efbf1",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "error-model",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:db94bd29-5b31-5140-a2fc-35ca5a4dab01",
+      "claim_id": "claim:db94bd29-5b31-5140-a2fc-35ca5a4dab01",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "state-model",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:34508aa3-56d4-5934-a7c8-91ba12c385bb",
+      "claim_id": "claim:34508aa3-56d4-5934-a7c8-91ba12c385bb",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "testability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:de051625-7760-5293-a82f-f6495c08739d",
+      "claim_id": "claim:de051625-7760-5293-a82f-f6495c08739d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:eb6fd76e-b462-57d4-a3cb-d7193bb18969",
+      "claim_id": "claim:eb6fd76e-b462-57d4-a3cb-d7193bb18969",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:c06edbc3-8b8f-5c25-b2e7-d870605ba975",
+      "claim_id": "claim:c06edbc3-8b8f-5c25-b2e7-d870605ba975",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:75734160-8d2b-5452-95d3-45f9c94db996",
+      "claim_id": "claim:75734160-8d2b-5452-95d3-45f9c94db996",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:70d1a5b5-f1ec-56c1-8277-e5c2163af333",
+      "claim_id": "claim:70d1a5b5-f1ec-56c1-8277-e5c2163af333",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:648a3859-fe0f-5fef-b22a-e71b79a6dda8",
+      "claim_id": "claim:648a3859-fe0f-5fef-b22a-e71b79a6dda8",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:860d58ae-e7d3-50c6-beb0-f95c616f8338",
+      "claim_id": "claim:860d58ae-e7d3-50c6-beb0-f95c616f8338",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a826d819-7e90-51ca-9052-cde8829ec53d",
+      "claim_id": "claim:a826d819-7e90-51ca-9052-cde8829ec53d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:6d347735-be58-56cd-9eb0-debebec61347",
+      "claim_id": "claim:6d347735-be58-56cd-9eb0-debebec61347",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:cefb55ee-47bc-568c-898a-b7559891c0b3",
+      "claim_id": "claim:cefb55ee-47bc-568c-898a-b7559891c0b3",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:c41eedda-c396-5d19-bd63-8fadb6d4297b",
+      "claim_id": "claim:c41eedda-c396-5d19-bd63-8fadb6d4297b",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:3dda7154-143d-5496-ad80-c118803c59c5",
+      "claim_id": "claim:3dda7154-143d-5496-ad80-c118803c59c5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:25512d25-e719-5b48-82d6-e0698c66433f",
+      "claim_id": "claim:25512d25-e719-5b48-82d6-e0698c66433f",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:65822cd2-b039-54b2-8934-5b82a3c456a7",
+      "claim_id": "claim:65822cd2-b039-54b2-8934-5b82a3c456a7",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0f1318e0-00a0-5c4f-8a17-4cc2612ee667",
+      "claim_id": "claim:0f1318e0-00a0-5c4f-8a17-4cc2612ee667",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "provenance",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:8f8f9224-266d-5e59-9a97-d934f8f4d673",
+      "claim_id": "claim:8f8f9224-266d-5e59-9a97-d934f8f4d673",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "redundant-computation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:5ee2a201-2819-5b95-8b48-3c808c098690",
+      "claim_id": "claim:5ee2a201-2819-5b95-8b48-3c808c098690",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "hot-loop-vectorization",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:48180478-4c72-54bd-971d-ac872ed8f562",
+      "claim_id": "claim:48180478-4c72-54bd-971d-ac872ed8f562",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "inner-loop-allocation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:15d88eb9-4aea-56de-9053-c61d8efffb77",
+      "claim_id": "claim:15d88eb9-4aea-56de-9053-c61d8efffb77",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "memory-layout",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:fc934a03-4afb-59c7-b785-832713f1ca06",
+      "claim_id": "claim:fc934a03-4afb-59c7-b785-832713f1ca06",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "realtime-budget",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e9f79a4e-5768-5a2b-92e0-315a8efe9a92",
+      "claim_id": "claim:e9f79a4e-5768-5a2b-92e0-315a8efe9a92",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "resource-amortization",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:613039e9-7a15-58dd-bb70-dc228406b297",
+      "claim_id": "claim:613039e9-7a15-58dd-bb70-dc228406b297",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:94a9cec3-c6a2-5fa8-a7cf-8ee5a2bc3df7",
+      "claim_id": "claim:94a9cec3-c6a2-5fa8-a7cf-8ee5a2bc3df7",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:8839c348-98f2-598c-850d-70a2edf5e6dc",
+      "claim_id": "claim:8839c348-98f2-598c-850d-70a2edf5e6dc",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:2aed6911-c465-53c8-ae02-bf816b9f9617",
+      "claim_id": "claim:2aed6911-c465-53c8-ae02-bf816b9f9617",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:176e9278-b989-5f9c-8b8e-7ec1142112c2",
+      "claim_id": "claim:176e9278-b989-5f9c-8b8e-7ec1142112c2",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:35729e38-3085-59f3-8f93-d9fc06fedc18",
+      "claim_id": "claim:35729e38-3085-59f3-8f93-d9fc06fedc18",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:24b77803-402e-5874-8d35-b2cb05ee159a",
+      "claim_id": "claim:24b77803-402e-5874-8d35-b2cb05ee159a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:78590a84-6109-5bda-9c5e-382cfc8edcb8",
+      "claim_id": "claim:78590a84-6109-5bda-9c5e-382cfc8edcb8",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:53b8f438-57bf-5a3a-9f6b-ae0b1cb740f1",
+      "claim_id": "claim:53b8f438-57bf-5a3a-9f6b-ae0b1cb740f1",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:51d3d184-e43e-588f-9fa9-ae1d1eb130a4",
+      "claim_id": "claim:51d3d184-e43e-588f-9fa9-ae1d1eb130a4",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ecc0328e-aac7-5338-bd0c-74f5facfc707",
+      "claim_id": "claim:ecc0328e-aac7-5338-bd0c-74f5facfc707",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "toctou",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:15918cae-98eb-5f7c-8010-1831e3f8596e",
+      "claim_id": "claim:15918cae-98eb-5f7c-8010-1831e3f8596e",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f5b87105-a63f-507c-860d-5724224d0e0a",
+      "claim_id": "claim:f5b87105-a63f-507c-860d-5724224d0e0a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:553a0edd-59ed-530a-82e7-753e8140403a",
+      "claim_id": "claim:553a0edd-59ed-530a-82e7-753e8140403a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:858b320c-eb48-50d9-a917-81cd6baa1bd5",
+      "claim_id": "claim:858b320c-eb48-50d9-a917-81cd6baa1bd5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:5e84a3c7-10c6-52bd-b84f-28b953e5e85c",
+      "claim_id": "claim:5e84a3c7-10c6-52bd-b84f-28b953e5e85c",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a4654f76-26eb-5baf-8044-0ddf724750b9",
+      "claim_id": "claim:a4654f76-26eb-5baf-8044-0ddf724750b9",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e5f69b57-30ee-5a1c-ad02-297ff6f2eb33",
+      "claim_id": "claim:e5f69b57-30ee-5a1c-ad02-297ff6f2eb33",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:99df03c4-c304-51f8-b436-550d10713303",
+      "claim_id": "claim:99df03c4-c304-51f8-b436-550d10713303",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f1ba40fd-7d93-51e0-be83-1c928742ea8c",
+      "claim_id": "claim:f1ba40fd-7d93-51e0-be83-1c928742ea8c",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:39e83e2d-9cbb-5b14-bc06-72cef45284ec",
+      "claim_id": "claim:39e83e2d-9cbb-5b14-bc06-72cef45284ec",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:da947bce-39cf-5a51-9fe4-c5db48b07290",
+      "claim_id": "claim:da947bce-39cf-5a51-9fe4-c5db48b07290",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ad355c3c-b89c-5bbe-93f0-7a36709a4475",
+      "claim_id": "claim:ad355c3c-b89c-5bbe-93f0-7a36709a4475",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:70096579-b63d-597b-84a6-cc03662c6030",
+      "claim_id": "claim:70096579-b63d-597b-84a6-cc03662c6030",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:b66fbd8b-5114-5bf4-8f09-af3425af0766",
+      "claim_id": "claim:b66fbd8b-5114-5bf4-8f09-af3425af0766",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:62f7a255-172e-545b-aaf4-a32b90fe796d",
+      "claim_id": "claim:62f7a255-172e-545b-aaf4-a32b90fe796d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:bf4d7fad-11cb-5564-8c74-7649d0fa008f",
+      "claim_id": "claim:bf4d7fad-11cb-5564-8c74-7649d0fa008f",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f4943aef-c83f-5bd0-b10f-3d399c402374",
+      "claim_id": "claim:f4943aef-c83f-5bd0-b10f-3d399c402374",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:aef0b7b5-80ef-5225-a479-ed7a8a4f5faf",
+      "claim_id": "claim:aef0b7b5-80ef-5225-a479-ed7a8a4f5faf",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:15ac38b9-165f-5055-989b-07f5e0ca3b65",
+      "claim_id": "claim:15ac38b9-165f-5055-989b-07f5e0ca3b65",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "metadata",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:79e48a0a-17ee-5c34-83d6-9fd0157f19c5",
+      "claim_id": "claim:79e48a0a-17ee-5c34-83d6-9fd0157f19c5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "dependency-spec",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:605b2d0d-0d34-5b07-8d18-dbc7642553e9",
+      "claim_id": "claim:605b2d0d-0d34-5b07-8d18-dbc7642553e9",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "clean-build",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:11062555-f8c8-5727-b8da-257055779865",
+      "claim_id": "claim:11062555-f8c8-5727-b8da-257055779865",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "asset-inclusion",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0b08f876-557b-5a11-95f6-f9fa95fcd6af",
+      "claim_id": "claim:0b08f876-557b-5a11-95f6-f9fa95fcd6af",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "clean-install",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0903b035-1ad3-5e58-aca0-65f444755df5",
+      "claim_id": "claim:0903b035-1ad3-5e58-aca0-65f444755df5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "path-resolution",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f6e000a3-63b9-5cc0-b6aa-016fedc0b89f",
+      "claim_id": "claim:f6e000a3-63b9-5cc0-b6aa-016fedc0b89f",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7236e059-6d8f-52e1-b0a1-97229d0e7486",
+      "claim_id": "claim:7236e059-6d8f-52e1-b0a1-97229d0e7486",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:23b2289b-232c-5806-9a6e-9944cfaf27e8",
+      "claim_id": "claim:23b2289b-232c-5806-9a6e-9944cfaf27e8",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:90223653-b679-5050-aacc-14fc2003452d",
+      "claim_id": "claim:90223653-b679-5050-aacc-14fc2003452d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:c5b41603-a901-55bc-8a70-1e89f96c7080",
+      "claim_id": "claim:c5b41603-a901-55bc-8a70-1e89f96c7080",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:22380ef0-e052-5bb4-bec3-a2fb622707b8",
+      "claim_id": "claim:22380ef0-e052-5bb4-bec3-a2fb622707b8",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:85c02aa8-b5c5-57b8-af90-c38da5b19d35",
+      "claim_id": "claim:85c02aa8-b5c5-57b8-af90-c38da5b19d35",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0c3b597d-e352-538f-ba1a-57cc31f3f6f6",
+      "claim_id": "claim:0c3b597d-e352-538f-ba1a-57cc31f3f6f6",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f3ff9905-a524-5b4c-bc30-fc3a550b638d",
+      "claim_id": "claim:f3ff9905-a524-5b4c-bc30-fc3a550b638d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a9432a39-521e-581f-92a3-a222f2222b23",
+      "claim_id": "claim:a9432a39-521e-581f-92a3-a222f2222b23",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:c2b8a65e-f46a-5450-8ad4-359e43151aa5",
+      "claim_id": "claim:c2b8a65e-f46a-5450-8ad4-359e43151aa5",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:5e6ac21a-8a9d-5ca4-b762-f0dda9c265b3",
+      "claim_id": "claim:5e6ac21a-8a9d-5ca4-b762-f0dda9c265b3",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e10f4eb5-3ee7-5abe-8475-cbe130111980",
+      "claim_id": "claim:e10f4eb5-3ee7-5abe-8475-cbe130111980",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:c563a7c3-4154-543f-90e4-df0fbf69e79a",
+      "claim_id": "claim:c563a7c3-4154-543f-90e4-df0fbf69e79a",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ac759211-b001-5e49-936a-82753e6d6465",
+      "claim_id": "claim:ac759211-b001-5e49-936a-82753e6d6465",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "provenance",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ce258586-2cf8-5cf5-b1da-4d174fc9b50a",
+      "claim_id": "claim:ce258586-2cf8-5cf5-b1da-4d174fc9b50a",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:bb1223c9-8f59-5c95-9329-d34a93faa860",
+      "claim_id": "claim:bb1223c9-8f59-5c95-9329-d34a93faa860",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:2545db2b-4a11-5749-9f98-ee51d9619edf",
+      "claim_id": "claim:2545db2b-4a11-5749-9f98-ee51d9619edf",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ccd3044a-af78-5f32-98a5-67af07453c05",
+      "claim_id": "claim:ccd3044a-af78-5f32-98a5-67af07453c05",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:be1dce12-1cde-577b-9bc4-581cadab0191",
+      "claim_id": "claim:be1dce12-1cde-577b-9bc4-581cadab0191",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:54256005-19bc-5710-bcf9-60e60609fa31",
+      "claim_id": "claim:54256005-19bc-5710-bcf9-60e60609fa31",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f595097e-b15f-504c-a498-4270dba34a7c",
+      "claim_id": "claim:f595097e-b15f-504c-a498-4270dba34a7c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:28c5c380-a74c-5deb-92d4-72c22973913f",
+      "claim_id": "claim:28c5c380-a74c-5deb-92d4-72c22973913f",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:dcc83093-3cb9-58a5-8f4c-e317f4b1c121",
+      "claim_id": "claim:dcc83093-3cb9-58a5-8f4c-e317f4b1c121",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:fe26b43e-68c9-57aa-ae3f-f3ed2a336fce",
+      "claim_id": "claim:fe26b43e-68c9-57aa-ae3f-f3ed2a336fce",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:5846cded-0253-5ee1-85d4-70db3ac1ddaf",
+      "claim_id": "claim:5846cded-0253-5ee1-85d4-70db3ac1ddaf",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:b9987002-5179-5086-bc36-564c4deafacc",
+      "claim_id": "claim:b9987002-5179-5086-bc36-564c4deafacc",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:9e395a75-e417-5b58-bb9a-712718c7b2d5",
+      "claim_id": "claim:9e395a75-e417-5b58-bb9a-712718c7b2d5",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f535f9ad-eaa3-5509-8888-c4b302420162",
+      "claim_id": "claim:f535f9ad-eaa3-5509-8888-c4b302420162",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:fec1dca3-1bad-5521-884a-130d6eaaf8bb",
+      "claim_id": "claim:fec1dca3-1bad-5521-884a-130d6eaaf8bb",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:eaf26db2-8356-5618-b979-a96fdf4e4e6e",
+      "claim_id": "claim:eaf26db2-8356-5618-b979-a96fdf4e4e6e",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:fe5518ce-f239-58f6-8d66-a6b8e2bc59ea",
+      "claim_id": "claim:fe5518ce-f239-58f6-8d66-a6b8e2bc59ea",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:66d4261a-b5b3-5f42-80e8-ad1e80ea5542",
+      "claim_id": "claim:66d4261a-b5b3-5f42-80e8-ad1e80ea5542",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7bd2fc05-0556-5343-9596-c8aa06eb9fc2",
+      "claim_id": "claim:7bd2fc05-0556-5343-9596-c8aa06eb9fc2",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f07685de-630a-5656-8c82-389c6c2df520",
+      "claim_id": "claim:f07685de-630a-5656-8c82-389c6c2df520",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a2f22913-a7c7-5096-9eb2-438f380f22ab",
+      "claim_id": "claim:a2f22913-a7c7-5096-9eb2-438f380f22ab",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:6b3453c1-c3bf-512d-bfe4-72026ce11af9",
+      "claim_id": "claim:6b3453c1-c3bf-512d-bfe4-72026ce11af9",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:55c47971-4adf-5f9f-9c7b-af020c1b559f",
+      "claim_id": "claim:55c47971-4adf-5f9f-9c7b-af020c1b559f",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "metadata",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0d32547b-4bb2-5066-ba5c-2d34749e45a7",
+      "claim_id": "claim:0d32547b-4bb2-5066-ba5c-2d34749e45a7",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "dependency-spec",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0ea1a1f5-2aed-5906-b78b-da993e86f66c",
+      "claim_id": "claim:0ea1a1f5-2aed-5906-b78b-da993e86f66c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "clean-build",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7ad0b4f4-fab6-5d68-ac7d-5c9a048762e5",
+      "claim_id": "claim:7ad0b4f4-fab6-5d68-ac7d-5c9a048762e5",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "asset-inclusion",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:df10a2df-5cc2-5e8f-956f-83ba0dfa13c9",
+      "claim_id": "claim:df10a2df-5cc2-5e8f-956f-83ba0dfa13c9",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "clean-install",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:41caf55a-8409-5bea-999b-e2972f061f88",
+      "claim_id": "claim:41caf55a-8409-5bea-999b-e2972f061f88",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "path-resolution",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e4e8825d-524b-5860-b3cb-18377b3e06b2",
+      "claim_id": "claim:e4e8825d-524b-5860-b3cb-18377b3e06b2",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "audience-framing",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:6529cddb-aa06-51ad-9b4b-7527592e6ed2",
+      "claim_id": "claim:6529cddb-aa06-51ad-9b4b-7527592e6ed2",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "first-run",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:889626d6-03bd-5f63-afb8-be6423e2b1a6",
+      "claim_id": "claim:889626d6-03bd-5f63-afb8-be6423e2b1a6",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "positioning",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:5ffa0872-eca0-5164-978f-a63630fb214a",
+      "claim_id": "claim:5ffa0872-eca0-5164-978f-a63630fb214a",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "doc-coverage",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:d9e656c7-03f8-5eee-a9af-8ed3aceecc8b",
+      "claim_id": "claim:d9e656c7-03f8-5eee-a9af-8ed3aceecc8b",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "accessibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e79fe87c-06b2-5d1c-80a9-21a4b0299d94",
+      "claim_id": "claim:e79fe87c-06b2-5d1c-80a9-21a4b0299d94",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "community-infra",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ad5a3e80-e40e-5057-9fee-832d16d0c488",
+      "claim_id": "claim:ad5a3e80-e40e-5057-9fee-832d16d0c488",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:61ecc41d-f3ea-55af-8bdc-c5bbeeb395a9",
+      "claim_id": "claim:61ecc41d-f3ea-55af-8bdc-c5bbeeb395a9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:3eb92b9e-9352-54ed-9757-261e6df70320",
+      "claim_id": "claim:3eb92b9e-9352-54ed-9757-261e6df70320",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:45ada0e8-28c2-5953-b454-ddc2caca96e6",
+      "claim_id": "claim:45ada0e8-28c2-5953-b454-ddc2caca96e6",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:19f31e5a-276b-5a2a-90de-0fb1f9450988",
+      "claim_id": "claim:19f31e5a-276b-5a2a-90de-0fb1f9450988",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "error-model",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:6843f74a-f347-5531-8840-92b09aac26f4",
+      "claim_id": "claim:6843f74a-f347-5531-8840-92b09aac26f4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "state-model",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a7bd409c-02a3-5809-af55-5b2c747d9764",
+      "claim_id": "claim:a7bd409c-02a3-5809-af55-5b2c747d9764",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "testability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:c410dc24-13f6-536d-a7d0-a7d493ed64ae",
+      "claim_id": "claim:c410dc24-13f6-536d-a7d0-a7d493ed64ae",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:8c0dca96-bc0e-579c-b20f-0b99276e2156",
+      "claim_id": "claim:8c0dca96-bc0e-579c-b20f-0b99276e2156",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:754eaf2a-8d6b-59b1-97eb-fddef575f469",
+      "claim_id": "claim:754eaf2a-8d6b-59b1-97eb-fddef575f469",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0c4bbbf7-d209-5938-ae92-b66051844807",
+      "claim_id": "claim:0c4bbbf7-d209-5938-ae92-b66051844807",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:5420972c-17bc-50c3-8238-755d60d7be33",
+      "claim_id": "claim:5420972c-17bc-50c3-8238-755d60d7be33",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:268f9f1d-4391-5a34-bbfb-b53b6721ef6c",
+      "claim_id": "claim:268f9f1d-4391-5a34-bbfb-b53b6721ef6c",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:c3f594cc-7d0e-5950-82c1-b9a6d41c19bc",
+      "claim_id": "claim:c3f594cc-7d0e-5950-82c1-b9a6d41c19bc",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:4bc3bee5-62ea-58c0-a7ff-e6acff729853",
+      "claim_id": "claim:4bc3bee5-62ea-58c0-a7ff-e6acff729853",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7ee14c17-3b0c-5432-a41c-c6ef2378a715",
+      "claim_id": "claim:7ee14c17-3b0c-5432-a41c-c6ef2378a715",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:4f97b3ad-bde8-59b9-a4b5-bea63ab691f6",
+      "claim_id": "claim:4f97b3ad-bde8-59b9-a4b5-bea63ab691f6",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:cec922ce-3a07-5336-bc11-d4aec7302be9",
+      "claim_id": "claim:cec922ce-3a07-5336-bc11-d4aec7302be9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:36f69309-2521-5ba2-9183-fc639f330352",
+      "claim_id": "claim:36f69309-2521-5ba2-9183-fc639f330352",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:04aa26b7-54e4-5772-af03-193a4e88342a",
+      "claim_id": "claim:04aa26b7-54e4-5772-af03-193a4e88342a",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:69ccdba5-a529-5c84-96a2-7024cde0c042",
+      "claim_id": "claim:69ccdba5-a529-5c84-96a2-7024cde0c042",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e1b10707-f47c-564b-8ccf-bf511127924c",
+      "claim_id": "claim:e1b10707-f47c-564b-8ccf-bf511127924c",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "provenance",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a9076bc3-1443-54be-80ea-fab95cf13c83",
+      "claim_id": "claim:a9076bc3-1443-54be-80ea-fab95cf13c83",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:43ba5b1b-7b6e-59f0-9500-0395ca65fac5",
+      "claim_id": "claim:43ba5b1b-7b6e-59f0-9500-0395ca65fac5",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7a099530-fc96-5384-b229-c40a13aacc1d",
+      "claim_id": "claim:7a099530-fc96-5384-b229-c40a13aacc1d",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ff1db9f9-ff72-5735-9120-df8d67ca1b14",
+      "claim_id": "claim:ff1db9f9-ff72-5735-9120-df8d67ca1b14",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:28cbc4da-c716-5064-9677-91cdb2d328d8",
+      "claim_id": "claim:28cbc4da-c716-5064-9677-91cdb2d328d8",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:2df2cc78-167a-5eea-8ae1-be09bd7f26af",
+      "claim_id": "claim:2df2cc78-167a-5eea-8ae1-be09bd7f26af",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:55d402af-1dff-5bc6-a100-296fd62b46df",
+      "claim_id": "claim:55d402af-1dff-5bc6-a100-296fd62b46df",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:e17a3884-6dc3-5898-bedd-7619bd89e05b",
+      "claim_id": "claim:e17a3884-6dc3-5898-bedd-7619bd89e05b",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:8a144412-1190-5e70-bdb8-2eac6debaafb",
+      "claim_id": "claim:8a144412-1190-5e70-bdb8-2eac6debaafb",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:6deb6a71-ca34-550e-a4c8-f07619d11060",
+      "claim_id": "claim:6deb6a71-ca34-550e-a4c8-f07619d11060",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:574dc23c-d708-530b-8a7c-3724b9de581f",
+      "claim_id": "claim:574dc23c-d708-530b-8a7c-3724b9de581f",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "toctou",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:18837642-a685-51a4-98c3-0ad10928c1dd",
+      "claim_id": "claim:18837642-a685-51a4-98c3-0ad10928c1dd",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:119166f6-a82e-5816-84bc-059638729155",
+      "claim_id": "claim:119166f6-a82e-5816-84bc-059638729155",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:b1220b5c-2ba1-5e62-9a96-efcf3999c3e8",
+      "claim_id": "claim:b1220b5c-2ba1-5e62-9a96-efcf3999c3e8",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:53906fbb-00fd-566e-a417-cb939f3a2b9e",
+      "claim_id": "claim:53906fbb-00fd-566e-a417-cb939f3a2b9e",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:5e10fd42-e94c-50b6-b903-dea924215242",
+      "claim_id": "claim:5e10fd42-e94c-50b6-b903-dea924215242",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:9a9d8a1e-ba95-5030-b701-5a535e76be97",
+      "claim_id": "claim:9a9d8a1e-ba95-5030-b701-5a535e76be97",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:33f7ae49-9135-5168-b6f3-3ab7b1e60450",
+      "claim_id": "claim:33f7ae49-9135-5168-b6f3-3ab7b1e60450",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f5976849-1589-5156-9c40-36b7bfa1f148",
+      "claim_id": "claim:f5976849-1589-5156-9c40-36b7bfa1f148",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:c2adc642-036e-58cc-9aa9-26b7ab2d3932",
+      "claim_id": "claim:c2adc642-036e-58cc-9aa9-26b7ab2d3932",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7748fbb6-120a-55b6-b23d-d96800894122",
+      "claim_id": "claim:7748fbb6-120a-55b6-b23d-d96800894122",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:f7a9fe74-9751-55ee-ba31-8be2d68c31e3",
+      "claim_id": "claim:f7a9fe74-9751-55ee-ba31-8be2d68c31e3",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:3f6f4d12-c53d-513f-8f7a-89d4e00a6ad4",
+      "claim_id": "claim:3f6f4d12-c53d-513f-8f7a-89d4e00a6ad4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:4f6bddb9-e6bf-5d96-a878-8b524944bcb4",
+      "claim_id": "claim:4f6bddb9-e6bf-5d96-a878-8b524944bcb4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:ef6c96ca-b8b5-5640-b0dc-a10f1668c3eb",
+      "claim_id": "claim:ef6c96ca-b8b5-5640-b0dc-a10f1668c3eb",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0935a783-089c-5264-b4c9-ed18d2256caf",
+      "claim_id": "claim:0935a783-089c-5264-b4c9-ed18d2256caf",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:6253ad67-8a40-5499-874e-058935e39c82",
+      "claim_id": "claim:6253ad67-8a40-5499-874e-058935e39c82",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:3d7342bc-334d-5800-9cd0-8aa61e54f192",
+      "claim_id": "claim:3d7342bc-334d-5800-9cd0-8aa61e54f192",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:d2daee53-39a5-51a3-a73c-a56daa476804",
+      "claim_id": "claim:d2daee53-39a5-51a3-a73c-a56daa476804",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:0500c79f-7c36-51fd-8252-fea8d351f34f",
+      "claim_id": "claim:0500c79f-7c36-51fd-8252-fea8d351f34f",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "audience-framing",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:7f31bf79-ac72-5356-aac0-4ad153eac230",
+      "claim_id": "claim:7f31bf79-ac72-5356-aac0-4ad153eac230",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "first-run",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:b8c13071-bfb5-5d5e-806e-96c9aefdf9a9",
+      "claim_id": "claim:b8c13071-bfb5-5d5e-806e-96c9aefdf9a9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "positioning",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:d5abf7e4-f518-5d2b-9d1e-7f0b27ae0ad6",
+      "claim_id": "claim:d5abf7e4-f518-5d2b-9d1e-7f0b27ae0ad6",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "doc-coverage",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:a4eded77-a892-50b7-8986-057703dfce8c",
+      "claim_id": "claim:a4eded77-a892-50b7-8986-057703dfce8c",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "accessibility",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    },
+    {
+      "assessment_id": "assessment:95f702a3-bc18-5f0b-9341-9eb9dff24752",
+      "claim_id": "claim:95f702a3-bc18-5f0b-9341-9eb9dff24752",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "community-infra",
+      "applicability": "pending",
+      "claim": "",
+      "relevance": "",
+      "evidence_ids": [],
+      "counterevidence_ids": [],
+      "inspection_ids": [],
+      "risk_path_ids": [],
+      "proof_limits": []
+    }
+  ],
+  "inspections": [
+    {
+      "inspection_id": "inspection:7b3a8250-474c-5911-975b-ef8391883651",
+      "path": "axis/chariots/loom/loom/canonical.py",
+      "sha256": "9bdfc3ae672c255610115f38d7c232ea2f3b5e424ff2af7319d2733136a005d8",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 72
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:f6d213bc-f371-5b10-9ccf-658696c490e3"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-72 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:25cf78af-ce6b-52f4-bf82-f8d155fc559a",
+      "path": "axis/chariots/loom/loom/blob_store.py",
+      "sha256": "fee142911e7389e0228505763b273057d009624471f3f184d2762ed6813000a8",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 56
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:f7a51dfa-cb3e-5e2b-99e4-06949a1ceb06"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-56 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:23d37d53-500a-54dd-aa95-3dc3a71bdc86",
+      "path": "axis/chariots/loom/loom/contracts.py",
+      "sha256": "bd8a786372935ef28af5733e0960c485741d83b8ee0cdf7ddc72074491c2101b",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 230
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:8d9ed9e7-dcc7-5b5d-b83a-53cb12cb2aca"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-230 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:8fe2aab9-4c51-51cc-b8a9-61b6e6aff5b4",
+      "path": "axis/chariots/loom/loom/store.py",
+      "sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 705
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:9682f3c5-1335-5db9-956d-344090aedd8a"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-705 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:e2d64896-625a-5c6e-91af-dae9a7794c20",
+      "path": "axis/chariots/loom/loom/compositor.py",
+      "sha256": "424c9d07a83012cfcc57a7fe10ff0023d345e97d3151eb63f7c5a60c27bb77a8",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 119
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:045bd504-da38-54eb-a97b-5b1fa01da5b8"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-119 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:52903db8-fd14-5551-a0f6-00bade6e0dd9",
+      "path": "axis/chariots/loom/loom/manifest_reader.py",
+      "sha256": "602cb05e9d1faa1c8d2d247414022eb7f2b2cbe067a09a88c2f72e0321956c7e",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 43
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:ce078877-6ada-568b-9079-1c53793bba47"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-43 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:97b7704c-61f0-5a01-90c6-34a00f2cea7a",
+      "path": "axis/chariots/loom/loom/operations.py",
+      "sha256": "7f3fdddcab6a706b020657e6f3944d00f7d6f43c0bcff819e4dc4b7b775af089",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 132
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:d6d57fa8-2380-56ae-943e-b223b1ac3469"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-132 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:bed0f242-0364-52a0-9344-1888d36377d4",
+      "path": "axis/chariots/loom/loom/security.py",
+      "sha256": "35ffff6b560082f5dfd82a17793f8a179d464437f49f1b25d0c259762279b04d",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 84
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:0c0f8af8-a536-569c-9082-facff605c48a"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-84 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:09e57927-d2b2-56c5-a3b9-080deb2d84fa",
+      "path": "axis/chariots/loom/loom/supervisor.py",
+      "sha256": "dc64b8ab4e724032f571ac47024b3498b5f3ff2e56a435a22d77bee3f577923b",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 108
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:cb951e83-b8ba-5519-8716-0761e96ce8a5"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-108 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:45921a60-1df0-5797-b466-9638a9852185",
+      "path": "axis/chariots/loom/loom/server.py",
+      "sha256": "b2fa6f53d74a1461104f6e0ad4dab7f47a057d35baf9d0d9747b1ef9b36c4035",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 340
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:1ee90af8-235b-58b2-ada5-8f45dc4e0298"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-340 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:6f2a28ee-fd0a-583f-b59e-3c6471f2df46",
+      "path": "axis/tools/model-runner/axis_model_runner/adapters.py",
+      "sha256": "ef4da02ab44ceaa8c8ea6cdabae06f6bc54638af84efbd8fa5ac5c7cd1392600",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 517
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:cdf85b86-ce18-5b1f-8bda-5e04e3d17791"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-517 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:bb46f568-cd71-5070-95c9-c7c7c12465c0",
+      "path": "axis/tools/model-runner/axis_model_runner/process.py",
+      "sha256": "2872ac59457a20e602f8265c72793e435ec0d6c5c870a0becf97e442b1f1506d",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 187
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:06fa6266-be57-5cab-890e-79e4e4e78117"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-187 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:de5bef96-8a44-58bf-bb7d-d5c48c526e4e",
+      "path": "axis/tools/model-runner/axis_model_runner/journal.py",
+      "sha256": "e99c083218221561b8c65ba9338d89813ce0614fb567396405428d145bd4b9bd",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 166
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:c1aee789-bc90-5518-9435-f6cac97b8012"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-166 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:2adaed31-cffa-5254-9b11-c7566db89386",
+      "path": "axis/tools/model-runner/axis_model_runner/checkpoint.py",
+      "sha256": "0a46e90bd768addccb33c14797fef78186ad57466e147ccc5e8e059e34bbed84",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 367
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:a4f23c44-e94c-5893-8772-b3a93ef2fbf4"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-367 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:b99c6dab-90a7-5eba-b157-4b4270cfac36",
+      "path": "axis/chariots/loom/web/src/App.svelte",
+      "sha256": "e26a5425507007eb5bf7528b91484693da19a7e4ff856887cd080822c068bb5e",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 261
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:30d8a7f1-90cd-5dc8-a3fc-02146a035acb"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-261 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:38a86f28-e33f-5a12-9555-bd689bae6d56",
+      "path": "axis/chariots/loom/web/src/api.ts",
+      "sha256": "fa3671d2450351e7c9c73a6ec7718bc5416c08f36ebf00c1cf35cde2229cb65d",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 22
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:e44812cf-9a4b-50fb-be3b-05b51c250521"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-22 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:43ac042f-3691-52b1-8284-589be47e1393",
+      "path": "axis/chariots/loom/web/src/types.ts",
+      "sha256": "4314a87aafc66f2ba5a8eee8279175e78a1e9af99adc24b23ace22cadd7fefa5",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 26
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:31eacba5-acb2-58ae-96e1-ca7105c41c5e"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-26 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:04a2e9ff-ff9b-5a4c-82d6-80b36f10549e",
+      "path": "axis/chariots/loom/pyproject.toml",
+      "sha256": "f0d7461e576c4de8bcce80ecf366aac9871e406dacb8dbb5ec97a59c995acda2",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 42
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:f82d21bf-a4ea-5f99-90bf-8283c7efde01"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-42 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:dcb4bda4-86c1-5175-a8c4-c4ca54d47da8",
+      "path": "axis/chariots/loom/web/package.json",
+      "sha256": "031861f40a9b31659b4a19fb220d29d3681c21883d147db1d7c11c0797058a12",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 20
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:802e1187-99c8-5605-bb39-07822d86a4c9"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-20 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:3c98dd91-c9a8-54da-a295-45619c03eb81",
+      "path": "axis/chariots/loom/loom/config.py",
+      "sha256": "f7761f0a8608f4768e5cd730ba0499ea7485da4714cf742aa7139e7bbdd6c959",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 50
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:8c499d9d-3b3b-53e8-9790-85d789f974eb"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-50 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:68086d2e-0131-5ef4-922a-574c7a4db0ba",
+      "path": "axis/chariots/loom/loom/context_modules.py",
+      "sha256": "af5eb158f207fbe7b4bce8a2d7eb350e80d58a0e2222d2823714d0408542129d",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 97
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:24871c20-73a4-546a-be8e-e149e1aae8a3"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-97 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:7afc4ae8-5a30-56a9-b6a3-b71c3d7cbd91",
+      "path": "axis/chariots/loom/loom/octopus_import.py",
+      "sha256": "a695a563c142cf9a72850c13b0b816f39c28b0f675c860287591bc776b6583f2",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 76
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:b03a4a0d-713b-5804-8416-f5e114acdb9a"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-76 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:5ee488db-133d-5182-9a62-a72f0ab4f17a",
+      "path": "axis/chariots/loom/loom/workflows.py",
+      "sha256": "e38346d25b452dc0734ea6b098db5b34757342956f28149402594f805154c4bc",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 50
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:89605875-456d-5622-bec6-a7cbba1b822b"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-50 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:de6ff040-f45a-52cd-8b8d-fc020fce0aa7",
+      "path": "axis/chariots/loom/loom/quaternary.py",
+      "sha256": "aa8e391e6349026588c249226202db5f2300e66623d77a49c037f4d7dee00608",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 94
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:20448d71-3973-5c13-9a91-d1d910a01aca"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-94 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:23e38f91-b18d-5de9-bad5-2cbc93e8f566",
+      "path": "axis/chariots/loom/workflow_packs/quaternary/pack.json",
+      "sha256": "0edb0ac1ae13d9b9a5dbefd475cb69d9051f9621db03b26a1d6d427600d6a485",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 36
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:b775e2ed-17d9-5584-bf37-515b08a1adb3"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-36 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:05e83def-c1b8-5bc8-a6d7-06002e8195b3",
+      "path": "axis/tools/slate-mirror/server.js",
+      "sha256": "c232b385a03427053402838fbbf8f42d66a4435565af02db89e1d0a4feae00cc",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 182
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:7a27753a-4ee0-59d3-8477-08091e95c1cb"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-182 from the exact baseline-bound file."
+    },
+    {
+      "inspection_id": "inspection:7c29f671-6a47-5e63-b2be-833c30c43d99",
+      "path": "sui/console/axial/scripts/project-loom.ts",
+      "sha256": "bd8d742b4ce0520afd8d86c5da1652d0068977b277489bd5a8235bff450eb54f",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 49
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [
+        "risk:a4de2248-c269-5e4f-ab93-2895e40200df"
+      ],
+      "method": "Complete source traversal with call-site and trust-boundary tracing.",
+      "receipt": "Read lines 1-49 from the exact baseline-bound file."
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:1f033b26-78f8-5914-adf5-0b9138934676",
+      "kind": "test",
+      "ref": "axis/chariots/loom/audit/20260818T140529-initial-system/evidence/reproductions.txt",
+      "sha256": "4719e8b00dfac30e52beb029e2f0222fd1f8b2fab7a3515312c450d6d08c1340",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Independent small-program and clean-wheel falsifiers reproduced trailhead inversion, false summary lineage, orphan blocks, subscription-environment leakage, dropped artifacts, and missing installed assets.",
+      "excerpt": "trailheads ... expected_leaf; false_summary_accepted; orphan_context_blocks_added 1; artifact_rows 0; has_web_dist False",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:8de3fe82-cf1d-5bb4-af98-f92f96853bf5",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/compositor.py",
+      "sha256": "424c9d07a83012cfcc57a7fe10ff0023d345e97d3151eb63f7c5a60c27bb77a8",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Context selections can label verbatim bytes as summarized and cite nonexistent derivation blocks, while the cockpit never renders its compiled_prompt_preview and sealed invocation inspection omits exact prompt bytes and attempt-level CLI identity.",
+      "excerpt": "\"\"\"Provider-neutral compilation of selected context into an immutable manifest.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:898088b9-a6e1-5591-85ca-0cd812d7dff7",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/compositor.py",
+      "sha256": "424c9d07a83012cfcc57a7fe10ff0023d345e97d3151eb63f7c5a60c27bb77a8",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The compositor does reconstruct exact selected bytes, which bounds the defect to semantic lineage and operator exposure rather than total byte loss.",
+      "excerpt": "\"\"\"Provider-neutral compilation of selected context into an immutable manifest.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:05635d4d-05cb-5440-8cb3-726d0755358a",
+      "kind": "source",
+      "ref": "axis/tools/model-runner/axis_model_runner/adapters.py",
+      "sha256": "ef4da02ab44ceaa8c8ea6cdabae06f6bc54638af84efbd8fa5ac5c7cd1392600",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The environment filter removes names containing a few secret markers but preserves backend selectors, cloud credentials, and provider base URLs that can route official CLIs through developer-billed surfaces.",
+      "excerpt": "\"\"\"Official subscription-CLI adapters for isolated, structured model calls.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:86245594-f603-5a73-af45-69698c8f1c5a",
+      "kind": "source",
+      "ref": "axis/tools/model-runner/axis_model_runner/adapters.py",
+      "sha256": "ef4da02ab44ceaa8c8ea6cdabae06f6bc54638af84efbd8fa5ac5c7cd1392600",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The current filter correctly removes common *_API_KEY and *_ACCESS_TOKEN variables, so the defect is an incomplete denylist rather than no filtering.",
+      "excerpt": "\"\"\"Official subscription-CLI adapters for isolated, structured model calls.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:4699f349-32bc-5ba7-aba6-9e749fb6f690",
+      "kind": "source",
+      "ref": "axis/chariots/loom/workflow_packs/quaternary/pack.json",
+      "sha256": "0edb0ac1ae13d9b9a5dbefd475cb69d9051f9621db03b26a1d6d427600d6a485",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Allowed transitions, triggers, closure rules, role routes, and context-module modes are validated as JSON but are never consumed by a runtime state machine.",
+      "excerpt": "{   \"pack_id\": \"quaternary\",   \"version\": 1,",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:07fa2f57-f82a-5c70-b9c5-fb840babb0d1",
+      "kind": "source",
+      "ref": "axis/chariots/loom/workflow_packs/quaternary/pack.json",
+      "sha256": "0edb0ac1ae13d9b9a5dbefd475cb69d9051f9621db03b26a1d6d427600d6a485",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The pack accurately names the intended roles and rules, and the adapter constrains command names; the failure is enforcement, not missing prose.",
+      "excerpt": "{   \"pack_id\": \"quaternary\",   \"version\": 1,",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:96cff9c9-993c-55eb-bcf2-12cf95a94461",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/server.py",
+      "sha256": "b2fa6f53d74a1461104f6e0ad4dab7f47a057d35baf9d0d9747b1ef9b36c4035",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Workflow command POSTs invoke gatherctl without a lease or idempotency key, then persist only a hash receipt after the external command returns.",
+      "excerpt": "\"\"\"Single-origin Loom API and response-first cockpit host.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:04cf4321-c8c9-5b48-b988-b2c25cba58ab",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/server.py",
+      "sha256": "b2fa6f53d74a1461104f6e0ad4dab7f47a057d35baf9d0d9747b1ef9b36c4035",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The adapter uses an explicit command allowlist and the quaternary database remains authoritative, limiting arbitrary-code risk but not retry ambiguity.",
+      "excerpt": "\"\"\"Single-origin Loom API and response-first cockpit host.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:4622db18-f7f4-5fe5-976f-dc6cbfb64f09",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/store.py",
+      "sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Events omit the full manifests, context provenance, role authority, attempts, and slice bodies required to reconstruct current tables, and no replay/rebuild path exists.",
+      "excerpt": "\"\"\"Append-only Loom ledger and its transactionally derived current views.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:46ed408c-ea19-54e0-8bd8-bed47df6e9ab",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/store.py",
+      "sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "SQLite transactions keep events and current views consistent during ordinary writes, and restart tests pass while the whole database remains intact.",
+      "excerpt": "\"\"\"Append-only Loom ledger and its transactionally derived current views.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:6ebc440b-75d5-5239-88c2-fdb0c55068c7",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/supervisor.py",
+      "sha256": "dc64b8ab4e724032f571ac47024b3498b5f3ff2e56a435a22d77bee3f577923b",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The response schema requires artifacts, but the supervisor reads only payload.response; artifact rows, blocks, edges, and inspector data are never created.",
+      "excerpt": "\"\"\"Durable leased execution of sealed Loom invocations through model-runner.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:bd7fe153-9b74-5c42-a83a-33f0b6797074",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/supervisor.py",
+      "sha256": "dc64b8ab4e724032f571ac47024b3498b5f3ff2e56a435a22d77bee3f577923b",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The textual response and its produced block are persisted correctly.",
+      "excerpt": "\"\"\"Durable leased execution of sealed Loom invocations through model-runner.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:8a5e877b-3413-5076-b524-5b99b88fe530",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/store.py",
+      "sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The query excludes invocations that have parent edges, selecting nodes with no parents; the edge orientation is child source to parent target, so leaf trailheads are omitted.",
+      "excerpt": "\"\"\"Append-only Loom ledger and its transactionally derived current views.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:b85edefd-51ae-5750-87f7-98b1e24e3b13",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/store.py",
+      "sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The complete invocation history remains available, so the operator can manually recover the intended leaf.",
+      "excerpt": "\"\"\"Append-only Loom ledger and its transactionally derived current views.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:1a479438-05ee-58ae-a3b7-8b7090ca1f77",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/store.py",
+      "sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "create_role commits the instruction context block in one transaction and inserts the role in a later transaction; a duplicate role name leaves the first write durable.",
+      "excerpt": "\"\"\"Append-only Loom ledger and its transactionally derived current views.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:66fd1ac4-fb61-5840-bc3b-87c1ddfa00dc",
+      "kind": "source",
+      "ref": "axis/chariots/loom/loom/store.py",
+      "sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The later role insert itself rolls back, and the workflow-specific bootstrap already uses one database transaction.",
+      "excerpt": "\"\"\"Append-only Loom ledger and its transactionally derived current views.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:b57b94e6-af06-51e1-9483-9ca72f26787b",
+      "kind": "source",
+      "ref": "axis/chariots/loom/pyproject.toml",
+      "sha256": "f0d7461e576c4de8bcce80ecf366aac9871e406dacb8dbb5ec97a59c995acda2",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Hatch packages only the loom Python package; a built wheel contains neither web/dist nor workflow_packs/quaternary.",
+      "excerpt": "[build-system] requires = [\"hatchling>=1.27\"] build-backend = \"hatchling.build\"",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:1ff7317c-5fce-5522-b3cf-2f67b094eebf",
+      "kind": "source",
+      "ref": "axis/chariots/loom/pyproject.toml",
+      "sha256": "f0d7461e576c4de8bcce80ecf366aac9871e406dacb8dbb5ec97a59c995acda2",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Repository-local execution works because config resolves adjacent source directories.",
+      "excerpt": "[build-system] requires = [\"hatchling>=1.27\"] build-backend = \"hatchling.build\"",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:ea4c6f37-2be4-5f9c-93f5-bd134d2265cc",
+      "kind": "source",
+      "ref": "axis/chariots/loom/web/src/App.svelte",
+      "sha256": "e26a5425507007eb5bf7528b91484693da19a7e4ff856887cd080822c068bb5e",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The cockpit passes marked output directly to Svelte @html without a sanitizer.",
+      "excerpt": "<script lang=\"ts\">   import { marked } from 'marked';   import { api, beginSession, post } from './api';",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:b4a30520-41a5-594b-adab-e87043887f47",
+      "kind": "source",
+      "ref": "axis/chariots/loom/web/src/App.svelte",
+      "sha256": "e26a5425507007eb5bf7528b91484693da19a7e4ff856887cd080822c068bb5e",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "The CSP blocks many script execution paths and the service remains loopback-only, reducing but not removing UI spoofing.",
+      "excerpt": "<script lang=\"ts\">   import { marked } from 'marked';   import { api, beginSession, post } from './api';",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:866f4a42-d7f7-52c7-b97d-7088cb743027",
+      "kind": "source",
+      "ref": "axis/tools/model-runner/axis_model_runner/adapters.py",
+      "sha256": "ef4da02ab44ceaa8c8ea6cdabae06f6bc54638af84efbd8fa5ac5c7cd1392600",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Those adapters place the complete prompt after --prompt or --single rather than sending it through stdin or a protected request file.",
+      "excerpt": "\"\"\"Official subscription-CLI adapters for isolated, structured model calls.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    },
+    {
+      "evidence_id": "evidence:60b51bfe-cc51-5fb0-8579-63f45a9e98db",
+      "kind": "source",
+      "ref": "axis/tools/model-runner/axis_model_runner/adapters.py",
+      "sha256": "ef4da02ab44ceaa8c8ea6cdabae06f6bc54638af84efbd8fa5ac5c7cd1392600",
+      "state_token": "7b44a0ffd5e3216a60c13542c373b7be605a91d2",
+      "observation": "Claude and Codex already send prompts through stdin, so the active manual Loom routes do not share this defect.",
+      "excerpt": "\"\"\"Official subscription-CLI adapters for isolated, structured model calls.\"\"\"  from __future__ import annotations",
+      "collected_at": "20260818T140529"
+    }
+  ],
+  "evidence_mappings": [
+    {
+      "evidence_id": "evidence:8de3fe82-cf1d-5bb4-af98-f92f96853bf5",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:5caf7b10-7ed3-5925-a5ff-6320e39c0b81",
+          "mechanism": "The inspected source implements the failure mechanism for exact-context claims exceed what is validated and shown."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:898088b9-a6e1-5591-85ca-0cd812d7dff7",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:5caf7b10-7ed3-5925-a5ff-6320e39c0b81",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for exact-context claims exceed what is validated and shown."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:05635d4d-05cb-5440-8cb3-726d0755358a",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:ea5107c2-62fd-5632-b9f3-649eb208fb92",
+          "mechanism": "The inspected source implements the failure mechanism for subscription-only execution is not enforced by the child environment."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:86245594-f603-5a73-af45-69698c8f1c5a",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:ea5107c2-62fd-5632-b9f3-649eb208fb92",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for subscription-only execution is not enforced by the child environment."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:4699f349-32bc-5ba7-aba6-9e749fb6f690",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:6f54f5fd-e79e-5a3e-8aa5-a18d6570cd71",
+          "mechanism": "The inspected source implements the failure mechanism for workflow packs are declarations without an enforcing engine."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:07fa2f57-f82a-5c70-b9c5-fb840babb0d1",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:6f54f5fd-e79e-5a3e-8aa5-a18d6570cd71",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for workflow packs are declarations without an enforcing engine."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:96cff9c9-993c-55eb-bcf2-12cf95a94461",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:0baef75f-9b6d-50ff-b934-5de166e7765a",
+          "mechanism": "The inspected source implements the failure mechanism for external workflow writes have no durable idempotency boundary."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:04cf4321-c8c9-5b48-b988-b2c25cba58ab",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:0baef75f-9b6d-50ff-b934-5de166e7765a",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for external workflow writes have no durable idempotency boundary."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:4622db18-f7f4-5fe5-976f-dc6cbfb64f09",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:9a3e943d-7991-5bfa-b068-03ee36cc6cd6",
+          "mechanism": "The inspected source implements the failure mechanism for the append-only ledger cannot rebuild its derived state."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:46ed408c-ea19-54e0-8bd8-bed47df6e9ab",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:9a3e943d-7991-5bfa-b068-03ee36cc6cd6",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for the append-only ledger cannot rebuild its derived state."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:6ebc440b-75d5-5239-88c2-fdb0c55068c7",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:ac20454d-1f3e-5b13-aa62-0f20a50a2344",
+          "mechanism": "The inspected source implements the failure mechanism for provider artifacts disappear after successful execution."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:bd7fe153-9b74-5c42-a83a-33f0b6797074",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:ac20454d-1f3e-5b13-aa62-0f20a50a2344",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for provider artifacts disappear after successful execution."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:8a5e877b-3413-5076-b524-5b99b88fe530",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:667eb591-f5bc-56d9-88c6-0076904c893b",
+          "mechanism": "The inspected source implements the failure mechanism for trailheads are roots rather than branch tips."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:b85edefd-51ae-5750-87f7-98b1e24e3b13",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:667eb591-f5bc-56d9-88c6-0076904c893b",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for trailheads are roots rather than branch tips."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:1a479438-05ee-58ae-a3b7-8b7090ca1f77",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:d6bea7db-bdf9-57cf-a2f8-ff9bc827a955",
+          "mechanism": "The inspected source implements the failure mechanism for ordinary role creation leaves orphan context on failure."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:66fd1ac4-fb61-5840-bc3b-87c1ddfa00dc",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:d6bea7db-bdf9-57cf-a2f8-ff9bc827a955",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for ordinary role creation leaves orphan context on failure."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:b57b94e6-af06-51e1-9483-9ca72f26787b",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:4d96729d-056a-5024-8f78-41258fea9fbc",
+          "mechanism": "The inspected source implements the failure mechanism for the clean wheel omits the cockpit and workflow packs."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:1ff7317c-5fce-5522-b3cf-2f67b094eebf",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:4d96729d-056a-5024-8f78-41258fea9fbc",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for the clean wheel omits the cockpit and workflow packs."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:ea4c6f37-2be4-5f9c-93f5-bd134d2265cc",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:0de2e74e-3ecf-57f5-b486-d52973f65de5",
+          "mechanism": "The inspected source implements the failure mechanism for model-controlled html is rendered without sanitization."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:b4a30520-41a5-594b-adab-e87043887f47",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:0de2e74e-3ecf-57f5-b486-d52973f65de5",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for model-controlled html is rendered without sanitization."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:866f4a42-d7f7-52c7-b97d-7088cb743027",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:e808ffcc-d6d8-5391-89f9-53b5422673b9",
+          "mechanism": "The inspected source implements the failure mechanism for gemini and grok expose private prompts in process arguments."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:60b51bfe-cc51-5fb0-8579-63f45a9e98db",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:e808ffcc-d6d8-5391-89f9-53b5422673b9",
+          "mechanism": "The same boundary contains the narrowing control recorded as counterevidence for gemini and grok expose private prompts in process arguments."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:1f033b26-78f8-5914-adf5-0b9138934676",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:5caf7b10-7ed3-5925-a5ff-6320e39c0b81",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the context-truth failure path."
+        },
+        {
+          "claim_id": "finding:ea5107c2-62fd-5632-b9f3-649eb208fb92",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the subscription-boundary failure path."
+        },
+        {
+          "claim_id": "finding:6f54f5fd-e79e-5a3e-8aa5-a18d6570cd71",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the workflow-semantics failure path."
+        },
+        {
+          "claim_id": "finding:0baef75f-9b6d-50ff-b934-5de166e7765a",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the workflow-command failure path."
+        },
+        {
+          "claim_id": "finding:9a3e943d-7991-5bfa-b068-03ee36cc6cd6",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the event-replay failure path."
+        },
+        {
+          "claim_id": "finding:ac20454d-1f3e-5b13-aa62-0f20a50a2344",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the artifacts-dropped failure path."
+        },
+        {
+          "claim_id": "finding:667eb591-f5bc-56d9-88c6-0076904c893b",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the trailheads failure path."
+        },
+        {
+          "claim_id": "finding:d6bea7db-bdf9-57cf-a2f8-ff9bc827a955",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the non-atomic-role failure path."
+        },
+        {
+          "claim_id": "finding:4d96729d-056a-5024-8f78-41258fea9fbc",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the wheel-assets failure path."
+        },
+        {
+          "claim_id": "finding:0de2e74e-3ecf-57f5-b486-d52973f65de5",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the model-html failure path."
+        },
+        {
+          "claim_id": "finding:e808ffcc-d6d8-5391-89f9-53b5422673b9",
+          "mechanism": "The independent reproduction or static consumer census directly exercises the argv-prompts failure path."
+        }
+      ]
+    }
+  ],
+  "owner_sources": [
+    {
+      "owner_source_id": "owner:ed686e81-5484-5197-af34-8492347e2bc5",
+      "authority_kind": "file-contract",
+      "ref": "axis/chariots/loom/README.md",
+      "sha256": "c3581b7b7952d607f82b8e61c19f6117b460c78b43e98015e9ac84711d8de6b0",
+      "excerpt": "The essential promise is not merely that a response can be traced to a prior response. It is that an invocation can be answered in full: What exact world was this agent shown?",
+      "derived_by_auditor": false
+    }
+  ],
+  "prior_art": [],
+  "findings": [
+    {
+      "finding_id": "finding:5caf7b10-7ed3-5925-a5ff-6320e39c0b81",
+      "title": "Exact-context claims exceed what is validated and shown",
+      "significance": "S1",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/loom/compositor.py",
+      "source_sha256": "424c9d07a83012cfcc57a7fe10ff0023d345e97d3151eb63f7c5a60c27bb77a8",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "Context selections can label verbatim bytes as summarized and cite nonexistent derivation blocks, while the cockpit never renders its compiled_prompt_preview and sealed invocation inspection omits exact prompt bytes and attempt-level CLI identity.",
+      "evidence_ids": [
+        "evidence:8de3fe82-cf1d-5bb4-af98-f92f96853bf5",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:898088b9-a6e1-5591-85ca-0cd812d7dff7"
+      ],
+      "failure_mode": "A manifest can be internally hash-consistent while asserting false transformation lineage; the operator sees labels and hashes rather than the actual world sent.",
+      "consequence": "The central promise—knowing exactly what each agent saw—can be confidently but incorrectly believed.",
+      "response": "Require typed transformation receipts with resolving parents; independently validate every selected and omitted source; expose exact compiled bytes and runtime influence receipts in the cockpit."
+    },
+    {
+      "finding_id": "finding:ea5107c2-62fd-5632-b9f3-649eb208fb92",
+      "title": "Subscription-only execution is not enforced by the child environment",
+      "significance": "S1",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/tools/model-runner/axis_model_runner/adapters.py",
+      "source_sha256": "ef4da02ab44ceaa8c8ea6cdabae06f6bc54638af84efbd8fa5ac5c7cd1392600",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "The environment filter removes names containing a few secret markers but preserves backend selectors, cloud credentials, and provider base URLs that can route official CLIs through developer-billed surfaces.",
+      "evidence_ids": [
+        "evidence:05635d4d-05cb-5440-8cb3-726d0755358a",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:86245594-f603-5a73-af45-69698c8f1c5a"
+      ],
+      "failure_mode": "A machine configured for Bedrock, Vertex, or a custom provider endpoint can execute a Loom invocation outside the promised consumer subscription without Loom recording the authority change.",
+      "consequence": "Private prompts may cross an undeclared billing and trust boundary, invalidating the execution contract across providers.",
+      "response": "Construct an explicit minimal child environment and provider-specific consumer-auth allowlist; reject backend selector and developer-cloud state with permanent mutation tests."
+    },
+    {
+      "finding_id": "finding:6f54f5fd-e79e-5a3e-8aa5-a18d6570cd71",
+      "title": "Workflow packs are declarations without an enforcing engine",
+      "significance": "S1",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/workflow_packs/quaternary/pack.json",
+      "source_sha256": "0edb0ac1ae13d9b9a5dbefd475cb69d9051f9621db03b26a1d6d427600d6a485",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "Allowed transitions, triggers, closure rules, role routes, and context-module modes are validated as JSON but are never consumed by a runtime state machine.",
+      "evidence_ids": [
+        "evidence:4699f349-32bc-5ba7-aba6-9e749fb6f690",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:07fa2f57-f82a-5c70-b9c5-fb840babb0d1"
+      ],
+      "failure_mode": "The quaternary pack can claim automatic blinded challenge and frozen-query gates while Loom permits unrelated actions and performs none of those transitions automatically.",
+      "consequence": "The first complete German workflow and any later workflow pack cannot inherit their declared epistemic guarantees from Loom.",
+      "response": "Compile packs into an executable transition/trigger machine; block undeclared transitions; attach required contexts; generate challenger invocations and authority receipts from canonical state."
+    },
+    {
+      "finding_id": "finding:0baef75f-9b6d-50ff-b934-5de166e7765a",
+      "title": "External workflow writes have no durable idempotency boundary",
+      "significance": "S1",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/loom/server.py",
+      "source_sha256": "b2fa6f53d74a1461104f6e0ad4dab7f47a057d35baf9d0d9747b1ef9b36c4035",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "Workflow command POSTs invoke gatherctl without a lease or idempotency key, then persist only a hash receipt after the external command returns.",
+      "evidence_ids": [
+        "evidence:96cff9c9-993c-55eb-bcf2-12cf95a94461",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:04cf4321-c8c9-5b48-b988-b2c25cba58ab"
+      ],
+      "failure_mode": "A lost response or process failure after the quaternary database mutates can cause a retry to repeat the write; the exact returned object is not preserved as a Loom artifact.",
+      "consequence": "Canonical quaternary state and Loom history can diverge precisely at the authority boundary the workflow exists to govern.",
+      "response": "Add generation-bound command intents, leases, stable idempotency keys accepted by the authoritative writer, durable result bytes, and reconciliation for unknown outcomes."
+    },
+    {
+      "finding_id": "finding:9a3e943d-7991-5bfa-b068-03ee36cc6cd6",
+      "title": "The append-only ledger cannot rebuild its derived state",
+      "significance": "S1",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/loom/store.py",
+      "source_sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "Events omit the full manifests, context provenance, role authority, attempts, and slice bodies required to reconstruct current tables, and no replay/rebuild path exists.",
+      "evidence_ids": [
+        "evidence:4622db18-f7f4-5fe5-976f-dc6cbfb64f09",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:46ed408c-ea19-54e0-8bd8-bed47df6e9ab"
+      ],
+      "failure_mode": "Restart works only because mutable derived tables survive; corruption or a future migration cannot recover the lattice from the claimed append-only truth.",
+      "consequence": "A broad storage fault invalidates the durable-history guarantee and leaves no independent canonical recovery path.",
+      "response": "Either make complete versioned events canonical with deterministic rebuild, or explicitly make immutable object tables canonical and narrow the ledger claim; prove fresh-database replay equivalence."
+    },
+    {
+      "finding_id": "finding:ac20454d-1f3e-5b13-aa62-0f20a50a2344",
+      "title": "Provider artifacts disappear after successful execution",
+      "significance": "S2",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/loom/supervisor.py",
+      "source_sha256": "dc64b8ab4e724032f571ac47024b3498b5f3ff2e56a435a22d77bee3f577923b",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "The response schema requires artifacts, but the supervisor reads only payload.response; artifact rows, blocks, edges, and inspector data are never created.",
+      "evidence_ids": [
+        "evidence:6ebc440b-75d5-5239-88c2-fdb0c55068c7",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:bd7fe153-9b74-5c42-a83a-33f0b6797074"
+      ],
+      "failure_mode": "A successful provider can return a cited file or structured proof and Loom silently discards it while marking the attempt succeeded.",
+      "consequence": "Downstream joins and workflow evidence cannot consume or inspect one of the invocation contract’s promised outputs.",
+      "response": "Persist each artifact with exact bytes, media type, lineage, produced edges, and inspector exposure before terminal success."
+    },
+    {
+      "finding_id": "finding:667eb591-f5bc-56d9-88c6-0076904c893b",
+      "title": "Trailheads are roots rather than branch tips",
+      "significance": "S2",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/loom/store.py",
+      "source_sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "The query excludes invocations that have parent edges, selecting nodes with no parents; the edge orientation is child source to parent target, so leaf trailheads are omitted.",
+      "evidence_ids": [
+        "evidence:8a5e877b-3413-5076-b524-5b99b88fe530",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:b85edefd-51ae-5750-87f7-98b1e24e3b13"
+      ],
+      "failure_mode": "After one follow-up the cockpit offers the initial invocation as the continuation point instead of the live tip.",
+      "consequence": "Ordinary conversational steering branches from the wrong place unless the user manually finds and checks history.",
+      "response": "Select invocations that are not the target of any child-to-parent inheritance edge and regression-test forks and joins."
+    },
+    {
+      "finding_id": "finding:d6bea7db-bdf9-57cf-a2f8-ff9bc827a955",
+      "title": "Ordinary role creation leaves orphan context on failure",
+      "significance": "S2",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/loom/store.py",
+      "source_sha256": "9e1c616bac2136ea0e33355f83dd1a088fc805700474299b85a2baabeb80bd3b",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "create_role commits the instruction context block in one transaction and inserts the role in a later transaction; a duplicate role name leaves the first write durable.",
+      "evidence_ids": [
+        "evidence:1a479438-05ee-58ae-a3b7-8b7090ca1f77",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:66fd1ac4-fb61-5840-bc3b-87c1ddfa00dc"
+      ],
+      "failure_mode": "Validation or uniqueness failures create invisible, unreferenced private blocks and events despite the operation reporting failure.",
+      "consequence": "Repeated mistakes pollute the canonical lattice and make failed operations observably non-atomic.",
+      "response": "Move dependent object creation into one transaction with prewritten content-addressed bytes and add failure-stage mutations for bootstrap and draft creation."
+    },
+    {
+      "finding_id": "finding:4d96729d-056a-5024-8f78-41258fea9fbc",
+      "title": "The clean wheel omits the cockpit and workflow packs",
+      "significance": "S2",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/pyproject.toml",
+      "source_sha256": "f0d7461e576c4de8bcce80ecf366aac9871e406dacb8dbb5ec97a59c995acda2",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "Hatch packages only the loom Python package; a built wheel contains neither web/dist nor workflow_packs/quaternary.",
+      "evidence_ids": [
+        "evidence:b57b94e6-af06-51e1-9483-9ca72f26787b",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:1ff7317c-5fce-5522-b3cf-2f67b094eebf"
+      ],
+      "failure_mode": "Outside the repository, the service falls back to an API-only page and cannot load the quaternary pack.",
+      "consequence": "The advertised standalone service is not functionally installable from its own package artifact.",
+      "response": "Package resources inside the Python distribution, resolve them with importlib.resources, and install-test the wheel in an empty environment."
+    },
+    {
+      "finding_id": "finding:0de2e74e-3ecf-57f5-b486-d52973f65de5",
+      "title": "Model-controlled HTML is rendered without sanitization",
+      "significance": "S2",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/chariots/loom/web/src/App.svelte",
+      "source_sha256": "e26a5425507007eb5bf7528b91484693da19a7e4ff856887cd080822c068bb5e",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "The cockpit passes marked output directly to Svelte @html without a sanitizer.",
+      "evidence_ids": [
+        "evidence:ea4c6f37-2be4-5f9c-93f5-bd134d2265cc",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:b4a30520-41a5-594b-adab-e87043887f47"
+      ],
+      "failure_mode": "A model response can inject same-origin visual controls, misleading forms, links, or layout even where CSP blocks inline script execution.",
+      "consequence": "Untrusted provider output can impersonate the operator surface and distort consequential routing decisions.",
+      "response": "Sanitize rendered Markdown with a maintained allowlist library and add malicious HTML/URL mutation fixtures."
+    },
+    {
+      "finding_id": "finding:e808ffcc-d6d8-5391-89f9-53b5422673b9",
+      "title": "Gemini and Grok expose private prompts in process arguments",
+      "significance": "S2",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "axis/tools/model-runner/axis_model_runner/adapters.py",
+      "source_sha256": "ef4da02ab44ceaa8c8ea6cdabae06f6bc54638af84efbd8fa5ac5c7cd1392600",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "Those adapters place the complete prompt after --prompt or --single rather than sending it through stdin or a protected request file.",
+      "evidence_ids": [
+        "evidence:866f4a42-d7f7-52c7-b97d-7088cb743027",
+        "evidence:1f033b26-78f8-5914-adf5-0b9138934676"
+      ],
+      "counterevidence_ids": [
+        "evidence:60b51bfe-cc51-5fb0-8579-63f45a9e98db"
+      ],
+      "failure_mode": "Other local processes and diagnostic tooling can observe private project evidence in the command line.",
+      "consequence": "The future German native lane violates the plan’s explicit prompt-privacy boundary before qualification.",
+      "response": "Use a documented stdin or protected-file transport; otherwise mark the provider lane unavailable."
+    }
+  ],
+  "adversarial_passes": [],
+  "closure_claims": [],
+  "residuals": [
+    {
+      "residual_id": "residual:06179420-12c4-528b-9294-84dc97d24d96",
+      "statement": "Five S1 and six S2 findings remain active; remediation and independent mutation rejection are required before closure.",
+      "disposition": "blocks-closure"
+    },
+    {
+      "residual_id": "residual:b2d9304d-eaba-55fa-957b-8f3e3d52bf09",
+      "statement": "The canonical Surface census covers Loom itself; model-runner, Slate, and Axial integration entry paths are explicitly inspected subjects but are not recursively represented in that Surface.",
+      "disposition": "proof-limit"
+    },
+    {
+      "residual_id": "residual:8545c491-1713-51ce-9a79-410249821a32",
+      "statement": "The authoritative German quaternary preparation remains calibrating, so authenticated end-to-end closure cannot yet be claimed.",
+      "disposition": "blocks-closure"
+    }
+  ]
+}

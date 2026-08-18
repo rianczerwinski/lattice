@@ -1,0 +1,35 @@
+Loom implementation audit reproductions
+baseline: 7b44a0ffd5e3216a60c13542c373b7be605a91d2
+performed_at: 20260818T140529
+
+TRAILHEAD / CONTEXT LINEAGE / ATOMICITY
+trailheads ['invocation_de2dffe85f8f4eb189a3b11c10c539c1']
+expected_leaf invocation_59d1489fed1f4c2789a633211c10768a
+false_summary_accepted summarized ['block_never_existed']
+actual_bytes verbatim source
+duplicate_role_error IntegrityError
+orphan_context_blocks_added 1
+
+SUBSCRIPTION ENVIRONMENT
+{'HOME': '/consumer-home', 'PATH': '/bin', 'CLAUDE_CODE_USE_BEDROCK': '1', 'AWS_ACCESS_KEY_ID': 'developer-account', 'AWS_SECRET_ACCESS_KEY': 'developer-secret', 'ANTHROPIC_BASE_URL': 'https://developer-proxy.example', 'CLAUDE_CODE_USE_VERTEX': '1', 'GOOGLE_APPLICATION_CREDENTIALS': '/developer-service-account.json'}
+
+PROVIDER ARTIFACT RETENTION
+artifact_rows 0
+produced_edges 1
+response done
+artifact_visible False
+
+CLEAN WHEEL
+wheel axis_loom-0.1.0-py3-none-any.whl
+has_web_dist False
+has_workflow_pack False
+file_count 20
+
+STATIC CONSUMER CENSUS
+allowed_transitions: contract and pack declaration only; no runtime consumer
+workflow triggers: pack declaration only; no runtime consumer
+closure_contract: contract and pack declaration only; no runtime consumer
+compiled_prompt_preview: returned by server and assigned by cockpit, never rendered
+model output: rendered through Svelte @html after marked without a sanitizer
+workflow command: no idempotency key, lease, or durable result object
+Gemini and Grok prompts: passed in process arguments through --prompt and --single
