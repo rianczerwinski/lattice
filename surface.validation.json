@@ -1,0 +1,37 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "attestation",
+    "kind": "surface-validation",
+    "schema": {
+      "name": "surface-validation",
+      "version": 2
+    },
+    "artifact_id": "artifact:a5af95e5-42cb-4804-bd18-e4be045a204a",
+    "generated_at": "20260818T140127",
+    "producer": {
+      "name": "surface-validator",
+      "version": "2.0.1"
+    },
+    "subject": "artifact:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+    "binding": {
+      "artifact_id": "artifact:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+      "sha256": "f3f6c4a4cc93769a0f717542f24faaa95b52a123b66e0e2bf2b14b4cbfe4a104"
+    },
+    "validator": {
+      "name": "surface-validator",
+      "version": "2.0.1"
+    },
+    "result": "pass"
+  },
+  "receipt_schema_version": 2,
+  "validator_version": "2.0.1",
+  "surface_schema_version": 2,
+  "surface_id": "surface:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+  "artifact_path": "/Users/rian/AXISVI/axis/chariots/loom/SURFACE.json",
+  "artifact_sha256": "f3f6c4a4cc93769a0f717542f24faaa95b52a123b66e0e2bf2b14b4cbfe4a104",
+  "source_revision": "f297b55e3a7a648c07d5609faf9859a61947e584",
+  "external_census_matched": true,
+  "evidence_census_accounted": true,
+  "valid": true
+}
