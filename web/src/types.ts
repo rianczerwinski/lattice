@@ -6,9 +6,13 @@ export type Project = {
   roles?: Role[];
   invocations?: InvocationSummary[];
   trailheads?: InvocationSummary[];
+  workflow_pack?: string;
+  workflow?: WorkflowInstance | null;
 };
 
-export type Role = { role_id: string; name: string; instructions_block_id: string };
+export type WorkflowTrigger = { trigger_id: string; trigger_name: string; required_action: string; state: string; result_ref?: string };
+export type WorkflowInstance = { pack_id: string; state: string; revision: number; updated_at: string; automatic_grants: string[]; triggers: WorkflowTrigger[]; blackboard?: { block_id: string; content: string; source_ref?: string; content_sha256: string } };
+export type Role = { role_id: string; name: string; instructions_block_id: string; authority_limits_json?: string };
 export type RoleSession = { role_session_id: string; role_id: string; label: string };
 export type Route = { provider_code: string; model_code: string; official_cli: string; installed: boolean; proof_limits: string[] };
 export type InvocationSummary = { invocation_id: string; state: string; role_session_id: string; output_block_id?: string; created_at: string };

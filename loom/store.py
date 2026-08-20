@@ -419,6 +419,7 @@ class LoomStore:
         return self.get_project(project_id)
 
     def get_project(self, project_id: str) -> dict[str, Any]:
+        blackboard_id: str | None = None
         with self._connect() as conn:
             project = self._row(conn.execute("SELECT * FROM projects WHERE project_id=?", (project_id,)).fetchone(), project_id)
             project["roles"] = [dict(row) for row in conn.execute("SELECT * FROM roles WHERE project_id=? ORDER BY created_at", (project_id,))]
@@ -427,13 +428,18 @@ class LoomStore:
             project["workflow"] = dict(workflow) if workflow else None
             if project["workflow"]:
                 project["workflow"]["automatic_grants"] = json.loads(project["workflow"].pop("automatic_grants_json"))
+                project["workflow"]["triggers"] = [dict(row) for row in conn.execute("SELECT * FROM workflow_triggers WHERE project_id=? ORDER BY created_at", (project_id,))]
+                blackboard = conn.execute("SELECT block_id FROM context_blocks WHERE project_id=? AND semantic_type='workflow-blackboard-snapshot' ORDER BY created_at DESC LIMIT 1", (project_id,)).fetchone()
+                blackboard_id = blackboard["block_id"] if blackboard else None
             project["trailheads"] = [dict(row) for row in conn.execute(
                 """SELECT i.* FROM invocations i
                    WHERE i.project_id=? AND NOT EXISTS(
                      SELECT 1 FROM edges e WHERE e.relation='inherited_context_from'
                      AND e.target_type='invocation' AND e.target_id=i.invocation_id)
                    ORDER BY i.created_at DESC LIMIT 3""", (project_id,))]
-            return project
+        if project["workflow"] and blackboard_id:
+            project["workflow"]["blackboard"] = self.get_block(blackboard_id)
+        return project
 
     def list_projects(self) -> list[dict[str, Any]]:
         with self._connect() as conn:

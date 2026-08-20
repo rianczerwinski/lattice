@@ -196,6 +196,22 @@
             </div>
           </div>
 
+          {#if project.workflow}
+            <section class="workflow-strip">
+              <div>
+                <span>{project.workflow.pack_id}</span>
+                <strong>{project.workflow.state}</strong>
+                <small>revision {project.workflow.revision} · authoritative state remains in {project.workflow.pack_id === 'quaternary' ? 'the quaternary system' : 'Octopus'}</small>
+              </div>
+              <details>
+                <summary>Blackboard & roles</summary>
+                {#if project.workflow.blackboard}<pre>{project.workflow.blackboard.content}</pre>{:else}<p class="muted">No authoritative blackboard snapshot is available.</p>{/if}
+                <div class="role-list">{#each project.roles ?? [] as role}<span>{role.name}</span>{/each}</div>
+                {#if project.workflow.triggers.length}<h3>Governed actions</h3>{#each project.workflow.triggers as trigger}<div class="trigger"><strong>{trigger.trigger_name}</strong><small>{trigger.state} · {trigger.required_action}</small></div>{/each}{/if}
+              </details>
+            </section>
+          {/if}
+
           <section class="response-card" class:empty={!selected?.output_block}>
             {#if selected}
               <div class="response-meta"><span>{selected.state}</span><code>{selected.invocation_id.slice(-8)}</code></div>

@@ -67,3 +67,16 @@ def test_closure_transition_automatically_seals_blinded_challenger_without_candi
     exact_context = store.blobs.get(challenger["compiled_prompt_sha256"])
     assert b"INDEPENDENT_BASE_EVIDENCE" in exact_context
     assert b"SECRET_PROPOSER_CONCLUSION" not in exact_context
+
+
+@pytest.mark.oracle
+def test_workflow_project_read_model_exposes_authoritative_blackboard_roles_and_triggers(loom_env) -> None:
+    store = loom_env["store"]
+    created = store.create_workflow_project_atomic(title="visible workflow", purpose="", workflow_pack="quaternary", initial_state="semantic-intent", role_specs=[{"name": "Native partner", "authority": "proposal-only", "instructions": "Interpret German."}], blackboard_content=b'{"language":"de","state":"calibrating"}', blackboard_source_ref="fixture:quaternary", slice_external_ref=None)
+
+    project = store.get_project(created["project"]["project_id"])
+
+    assert project["workflow"]["state"] == "semantic-intent"
+    assert project["workflow"]["blackboard"]["content"] == '{"language":"de","state":"calibrating"}'
+    assert [role["name"] for role in project["roles"]] == ["Native partner"]
+    assert project["workflow"]["triggers"] == []
