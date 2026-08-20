@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { marked } from 'marked';
-  import DOMPurify from 'dompurify';
   import { api, beginSession, post } from './api';
+  import { renderMarkdown } from './renderMarkdown';
   import type { Invocation, InvocationSummary, Manifest, Project, Route } from './types';
 
   let projects: Project[] = [];
@@ -20,13 +19,14 @@
   let loading = true;
   let working = false;
   let error = '';
+  let artifactContents: Record<string, string> = {};
 
   $: selectedRole = project?.roles?.find((role) => role.role_id === project?.sessions?.find((session) => session.role_session_id === selectedSession)?.role_id);
   $: installedRoutes = routes.filter((route) => route.installed && ['anthropic', 'openai'].includes(route.provider_code) && (!selectedRole || selectedRole.route_policy.kind === 'operator-selectable' || (selectedRole.route_policy.kind === 'model' && selectedRole.route_policy.provider === route.provider_code && selectedRole.route_policy.harness === route.official_cli && (!selectedRole.route_policy.allowed_models?.length || selectedRole.route_policy.allowed_models.includes(route.model_code)))));
   $: if (installedRoutes.length && !installedRoutes.some((route) => `${route.provider_code}:${route.model_code}` === selectedRoute)) selectedRoute = `${installedRoutes[0].provider_code}:${installedRoutes[0].model_code}`;
   $: if (!installedRoutes.length && selectedRole) selectedRoute = '';
   $: activeRoute = installedRoutes.find((route) => `${route.provider_code}:${route.model_code}` === selectedRoute);
-  $: responseHtml = selected?.output_block?.content ? DOMPurify.sanitize(marked.parse(selected.output_block.content) as string) : '';
+  $: responseHtml = selected?.output_block?.content ? renderMarkdown(selected.output_block.content) : '';
   $: trailheads = project?.trailheads ?? [];
 
   async function boot() {
@@ -156,6 +156,24 @@
     comparison = await api(`/api/v1/diff?left=${encodeURIComponent(ids[0])}&right=${encodeURIComponent(ids[1])}`);
   }
 
+  async function loadArtifact(artifactId: string) {
+    if (artifactContents[artifactId] !== undefined) return;
+    try {
+      const artifact = await api<{ content: string }>(`/api/v1/artifacts/${artifactId}`);
+      artifactContents = { ...artifactContents, [artifactId]: artifact.content };
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+  }
+
+  async function retryTrigger(triggerId: string) {
+    if (!project) return;
+    working = true;
+    try {
+      await post(`/api/v1/workflow-triggers/${triggerId}/retry`, {});
+      await openProject(project.project_id);
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    finally { working = false; }
+  }
+
   boot();
 </script>
 
@@ -210,7 +228,7 @@
                 <summary>Blackboard & roles</summary>
                 {#if project.workflow.blackboard}<pre>{project.workflow.blackboard.content}</pre>{:else}<p class="muted">No authoritative blackboard snapshot is available.</p>{/if}
                 <div class="role-list">{#each project.roles ?? [] as role}<span>{role.name}</span>{/each}</div>
-                {#if project.workflow.triggers.length}<h3>Governed actions</h3>{#each project.workflow.triggers as trigger}<div class="trigger"><strong>{trigger.trigger_name}</strong><small>{trigger.state} · {trigger.required_action}</small></div>{/each}{/if}
+                {#if project.workflow.triggers.length}<h3>Governed actions</h3>{#each project.workflow.triggers as trigger}<div class="trigger"><strong>{trigger.trigger_name}</strong><small>{trigger.state} · {trigger.required_action}</small>{#if trigger.error_text}<small>{trigger.error_text}</small><button class="quiet" disabled={working} on:click={() => retryTrigger(trigger.trigger_id)}>Retry planning</button>{/if}</div>{/each}{/if}
               </details>
             </section>
           {/if}
@@ -273,7 +291,7 @@
           <details><summary>Tools & authority</summary><pre>{JSON.stringify(selected.manifest.capabilities, null, 2)}</pre></details>
           <details><summary>Proof limits</summary>{#each selected.manifest.provider_boundary.proof_limits as limit}<p>{limit}</p>{/each}</details>
           <details><summary>Attempts ({selected.attempts.length})</summary><pre>{JSON.stringify(selected.attempts, null, 2)}</pre></details>
-          {#if selected.artifacts.length}<details><summary>Artifacts ({selected.artifacts.length})</summary><pre>{JSON.stringify(selected.artifacts, null, 2)}</pre></details>{/if}
+          {#if selected.artifacts.length}<details><summary>Artifacts ({selected.artifacts.length})</summary>{#each selected.artifacts as artifact}<details on:toggle={(event) => event.currentTarget.open && loadArtifact(artifact.artifact_id)}><summary>{artifact.artifact_id}</summary><pre>{artifactContents[artifact.artifact_id] ?? 'Loading exact bytes…'}</pre></details>{/each}</details>{/if}
           {#if neighborhood}<details><summary>Local graph · {neighborhood.nodes.length} nodes</summary><pre>{JSON.stringify(neighborhood.edges, null, 2)}</pre></details>{/if}
         {:else}<p class="muted">Prepare an edge to inspect its exact world before execution.</p>{/if}
 

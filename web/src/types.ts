@@ -10,7 +10,7 @@ export type Project = {
   workflow?: WorkflowInstance | null;
 };
 
-export type WorkflowTrigger = { trigger_id: string; trigger_name: string; required_action: string; state: string; result_ref?: string };
+export type WorkflowTrigger = { trigger_id: string; trigger_name: string; required_action: string; state: string; result_ref?: string; error_text?: string };
 export type WorkflowInstance = { pack_id: string; state: string; revision: number; updated_at: string; automatic_grants: string[]; triggers: WorkflowTrigger[]; blackboard?: { block_id: string; content: string; source_ref?: string; content_sha256: string } };
 export type RoleRoutePolicy = { kind: 'operator-selectable' | 'model' | 'non-model'; provider?: string; harness?: string; allowed_models?: string[] };
 export type Role = { role_id: string; name: string; instructions_block_id: string; workflow_role_key?: string; authority_limits: string[]; route_policy: RoleRoutePolicy };
@@ -28,4 +28,5 @@ export type Manifest = {
   provider_boundary: { proof_limits: string[] };
   compilation: { byte_count: number; compiled_prompt_sha256: string };
 };
-export type Invocation = InvocationSummary & { manifest: Manifest; manifest_verification: { valid: boolean }; compiled_prompt: string; output_block?: { content: string }; attempts: Array<Record<string, unknown>>; artifacts: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> };
+export type InvocationArtifact = { artifact_id: string; content_sha256: string; generated_json: string; artifact_kind: string };
+export type Invocation = InvocationSummary & { manifest: Manifest; manifest_verification: { valid: boolean }; compiled_prompt: string; output_block?: { content: string }; attempts: Array<Record<string, unknown>>; artifacts: InvocationArtifact[]; edges: Array<Record<string, unknown>> };
