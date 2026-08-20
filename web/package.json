@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "dompurify": "^3.4.14",
     "marked": "^17.0.4",
     "svelte": "^5.53.7",
     "typescript": "^5.9.3",

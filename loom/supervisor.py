@@ -17,7 +17,7 @@ from axis_model_runner import (
 )
 
 from .canonical import sha256_bytes
-from .contracts import AttemptState, ContextBlockCreate, EdgeRelation, ExecuteRequest
+from .contracts import AttemptState, ExecuteRequest
 from .manifest_reader import verify_and_reconstruct
 from .store import LoomConflict, LoomStore
 
@@ -98,9 +98,10 @@ class ExecutionSupervisor:
             response = payload.get("response")
             if not isinstance(response, str):
                 raise SubscriptionInvocationFailed("malformed_output", "provider response lacked response text", journal=journal)
-            block = self.store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="model-response", content=response, producing_invocation_id=invocation["invocation_id"], authority="model-proposal", evidence_level="generated", sensitivity="private"))
-            self.store.add_edge(project_id=project_id, relation=EdgeRelation.produced, source_type="invocation", source_id=invocation["invocation_id"], source_revision=invocation["manifest_sha256"], target_type="context-block", target_id=block["block_id"], target_revision=block["content_sha256"], metadata={})
-            self.store.finish_attempt(attempt_id, state=AttemptState.succeeded, output_block_id=block["block_id"], output_sha256=block["content_sha256"], journal_path=str(journal))
+            artifacts = payload.get("artifacts")
+            if not isinstance(artifacts, list) or any(not isinstance(item, dict) or set(item) != {"name", "media_type", "content"} or not all(isinstance(item[key], str) for key in item) for item in artifacts):
+                raise SubscriptionInvocationFailed("malformed_output", "provider response contained invalid artifacts", journal=journal)
+            self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal))
         except SubscriptionInvocationFailed as error:
             terminal = AttemptState.interrupted if error.kind == "operator_interruption" else AttemptState.failed
             self.store.finish_attempt(attempt_id, state=terminal, failure_kind=error.kind, error_text=str(error), journal_path=str(error.journal) if error.journal else None)

@@ -23,4 +23,4 @@ export type Manifest = {
   provider_boundary: { proof_limits: string[] };
   compilation: { byte_count: number; compiled_prompt_sha256: string };
 };
-export type Invocation = InvocationSummary & { manifest: Manifest; manifest_verification: { valid: boolean }; output_block?: { content: string }; attempts: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> };
+export type Invocation = InvocationSummary & { manifest: Manifest; manifest_verification: { valid: boolean }; compiled_prompt: string; output_block?: { content: string }; attempts: Array<Record<string, unknown>>; artifacts: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> };

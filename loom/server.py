@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
-from .config import AXIS_ROOT, LOOM_ROOT, LoomConfig
+from .config import AXIS_ROOT, WEB_DIST, WORKFLOW_PACK_ROOT, LoomConfig
 from .canonical import canonical_bytes, sha256_bytes
 from .contracts import (
     ContextBlockCreate,
@@ -104,7 +104,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     cli_token = ensure_cli_token(config.operator_token)
     importer = OctopusImporter(store, loom, config.octopus_base_url)
     context_modules = ContextModuleRunner(allowed_file_roots=(AXIS_ROOT,), octopus_base_url=config.octopus_base_url)
-    workflows = WorkflowRegistry(LOOM_ROOT / "workflow_packs")
+    workflows = WorkflowRegistry(WORKFLOW_PACK_ROOT)
     workflows.register("quaternary", QuaternaryAdapter(config.quaternary_root / "quaternary.sqlite3", config.quaternary_root / "tools" / "gatherctl.py"))
 
     @asynccontextmanager
@@ -326,7 +326,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
                 await asyncio.sleep(1)
         return StreamingResponse(generate(), media_type="text/event-stream")
 
-    dist = LOOM_ROOT / "web" / "dist"
+    dist = WEB_DIST
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
 

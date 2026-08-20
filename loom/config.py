@@ -8,8 +8,11 @@ from pathlib import Path
 
 
 LOOM_ROOT = Path(__file__).resolve().parents[1]
+PACKAGE_ROOT = Path(__file__).resolve().parent
 AXIS_ROOT = LOOM_ROOT.parents[2]
 DEFAULT_DATA_ROOT = AXIS_ROOT / "axis" / "psyche" / "recollection" / "loom" / "data"
+WEB_DIST = PACKAGE_ROOT / "web_dist" if (PACKAGE_ROOT / "web_dist").is_dir() else LOOM_ROOT / "web" / "dist"
+WORKFLOW_PACK_ROOT = PACKAGE_ROOT / "workflow_packs" if (PACKAGE_ROOT / "workflow_packs").is_dir() else LOOM_ROOT / "workflow_packs"
 
 
 @dataclass(frozen=True)

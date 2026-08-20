@@ -9,7 +9,7 @@ import pytest
 
 from loom import Loom, LoomStore
 from loom.canonical import canonical_bytes
-from loom.contracts import ContextBlockCreate, ContextSelection, DraftCreate
+from loom.contracts import BlockDisposition, ContextBlockCreate, ContextSelection, DraftCreate, RoleCreate
 from loom.manifest_reader import ManifestVerificationError, verify_and_reconstruct
 
 from conftest import completed_invocation
@@ -96,3 +96,41 @@ def test_default_response_schema_is_strict_for_nested_artifacts(loom_env) -> Non
     item = value.response_schema["properties"]["artifacts"]["items"]
     assert item["additionalProperties"] is False
     assert set(item["required"]) == {"name", "media_type", "content"}
+
+
+@pytest.mark.regression
+def test_regression_trailheads_are_branch_tips_not_roots(loom_env) -> None:
+    root = completed_invocation(loom_env, "root", "root answer")
+    child_draft = loom_env["loom"].fork(root["invocation_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="child", route=loom_env["route"])
+    child = loom_env["loom"].seal(child_draft["draft_id"])
+
+    trailhead_ids = {item["invocation_id"] for item in loom_env["store"].get_project(loom_env["project"]["project_id"])["trailheads"]}
+
+    assert child["invocation_id"] in trailhead_ids
+    assert root["invocation_id"] not in trailhead_ids
+
+
+@pytest.mark.contract
+def test_contract_failed_duplicate_role_does_not_orphan_instruction_block(loom_env) -> None:
+    store = loom_env["store"]
+    with store._connect() as conn:
+        before = conn.execute("SELECT COUNT(*) FROM context_blocks WHERE project_id=?", (loom_env["project"]["project_id"],)).fetchone()[0]
+    with pytest.raises(sqlite3.IntegrityError):
+        store.create_role(loom_env["project"]["project_id"], RoleCreate(name="operator", instructions="must roll back"))
+    with store._connect() as conn:
+        after = conn.execute("SELECT COUNT(*) FROM context_blocks WHERE project_id=?", (loom_env["project"]["project_id"],)).fetchone()[0]
+    assert after == before
+
+
+@pytest.mark.contract
+def test_contract_summary_requires_exact_resolving_transformation_lineage(loom_env) -> None:
+    store = loom_env["store"]
+    source = store.create_context_block(ContextBlockCreate(project_id=loom_env["project"]["project_id"], semantic_type="evidence", content="long evidence"))
+    false_summary = store.create_context_block(ContextBlockCreate(project_id=loom_env["project"]["project_id"], semantic_type="summary", content="short"))
+    draft = store.create_draft(DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="use summary", route=loom_env["route"], selections=[ContextSelection(block_id=false_summary["block_id"], disposition=BlockDisposition.summarized, plane="knowledge", label="summary", derived_from_block_ids=[source["block_id"]])]))
+    with pytest.raises(Exception, match="summary transformation"):
+        loom_env["loom"].seal(draft["draft_id"])
+
+    true_summary = store.create_context_block(ContextBlockCreate(project_id=loom_env["project"]["project_id"], semantic_type="summary", content="short", transformation={"kind": "summary", "source_block_ids": [source["block_id"]]}))
+    valid = store.create_draft(DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="use summary", route=loom_env["route"], selections=[ContextSelection(block_id=true_summary["block_id"], disposition=BlockDisposition.summarized, plane="knowledge", label="summary", derived_from_block_ids=[source["block_id"]])]))
+    assert loom_env["loom"].seal(valid["draft_id"])["state"] == "sealed"

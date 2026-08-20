@@ -304,7 +304,7 @@ class LoomStore:
                 """SELECT i.* FROM invocations i
                    WHERE i.project_id=? AND NOT EXISTS(
                      SELECT 1 FROM edges e WHERE e.relation='inherited_context_from'
-                     AND e.source_type='invocation' AND e.source_id=i.invocation_id)
+                     AND e.target_type='invocation' AND e.target_id=i.invocation_id)
                    ORDER BY i.created_at DESC LIMIT 3""", (project_id,))]
             return project
 
@@ -394,14 +394,26 @@ class LoomStore:
         return self.get_block(block_id, include_content=False)
 
     def create_role(self, project_id: str, value: RoleCreate) -> dict[str, Any]:
-        instruction_block = self.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="role-instruction", content=value.instructions, authority="workflow-or-operator", evidence_level="governing-instruction"))
+        instructions = value.instructions.encode("utf-8")
+        instruction_sha = self.blobs.put(instructions)
+        instruction_id = opaque_id("block")
         role_id = opaque_id("role")
+        now = stamp()
         with self.transaction() as conn:
+            if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (project_id,)).fetchone() is None:
+                raise LoomNotFound(project_id)
+            conn.execute(
+                """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
+                   authority,evidence_level,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-or-operator','governing-instruction','private',?)""",
+                (instruction_id, project_id, "role-instruction", instruction_sha, len(instructions), now),
+            )
+            instruction_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=instruction_id, payload={"sha256": instruction_sha, "semantic_type": "role-instruction", "status": "active"})
+            conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (instruction_id, instruction_event))
             conn.execute(
                 "INSERT INTO roles(role_id,project_id,name,instructions_block_id,incentives_json,authority_limits_json,created_at) VALUES(?,?,?,?,?,?,?)",
-                (role_id, project_id, value.name, instruction_block["block_id"], canonical_bytes(value.incentives).decode(), canonical_bytes(value.authority_limits).decode(), stamp()),
+                (role_id, project_id, value.name, instruction_id, canonical_bytes(value.incentives).decode(), canonical_bytes(value.authority_limits).decode(), now),
             )
-            self._event(conn, project_id=project_id, event_type="role.created", subject_type="role", subject_id=role_id, payload={"name": value.name, "instructions_block_id": instruction_block["block_id"]})
+            self._event(conn, project_id=project_id, event_type="role.created", subject_type="role", subject_id=role_id, payload={"name": value.name, "instructions_block_id": instruction_id})
         return self.get_role(role_id)
 
     def get_role(self, role_id: str) -> dict[str, Any]:
@@ -526,12 +538,51 @@ class LoomStore:
             row = self._row(conn.execute("SELECT * FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
             row["attempts"] = [dict(item) for item in conn.execute("SELECT * FROM attempts WHERE invocation_id=? ORDER BY attempt_number", (invocation_id,))]
             row["edges"] = [dict(item) for item in conn.execute("SELECT * FROM edges WHERE source_id=? OR target_id=? ORDER BY created_at", (invocation_id, invocation_id))]
+            row["artifacts"] = [dict(item) for item in conn.execute(
+                """SELECT a.* FROM edges e JOIN artifacts a ON a.artifact_id=e.target_id
+                   WHERE e.relation='produced' AND e.source_type='invocation' AND e.source_id=? AND e.target_type='artifact'
+                   ORDER BY a.created_at,a.artifact_id""", (invocation_id,)
+            )]
         row["manifest"] = json.loads(row.pop("manifest_json"))
         row["route"] = json.loads(row.pop("route_json"))
         row["response_schema"] = json.loads(row.pop("response_schema_json"))
         if row["output_block_id"]:
             row["output_block"] = self.get_block(row["output_block_id"])
         return row
+
+    def finish_successful_attempt(self, attempt_id: str, *, response: str, artifacts: list[dict[str, str]], journal_path: str) -> dict[str, Any]:
+        """Persist the complete provider result and terminal receipt as one ledger transition."""
+        response_bytes = response.encode("utf-8")
+        response_sha = self.blobs.put(response_bytes)
+        prepared_artifacts = []
+        for artifact in artifacts:
+            content = artifact["content"].encode("utf-8")
+            prepared_artifacts.append((artifact, opaque_id("artifact"), self.blobs.put(content), len(content)))
+        with self.transaction() as conn:
+            attempt = self._row(conn.execute("SELECT a.*,i.project_id,i.manifest_sha256 FROM attempts a JOIN invocations i USING(invocation_id) WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            if attempt["state"] not in {AttemptState.leased.value, AttemptState.running.value}:
+                raise LoomConflict("terminal attempts are immutable")
+            now = stamp()
+            block_id = opaque_id("block")
+            conn.execute(
+                """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
+                   producing_invocation_id,authority,evidence_level,sensitivity,created_at)
+                   VALUES(?,?,?,?,?,'active',?,'model-proposal','generated','private',?)""",
+                (block_id, attempt["project_id"], "model-response", response_sha, len(response_bytes), attempt["invocation_id"], now),
+            )
+            block_event = self._event(conn, project_id=attempt["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": response_sha, "semantic_type": "model-response", "status": "active"})
+            conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, block_event))
+            self._insert_edge(conn, project_id=attempt["project_id"], relation=EdgeRelation.produced, source_type="invocation", source_id=attempt["invocation_id"], source_revision=attempt["manifest_sha256"], target_type="context-block", target_id=block_id, target_revision=response_sha, metadata={})
+            for artifact, artifact_id, content_sha, byte_count in prepared_artifacts:
+                record = {"name": artifact["name"], "media_type": artifact["media_type"], "content_sha256": content_sha, "byte_count": byte_count, "producing_invocation_id": attempt["invocation_id"]}
+                conn.execute("INSERT INTO artifacts(artifact_id,project_id,artifact_kind,generated_json,content_sha256,created_at) VALUES(?,?,?,?,?,?)", (artifact_id, attempt["project_id"], "provider-output", canonical_bytes(record).decode(), content_sha, now))
+                self._event(conn, project_id=attempt["project_id"], event_type="artifact.created", subject_type="artifact", subject_id=artifact_id, payload=record)
+                self._insert_edge(conn, project_id=attempt["project_id"], relation=EdgeRelation.produced, source_type="invocation", source_id=attempt["invocation_id"], source_revision=attempt["manifest_sha256"], target_type="artifact", target_id=artifact_id, target_revision=content_sha, metadata={"name": artifact["name"], "media_type": artifact["media_type"]})
+            conn.execute("UPDATE attempts SET state='succeeded',journal_path=?,output_sha256=?,completed_at=? WHERE attempt_id=?", (journal_path, response_sha, now, attempt_id))
+            conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
+            conn.execute("UPDATE invocations SET state='succeeded',output_block_id=?,terminal_kind='succeeded',completed_at=? WHERE invocation_id=?", (block_id, now, attempt["invocation_id"]))
+            self._event(conn, project_id=attempt["project_id"], event_type="attempt.succeeded", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": block_id, "artifact_ids": [item[1] for item in prepared_artifacts]})
+        return self.get_invocation(attempt["invocation_id"])
 
     def list_invocations(self, project_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:

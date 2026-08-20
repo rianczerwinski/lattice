@@ -72,6 +72,7 @@ class Loom:
             "compiled_prompt_sha256": sha256_bytes(reconstructed),
             "byte_count": len(reconstructed),
         }
+        invocation["compiled_prompt"] = reconstructed.decode("utf-8")
         return invocation
 
     def diff(self, invocation_a: str, invocation_b: str) -> dict[str, Any]:

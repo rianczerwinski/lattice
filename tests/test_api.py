@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from loom.server import create_app
+from loom.contracts import DraftCreate
 
 
 @pytest.mark.contract
@@ -34,3 +35,15 @@ def test_smoke_health_and_cockpit_have_distinct_responses(loom_env) -> None:
     assert health.json()["status"] == "ok"
     assert cockpit.status_code == 200
     assert '<div id="app"></div>' in cockpit.text
+
+
+@pytest.mark.oracle
+def test_oracle_invocation_inspection_exposes_independently_reconstructed_prompt(loom_env) -> None:
+    draft = loom_env["store"].create_draft(DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="EXACT_VISIBLE_PROMPT", route=loom_env["route"]))
+    invocation = loom_env["loom"].seal(draft["draft_id"])
+    app = create_app(loom_env["config"])
+    with TestClient(app) as client:
+        inspected = client.get(f"/api/v1/invocations/{invocation['invocation_id']}").json()
+
+    assert "EXACT_VISIBLE_PROMPT" in inspected["compiled_prompt"]
+    assert inspected["manifest_verification"]["compiled_prompt_sha256"] == inspected["manifest"]["compilation"]["compiled_prompt_sha256"]

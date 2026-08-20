@@ -34,6 +34,16 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
         source = generated_sources.get(f"loom:block/{segment['block_id']}")
         if not source or source["sha256"] != segment["sha256"]:
             raise ManifestVerificationError(f"context source is not exactly bound: {segment['block_id']}")
+        derived = segment.get("derived_from_block_ids", [])
+        for source_block_id in derived:
+            source_block = store.get_block(source_block_id, include_content=False)
+            if source_block["project_id"] != manifest["project_id"]:
+                raise ManifestVerificationError(f"derived context source belongs to another project: {source_block_id}")
+        if segment["disposition"] == "summarized":
+            import json
+            transformation = json.loads(block["transformation_json"] or "null")
+            if not derived or not isinstance(transformation, dict) or transformation.get("kind") != "summary" or transformation.get("source_block_ids") != derived:
+                raise ManifestVerificationError(f"summary lineage is invalid: {segment['block_id']}")
         output.append(_independent_segment_bytes(segment, content))
     if ordinals != sorted(ordinals) or len(ordinals) != len(set(ordinals)):
         raise ManifestVerificationError("context segment ordering is ambiguous")

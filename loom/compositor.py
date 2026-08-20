@@ -48,6 +48,13 @@ class ContextCompositor:
             block = self.store.get_block(selection.block_id)
             if block["project_id"] != draft["project_id"]:
                 raise LoomConflict("context block belongs to another project")
+            derived = [self.store.get_block(block_id, include_content=False) for block_id in selection.derived_from_block_ids]
+            if any(parent["project_id"] != draft["project_id"] for parent in derived):
+                raise LoomConflict("derived context source belongs to another project")
+            if selection.disposition == BlockDisposition.summarized:
+                transformation = __import__("json").loads(block["transformation_json"] or "null")
+                if not selection.derived_from_block_ids or not isinstance(transformation, dict) or transformation.get("kind") != "summary" or transformation.get("source_block_ids") != selection.derived_from_block_ids:
+                    raise LoomConflict("summarized context requires a summary transformation bound to exact source blocks")
             entries.append((selection, block))
         entries.sort(key=lambda pair: (PLANE_ORDER[pair[0].plane], pair[0].label, pair[0].block_id))
 
