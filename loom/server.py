@@ -81,6 +81,7 @@ class WorkflowCommandRequest(StrictRequest):
     project_id: str
     operation: str = Field(min_length=1)
     arguments: dict[str, Any] = Field(default_factory=dict)
+    idempotency_key: str = Field(min_length=8, max_length=200)
 
 
 class WorkflowProjectRequest(StrictRequest):
@@ -284,15 +285,22 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
 
     @app.post("/api/v1/workflow-packs/{pack_id}/commands")
     async def command_workflow(pack_id: str, value: WorkflowCommandRequest):
-        project = store.get_project(value.project_id)
-        if project.get("workflow_pack") != pack_id:
-            raise HTTPException(409, "project is not governed by this workflow pack")
+        command = store.claim_workflow_command(project_id=value.project_id, pack_id=pack_id, operation=value.operation, arguments=value.arguments, idempotency_key=value.idempotency_key, boot_id=supervisor.boot_id)
+        if command["state"] != "running" or command["owner_boot_id"] != supervisor.boot_id:
+            return store.get_workflow_command(command["command_id"], include_result=True)
         try:
             result = await asyncio.to_thread(workflows.command, pack_id, value.operation, value.arguments)
+            return store.complete_workflow_command(command["command_id"], result=result)
         except (ValueError, QuaternaryBoundaryError) as error:
+            store.fail_workflow_command(command["command_id"], error_text=str(error))
             raise HTTPException(422, str(error)) from error
-        store.record_event(project_id=value.project_id, event_type="workflow.command-completed", subject_type="workflow-pack", subject_id=pack_id, payload={"operation": value.operation, "receipt": result["receipt"]})
-        return result
+        except BaseException as error:
+            store.fail_workflow_command(command["command_id"], error_text=f"{type(error).__name__}: {error}", outcome_unknown=True)
+            raise
+
+    @app.get("/api/v1/workflow-commands/{command_id}")
+    async def inspect_workflow_command(command_id: str):
+        return store.get_workflow_command(command_id, include_result=True)
 
     @app.post("/api/v1/import/octopus")
     async def import_octopus(value: ImportConversationRequest):

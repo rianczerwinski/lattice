@@ -30,7 +30,9 @@ class ExecutionSupervisor:
         self._cancellations: dict[str, threading.Event] = {}
 
     async def start(self) -> int:
-        return await asyncio.to_thread(self.store.reconcile_orphans, self.boot_id)
+        attempts = await asyncio.to_thread(self.store.reconcile_orphans, self.boot_id)
+        commands = await asyncio.to_thread(self.store.reconcile_workflow_commands, self.boot_id)
+        return attempts + commands
 
     async def stop(self) -> None:
         for cancel in self._cancellations.values():

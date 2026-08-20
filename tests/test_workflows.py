@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from loom.context_modules import ContextModuleError, ContextModuleRunner
-from loom.contracts import ContextModuleDefinition, ContextModuleMode
+from loom.contracts import ContextModuleDefinition, ContextModuleMode, ProjectCreate
 from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError
 from loom.workflows import WorkflowRegistry
 
@@ -87,3 +87,29 @@ def test_workflow_project_bootstrap_is_atomic(loom_env):
     with pytest.raises(sqlite3.IntegrityError):
         store.create_workflow_project_atomic(title="must roll back", purpose="negative control", workflow_pack="quaternary", role_specs=duplicated_roles, blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref="slate:atomic-negative")
     assert len(store.list_projects()) == before
+
+
+@pytest.mark.contract
+def test_workflow_command_is_idempotent_and_preserves_exact_result(loom_env):
+    store = loom_env["store"]
+    project = store.create_project(ProjectCreate(title="workflow", workflow_pack="quaternary"))
+    first = store.claim_workflow_command(project_id=project["project_id"], pack_id="quaternary", operation="language-status", arguments={"language": "de"}, idempotency_key="workflow-idempotency-1", boot_id="boot-a")
+    same = store.claim_workflow_command(project_id=project["project_id"], pack_id="quaternary", operation="language-status", arguments={"language": "de"}, idempotency_key="workflow-idempotency-1", boot_id="boot-a")
+    assert same["command_id"] == first["command_id"]
+
+    completed = store.complete_workflow_command(first["command_id"], result={"receipt": {"exit_code": 0}, "output": {"state": "calibrating"}, "stdout": "exact bytes", "stderr": ""})
+    assert completed["result"]["stdout"] == "exact bytes"
+    with pytest.raises(Exception, match="terminal"):
+        store.complete_workflow_command(first["command_id"], result={"receipt": {}, "output": {}})
+
+
+@pytest.mark.concurrency
+def test_restart_marks_dispatched_workflow_outcome_unknown_instead_of_retrying(loom_env):
+    store = loom_env["store"]
+    project = store.create_project(ProjectCreate(title="workflow", workflow_pack="quaternary"))
+    command = store.claim_workflow_command(project_id=project["project_id"], pack_id="quaternary", operation="prepare-language", arguments={"language": "de"}, idempotency_key="workflow-restart-1", boot_id="dead-boot")
+
+    assert store.reconcile_workflow_commands("new-boot") == 1
+    recovered = store.get_workflow_command(command["command_id"])
+    assert recovered["state"] == "outcome_unknown"
+    assert "must be inspected" in recovered["error_text"]

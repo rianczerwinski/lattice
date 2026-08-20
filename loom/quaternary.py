@@ -80,7 +80,7 @@ class QuaternaryAdapter:
             output = json.loads(result.stdout)
         except json.JSONDecodeError as error:
             raise QuaternaryBoundaryError("quaternary command did not return JSON") from error
-        return {"receipt": receipt, "output": output}
+        return {"receipt": receipt, "output": output, "stdout": result.stdout, "stderr": result.stderr}
 
     def _readonly(self) -> sqlite3.Connection:
         conn = sqlite3.connect(f"file:{self.database}?mode=ro", uri=True)

@@ -209,6 +209,25 @@ CREATE TABLE IF NOT EXISTS artifacts(
     created_at TEXT NOT NULL
 ) STRICT;
 
+CREATE TABLE IF NOT EXISTS workflow_commands(
+    command_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    pack_id TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    arguments_json TEXT NOT NULL CHECK(json_valid(arguments_json)),
+    idempotency_key TEXT NOT NULL UNIQUE,
+    state TEXT NOT NULL,
+    owner_boot_id TEXT NOT NULL,
+    result_sha256 TEXT,
+    receipt_json TEXT CHECK(receipt_json IS NULL OR json_valid(receipt_json)),
+    error_text TEXT,
+    started_at TEXT NOT NULL,
+    completed_at TEXT
+) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_running_workflow_command
+ON workflow_commands(project_id) WHERE state='running';
+
 CREATE INDEX IF NOT EXISTS events_project_seq ON events(project_id, seq);
 CREATE INDEX IF NOT EXISTS invocations_project_created ON invocations(project_id, created_at);
 CREATE INDEX IF NOT EXISTS edges_source ON edges(source_type, source_id);
@@ -727,6 +746,63 @@ class LoomStore:
     def record_event(self, *, project_id: str | None, event_type: str, subject_type: str, subject_id: str, payload: dict[str, Any]) -> str:
         with self.transaction() as conn:
             return self._event(conn, project_id=project_id, event_type=event_type, subject_type=subject_type, subject_id=subject_id, payload=payload)
+
+    def claim_workflow_command(self, *, project_id: str, pack_id: str, operation: str, arguments: dict[str, Any], idempotency_key: str, boot_id: str) -> dict[str, Any]:
+        arguments_json = canonical_bytes(arguments).decode()
+        with self.transaction() as conn:
+            prior = conn.execute("SELECT * FROM workflow_commands WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+            if prior is not None:
+                if prior["project_id"] != project_id or prior["pack_id"] != pack_id or prior["operation"] != operation or prior["arguments_json"] != arguments_json:
+                    raise LoomConflict("workflow idempotency key was reused for another command")
+                return dict(prior)
+            project = self._row(conn.execute("SELECT workflow_pack FROM projects WHERE project_id=?", (project_id,)).fetchone(), project_id)
+            if project["workflow_pack"] != pack_id:
+                raise LoomConflict("project is not governed by this workflow pack")
+            command_id = opaque_id("workflow_command")
+            now = stamp()
+            conn.execute("INSERT INTO workflow_commands(command_id,project_id,pack_id,operation,arguments_json,idempotency_key,state,owner_boot_id,started_at) VALUES(?,?,?,?,?,?,'running',?,?)", (command_id, project_id, pack_id, operation, arguments_json, idempotency_key, boot_id, now))
+            self._event(conn, project_id=project_id, event_type="workflow.command-started", subject_type="workflow-command", subject_id=command_id, payload={"pack_id": pack_id, "operation": operation, "arguments": arguments, "idempotency_key": idempotency_key})
+            return dict(conn.execute("SELECT * FROM workflow_commands WHERE command_id=?", (command_id,)).fetchone())
+
+    def complete_workflow_command(self, command_id: str, *, result: dict[str, Any]) -> dict[str, Any]:
+        result_bytes = canonical_bytes(result)
+        result_sha = self.blobs.put(result_bytes)
+        with self.transaction() as conn:
+            command = self._row(conn.execute("SELECT * FROM workflow_commands WHERE command_id=?", (command_id,)).fetchone(), command_id)
+            if command["state"] != "running":
+                raise LoomConflict("workflow command is already terminal")
+            now = stamp()
+            receipt = result.get("receipt", {})
+            conn.execute("UPDATE workflow_commands SET state='completed',result_sha256=?,receipt_json=?,completed_at=? WHERE command_id=?", (result_sha, canonical_bytes(receipt).decode(), now, command_id))
+            self._event(conn, project_id=command["project_id"], event_type="workflow.command-completed", subject_type="workflow-command", subject_id=command_id, payload={"operation": command["operation"], "result_sha256": result_sha, "receipt": receipt})
+        return self.get_workflow_command(command_id, include_result=True)
+
+    def fail_workflow_command(self, command_id: str, *, error_text: str, outcome_unknown: bool = False) -> dict[str, Any]:
+        with self.transaction() as conn:
+            command = self._row(conn.execute("SELECT * FROM workflow_commands WHERE command_id=?", (command_id,)).fetchone(), command_id)
+            if command["state"] != "running":
+                raise LoomConflict("workflow command is already terminal")
+            state = "outcome_unknown" if outcome_unknown else "failed"
+            now = stamp()
+            conn.execute("UPDATE workflow_commands SET state=?,error_text=?,completed_at=? WHERE command_id=?", (state, error_text, now, command_id))
+            self._event(conn, project_id=command["project_id"], event_type=f"workflow.command-{state.replace('_', '-')}", subject_type="workflow-command", subject_id=command_id, payload={"operation": command["operation"], "error": error_text})
+        return self.get_workflow_command(command_id)
+
+    def get_workflow_command(self, command_id: str, *, include_result: bool = False) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute("SELECT * FROM workflow_commands WHERE command_id=?", (command_id,)).fetchone(), command_id)
+        row["arguments"] = json.loads(row.pop("arguments_json"))
+        row["receipt"] = json.loads(row.pop("receipt_json")) if row.get("receipt_json") else None
+        if include_result and row.get("result_sha256"):
+            row["result"] = json.loads(self.blobs.get(row["result_sha256"]))
+        return row
+
+    def reconcile_workflow_commands(self, boot_id: str) -> int:
+        with self._connect() as conn:
+            command_ids = [row[0] for row in conn.execute("SELECT command_id FROM workflow_commands WHERE state='running' AND owner_boot_id<>?", (boot_id,))]
+        for command_id in command_ids:
+            self.fail_workflow_command(command_id, error_text="Loom restarted after dispatch; authoritative external outcome must be inspected before retry", outcome_unknown=True)
+        return len(command_ids)
 
     def get_attempt(self, attempt_id: str) -> dict[str, Any]:
         with self._connect() as conn:
