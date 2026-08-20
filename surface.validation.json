@@ -7,16 +7,16 @@
       "name": "surface-validation",
       "version": 2
     },
-    "artifact_id": "artifact:a5af95e5-42cb-4804-bd18-e4be045a204a",
-    "generated_at": "20260818T140127",
+    "artifact_id": "artifact:8ee4fa18-0ec9-49f4-af5a-8e72e2c0344f",
+    "generated_at": "20260820T014327",
     "producer": {
       "name": "surface-validator",
       "version": "2.0.1"
     },
-    "subject": "artifact:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+    "subject": "artifact:a286cf0c-70e5-5fef-9570-a095f6ba9e25",
     "binding": {
-      "artifact_id": "artifact:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
-      "sha256": "f3f6c4a4cc93769a0f717542f24faaa95b52a123b66e0e2bf2b14b4cbfe4a104"
+      "artifact_id": "artifact:a286cf0c-70e5-5fef-9570-a095f6ba9e25",
+      "sha256": "5be0be7d3b1fdf150c74cab83d1993acc6aebb9c21fe6e2a201fd364735481d0"
     },
     "validator": {
       "name": "surface-validator",
@@ -27,11 +27,14 @@
   "receipt_schema_version": 2,
   "validator_version": "2.0.1",
   "surface_schema_version": 2,
-  "surface_id": "surface:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
-  "artifact_path": "/Users/rian/AXISVI/axis/chariots/loom/SURFACE.json",
-  "artifact_sha256": "f3f6c4a4cc93769a0f717542f24faaa95b52a123b66e0e2bf2b14b4cbfe4a104",
-  "source_revision": "f297b55e3a7a648c07d5609faf9859a61947e584",
+  "surface_id": "surface:a286cf0c-70e5-5fef-9570-a095f6ba9e25",
+  "artifact_path": "/Users/rian/AXISVI/sui/flux/ephemera/20260820T014110-loom-surface-refresh/SURFACE.json",
+  "artifact_sha256": "5be0be7d3b1fdf150c74cab83d1993acc6aebb9c21fe6e2a201fd364735481d0",
+  "source_revision": "2495f35b0c83080b975180a1145aa4bd10367e0d",
   "external_census_matched": true,
   "evidence_census_accounted": true,
-  "valid": true
+  "valid": true,
+  "parent_surface_id": "surface:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+  "parent_artifact_path": "/Users/rian/AXISVI/axis/chariots/loom/SURFACE.json",
+  "parent_artifact_sha256": "f3f6c4a4cc93769a0f717542f24faaa95b52a123b66e0e2bf2b14b4cbfe4a104"
 }

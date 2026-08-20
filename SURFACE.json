@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+  "surface_id": "surface:a286cf0c-70e5-5fef-9570-a095f6ba9e25",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
-    "generated_at": "20260818T150000",
+    "artifact_id": "artifact:a286cf0c-70e5-5fef-9570-a095f6ba9e25",
+    "generated_at": "20260820T014500",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,24 +19,25 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "f297b55e3a7a648c07d5609faf9859a61947e584",
+        "revision": "2495f35b0c83080b975180a1145aa4bd10367e0d",
         "sha256": null
       }
-    ]
+    ],
+    "parent_artifact_id": "artifact:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9"
   },
   "workframe": {
     "name": "Loom",
     "root": "."
   },
-  "operation": "initial",
+  "operation": "reconcile",
   "generated": {
-    "at": "20260818T150000",
-    "source_revision": "f297b55e3a7a648c07d5609faf9859a61947e584",
+    "at": "20260820T014500",
+    "source_revision": "2495f35b0c83080b975180a1145aa4bd10367e0d",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "f297b55e3a7a648c07d5609faf9859a61947e584",
+    "revision": "2495f35b0c83080b975180a1145aa4bd10367e0d",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -52,6 +53,31 @@
         "path": "README.md",
         "mode": "100644",
         "object_id": "5884925be4f60bae17bd3b45a3c8ae8313abb069"
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/AUDIT.json",
+        "mode": "100644",
+        "object_id": "1e395a05d7ace5be704ebc4ea7239f0a40fde842"
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/AUDIT.md",
+        "mode": "100644",
+        "object_id": "c2fd76972da049ac74846d66581830c49a6c9f61"
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/audit.validation.json",
+        "mode": "100644",
+        "object_id": "f6645897fbe04de4f287ddf7fe95c1d66de02ac6"
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+        "mode": "100644",
+        "object_id": "885f82eff68b56b085e8a8a88ddabd1e83f3de79"
+      },
+      {
+        "path": "audit/README.md",
+        "mode": "100644",
+        "object_id": "f3e479909033e934a76fa17fb13a06d31e9e3fdd"
       },
       {
         "path": "loom/__init__.py",
@@ -76,12 +102,12 @@
       {
         "path": "loom/compositor.py",
         "mode": "100644",
-        "object_id": "ab08489b2b7333ba7c40a42135d73f6dec63198c"
+        "object_id": "543904d67119ca810381840f72d3158a93052661"
       },
       {
         "path": "loom/config.py",
         "mode": "100644",
-        "object_id": "a2c34e0e9f96e212654a072064770ac6f73ca12f"
+        "object_id": "f1c3bbff8248414ff4dbb7846e7f1780ca5ba007"
       },
       {
         "path": "loom/context_modules.py",
@@ -91,12 +117,12 @@
       {
         "path": "loom/contracts.py",
         "mode": "100644",
-        "object_id": "935d7e7e947203e574a901305ca06f7dacfbaadc"
+        "object_id": "3c462befa7f8c432fa8982768bcfe2ff3531de45"
       },
       {
         "path": "loom/manifest_reader.py",
         "mode": "100644",
-        "object_id": "d5f7bbf11484e5db17db15a71d151dec6abf25d0"
+        "object_id": "944c007e3ea7dd44d09247044f89fa0a654e4595"
       },
       {
         "path": "loom/octopus_import.py",
@@ -106,12 +132,17 @@
       {
         "path": "loom/operations.py",
         "mode": "100644",
-        "object_id": "576fbf8375f4672695eacc838ecb40d3f9bd9604"
+        "object_id": "a87785f6b9583ac20ef97bdbcc2e9dc793de4e15"
+      },
+      {
+        "path": "loom/platform_foundry.py",
+        "mode": "100644",
+        "object_id": "892b0d01c3c8c0d8c0e86844745e5985701e4754"
       },
       {
         "path": "loom/quaternary.py",
         "mode": "100644",
-        "object_id": "62f9b6d4f74af514d2e85bfc77145bb87737f3a8"
+        "object_id": "d3891faa35b07cae1400011371fc142e853cb689"
       },
       {
         "path": "loom/security.py",
@@ -121,27 +152,27 @@
       {
         "path": "loom/server.py",
         "mode": "100644",
-        "object_id": "39957caf66ed927d18df1ebdf8bbb8b144f3fa64"
+        "object_id": "6ed72b508c879e269ae65e91269c6654ec5367f5"
       },
       {
         "path": "loom/store.py",
         "mode": "100644",
-        "object_id": "d8a4fcfcb975b95dd3d097248410bd92a7bd5c0d"
+        "object_id": "5e967ab29cfa8c17a9a1a6438ea4c36130399936"
       },
       {
         "path": "loom/supervisor.py",
         "mode": "100644",
-        "object_id": "d91faae2f821d25a3d2a079ce58fbda05d3a97a1"
+        "object_id": "1edb93252b4df01c1dfd1789669646c970f6cea7"
       },
       {
         "path": "loom/workflows.py",
         "mode": "100644",
-        "object_id": "6d33b65afdca48d0cfb512b3b7ec4ad3b4f58011"
+        "object_id": "132ed7bff3459bf909822e8a1de99ee8325226e8"
       },
       {
         "path": "pyproject.toml",
         "mode": "100644",
-        "object_id": "a6f900725075122a8edf3873dba259b7d7d00fee"
+        "object_id": "abe7a6cb680331ad37bbeaa5d85a46d22e4bae87"
       },
       {
         "path": "tests/conftest.py",
@@ -151,12 +182,12 @@
       {
         "path": "tests/test_api.py",
         "mode": "100644",
-        "object_id": "a40f2e449c434c26118b567c56c11a3ff96642ac"
+        "object_id": "1552a23d055487ceabfe7c7c50b7c9c05f4be066"
       },
       {
         "path": "tests/test_kernel.py",
         "mode": "100644",
-        "object_id": "d72dcf0382eecc6575dfd7ace302be54d23ce86c"
+        "object_id": "e96ace86393767472d43b7b13eff420f329dc5fa"
       },
       {
         "path": "tests/test_octopus_import.py",
@@ -171,12 +202,12 @@
       {
         "path": "tests/test_supervisor.py",
         "mode": "100644",
-        "object_id": "5e64adf0fe8e5875eb2ddf31186d4ec89f9d85bb"
+        "object_id": "2529eacdbfcb5826c22f81209b119d8b38b2b425"
       },
       {
         "path": "tests/test_workflows.py",
         "mode": "100644",
-        "object_id": "869d5b82bc426343e4a101a441e98137d73a91e6"
+        "object_id": "3239108f3764df54895a77e47295cc5c798ffb13"
       },
       {
         "path": "uv.lock",
@@ -184,19 +215,19 @@
         "object_id": "7a4003b1e6b7b0d5ac7d090dbfb19bb3dce119ad"
       },
       {
-        "path": "web/dist/assets/index-Ci-8SR6J.js",
+        "path": "web/dist/assets/index-B_L0H1A9.css",
         "mode": "100644",
-        "object_id": "8966b31f4fd64d58b92ce683b77666017ae9f759"
+        "object_id": "5c4eb9a0bdf0142ddb7cbe604814ebdc2658a656"
       },
       {
-        "path": "web/dist/assets/index-KFjmCIh-.css",
+        "path": "web/dist/assets/index-C6aE5tHI.js",
         "mode": "100644",
-        "object_id": "eff5e5816c0388a92df275c398f1437ed33d053a"
+        "object_id": "24704b2ce73c0cdf3a4c69dab4c3de301adb5608"
       },
       {
         "path": "web/dist/index.html",
         "mode": "100644",
-        "object_id": "c4e9b6e2b106b8d4daaefbcfd5b76e5b5fa066b0"
+        "object_id": "763342e4f239ce61e2ac78d25a168fa177fe64c5"
       },
       {
         "path": "web/index.html",
@@ -206,17 +237,17 @@
       {
         "path": "web/package-lock.json",
         "mode": "100644",
-        "object_id": "80fe2ae0ea216c98c7d07b7e6bd3f718df45b709"
+        "object_id": "bb41b2bf91567fa22db6502867529395a606bd10"
       },
       {
         "path": "web/package.json",
         "mode": "100644",
-        "object_id": "64a138da0857c4f401eb9f31ba93201e39c188c5"
+        "object_id": "7d7449a8e20bfc6fee947cdeabce51b97574fddb"
       },
       {
         "path": "web/src/App.svelte",
         "mode": "100644",
-        "object_id": "80f162cfb7b48d84f47e6ab041d294d6a9e598b1"
+        "object_id": "e14e2a1fc54335166cbdd68cbcc7439fab3ad4d7"
       },
       {
         "path": "web/src/api.ts",
@@ -231,12 +262,12 @@
       {
         "path": "web/src/style.css",
         "mode": "100644",
-        "object_id": "43a47deaadf6b96f5b0828117976291bd3130ef7"
+        "object_id": "754797455cbc5c8a2c0402b80a439393d869e910"
       },
       {
         "path": "web/src/types.ts",
         "mode": "100644",
-        "object_id": "e6dc29bd2e26a43ad914f9c5d3264d38592157d7"
+        "object_id": "3ec45b1dcd882b9a57914f2f156fc846f42b590c"
       },
       {
         "path": "web/tsconfig.json",
@@ -249,12 +280,22 @@
         "object_id": "34b9bda234c2b870804415a1d69224f165e7d88f"
       },
       {
+        "path": "workflow_packs/platform-foundry/README.md",
+        "mode": "100644",
+        "object_id": "e414923ed1f4c74138e496043585557aa6aed8cf"
+      },
+      {
+        "path": "workflow_packs/platform-foundry/pack.json",
+        "mode": "100644",
+        "object_id": "043d7d3c43bcf562f897a3d1c498adfb371aeeca"
+      },
+      {
         "path": "workflow_packs/quaternary/pack.json",
         "mode": "100644",
         "object_id": "635cdd7583489167068b02dfa4ab1a5172cc5abd"
       }
     ],
-    "entries_sha256": "d2e6728e58b7bd380cd64100a0467cee0968247909901c11343021ba036b571a",
+    "entries_sha256": "b62ca4ce7bcf7f6e1852d7738b25a563d312764f28cd21db721ecc1b6363af09",
     "mappings": [
       {
         "path": ".gitignore",
@@ -277,6 +318,61 @@
           "node:9db167ff-3831-52f8-9313-9858090362cc"
         ],
         "reason": "README supplies product contract and .gitignore supplies local-state boundaries."
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/AUDIT.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a324bf89-7b74-5dea-8ded-a88f2c33826e"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/AUDIT.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0313971f-2a3f-57f5-a79f-37f39d6f729c"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/audit.validation.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:212a7266-424a-5b59-a1dc-9e277dc1b474"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+      },
+      {
+        "path": "audit/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
       },
       {
         "path": "loom/__init__.py",
@@ -398,6 +494,17 @@
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
         "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "loom/platform_foundry.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5dd439c9-a654-559c-b1e5-f88d4a7359fb"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "This source contributes directly to the named operational subsystem."
       },
       {
         "path": "loom/quaternary.py",
@@ -565,26 +672,26 @@
         "reason": "The entry contributes to packaging and assurance."
       },
       {
-        "path": "web/dist/assets/index-Ci-8SR6J.js",
+        "path": "web/dist/assets/index-B_L0H1A9.css",
         "disposition": "mapped",
         "item_ids": [
-          "item:c8ca33fc-096c-5436-ae81-65a5413da329"
+          "item:943e987a-b047-52a7-9b31-cee7853e3315"
         ],
         "node_ids": [
           "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
         ],
-        "reason": "The entry contributes to response-first cockpit."
+        "reason": "This source contributes directly to the named operational subsystem."
       },
       {
-        "path": "web/dist/assets/index-KFjmCIh-.css",
+        "path": "web/dist/assets/index-C6aE5tHI.js",
         "disposition": "mapped",
         "item_ids": [
-          "item:3bf9618b-c304-58a5-9c61-86e4fcc41bb8"
+          "item:ffe6f2ad-ffb5-5d96-89f5-66971b0baa4b"
         ],
         "node_ids": [
           "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
         ],
-        "reason": "The entry contributes to response-first cockpit."
+        "reason": "This source contributes directly to the named operational subsystem."
       },
       {
         "path": "web/dist/index.html",
@@ -708,6 +815,28 @@
         "reason": "The entry contributes to response-first cockpit."
       },
       {
+        "path": "workflow_packs/platform-foundry/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "This source contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "workflow_packs/platform-foundry/pack.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ab0af34a-e096-54d5-bf5e-a862b1a26515"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "This source contributes directly to the named operational subsystem."
+      },
+      {
         "path": "workflow_packs/quaternary/pack.json",
         "disposition": "mapped",
         "item_ids": [
@@ -722,7 +851,7 @@
   },
   "evidence_census": {
     "method": "none-applicable",
-    "scope": "The initial Surface uses only tracked source at the bound revision; live acceptance and the later audit are intentionally not imported as governing non-file evidence.",
+    "scope": "This Surface generation makes only tracked-source claims; authenticated acceptance remains audit evidence rather than a Surface input.",
     "entries": []
   },
   "evidence_sources": [
@@ -734,7 +863,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The store implements the append-only ledger, graph views, leases, slices, and immutable invocation records."
+      "observation": "The store implements an append-only change ledger, content-addressed graph state, immutable manifests, leases, workflow state, slices, and exact database reconstruction."
     },
     {
       "id": "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -744,7 +873,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The supervisor executes sealed invocations through leased subscription CLI attempts."
+      "observation": "The supervisor executes sealed invocations through qualified, isolated subscription CLIs and persists versioned runtime receipts, artifacts, cancellation, and terminal failure state."
     },
     {
       "id": "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -754,7 +883,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The importer binds Octopus format-3 sources while preserving unavailable historical context."
+      "observation": "The importer and workflow runtime bind exact Octopus sources, governed context modules, external authoritative blackboards, deterministic transitions, and read-only Platform Foundry inspection."
     },
     {
       "id": "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
@@ -764,7 +893,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The cockpit supports preflight, routing, multi-parent selection, response inspection, and local graph views."
+      "observation": "The cockpit supports preflight, exact compiled-context inspection, arbitrary multi-parent routing, sanitized response rendering, runtime/artifact inspection, and governed workflow state."
     },
     {
       "id": "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
@@ -774,7 +903,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "Kernel tests exercise reconstruction, immutability, canonicalization, and restart properties."
+      "observation": "Truth-typed tests exercise independent reconstruction, append-only rebuild, lease and workflow idempotency, authority boundaries, cross-workflow semantics, and deliberately false mutations."
     },
     {
       "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
@@ -785,13 +914,23 @@
         "constraints"
       ],
       "observation": "The canonical workframe contract states Loom's telos, boundaries, current acceptance, and known incomplete German workflow."
+    },
+    {
+      "id": "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
+      "ref": "tests/test_workflows.py",
+      "kind": "code",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "Workflow tests independently exercise authoritative reads, rejected mutation authority, exact query freezing, command idempotency, restart ambiguity, required context, and Platform Foundry reuse."
     }
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+    "artifact_id": "carve:a286cf0c-70e5-5fef-9570-a095f6ba9e25",
     "subject": "Loom conversational lattice harness",
-    "operation": "initial",
+    "operation": "reconcile",
     "mode": "medium",
     "requested_shape": "decomposition",
     "diagnosed_shape": "decomposition",
@@ -819,6 +958,61 @@
         "evidence": [
           {
             "ref": "README.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:a324bf89-7b74-5dea-8ded-a88f2c33826e",
+        "label": "audit/20260818T140529-initial-system/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260818T140529-initial-system/AUDIT.json",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0313971f-2a3f-57f5-a79f-37f39d6f729c",
+        "label": "audit/20260818T140529-initial-system/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260818T140529-initial-system/AUDIT.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef",
+        "label": "audit/20260818T140529-initial-system/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260818T140529-initial-system/audit.validation.json",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:212a7266-424a-5b59-a1dc-9e277dc1b474",
+        "label": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
+        "label": "audit/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/README.md",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
@@ -940,6 +1134,17 @@
         "evidence": [
           {
             "ref": "loom/operations.py",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5dd439c9-a654-559c-b1e5-f88d4a7359fb",
+        "label": "loom/platform_foundry.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "loom/platform_foundry.py",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
@@ -1110,23 +1315,23 @@
         ]
       },
       {
-        "id": "item:c8ca33fc-096c-5436-ae81-65a5413da329",
-        "label": "web/dist/assets/index-Ci-8SR6J.js",
+        "id": "item:943e987a-b047-52a7-9b31-cee7853e3315",
+        "label": "web/dist/assets/index-B_L0H1A9.css",
         "role": "constituent",
         "evidence": [
           {
-            "ref": "web/dist/assets/index-Ci-8SR6J.js",
+            "ref": "web/dist/assets/index-B_L0H1A9.css",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
       },
       {
-        "id": "item:3bf9618b-c304-58a5-9c61-86e4fcc41bb8",
-        "label": "web/dist/assets/index-KFjmCIh-.css",
+        "id": "item:ffe6f2ad-ffb5-5d96-89f5-66971b0baa4b",
+        "label": "web/dist/assets/index-C6aE5tHI.js",
         "role": "constituent",
         "evidence": [
           {
-            "ref": "web/dist/assets/index-KFjmCIh-.css",
+            "ref": "web/dist/assets/index-C6aE5tHI.js",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
@@ -1253,6 +1458,28 @@
         ]
       },
       {
+        "id": "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297",
+        "label": "workflow_packs/platform-foundry/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "workflow_packs/platform-foundry/README.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ab0af34a-e096-54d5-bf5e-a862b1a26515",
+        "label": "workflow_packs/platform-foundry/pack.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "workflow_packs/platform-foundry/pack.json",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:376ff270-2112-5298-8e09-88c7f6399508",
         "label": "workflow_packs/quaternary/pack.json",
         "role": "constituent",
@@ -1306,11 +1533,10 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": null,
-      "reconciliation_scope": "initial",
-      "decision": "No prior schema-version-2 Surface exists; the source census supports a five-part operational decomposition.",
-      "preserved_node_ids": [],
-      "added_node_ids": [
+      "parent_artifact_id": "carve:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+      "reconciliation_scope": "local",
+      "decision": "The five-part operational decomposition still fits; remediation deepened every subsystem and added Platform Foundry plus audit evidence without changing the root kind.",
+      "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
         "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -1318,6 +1544,7 @@
         "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
         "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
       ],
+      "added_node_ids": [],
       "retired_node_ids": []
     },
     "tree": {
@@ -1372,8 +1599,11 @@
           "member_ids": [
             "item:63fe6fab-9f4f-5d5f-8c24-7b2f04407bb2",
             "item:1183afa2-1324-5932-8566-750d5575b653",
+            "item:5dd439c9-a654-559c-b1e5-f88d4a7359fb",
             "item:41d67350-2d77-519b-a18b-8460cded8f93",
             "item:02efb420-ccb5-59a9-bbb8-f9e0b426db21",
+            "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297",
+            "item:ab0af34a-e096-54d5-bf5e-a862b1a26515",
             "item:376ff270-2112-5298-8e09-88c7f6399508"
           ],
           "children": [],
@@ -1386,8 +1616,8 @@
           "gloss": "The Svelte conversational surface and its compiled same-origin assets.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
-            "item:c8ca33fc-096c-5436-ae81-65a5413da329",
-            "item:3bf9618b-c304-58a5-9c61-86e4fcc41bb8",
+            "item:943e987a-b047-52a7-9b31-cee7853e3315",
+            "item:ffe6f2ad-ffb5-5d96-89f5-66971b0baa4b",
             "item:9b90b33e-e89d-5643-a7d2-823bebe8b707",
             "item:f489ef36-55ac-5d04-850a-4789bf396db6",
             "item:8eb8c30a-bf3c-5d38-8c95-5fad641a6968",
@@ -1410,6 +1640,11 @@
           "gloss": "Install metadata, dependency locks, and truth-typed regression, property, contract, and oracle tests.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
+            "item:a324bf89-7b74-5dea-8ded-a88f2c33826e",
+            "item:0313971f-2a3f-57f5-a79f-37f39d6f729c",
+            "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef",
+            "item:212a7266-424a-5b59-a1dc-9e277dc1b474",
+            "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
             "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
             "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
             "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd",
@@ -1454,7 +1689,8 @@
             "loom/",
             "web/",
             "tests/",
-            "workflow_packs/"
+            "workflow_packs/",
+            "audit/"
           ]
         },
         "kind_homogeneity": {
@@ -1467,9 +1703,15 @@
           ]
         },
         "incumbent_challenge": {
-          "status": "not_run",
-          "claim": "Initial compilation has no incumbent carve.",
-          "evidence": []
+          "status": "passed",
+          "claim": "A fresh split by temporal graph, execution, domain workflow, cockpit, and assurance still produces fewer crossings than provider-first or workflow-first alternatives.",
+          "evidence": [
+            "loom/store.py",
+            "loom/supervisor.py",
+            "loom/platform_foundry.py",
+            "web/src/App.svelte",
+            "tests/test_workflows.py"
+          ]
         }
       }
     },
@@ -1528,7 +1770,7 @@
           "id": "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
           "mode": "is",
           "state": "shipped",
-          "summary": "Loom persists an append-only invocation lattice with content-addressed context and independently reconstructable sealed manifests.",
+          "summary": "Loom persists an append-only invocation lattice whose current database, joins, context, and lineage can be reconstructed exactly from the ledger and content-addressed blobs.",
           "detail": null,
           "source_ids": [
             "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
@@ -1546,8 +1788,8 @@
         {
           "id": "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
           "mode": "is",
-          "state": "partial",
-          "summary": "Claude and Codex execution is leased, journaled, restart-aware, and terminalized, while complete runtime influence and artifact inspection remain incomplete.",
+          "state": "shipped",
+          "summary": "Claude and Codex execution is isolated, leased, journaled, cancellable, restart-aware, artifact-preserving, and bound to observable CLI/runtime identity with explicit provider proof limits.",
           "detail": null,
           "source_ids": [
             "source:1bed9604-7f0c-589c-a954-1508e9e796f2"
@@ -1566,10 +1808,11 @@
           "id": "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
           "mode": "is",
           "state": "partial",
-          "summary": "Octopus import, governed context modules, workflow bootstrap, and quaternary state inspection exist; the German workflow remains calibrating rather than closed.",
+          "summary": "Octopus import, governed context modules, executable quaternary transitions, Slate/Axial projections, and read-only Platform Foundry reuse work; German native-role qualification remains externally blocked.",
           "detail": null,
           "source_ids": [
-            "source:0123f24e-b8ff-544d-959a-444272f7d0ff"
+            "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
+            "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8"
           ],
           "origin": null,
           "owner_confirmed": null,
@@ -1584,8 +1827,8 @@
         {
           "id": "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
           "mode": "is",
-          "state": "partial",
-          "summary": "The response-first cockpit operates manual multi-parent routing and preflight, but its exact-context presentation remains incomplete.",
+          "state": "shipped",
+          "summary": "The response-first cockpit operates arbitrary Claude/Codex routing, forks and joins, exact preflight and retrospective context inspection, sanitized responses, artifacts, attempts, local graph views, and workflow blackboards.",
           "detail": null,
           "source_ids": [
             "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
@@ -1604,7 +1847,7 @@
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
           "state": "partial",
-          "summary": "Truth-typed automated tests and clean build metadata exist; the independent whole-system audit is not part of the frozen source baseline.",
+          "summary": "Truth-typed tests, clean source and wheel builds, mutation controls, and a complete initial audit-remediation ledger exist; the new frozen-revision closure audit remains to be issued.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
@@ -1618,24 +1861,26 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": null,
-    "preserved_claim_ids": [],
-    "added_claim_ids": [
+    "parent_surface_id": "surface:9a2a02eb-827a-5f93-ab1a-f68b44d9f1f9",
+    "preserved_claim_ids": [
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
       "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
       "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
       "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
       "claim:151818d8-6f73-5756-bc91-66146c2bfea7"
     ],
+    "added_claim_ids": [],
     "retired_claim_ids": [],
-    "preserved_source_ids": [],
-    "added_source_ids": [
+    "preserved_source_ids": [
       "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
       "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
       "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
       "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
       "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
       "source:d9045688-5fa2-514f-8e4b-52d24a945d56"
+    ],
+    "added_source_ids": [
+      "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8"
     ],
     "retired_source_ids": []
   },
