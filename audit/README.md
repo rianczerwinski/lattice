@@ -1,3 +1,8 @@
 # Loom audits
 
 Each timestamped outpost binds one immutable implementation revision and preserves its findings, evidence, validation receipt, and derived report. A later remediation does not rewrite the audit that exposed it.
+
+```
+├── 20260818T140529-initial-system/    Initial systemic audit and active remediation findings
+└── 20260820T121500-closure-system/    Closure audit, rejected mutations, and proof limits
+```

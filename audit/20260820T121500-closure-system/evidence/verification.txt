@@ -1,0 +1,16 @@
+Loom closure verification — 20260820T121500
+
+Frozen implementation revision: 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3
+
+Executed assurance:
+- axis/chariots/loom/.venv/bin/pytest -q: 41 passed; one upstream TestClient deprecation warning.
+- python3 -m unittest discover -s axis/tools/model-runner/tests -q: 20 passed.
+- npm test in axis/chariots/loom/web: 2 hostile-response mutations passed.
+- npm run check in axis/chariots/loom/web: 0 errors and 0 warnings.
+- npm run build in axis/chariots/loom/web: production build succeeded.
+- GET http://127.0.0.1:9010/api/v1/routes: HTTP 200 in 0.192306 seconds after fast discovery cutover.
+- GET http://127.0.0.1:9010/api/health: HTTP 200 with service=loom.
+
+The Python suite includes independently authored negative controls for context reconstruction, append-only replay, cross-project boundaries, stale leases, idempotency, workflow route impersonation, seal-time route mutation, disconnected workflow graphs, post-transition trigger-planning failure and retry, exact artifact content, malformed provider output, sanitized imports, and operator-origin enforcement.
+
+Authenticated Claude and Codex execution had already been exercised through the official consumer CLIs during this implementation chain. The exact journals and invocation records remain in the local Loom data ledger. Gemini's official subscription-authenticated automation surface remains unavailable, so the German native-role authenticated acceptance gate is a disclosed proof limit rather than a completed claim.
