@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:5c9ba5a1-d4db-5e1e-bb30-c68e14386429",
+  "surface_id": "surface:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:5c9ba5a1-d4db-5e1e-bb30-c68e14386429",
-    "generated_at": "20260820T115100",
+    "artifact_id": "artifact:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
+    "generated_at": "20260820T121200",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "144baaa53725adae972303096cb6122f44a14340",
+        "revision": "2ce6c8f92bf3f705cfb41bfa555e0917c30ce733",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:a286cf0c-70e5-5fef-9570-a095f6ba9e25"
+    "parent_artifact_id": "artifact:5c9ba5a1-d4db-5e1e-bb30-c68e14386429"
   },
   "workframe": {
     "name": "Loom",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260820T115100",
-    "source_revision": "144baaa53725adae972303096cb6122f44a14340",
+    "at": "20260820T121200",
+    "source_revision": "2ce6c8f92bf3f705cfb41bfa555e0917c30ce733",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "144baaa53725adae972303096cb6122f44a14340",
+    "revision": "2ce6c8f92bf3f705cfb41bfa555e0917c30ce733",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -152,12 +152,12 @@
       {
         "path": "loom/server.py",
         "mode": "100644",
-        "object_id": "93b9069516711bc3752b1f90b70b9370f2e0c7ad"
+        "object_id": "ecd33eaa88e8e66af021464bb3161eab1c3e6aa7"
       },
       {
         "path": "loom/store.py",
         "mode": "100644",
-        "object_id": "5ee5c41e6093fe422d305586939c5688575d8238"
+        "object_id": "d6f4914d0a339461a74770567bf406a10c2a332a"
       },
       {
         "path": "loom/supervisor.py",
@@ -182,7 +182,7 @@
       {
         "path": "tests/test_api.py",
         "mode": "100644",
-        "object_id": "23ae70882654de12ffd7787426ba7914a91aa4d0"
+        "object_id": "a294e7e7612fa8ba332c6e782977b6183995275d"
       },
       {
         "path": "tests/test_kernel.py",
@@ -207,7 +207,7 @@
       {
         "path": "tests/test_workflows.py",
         "mode": "100644",
-        "object_id": "259017aeed5f5eb639dcd605c444381efdb8aa7d"
+        "object_id": "18423b72a5944d6a109d5879fbbf81a85ae1d359"
       },
       {
         "path": "uv.lock",
@@ -215,19 +215,19 @@
         "object_id": "7a4003b1e6b7b0d5ac7d090dbfb19bb3dce119ad"
       },
       {
+        "path": "web/dist/assets/index-B9WVxL9G.js",
+        "mode": "100644",
+        "object_id": "4dee30cd96629f39610f900b22b6769ecd276036"
+      },
+      {
         "path": "web/dist/assets/index-B_L0H1A9.css",
         "mode": "100644",
         "object_id": "5c4eb9a0bdf0142ddb7cbe604814ebdc2658a656"
       },
       {
-        "path": "web/dist/assets/index-dKjWWPuP.js",
-        "mode": "100644",
-        "object_id": "b9cb992bc9cd1a74bfb41a4d472a0a5f6d84b608"
-      },
-      {
         "path": "web/dist/index.html",
         "mode": "100644",
-        "object_id": "b859c5a0f9b23a4a3cee8c1908d32bba0e6eb72f"
+        "object_id": "e5d309a145ec3428faf8e5454075f53a806503d6"
       },
       {
         "path": "web/index.html",
@@ -237,17 +237,17 @@
       {
         "path": "web/package-lock.json",
         "mode": "100644",
-        "object_id": "bb41b2bf91567fa22db6502867529395a606bd10"
+        "object_id": "4f8ff2fb40043a48d89b28f0800fdf8cbb8375f5"
       },
       {
         "path": "web/package.json",
         "mode": "100644",
-        "object_id": "7d7449a8e20bfc6fee947cdeabce51b97574fddb"
+        "object_id": "f6c67098feb27a489fb4a1fda49f797e28de6ad2"
       },
       {
         "path": "web/src/App.svelte",
         "mode": "100644",
-        "object_id": "1a0602eef4b62b8f8a5c34901bd2abafa84591c4"
+        "object_id": "daad9130799dabf279285f2c3d6702f578e06a4a"
       },
       {
         "path": "web/src/api.ts",
@@ -260,6 +260,16 @@
         "object_id": "d0187822a23f4118bab4a5dab20dd15b26f55734"
       },
       {
+        "path": "web/src/renderMarkdown.test.ts",
+        "mode": "100644",
+        "object_id": "889ecb153e09c2ed55bf125e212665c1eddb0748"
+      },
+      {
+        "path": "web/src/renderMarkdown.ts",
+        "mode": "100644",
+        "object_id": "3429c00b5b3d0d97cfdfe8b8c1c0942cdc2d2280"
+      },
+      {
         "path": "web/src/style.css",
         "mode": "100644",
         "object_id": "754797455cbc5c8a2c0402b80a439393d869e910"
@@ -267,12 +277,12 @@
       {
         "path": "web/src/types.ts",
         "mode": "100644",
-        "object_id": "608f52b4d7954468c8979e54b163f01b146526db"
+        "object_id": "728a0a7d7417a8fb9b331f1651348db6d99a944c"
       },
       {
         "path": "web/tsconfig.json",
         "mode": "100644",
-        "object_id": "48c4cde755e6b91ef1bd7c4843ed059f4e342b05"
+        "object_id": "271901fed5441bf6295a0a088d5ea1f6d817c217"
       },
       {
         "path": "web/vite.config.ts",
@@ -295,7 +305,7 @@
         "object_id": "db7c340db94f1a07bd919d0229acaf18707c0fd0"
       }
     ],
-    "entries_sha256": "481bd0ee1a82bc850f9bbd47536d3befb0129379142c84842513fa9431dc50a0",
+    "entries_sha256": "6ca0ba1ae512eb7dcd0a50c4ce8d1e1b34a5c9e1aea0e3f1fc9bdf575b170f1c",
     "mappings": [
       {
         "path": ".gitignore",
@@ -672,6 +682,17 @@
         "reason": "The entry contributes to packaging and assurance."
       },
       {
+        "path": "web/dist/assets/index-B9WVxL9G.js",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:d1caf9a1-eebd-534c-a1b4-ce13d94f8c15"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
         "path": "web/dist/assets/index-B_L0H1A9.css",
         "disposition": "mapped",
         "item_ids": [
@@ -681,17 +702,6 @@
           "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
         ],
         "reason": "This source contributes directly to the named operational subsystem."
-      },
-      {
-        "path": "web/dist/assets/index-dKjWWPuP.js",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:b0f8186e-45f0-54b8-94f6-bd61e7eccf69"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
       },
       {
         "path": "web/dist/index.html",
@@ -769,6 +779,28 @@
           "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
         ],
         "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/src/renderMarkdown.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
+        "path": "web/src/renderMarkdown.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
       },
       {
         "path": "web/src/style.css",
@@ -903,7 +935,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "Thirty-eight Loom tests include negative controls for provider-role impersonation, transition-order dependence, disconnected workflow states, trigger completion, and legacy authority migration."
+      "observation": "Forty-one Loom tests plus twenty model-runner tests and two browser-render mutations cover provider-role impersonation, seal-time route changes, post-transition trigger failure and retry, exact artifact bytes, restart recovery, and hostile model HTML."
     },
     {
       "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
@@ -928,7 +960,7 @@
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:5c9ba5a1-d4db-5e1e-bb30-c68e14386429",
+    "artifact_id": "carve:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
     "subject": "Loom conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -1315,23 +1347,23 @@
         ]
       },
       {
+        "id": "item:d1caf9a1-eebd-534c-a1b4-ce13d94f8c15",
+        "label": "web/dist/assets/index-B9WVxL9G.js",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/dist/assets/index-B9WVxL9G.js",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:943e987a-b047-52a7-9b31-cee7853e3315",
         "label": "web/dist/assets/index-B_L0H1A9.css",
         "role": "constituent",
         "evidence": [
           {
             "ref": "web/dist/assets/index-B_L0H1A9.css",
-            "note": "Tracked source entry in the frozen Loom workframe census."
-          }
-        ]
-      },
-      {
-        "id": "item:b0f8186e-45f0-54b8-94f6-bd61e7eccf69",
-        "label": "web/dist/assets/index-dKjWWPuP.js",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "web/dist/assets/index-dKjWWPuP.js",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
@@ -1409,6 +1441,28 @@
         "evidence": [
           {
             "ref": "web/src/main.ts",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637",
+        "label": "web/src/renderMarkdown.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/renderMarkdown.test.ts",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9",
+        "label": "web/src/renderMarkdown.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/renderMarkdown.ts",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
@@ -1533,9 +1587,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:a286cf0c-70e5-5fef-9570-a095f6ba9e25",
+      "parent_artifact_id": "carve:5c9ba5a1-d4db-5e1e-bb30-c68e14386429",
       "reconciliation_scope": "local",
-      "decision": "The five-part decomposition remains stable after workflow authority became typed and executable; the change deepens the integration and execution nodes without introducing a new root kind.",
+      "decision": "The five-part decomposition remains stable after the execution boundary gained seal-time role checks, retriable trigger planning, exact artifact inspection, fast route discovery, and adversarial response rendering tests.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -1616,8 +1670,8 @@
           "gloss": "The Svelte conversational surface and its compiled same-origin assets.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
+            "item:d1caf9a1-eebd-534c-a1b4-ce13d94f8c15",
             "item:943e987a-b047-52a7-9b31-cee7853e3315",
-            "item:b0f8186e-45f0-54b8-94f6-bd61e7eccf69",
             "item:9b90b33e-e89d-5643-a7d2-823bebe8b707",
             "item:f489ef36-55ac-5d04-850a-4789bf396db6",
             "item:8eb8c30a-bf3c-5d38-8c95-5fad641a6968",
@@ -1625,6 +1679,8 @@
             "item:578f69de-c56c-5b30-939e-2385d80c074d",
             "item:d281d945-c739-5cc8-9617-c07d9dd220c5",
             "item:de0467eb-480d-5697-8baa-e18610d381ab",
+            "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637",
+            "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9",
             "item:5d44d1b5-155a-55ad-8a81-b5ab7eb2999a",
             "item:507eccda-e353-5be2-b317-241a9e5f03df",
             "item:da06c3e5-4840-5fc2-991f-64a2e2b9b11c",
@@ -1828,7 +1884,7 @@
           "id": "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
           "mode": "is",
           "state": "shipped",
-          "summary": "The cockpit operates arbitrary Claude/Codex routing while enforcing workflow role-provider boundaries, showing unavailable routes honestly, and exposing exact preflight, retrospective context, artifacts, attempts, graph neighborhoods, and authoritative workflow state.",
+          "summary": "The cockpit operates arbitrary Claude/Codex routing while enforcing workflow role-provider boundaries, showing unavailable routes honestly, and exposing exact preflight, retrospective context, artifact bytes, attempts, graph neighborhoods, workflow failures, and retry controls.",
           "detail": null,
           "source_ids": [
             "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
@@ -1847,7 +1903,7 @@
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
           "state": "partial",
-          "summary": "Truth-typed tests, clean source and web builds, authenticated manual routing, mutation controls, and an initial audit-remediation ledger exist; a new frozen-revision closure audit remains outstanding.",
+          "summary": "Truth-typed Python and browser tests, clean source and web builds, authenticated manual routing, mutation controls, and an initial audit-remediation ledger exist; the final frozen-revision closure audit is the remaining assurance step.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
@@ -1861,7 +1917,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:a286cf0c-70e5-5fef-9570-a095f6ba9e25",
+    "parent_surface_id": "surface:5c9ba5a1-d4db-5e1e-bb30-c68e14386429",
     "preserved_claim_ids": [
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
       "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
