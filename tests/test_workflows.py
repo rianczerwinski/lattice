@@ -9,7 +9,7 @@ import pytest
 import httpx
 
 from loom.context_modules import ContextModuleError, ContextModuleRunner
-from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, ProjectCreate
+from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, ProjectCreate, ProviderRoute, WorkflowPackDefinition
 from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError
 from loom.platform_foundry import PlatformFoundryAdapter
 from loom.workflows import WorkflowRegistry
@@ -124,7 +124,7 @@ def test_query_transition_freezes_exact_bytes_and_rejects_undeclared_jump(loom_e
     created = store.create_workflow_project_atomic(title="query workflow", purpose="", workflow_pack="quaternary", initial_state="native-query-proposal", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
     project_id = created["project"]["project_id"]
     declared = registry.validate_transition("quaternary", "native-query-proposal", "frozen-query")
-    receipt = store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="native-query-proposal", to_state="frozen-query", evidence_block_ids=[], payload={"query_bytes": "exakte deutsche Anfrage"}, trigger=declared["trigger"])
+    receipt = store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="native-query-proposal", to_state="frozen-query", evidence_block_ids=[], payload={"query_bytes": "exakte deutsche Anfrage"}, trigger=declared["trigger_definition"])
 
     assert receipt["workflow"]["state"] == "frozen-query"
     frozen_ref = receipt["trigger"]["result_ref"]
@@ -186,3 +186,36 @@ def test_legacy_workflow_projects_receive_runtime_state_once_without_rewriting_d
     workflow = store.get_workflow_instance(project["project_id"])
     assert workflow["state"] == "semantic-intent"
     assert workflow["revision"] == 1
+
+
+@pytest.mark.regression
+def test_workflow_role_route_is_enforced_instead_of_treated_as_cockpit_decoration(loom_env):
+    store = loom_env["store"]
+    created = store.create_workflow_project_atomic(
+        title="route-bound",
+        purpose="",
+        workflow_pack="quaternary",
+        initial_state="semantic-intent",
+        role_specs=[{"role_id": "native-partner", "name": "German native-language partner", "provider": "google", "harness": "gemini", "allowed_models": [], "authority": "language-proposal-only", "instructions": "Interpret German."}],
+        blackboard_content=b"{}",
+        blackboard_source_ref="fixture:state",
+        slice_external_ref=None,
+    )
+    session = created["project"]["sessions"][0]
+    with pytest.raises(Exception, match="bound to google through gemini"):
+        store.create_draft(DraftCreate(project_id=created["project"]["project_id"], role_session_id=session["role_session_id"], prompt="pretend to be native", route=ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex")))
+
+
+@pytest.mark.contract
+def test_workflow_initial_state_and_trigger_binding_survive_transition_reordering():
+    raw = json.loads((Path(__file__).parents[1] / "workflow_packs" / "quaternary" / "pack.json").read_text())
+    raw["allowed_transitions"] = list(reversed(raw["allowed_transitions"]))
+    definition = WorkflowPackDefinition.model_validate(raw)
+    assert definition.initial_state == "semantic-intent"
+    closure = next(item for item in definition.allowed_transitions if item.to_state == "closure-candidate")
+    assert closure.trigger == "closure-proposed"
+
+    broken = json.loads(json.dumps(raw))
+    broken["allowed_transitions"].append({"from": "unreachable", "to": "island"})
+    with pytest.raises(ValueError, match="reachable"):
+        WorkflowPackDefinition.model_validate(broken)

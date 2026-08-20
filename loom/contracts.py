@@ -219,33 +219,100 @@ class ContextModuleDefinition(StrictModel):
     configuration: dict[str, Any]
 
 
+class WorkflowRoleDefinition(StrictModel):
+    role_id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    name: str = Field(min_length=1, max_length=120)
+    provider: Literal["anthropic", "openai", "google", "xai", "local", "operator"]
+    harness: Literal["claude", "codex", "gemini", "grok"] | None = None
+    allowed_models: list[str] = Field(default_factory=list)
+    authority: str = Field(min_length=1)
+    instructions: str | None = Field(default=None, min_length=1, max_length=100_000)
+
+    @model_validator(mode="after")
+    def execution_boundary_is_explicit(self) -> "WorkflowRoleDefinition":
+        expected = {"anthropic": "claude", "openai": "codex", "google": "gemini", "xai": "grok"}
+        if self.provider in expected and self.harness != expected[self.provider]:
+            raise ValueError(f"{self.provider} workflow roles require the {expected[self.provider]} harness")
+        if self.provider in {"local", "operator"} and self.harness is not None:
+            raise ValueError("local and operator workflow roles cannot declare a model harness")
+        return self
+
+
+class FreezePayloadFieldAction(StrictModel):
+    type: Literal["freeze_payload_field"]
+    field: str = Field(min_length=1)
+
+
+class InvokeRoleAction(StrictModel):
+    type: Literal["invoke_role"]
+    role_id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    prompt: str = Field(min_length=1, max_length=100_000)
+    exclude_payload_block_field: str | None = None
+
+
+class WorkflowTriggerDefinition(StrictModel):
+    trigger: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    required_action: str = Field(min_length=1)
+    automatic: bool
+    action: FreezePayloadFieldAction | InvokeRoleAction = Field(discriminator="type")
+
+
+class WorkflowTransitionDefinition(StrictModel):
+    from_state: str = Field(alias="from", min_length=1)
+    to_state: str = Field(alias="to", min_length=1)
+    trigger: str | None = None
+    requires_completed_trigger: str | None = None
+
+
 class WorkflowPackDefinition(StrictModel):
     pack_id: str = Field(pattern=r"^[a-z][a-z0-9.-]*$")
     version: int = Field(ge=1)
     title: str
-    roles: list[dict[str, Any]]
+    initial_state: str = Field(min_length=1)
+    roles: list[WorkflowRoleDefinition]
     context_modules: list[ContextModuleDefinition] = Field(default_factory=list)
-    allowed_transitions: list[dict[str, Any]] = Field(default_factory=list)
-    triggers: list[dict[str, Any]] = Field(default_factory=list)
+    allowed_transitions: list[WorkflowTransitionDefinition] = Field(default_factory=list)
+    triggers: list[WorkflowTriggerDefinition] = Field(default_factory=list)
     closure_contract: dict[str, Any]
 
     @model_validator(mode="after")
     def workflow_graph_is_unambiguous(self) -> "WorkflowPackDefinition":
         pairs: set[tuple[str, str]] = set()
         for transition in self.allowed_transitions:
-            if set(transition) != {"from", "to"} or not all(isinstance(transition[key], str) and transition[key] for key in ("from", "to")):
-                raise ValueError("workflow transitions require only nonempty from/to states")
-            pair = (transition["from"], transition["to"])
+            pair = (transition.from_state, transition.to_state)
             if pair in pairs:
                 raise ValueError("workflow transitions must be unique")
             pairs.add(pair)
-        trigger_names: set[str] = set()
+        role_ids = [role.role_id for role in self.roles]
+        if len(role_ids) != len(set(role_ids)):
+            raise ValueError("workflow role IDs must be unique")
+        trigger_names = [trigger.trigger for trigger in self.triggers]
+        if len(trigger_names) != len(set(trigger_names)):
+            raise ValueError("workflow trigger names must be unique")
+        known_triggers = set(trigger_names)
+        bound_triggers = [transition.trigger for transition in self.allowed_transitions if transition.trigger]
+        if set(bound_triggers) != known_triggers or len(bound_triggers) != len(set(bound_triggers)):
+            raise ValueError("every workflow trigger must be bound to exactly one transition")
+        for transition in self.allowed_transitions:
+            if transition.requires_completed_trigger and transition.requires_completed_trigger not in known_triggers:
+                raise ValueError("required workflow trigger is not declared")
         for trigger in self.triggers:
-            if not isinstance(trigger.get("trigger"), str) or not isinstance(trigger.get("required_action"), str) or not isinstance(trigger.get("automatic"), bool):
-                raise ValueError("workflow triggers require trigger, required_action, and automatic")
-            if trigger["trigger"] in trigger_names:
-                raise ValueError("workflow trigger names must be unique")
-            trigger_names.add(trigger["trigger"])
+            if isinstance(trigger.action, InvokeRoleAction) and trigger.action.role_id not in set(role_ids):
+                raise ValueError("workflow trigger references an undeclared role")
+        adjacency: dict[str, set[str]] = {}
+        states = {self.initial_state}
+        for transition in self.allowed_transitions:
+            adjacency.setdefault(transition.from_state, set()).add(transition.to_state)
+            states.update((transition.from_state, transition.to_state))
+        reachable = {self.initial_state}
+        frontier = [self.initial_state]
+        while frontier:
+            current = frontier.pop()
+            for target in adjacency.get(current, set()) - reachable:
+                reachable.add(target)
+                frontier.append(target)
+        if reachable != states:
+            raise ValueError("every workflow state must be reachable from initial_state")
         return self
 
 

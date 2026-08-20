@@ -2,6 +2,7 @@
   "pack_id": "platform-foundry",
   "version": 1,
   "title": "Octopus Platform Foundry",
+  "initial_state": "observing",
   "roles": [
     {"role_id": "constructor", "name": "Ontology constructor", "provider": "anthropic", "harness": "claude", "authority": "hypothesis-only"},
     {"role_id": "critic", "name": "Independent falsifier", "provider": "openai", "harness": "codex", "authority": "challenge-only"},

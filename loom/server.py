@@ -111,7 +111,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     workflows = WorkflowRegistry(WORKFLOW_PACK_ROOT)
     workflows.register("quaternary", QuaternaryAdapter(config.quaternary_root / "quaternary.sqlite3", config.quaternary_root / "tools" / "gatherctl.py"))
     workflows.register("platform-foundry", PlatformFoundryAdapter(config.octopus_base_url))
-    store.reconcile_workflow_instances({pack_id: workflows.load(pack_id)["definition"]["allowed_transitions"][0]["from"] for pack_id in workflows.adapters})
+    store.reconcile_workflow_instances({pack_id: workflows.load(pack_id)["definition"]["initial_state"] for pack_id in workflows.adapters})
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -289,10 +289,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
         for role_spec in definition["roles"]:
             instructions = role_spec.get("instructions") or f"Act only as {role_spec['name']} inside the {definition['title']} workflow. Your authority is {role_spec['authority']}. Treat model outputs as proposals unless the authoritative workflow explicitly accepts them."
             role_specs.append({**role_spec, "instructions": instructions})
-        transitions = definition["allowed_transitions"]
-        if not transitions:
-            raise HTTPException(422, "workflow pack has no initial state")
-        return store.create_workflow_project_atomic(title=value.title, purpose=value.purpose, workflow_pack=pack_id, initial_state=transitions[0]["from"], role_specs=role_specs, blackboard_content=state_bytes, blackboard_source_ref=f"{pack_id}:state:{value.selector}", slice_external_ref=value.slice_external_ref, context_modules=resolved_modules)
+        return store.create_workflow_project_atomic(title=value.title, purpose=value.purpose, workflow_pack=pack_id, initial_state=definition["initial_state"], role_specs=role_specs, blackboard_content=state_bytes, blackboard_source_ref=f"{pack_id}:state:{value.selector}", slice_external_ref=value.slice_external_ref, context_modules=resolved_modules)
 
     @app.post("/api/v1/workflow-packs/{pack_id}/inspect")
     async def inspect_workflow(pack_id: str, value: WorkflowInspectRequest):
@@ -330,30 +327,38 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
             declared = workflows.validate_transition(pack_id, value.from_state, value.to_state)
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
-        if value.to_state == "closure-candidate":
-            candidate_block_id = value.payload.get("closure_candidate_block_id")
-            if not isinstance(candidate_block_id, str):
-                raise HTTPException(422, "closure transition requires a closure_candidate_block_id")
-            candidate = store.get_block(candidate_block_id, include_content=False)
-            if candidate["project_id"] != value.project_id:
-                raise HTTPException(409, "closure candidate belongs to another project")
-            if candidate_block_id in value.evidence_block_ids:
-                raise HTTPException(422, "blinded challenger evidence cannot include the proposer conclusion")
-        receipt = store.advance_workflow(project_id=value.project_id, pack_id=pack_id, expected_revision=value.expected_revision, from_state=value.from_state, to_state=value.to_state, evidence_block_ids=value.evidence_block_ids, payload=value.payload, trigger=declared["trigger"])
+        trigger_definition = declared["trigger_definition"]
+        action = trigger_definition["action"] if trigger_definition else None
+        excluded_block_id = None
+        if action and action["type"] == "invoke_role" and action.get("exclude_payload_block_field"):
+            field = action["exclude_payload_block_field"]
+            excluded_block_id = value.payload.get(field)
+            if not isinstance(excluded_block_id, str):
+                raise HTTPException(422, f"workflow trigger requires block payload field {field}")
+            excluded = store.get_block(excluded_block_id, include_content=False)
+            if excluded["project_id"] != value.project_id:
+                raise HTTPException(409, "excluded trigger context belongs to another project")
+            if excluded_block_id in value.evidence_block_ids:
+                raise HTTPException(422, "trigger evidence cannot include its explicitly excluded block")
+        receipt = store.advance_workflow(project_id=value.project_id, pack_id=pack_id, expected_revision=value.expected_revision, from_state=value.from_state, to_state=value.to_state, evidence_block_ids=value.evidence_block_ids, payload=value.payload, trigger=trigger_definition, requires_completed_trigger=declared.get("requires_completed_trigger"))
         trigger = receipt.get("trigger")
-        if trigger and trigger["trigger_name"] == "closure-proposed":
+        if trigger and trigger_definition and trigger_definition["automatic"] and action["type"] == "invoke_role":
             project = store.get_project(value.project_id)
-            verifier = next((role for role in project["roles"] if role["name"] == "Blinded closure challenger"), None)
-            if verifier is None:
-                raise LoomConflict("workflow has no blinded challenger role")
-            session = next(item for item in project["sessions"] if item["role_id"] == verifier["role_id"])
-            route_status = next((item for item in __import__("axis_model_runner", fromlist=["DEFAULT_ADAPTERS"]).DEFAULT_ADAPTERS if item.provider_code == "openai"), None)
+            role = next((item for item in project["roles"] if item["workflow_role_key"] == action["role_id"]), None)
+            if role is None:
+                raise LoomConflict(f"workflow trigger role is unavailable: {action['role_id']}")
+            session = next(item for item in project["sessions"] if item["role_id"] == role["role_id"])
+            policy = role["route_policy"]
+            if policy["kind"] != "model":
+                raise LoomConflict("automatic invocation trigger requires a model-bound role")
+            from axis_model_runner import installed_adapter_status
+            route_status = next((item for item in installed_adapter_status() if item["installed"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
             if route_status is None:
-                raise LoomConflict("Codex challenger route is unavailable")
+                raise LoomConflict(f"qualified {policy['provider']} trigger route is unavailable")
             selections = [ContextSelection(block_id=block_id, plane="knowledge", label=f"independent-evidence:{index}") for index, block_id in enumerate(value.evidence_block_ids)]
-            draft = store.create_draft(DraftCreate(project_id=value.project_id, role_session_id=session["role_session_id"], prompt="Independently recompute whether bounded closure is supported by the supplied base evidence. Do not infer or reproduce the proposer’s conclusion. Return falsifiers, remaining gaps, and the narrowest closure statement justified.", route=ProviderRoute(provider="openai", model=route_status.model_code, harness="codex", effort="high"), selections=selections, relation=EdgeRelation.triggered_by))
+            draft = store.create_draft(DraftCreate(project_id=value.project_id, role_session_id=session["role_session_id"], prompt=action["prompt"], route=ProviderRoute(provider=policy["provider"], model=route_status["model_code"], harness=policy["harness"], effort="high"), selections=selections, relation=EdgeRelation.triggered_by))
             invocation = loom.seal(draft["draft_id"])
-            store.complete_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
+            store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
             store.add_edge(project_id=value.project_id, relation=EdgeRelation.triggered_by, source_type="invocation", source_id=invocation["invocation_id"], source_revision=invocation["manifest_sha256"], target_type="workflow-trigger", target_id=trigger["trigger_id"], target_revision=trigger["source_transition_id"], metadata={"blinded": True})
             receipt["challenger_invocation"] = invocation
         return receipt

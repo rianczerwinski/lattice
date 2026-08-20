@@ -52,7 +52,7 @@ def test_oracle_invocation_inspection_exposes_independently_reconstructed_prompt
 @pytest.mark.oracle
 def test_closure_transition_automatically_seals_blinded_challenger_without_candidate_context(loom_env) -> None:
     store = loom_env["store"]
-    created = store.create_workflow_project_atomic(title="closure workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"name": "Blinded closure challenger", "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
+    created = store.create_workflow_project_atomic(title="closure workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
     project_id = created["project"]["project_id"]
     evidence = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="search-receipts", content="INDEPENDENT_BASE_EVIDENCE"))
     candidate = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="closure-candidate", content="SECRET_PROPOSER_CONCLUSION"))
@@ -67,6 +67,12 @@ def test_closure_transition_automatically_seals_blinded_challenger_without_candi
     exact_context = store.blobs.get(challenger["compiled_prompt_sha256"])
     assert b"INDEPENDENT_BASE_EVIDENCE" in exact_context
     assert b"SECRET_PROPOSER_CONCLUSION" not in exact_context
+    trigger = store.get_workflow_instance(project_id)["triggers"][0]
+    assert trigger["state"] == "planned"
+    attempt = store.create_attempt(challenger["invocation_id"], "challenger-attempt-1", "test-boot", 9_999_999_999)
+    store.mark_attempt_running(attempt["attempt_id"])
+    store.finish_successful_attempt(attempt["attempt_id"], response="independent result", artifacts=[], journal_path="fixture:journal", runtime_receipt={"fixture": True})
+    assert store.get_workflow_instance(project_id)["triggers"][0]["state"] == "completed"
 
 
 @pytest.mark.oracle

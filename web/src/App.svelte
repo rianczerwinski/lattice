@@ -21,8 +21,11 @@
   let working = false;
   let error = '';
 
-  $: installedRoutes = routes.filter((route) => route.installed && ['anthropic', 'openai'].includes(route.provider_code));
-  $: activeRoute = routes.find((route) => `${route.provider_code}:${route.model_code}` === selectedRoute);
+  $: selectedRole = project?.roles?.find((role) => role.role_id === project?.sessions?.find((session) => session.role_session_id === selectedSession)?.role_id);
+  $: installedRoutes = routes.filter((route) => route.installed && ['anthropic', 'openai'].includes(route.provider_code) && (!selectedRole || selectedRole.route_policy.kind === 'operator-selectable' || (selectedRole.route_policy.kind === 'model' && selectedRole.route_policy.provider === route.provider_code && selectedRole.route_policy.harness === route.official_cli && (!selectedRole.route_policy.allowed_models?.length || selectedRole.route_policy.allowed_models.includes(route.model_code)))));
+  $: if (installedRoutes.length && !installedRoutes.some((route) => `${route.provider_code}:${route.model_code}` === selectedRoute)) selectedRoute = `${installedRoutes[0].provider_code}:${installedRoutes[0].model_code}`;
+  $: if (!installedRoutes.length && selectedRole) selectedRoute = '';
+  $: activeRoute = installedRoutes.find((route) => `${route.provider_code}:${route.model_code}` === selectedRoute);
   $: responseHtml = selected?.output_block?.content ? DOMPurify.sanitize(marked.parse(selected.output_block.content) as string) : '';
   $: trailheads = project?.trailheads ?? [];
 
@@ -69,7 +72,7 @@
   }
 
   function routePayload() {
-    if (!activeRoute) throw new Error('Choose an installed Claude or Codex route.');
+    if (!activeRoute) throw new Error(selectedRole?.route_policy.kind === 'non-model' ? `${selectedRole.name} is a deterministic or human role, not a model route.` : 'Choose an installed route authorized for this role.');
     return {
       provider: activeRoute.provider_code,
       model: activeRoute.model_code,

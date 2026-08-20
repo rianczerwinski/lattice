@@ -2,6 +2,7 @@
   "pack_id": "quaternary",
   "version": 1,
   "title": "German quaternary research",
+  "initial_state": "semantic-intent",
   "roles": [
     {"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "authority": "propose-only"},
     {"role_id": "native-partner", "name": "German native-language partner", "provider": "google", "harness": "gemini", "authority": "language-proposal-only"},
@@ -14,16 +15,31 @@
   "context_modules": [],
   "allowed_transitions": [
     {"from": "semantic-intent", "to": "native-query-proposal"},
-    {"from": "native-query-proposal", "to": "frozen-query"},
+    {"from": "native-query-proposal", "to": "frozen-query", "trigger": "query-accepted"},
     {"from": "frozen-query", "to": "search-receipts"},
     {"from": "search-receipts", "to": "terminology-amendment"},
     {"from": "terminology-amendment", "to": "countersearch"},
-    {"from": "countersearch", "to": "closure-candidate"},
-    {"from": "closure-candidate", "to": "blinded-challenge"}
+    {"from": "countersearch", "to": "closure-candidate", "trigger": "closure-proposed"},
+    {"from": "closure-candidate", "to": "blinded-challenge", "requires_completed_trigger": "closure-proposed"}
   ],
   "triggers": [
-    {"trigger": "closure-proposed", "required_action": "create-independent-blinded-challenger", "automatic": true},
-    {"trigger": "query-accepted", "required_action": "freeze-exact-query-bytes-before-execution", "automatic": true}
+    {
+      "trigger": "closure-proposed",
+      "required_action": "create-independent-blinded-challenger",
+      "automatic": true,
+      "action": {
+        "type": "invoke_role",
+        "role_id": "verifier",
+        "prompt": "Independently recompute whether bounded closure is supported by the supplied base evidence. Do not infer or reproduce the proposer’s conclusion. Return falsifiers, remaining gaps, and the narrowest closure statement justified.",
+        "exclude_payload_block_field": "closure_candidate_block_id"
+      }
+    },
+    {
+      "trigger": "query-accepted",
+      "required_action": "freeze-exact-query-bytes-before-execution",
+      "automatic": true,
+      "action": {"type": "freeze_payload_field", "field": "query_bytes"}
+    }
   ],
   "closure_contract": {
     "model_suggestions_are_proposals": true,

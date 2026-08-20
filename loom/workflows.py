@@ -33,7 +33,8 @@ class WorkflowRegistry:
         definition = WorkflowPackDefinition.model_validate_json(raw)
         if definition.pack_id != pack_id:
             raise ValueError("workflow pack identity does not match its path")
-        return {"definition": definition.model_dump(mode="json"), "source_sha256": sha256_bytes(raw), "canonical_sha256": sha256_bytes(canonical_bytes(definition.model_dump(mode="json")))}
+        value = definition.model_dump(mode="json", by_alias=True)
+        return {"definition": value, "source_sha256": sha256_bytes(raw), "canonical_sha256": sha256_bytes(canonical_bytes(value))}
 
     def inspect(self, pack_id: str, selector: dict[str, Any]) -> dict[str, Any]:
         self.load(pack_id)
@@ -51,11 +52,8 @@ class WorkflowRegistry:
 
     def validate_transition(self, pack_id: str, from_state: str, to_state: str) -> dict[str, Any]:
         definition = self.load(pack_id)["definition"]
-        if not any(item["from"] == from_state and item["to"] == to_state for item in definition["allowed_transitions"]):
+        transition = next((item for item in definition["allowed_transitions"] if item["from"] == from_state and item["to"] == to_state), None)
+        if transition is None:
             raise ValueError(f"workflow transition is not declared: {from_state} -> {to_state}")
-        trigger = None
-        if to_state == "frozen-query":
-            trigger = next((item for item in definition["triggers"] if item["trigger"] == "query-accepted"), None)
-        elif to_state == "closure-candidate":
-            trigger = next((item for item in definition["triggers"] if item["trigger"] == "closure-proposed"), None)
-        return {"from": from_state, "to": to_state, "trigger": trigger}
+        trigger = next((item for item in definition["triggers"] if item["trigger"] == transition.get("trigger")), None)
+        return {**transition, "trigger_definition": trigger}
