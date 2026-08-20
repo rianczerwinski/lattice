@@ -1,0 +1,26 @@
+{
+  "pack_id": "platform-foundry",
+  "version": 1,
+  "title": "Octopus Platform Foundry",
+  "roles": [
+    {"role_id": "constructor", "name": "Ontology constructor", "provider": "anthropic", "harness": "claude", "authority": "hypothesis-only"},
+    {"role_id": "critic", "name": "Independent falsifier", "provider": "openai", "harness": "codex", "authority": "challenge-only"},
+    {"role_id": "operator", "name": "Foundry operator", "provider": "operator", "authority": "authority-and-promotion-judgment"}
+  ],
+  "context_modules": [],
+  "allowed_transitions": [
+    {"from": "observing", "to": "modeling"},
+    {"from": "modeling", "to": "awaiting-experiment"},
+    {"from": "awaiting-experiment", "to": "compiling"},
+    {"from": "compiling", "to": "validating"},
+    {"from": "validating", "to": "shadow"},
+    {"from": "shadow", "to": "promotable"}
+  ],
+  "triggers": [],
+  "closure_contract": {
+    "authoritative_system": "octopus-platform-foundry",
+    "loom_is_read_only": true,
+    "promotion_requires_octopus_receipt": true,
+    "caller_asserted_shadow_forbidden": true
+  }
+}

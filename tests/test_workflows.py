@@ -6,10 +6,12 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import httpx
 
 from loom.context_modules import ContextModuleError, ContextModuleRunner
 from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, ProjectCreate
 from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError
+from loom.platform_foundry import PlatformFoundryAdapter
 from loom.workflows import WorkflowRegistry
 
 
@@ -154,3 +156,21 @@ def test_context_module_modes_are_executable_and_required_context_is_not_removab
     with pytest.raises(Exception, match="cannot be removed"):
         store.remove_role_context_default(role["role_id"], required["block_id"])
     assert {item["module_id"] for item in store.list_role_context_defaults(role["role_id"])} == {"project.rules"}
+
+
+@pytest.mark.contract
+def test_platform_foundry_pack_reuses_workflow_kernel_without_gaining_octopus_write_authority():
+    def getter(url: str, **_kwargs):
+        return httpx.Response(200, json={"platform_id": "pinterest-com", "state": "shadow"}, request=httpx.Request("GET", url))
+
+    adapter = PlatformFoundryAdapter("http://127.0.0.1:8000", getter=getter)
+    receipt = adapter.inspect({"platform_id": "pinterest-com"})
+    assert receipt["state"]["state"] == "shadow"
+    assert receipt["content_sha256"]
+    with pytest.raises(ValueError, match="remain owned by Octopus"):
+        adapter.command("promote", {"candidate_id": "candidate"})
+
+    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    assert registry.validate_transition("platform-foundry", "validating", "shadow")["to"] == "shadow"
+    with pytest.raises(ValueError, match="not declared"):
+        registry.validate_transition("platform-foundry", "observing", "promotable")

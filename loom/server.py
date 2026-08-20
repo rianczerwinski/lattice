@@ -37,6 +37,7 @@ from .octopus_import import OctopusImporter
 from .context_modules import ContextModuleError, ContextModuleRunner
 from .operations import Loom
 from .quaternary import QuaternaryAdapter, QuaternaryBoundaryError
+from .platform_foundry import PlatformFoundryAdapter
 from .security import OperatorBoundaryMiddleware, OperatorSessions, ensure_cli_token
 from .store import LoomConflict, LoomNotFound, LoomStore
 from .supervisor import ExecutionSupervisor
@@ -109,6 +110,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     context_modules = ContextModuleRunner(allowed_file_roots=(AXIS_ROOT,), octopus_base_url=config.octopus_base_url)
     workflows = WorkflowRegistry(WORKFLOW_PACK_ROOT)
     workflows.register("quaternary", QuaternaryAdapter(config.quaternary_root / "quaternary.sqlite3", config.quaternary_root / "tools" / "gatherctl.py"))
+    workflows.register("platform-foundry", PlatformFoundryAdapter(config.octopus_base_url))
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
