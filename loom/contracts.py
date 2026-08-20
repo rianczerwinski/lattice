@@ -228,3 +228,31 @@ class WorkflowPackDefinition(StrictModel):
     allowed_transitions: list[dict[str, Any]] = Field(default_factory=list)
     triggers: list[dict[str, Any]] = Field(default_factory=list)
     closure_contract: dict[str, Any]
+
+    @model_validator(mode="after")
+    def workflow_graph_is_unambiguous(self) -> "WorkflowPackDefinition":
+        pairs: set[tuple[str, str]] = set()
+        for transition in self.allowed_transitions:
+            if set(transition) != {"from", "to"} or not all(isinstance(transition[key], str) and transition[key] for key in ("from", "to")):
+                raise ValueError("workflow transitions require only nonempty from/to states")
+            pair = (transition["from"], transition["to"])
+            if pair in pairs:
+                raise ValueError("workflow transitions must be unique")
+            pairs.add(pair)
+        trigger_names: set[str] = set()
+        for trigger in self.triggers:
+            if not isinstance(trigger.get("trigger"), str) or not isinstance(trigger.get("required_action"), str) or not isinstance(trigger.get("automatic"), bool):
+                raise ValueError("workflow triggers require trigger, required_action, and automatic")
+            if trigger["trigger"] in trigger_names:
+                raise ValueError("workflow trigger names must be unique")
+            trigger_names.add(trigger["trigger"])
+        return self
+
+
+class WorkflowTransitionRequest(StrictModel):
+    project_id: str
+    expected_revision: int = Field(ge=1)
+    from_state: str = Field(min_length=1)
+    to_state: str = Field(min_length=1)
+    evidence_block_ids: list[str] = Field(default_factory=list)
+    payload: dict[str, Any] = Field(default_factory=dict)

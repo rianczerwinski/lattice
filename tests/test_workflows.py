@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from loom.context_modules import ContextModuleError, ContextModuleRunner
-from loom.contracts import ContextModuleDefinition, ContextModuleMode, ProjectCreate
+from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, ProjectCreate
 from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError
 from loom.workflows import WorkflowRegistry
 
@@ -85,7 +85,7 @@ def test_workflow_project_bootstrap_is_atomic(loom_env):
         {"name": "same", "authority": "proposal", "instructions": "two"},
     ]
     with pytest.raises(sqlite3.IntegrityError):
-        store.create_workflow_project_atomic(title="must roll back", purpose="negative control", workflow_pack="quaternary", role_specs=duplicated_roles, blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref="slate:atomic-negative")
+        store.create_workflow_project_atomic(title="must roll back", purpose="negative control", workflow_pack="quaternary", initial_state="semantic-intent", role_specs=duplicated_roles, blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref="slate:atomic-negative")
     assert len(store.list_projects()) == before
 
 
@@ -113,3 +113,44 @@ def test_restart_marks_dispatched_workflow_outcome_unknown_instead_of_retrying(l
     recovered = store.get_workflow_command(command["command_id"])
     assert recovered["state"] == "outcome_unknown"
     assert "must be inspected" in recovered["error_text"]
+
+
+@pytest.mark.oracle
+def test_query_transition_freezes_exact_bytes_and_rejects_undeclared_jump(loom_env):
+    store = loom_env["store"]
+    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    created = store.create_workflow_project_atomic(title="query workflow", purpose="", workflow_pack="quaternary", initial_state="native-query-proposal", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
+    project_id = created["project"]["project_id"]
+    declared = registry.validate_transition("quaternary", "native-query-proposal", "frozen-query")
+    receipt = store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="native-query-proposal", to_state="frozen-query", evidence_block_ids=[], payload={"query_bytes": "exakte deutsche Anfrage"}, trigger=declared["trigger"])
+
+    assert receipt["workflow"]["state"] == "frozen-query"
+    frozen_ref = receipt["trigger"]["result_ref"]
+    assert store.blobs.get(frozen_ref.removeprefix("loom:blob/")) == "exakte deutsche Anfrage".encode()
+    with pytest.raises(ValueError, match="not declared"):
+        registry.validate_transition("quaternary", "frozen-query", "closure-candidate")
+
+
+@pytest.mark.property
+def test_context_module_modes_are_executable_and_required_context_is_not_removable(loom_env):
+    store = loom_env["store"]
+    modules = [
+        {"definition": {"module_id": "project.weather", "version": 1, "mode": "role_default", "capabilities": [], "source_kind": "file", "configuration": {}}, "content": b"rain", "receipt": {"source_ref": "fixture:weather", "content_sha256": __import__("hashlib").sha256(b"rain").hexdigest()}},
+        {"definition": {"module_id": "project.rules", "version": 1, "mode": "workflow_required", "capabilities": [], "source_kind": "file", "configuration": {}}, "content": b"hard boundary", "receipt": {"source_ref": "fixture:rules", "content_sha256": __import__("hashlib").sha256(b"hard boundary").hexdigest()}},
+    ]
+    created = store.create_workflow_project_atomic(title="modules", purpose="", workflow_pack="quaternary", initial_state="semantic-intent", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, context_modules=modules)
+    project = created["project"]
+    role = project["roles"][0]
+    session = project["sessions"][0]
+    defaults = store.list_role_context_defaults(role["role_id"])
+    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="go", route=loom_env["route"]))
+    sealed = loom_env["loom"].seal(draft["draft_id"])
+    labels = {segment["label"] for segment in sealed["manifest"]["segments"]}
+    assert {"module:project.weather", "module:project.rules"} <= labels
+
+    removable = next(item for item in defaults if item["mode"] == "role_default")
+    required = next(item for item in defaults if item["mode"] == "workflow_required")
+    store.remove_role_context_default(role["role_id"], removable["block_id"])
+    with pytest.raises(Exception, match="cannot be removed"):
+        store.remove_role_context_default(role["role_id"], required["block_id"])
+    assert {item["module_id"] for item in store.list_role_context_defaults(role["role_id"])} == {"project.rules"}

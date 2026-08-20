@@ -48,3 +48,14 @@ class WorkflowRegistry:
             return self.adapters[pack_id].command(operation, arguments)
         except KeyError as error:
             raise ValueError(f"workflow has no registered adapter: {pack_id}") from error
+
+    def validate_transition(self, pack_id: str, from_state: str, to_state: str) -> dict[str, Any]:
+        definition = self.load(pack_id)["definition"]
+        if not any(item["from"] == from_state and item["to"] == to_state for item in definition["allowed_transitions"]):
+            raise ValueError(f"workflow transition is not declared: {from_state} -> {to_state}")
+        trigger = None
+        if to_state == "frozen-query":
+            trigger = next((item for item in definition["triggers"] if item["trigger"] == "query-accepted"), None)
+        elif to_state == "closure-candidate":
+            trigger = next((item for item in definition["triggers"] if item["trigger"] == "closure-proposed"), None)
+        return {"from": from_state, "to": to_state, "trigger": trigger}

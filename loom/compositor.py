@@ -27,6 +27,8 @@ class ContextCompositor:
         session = self.store.get_role_session(draft["role_session_id"])
         role = self.store.get_role(session["role_id"])
         selections = [ContextSelection(block_id=role["instructions_block_id"], disposition=BlockDisposition.selected, plane="instruction", label=f"role:{role['name']}")]
+        for default in self.store.list_role_context_defaults(role["role_id"]):
+            selections.append(ContextSelection(block_id=default["block_id"], disposition=BlockDisposition.selected, plane="state", label=f"module:{default['module_id']}"))
         for parent_id in draft["parents"]:
             parent = self.store.get_invocation(parent_id)
             if not parent.get("output_block_id"):

@@ -18,6 +18,7 @@ from .config import AXIS_ROOT, WEB_DIST, WORKFLOW_PACK_ROOT, LoomConfig
 from .canonical import canonical_bytes, sha256_bytes
 from .contracts import (
     ContextBlockCreate,
+    ContextSelection,
     ContextModuleDefinition,
     DraftCreate,
     DraftPatch,
@@ -29,6 +30,7 @@ from .contracts import (
     RoleSessionCreate,
     SliceCreate,
     TagRequest,
+    WorkflowTransitionRequest,
     EdgeRelation,
 )
 from .octopus_import import OctopusImporter
@@ -270,11 +272,24 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
         definition = loaded["definition"]
         state = await asyncio.to_thread(workflows.inspect, pack_id, value.selector)
         state_bytes = canonical_bytes(state)
+        resolved_modules = []
+        for module_value in definition["context_modules"]:
+            definition_model = ContextModuleDefinition.model_validate(module_value)
+            if definition_model.mode.value == "manual":
+                continue
+            try:
+                resolved = await asyncio.to_thread(context_modules.resolve, definition_model)
+            except ContextModuleError as error:
+                raise HTTPException(422, f"required workflow context failed: {definition_model.module_id}: {error}") from error
+            resolved_modules.append({"definition": definition_model.model_dump(mode="json"), "content": resolved.content, "receipt": resolved.receipt})
         role_specs = []
         for role_spec in definition["roles"]:
             instructions = role_spec.get("instructions") or f"Act only as {role_spec['name']} inside the {definition['title']} workflow. Your authority is {role_spec['authority']}. Treat model outputs as proposals unless the authoritative workflow explicitly accepts them."
             role_specs.append({**role_spec, "instructions": instructions})
-        return store.create_workflow_project_atomic(title=value.title, purpose=value.purpose, workflow_pack=pack_id, role_specs=role_specs, blackboard_content=state_bytes, blackboard_source_ref=f"{pack_id}:state:{value.selector}", slice_external_ref=value.slice_external_ref)
+        transitions = definition["allowed_transitions"]
+        if not transitions:
+            raise HTTPException(422, "workflow pack has no initial state")
+        return store.create_workflow_project_atomic(title=value.title, purpose=value.purpose, workflow_pack=pack_id, initial_state=transitions[0]["from"], role_specs=role_specs, blackboard_content=state_bytes, blackboard_source_ref=f"{pack_id}:state:{value.selector}", slice_external_ref=value.slice_external_ref, context_modules=resolved_modules)
 
     @app.post("/api/v1/workflow-packs/{pack_id}/inspect")
     async def inspect_workflow(pack_id: str, value: WorkflowInspectRequest):
@@ -302,6 +317,44 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     async def inspect_workflow_command(command_id: str):
         return store.get_workflow_command(command_id, include_result=True)
 
+    @app.get("/api/v1/workflow-projects/{project_id}")
+    async def inspect_workflow_project(project_id: str):
+        return store.get_workflow_instance(project_id)
+
+    @app.post("/api/v1/workflow-packs/{pack_id}/transitions")
+    async def transition_workflow(pack_id: str, value: WorkflowTransitionRequest):
+        try:
+            declared = workflows.validate_transition(pack_id, value.from_state, value.to_state)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        if value.to_state == "closure-candidate":
+            candidate_block_id = value.payload.get("closure_candidate_block_id")
+            if not isinstance(candidate_block_id, str):
+                raise HTTPException(422, "closure transition requires a closure_candidate_block_id")
+            candidate = store.get_block(candidate_block_id, include_content=False)
+            if candidate["project_id"] != value.project_id:
+                raise HTTPException(409, "closure candidate belongs to another project")
+            if candidate_block_id in value.evidence_block_ids:
+                raise HTTPException(422, "blinded challenger evidence cannot include the proposer conclusion")
+        receipt = store.advance_workflow(project_id=value.project_id, pack_id=pack_id, expected_revision=value.expected_revision, from_state=value.from_state, to_state=value.to_state, evidence_block_ids=value.evidence_block_ids, payload=value.payload, trigger=declared["trigger"])
+        trigger = receipt.get("trigger")
+        if trigger and trigger["trigger_name"] == "closure-proposed":
+            project = store.get_project(value.project_id)
+            verifier = next((role for role in project["roles"] if role["name"] == "Blinded closure challenger"), None)
+            if verifier is None:
+                raise LoomConflict("workflow has no blinded challenger role")
+            session = next(item for item in project["sessions"] if item["role_id"] == verifier["role_id"])
+            route_status = next((item for item in __import__("axis_model_runner", fromlist=["DEFAULT_ADAPTERS"]).DEFAULT_ADAPTERS if item.provider_code == "openai"), None)
+            if route_status is None:
+                raise LoomConflict("Codex challenger route is unavailable")
+            selections = [ContextSelection(block_id=block_id, plane="knowledge", label=f"independent-evidence:{index}") for index, block_id in enumerate(value.evidence_block_ids)]
+            draft = store.create_draft(DraftCreate(project_id=value.project_id, role_session_id=session["role_session_id"], prompt="Independently recompute whether bounded closure is supported by the supplied base evidence. Do not infer or reproduce the proposer’s conclusion. Return falsifiers, remaining gaps, and the narrowest closure statement justified.", route=ProviderRoute(provider="openai", model=route_status.model_code, harness="codex", effort="high"), selections=selections, relation=EdgeRelation.triggered_by))
+            invocation = loom.seal(draft["draft_id"])
+            store.complete_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
+            store.add_edge(project_id=value.project_id, relation=EdgeRelation.triggered_by, source_type="invocation", source_id=invocation["invocation_id"], source_revision=invocation["manifest_sha256"], target_type="workflow-trigger", target_id=trigger["trigger_id"], target_revision=trigger["source_transition_id"], metadata={"blinded": True})
+            receipt["challenger_invocation"] = invocation
+        return receipt
+
     @app.post("/api/v1/import/octopus")
     async def import_octopus(value: ImportConversationRequest):
         return await asyncio.to_thread(importer.import_conversation, project_id=value.project_id, conversation_id=value.conversation_id, provider=value.provider)
@@ -314,6 +367,11 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
             raise HTTPException(422, str(error)) from error
         block = store.create_context_block(ContextBlockCreate(project_id=value.project_id, semantic_type=f"context-module:{value.definition.module_id}", content=result.content.decode("utf-8"), source_ref=result.receipt["source_ref"], source_sha256=result.receipt["content_sha256"], authority=value.definition.module_id, evidence_level="module-receipt", sensitivity="private", transformation=result.receipt))
         return {"block": block, "receipt": result.receipt}
+
+    @app.delete("/api/v1/roles/{role_id}/context-defaults/{block_id}", status_code=204)
+    async def remove_context_default(role_id: str, block_id: str):
+        store.remove_role_context_default(role_id, block_id)
+        return Response(status_code=204)
 
     @app.get("/api/v1/projects/{project_id}/events")
     async def events(project_id: str, after: int = 0):

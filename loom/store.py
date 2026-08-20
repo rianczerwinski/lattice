@@ -228,6 +228,49 @@ CREATE TABLE IF NOT EXISTS workflow_commands(
 CREATE UNIQUE INDEX IF NOT EXISTS one_running_workflow_command
 ON workflow_commands(project_id) WHERE state='running';
 
+CREATE TABLE IF NOT EXISTS workflow_instances(
+    project_id TEXT PRIMARY KEY REFERENCES projects(project_id),
+    pack_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    revision INTEGER NOT NULL CHECK(revision>0),
+    automatic_grants_json TEXT NOT NULL CHECK(json_valid(automatic_grants_json)),
+    updated_at TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS workflow_transitions(
+    transition_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    pack_id TEXT NOT NULL,
+    from_state TEXT NOT NULL,
+    to_state TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    evidence_block_ids_json TEXT NOT NULL CHECK(json_valid(evidence_block_ids_json)),
+    payload_sha256 TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, revision)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS workflow_triggers(
+    trigger_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    trigger_name TEXT NOT NULL,
+    required_action TEXT NOT NULL,
+    state TEXT NOT NULL,
+    source_transition_id TEXT NOT NULL REFERENCES workflow_transitions(transition_id),
+    result_ref TEXT,
+    created_at TEXT NOT NULL,
+    completed_at TEXT
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS role_context_defaults(
+    role_id TEXT NOT NULL REFERENCES roles(role_id),
+    block_id TEXT NOT NULL REFERENCES context_blocks(block_id),
+    module_id TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    active INTEGER NOT NULL CHECK(active IN (0,1)),
+    PRIMARY KEY(role_id, block_id)
+) STRICT;
+
 CREATE INDEX IF NOT EXISTS events_project_seq ON events(project_id, seq);
 CREATE INDEX IF NOT EXISTS invocations_project_created ON invocations(project_id, created_at);
 CREATE INDEX IF NOT EXISTS edges_source ON edges(source_type, source_id);
@@ -319,6 +362,10 @@ class LoomStore:
             project = self._row(conn.execute("SELECT * FROM projects WHERE project_id=?", (project_id,)).fetchone(), project_id)
             project["roles"] = [dict(row) for row in conn.execute("SELECT * FROM roles WHERE project_id=? ORDER BY created_at", (project_id,))]
             project["sessions"] = [dict(row) for row in conn.execute("SELECT * FROM role_sessions WHERE project_id=? ORDER BY created_at", (project_id,))]
+            workflow = conn.execute("SELECT * FROM workflow_instances WHERE project_id=?", (project_id,)).fetchone()
+            project["workflow"] = dict(workflow) if workflow else None
+            if project["workflow"]:
+                project["workflow"]["automatic_grants"] = json.loads(project["workflow"].pop("automatic_grants_json"))
             project["trailheads"] = [dict(row) for row in conn.execute(
                 """SELECT i.* FROM invocations i
                    WHERE i.project_id=? AND NOT EXISTS(
@@ -337,10 +384,12 @@ class LoomStore:
         title: str,
         purpose: str,
         workflow_pack: str,
+        initial_state: str,
         role_specs: list[dict[str, Any]],
         blackboard_content: bytes,
         blackboard_source_ref: str,
         slice_external_ref: str | None,
+        context_modules: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Install a workflow project and its first authoritative snapshot as one ledger transition."""
         project_id = opaque_id("project")
@@ -351,10 +400,16 @@ class LoomStore:
         for spec in role_specs:
             instructions = spec["instructions"].encode("utf-8")
             prepared_roles.append((spec, opaque_id("role"), opaque_id("session"), opaque_id("block"), self.blobs.put(instructions), instructions))
+        prepared_modules = []
+        for module in context_modules or []:
+            content = module["content"]
+            prepared_modules.append((module, opaque_id("block"), self.blobs.put(content)))
         slice_id = opaque_id("slice") if slice_external_ref else None
         with self.transaction() as conn:
             conn.execute("INSERT INTO projects(project_id,title,purpose,workflow_pack,created_at) VALUES(?,?,?,?,?)", (project_id, title, purpose, workflow_pack, now))
             self._event(conn, project_id=project_id, event_type="project.created", subject_type="project", subject_id=project_id, payload={"title": title, "purpose": purpose, "workflow_pack": workflow_pack})
+            conn.execute("INSERT INTO workflow_instances(project_id,pack_id,state,revision,automatic_grants_json,updated_at) VALUES(?,?,?,1,'[]',?)", (project_id, workflow_pack, initial_state, now))
+            self._event(conn, project_id=project_id, event_type="workflow.instance-created", subject_type="workflow-instance", subject_id=project_id, payload={"pack_id": workflow_pack, "state": initial_state, "revision": 1, "automatic_grants": []})
             for spec, role_id, session_id, instruction_id, instruction_sha, instructions in prepared_roles:
                 conn.execute("INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,authority,evidence_level,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-pack','governing-instruction','private',?)", (instruction_id, project_id, "role-instruction", instruction_sha, len(instructions), now))
                 instruction_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=instruction_id, payload={"sha256": instruction_sha, "semantic_type": "role-instruction", "status": "active"})
@@ -363,6 +418,17 @@ class LoomStore:
                 self._event(conn, project_id=project_id, event_type="role.created", subject_type="role", subject_id=role_id, payload={"name": spec["name"], "instructions_block_id": instruction_id})
                 conn.execute("INSERT INTO role_sessions(role_session_id,project_id,role_id,label,created_at) VALUES(?,?,?,?,?)", (session_id, project_id, role_id, spec["name"], now))
                 self._event(conn, project_id=project_id, event_type="role-session.created", subject_type="role-session", subject_id=session_id, payload={"project_id": project_id, "role_id": role_id, "label": spec["name"]})
+            for module, block_id, content_sha in prepared_modules:
+                definition = module["definition"]
+                receipt = module["receipt"]
+                content = module["content"]
+                conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,sensitivity,transformation_json,created_at)
+                             VALUES(?,?,?,?,?,'active',?,?,?,'module-receipt','private',?,?)""", (block_id, project_id, f"context-module:{definition['module_id']}", content_sha, len(content), receipt["source_ref"], receipt["content_sha256"], definition["module_id"], canonical_bytes(receipt).decode(), now))
+                module_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": content_sha, "semantic_type": f"context-module:{definition['module_id']}", "status": "active", "mode": definition["mode"]})
+                conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, module_event))
+                if definition["mode"] in {"role_default", "workflow_required"}:
+                    for _spec, role_id, *_rest in prepared_roles:
+                        conn.execute("INSERT INTO role_context_defaults(role_id,block_id,module_id,mode,active) VALUES(?,?,?,?,1)", (role_id, block_id, definition["module_id"], definition["mode"]))
             conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,sensitivity,created_at)
                          VALUES(?,?,?,?,?,'active',?,?,?,'authoritative-read','private',?)""", (blackboard_id, project_id, "workflow-blackboard-snapshot", blackboard_sha, len(blackboard_content), blackboard_source_ref, blackboard_sha, workflow_pack, now))
             blackboard_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=blackboard_id, payload={"sha256": blackboard_sha, "semantic_type": "workflow-blackboard-snapshot", "status": "active"})
@@ -373,6 +439,20 @@ class LoomStore:
                 conn.execute("INSERT INTO slices(slice_id,project_id,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,?,?,?,?,?)", (slice_id, project_id, title, canonical_bytes(query).decode(), slice_external_ref, now, now))
                 self._event(conn, project_id=project_id, event_type="slice.created", subject_type="slice", subject_id=slice_id, payload={"project_id": project_id, "name": title, "query": query, "external_ref": slice_external_ref})
         return {"project": self.get_project(project_id), "blackboard": self.get_block(blackboard_id, include_content=False), "slice": self.get_slice(slice_id) if slice_id else None}
+
+    def list_role_context_defaults(self, role_id: str) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            return [dict(row) for row in conn.execute("SELECT * FROM role_context_defaults WHERE role_id=? AND active=1 ORDER BY module_id,block_id", (role_id,))]
+
+    def remove_role_context_default(self, role_id: str, block_id: str) -> None:
+        with self.transaction() as conn:
+            row = self._row(conn.execute("SELECT r.project_id,d.mode,d.active FROM role_context_defaults d JOIN roles r USING(role_id) WHERE d.role_id=? AND d.block_id=?", (role_id, block_id)).fetchone(), block_id)
+            if row["mode"] != "role_default":
+                raise LoomConflict("workflow-required context cannot be removed")
+            if not row["active"]:
+                return
+            conn.execute("UPDATE role_context_defaults SET active=0 WHERE role_id=? AND block_id=?", (role_id, block_id))
+            self._event(conn, project_id=row["project_id"], event_type="role-context.removed", subject_type="context-block", subject_id=block_id, payload={"role_id": role_id})
 
     def create_context_block(self, value: ContextBlockCreate) -> dict[str, Any]:
         block_id = opaque_id("block")
@@ -803,6 +883,64 @@ class LoomStore:
         for command_id in command_ids:
             self.fail_workflow_command(command_id, error_text="Loom restarted after dispatch; authoritative external outcome must be inspected before retry", outcome_unknown=True)
         return len(command_ids)
+
+    def advance_workflow(self, *, project_id: str, pack_id: str, expected_revision: int, from_state: str, to_state: str, evidence_block_ids: list[str], payload: dict[str, Any], trigger: dict[str, Any] | None) -> dict[str, Any]:
+        payload_bytes = canonical_bytes(payload)
+        payload_sha = self.blobs.put(payload_bytes)
+        frozen_query_sha = None
+        if to_state == "frozen-query":
+            query_bytes = payload.get("query_bytes")
+            if not isinstance(query_bytes, str) or not query_bytes:
+                raise LoomConflict("freezing a query requires the exact accepted query bytes")
+            frozen_query_sha = self.blobs.put(query_bytes.encode("utf-8"))
+        with self.transaction() as conn:
+            instance = self._row(conn.execute("SELECT * FROM workflow_instances WHERE project_id=?", (project_id,)).fetchone(), project_id)
+            if instance["pack_id"] != pack_id or instance["state"] != from_state or instance["revision"] != expected_revision:
+                raise LoomConflict("workflow state changed before transition")
+            for block_id in evidence_block_ids:
+                block = self._row(conn.execute("SELECT project_id FROM context_blocks WHERE block_id=?", (block_id,)).fetchone(), block_id)
+                if block["project_id"] != project_id:
+                    raise LoomConflict("workflow evidence belongs to another project")
+            if from_state == "closure-candidate" and to_state == "blinded-challenge":
+                challenger = conn.execute("SELECT result_ref FROM workflow_triggers WHERE project_id=? AND trigger_name='closure-proposed' AND state='completed' ORDER BY created_at DESC LIMIT 1", (project_id,)).fetchone()
+                if challenger is None:
+                    raise LoomConflict("closure cannot advance before the blinded challenger completes")
+                invocation = conn.execute("SELECT state FROM invocations WHERE invocation_id=?", (challenger["result_ref"],)).fetchone()
+                if invocation is None or invocation["state"] != InvocationState.succeeded.value:
+                    raise LoomConflict("blinded challenger has not produced an independently recomputed result")
+            revision = expected_revision + 1
+            transition_id = opaque_id("workflow_transition")
+            now = stamp()
+            conn.execute("INSERT INTO workflow_transitions(transition_id,project_id,pack_id,from_state,to_state,revision,evidence_block_ids_json,payload_sha256,created_at) VALUES(?,?,?,?,?,?,?,?,?)", (transition_id, project_id, pack_id, from_state, to_state, revision, canonical_bytes(evidence_block_ids).decode(), payload_sha, now))
+            conn.execute("UPDATE workflow_instances SET state=?,revision=?,updated_at=? WHERE project_id=?", (to_state, revision, now, project_id))
+            self._event(conn, project_id=project_id, event_type="workflow.transitioned", subject_type="workflow-transition", subject_id=transition_id, payload={"pack_id": pack_id, "from": from_state, "to": to_state, "revision": revision, "evidence_block_ids": evidence_block_ids, "payload_sha256": payload_sha})
+            trigger_row = None
+            if trigger:
+                trigger_id = opaque_id("workflow_trigger")
+                trigger_state = "completed" if trigger["trigger"] == "query-accepted" else "pending"
+                result_ref = f"loom:blob/{frozen_query_sha}" if frozen_query_sha else None
+                completed_at = now if trigger_state == "completed" else None
+                conn.execute("INSERT INTO workflow_triggers(trigger_id,project_id,trigger_name,required_action,state,source_transition_id,result_ref,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?)", (trigger_id, project_id, trigger["trigger"], trigger["required_action"], trigger_state, transition_id, result_ref, now, completed_at))
+                self._event(conn, project_id=project_id, event_type=f"workflow.trigger-{trigger_state}", subject_type="workflow-trigger", subject_id=trigger_id, payload={"trigger": trigger["trigger"], "required_action": trigger["required_action"], "result_ref": result_ref})
+                trigger_row = dict(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone())
+        return {"workflow": self.get_workflow_instance(project_id), "transition_id": transition_id, "trigger": trigger_row}
+
+    def get_workflow_instance(self, project_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute("SELECT * FROM workflow_instances WHERE project_id=?", (project_id,)).fetchone(), project_id)
+            row["triggers"] = [dict(item) for item in conn.execute("SELECT * FROM workflow_triggers WHERE project_id=? ORDER BY created_at", (project_id,))]
+        row["automatic_grants"] = json.loads(row.pop("automatic_grants_json"))
+        return row
+
+    def complete_workflow_trigger(self, trigger_id: str, *, result_ref: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            trigger = self._row(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone(), trigger_id)
+            if trigger["state"] != "pending":
+                raise LoomConflict("workflow trigger is already terminal")
+            now = stamp()
+            conn.execute("UPDATE workflow_triggers SET state='completed',result_ref=?,completed_at=? WHERE trigger_id=?", (result_ref, now, trigger_id))
+            self._event(conn, project_id=trigger["project_id"], event_type="workflow.trigger-completed", subject_type="workflow-trigger", subject_id=trigger_id, payload={"result_ref": result_ref})
+        return self.get_workflow_instance(trigger["project_id"])
 
     def get_attempt(self, attempt_id: str) -> dict[str, Any]:
         with self._connect() as conn:

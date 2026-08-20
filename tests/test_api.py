@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from loom.server import create_app
-from loom.contracts import DraftCreate
+from loom.contracts import ContextBlockCreate, DraftCreate
 
 
 @pytest.mark.contract
@@ -47,3 +47,23 @@ def test_oracle_invocation_inspection_exposes_independently_reconstructed_prompt
 
     assert "EXACT_VISIBLE_PROMPT" in inspected["compiled_prompt"]
     assert inspected["manifest_verification"]["compiled_prompt_sha256"] == inspected["manifest"]["compilation"]["compiled_prompt_sha256"]
+
+
+@pytest.mark.oracle
+def test_closure_transition_automatically_seals_blinded_challenger_without_candidate_context(loom_env) -> None:
+    store = loom_env["store"]
+    created = store.create_workflow_project_atomic(title="closure workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"name": "Blinded closure challenger", "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
+    project_id = created["project"]["project_id"]
+    evidence = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="search-receipts", content="INDEPENDENT_BASE_EVIDENCE"))
+    candidate = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="closure-candidate", content="SECRET_PROPOSER_CONCLUSION"))
+    app = create_app(loom_env["config"])
+    with TestClient(app) as client:
+        session = client.get("/api/session")
+        headers = {"x-loom-csrf": session.json()["csrf"], "origin": "http://testserver"}
+        response = client.post("/api/v1/workflow-packs/quaternary/transitions", headers=headers, json={"project_id": project_id, "expected_revision": 1, "from_state": "countersearch", "to_state": "closure-candidate", "evidence_block_ids": [evidence["block_id"]], "payload": {"closure_candidate_block_id": candidate["block_id"]}})
+
+    assert response.status_code == 200, response.text
+    challenger = response.json()["challenger_invocation"]
+    exact_context = store.blobs.get(challenger["compiled_prompt_sha256"])
+    assert b"INDEPENDENT_BASE_EVIDENCE" in exact_context
+    assert b"SECRET_PROPOSER_CONCLUSION" not in exact_context
