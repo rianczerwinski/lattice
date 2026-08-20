@@ -486,6 +486,22 @@ class LoomStore:
                 repaired += 1
         return repaired
 
+    def reconcile_workflow_role_policies(self, pack_roles: dict[str, list[dict[str, Any]]]) -> int:
+        """Bind legacy workflow roles to their declared pack identities and execution routes."""
+        repaired = 0
+        with self.transaction() as conn:
+            rows = conn.execute("""SELECT r.*,p.workflow_pack FROM roles r JOIN projects p USING(project_id)
+                                   WHERE p.workflow_pack IS NOT NULL AND r.workflow_role_key IS NULL""").fetchall()
+            for row in rows:
+                role_spec = next((item for item in pack_roles.get(row["workflow_pack"], []) if item["name"] == row["name"]), None)
+                if role_spec is None:
+                    continue
+                route_policy = self._workflow_route_policy(role_spec)
+                conn.execute("UPDATE roles SET workflow_role_key=?,route_policy_json=? WHERE role_id=?", (role_spec["role_id"], canonical_bytes(route_policy).decode(), row["role_id"]))
+                self._event(conn, project_id=row["project_id"], event_type="role.workflow-policy-reconciled", subject_type="role", subject_id=row["role_id"], payload={"workflow_role_key": role_spec["role_id"], "route_policy": route_policy, "pack_id": row["workflow_pack"]})
+                repaired += 1
+        return repaired
+
     def create_workflow_project_atomic(
         self,
         *,

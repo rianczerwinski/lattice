@@ -9,7 +9,7 @@ import pytest
 import httpx
 
 from loom.context_modules import ContextModuleError, ContextModuleRunner
-from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, ProjectCreate, ProviderRoute, WorkflowPackDefinition
+from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, ProjectCreate, ProviderRoute, RoleCreate, WorkflowPackDefinition
 from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError
 from loom.platform_foundry import PlatformFoundryAdapter
 from loom.workflows import WorkflowRegistry
@@ -186,6 +186,20 @@ def test_legacy_workflow_projects_receive_runtime_state_once_without_rewriting_d
     workflow = store.get_workflow_instance(project["project_id"])
     assert workflow["state"] == "semantic-intent"
     assert workflow["revision"] == 1
+
+
+@pytest.mark.regression
+def test_legacy_workflow_roles_receive_pack_route_policy_once(loom_env):
+    store = loom_env["store"]
+    project = store.create_project(ProjectCreate(title="legacy workflow", workflow_pack="quaternary"))
+    role = store.create_role(project["project_id"], RoleCreate(name="Orchestrator", instructions="orchestrate"))
+    pack = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")["definition"]
+
+    assert store.reconcile_workflow_role_policies({"quaternary": pack["roles"]}) == 1
+    assert store.reconcile_workflow_role_policies({"quaternary": pack["roles"]}) == 0
+    repaired = store.get_role(role["role_id"])
+    assert repaired["workflow_role_key"] == "sol"
+    assert repaired["route_policy"] == {"kind": "model", "provider": "openai", "harness": "codex", "allowed_models": []}
 
 
 @pytest.mark.regression
