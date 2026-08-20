@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
+  "surface_id": "surface:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
-    "generated_at": "20260820T121200",
+    "artifact_id": "artifact:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
+    "generated_at": "20260820T121800",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "2ce6c8f92bf3f705cfb41bfa555e0917c30ce733",
+        "revision": "c93b2711f25cd9f39707e0fd16cba94cb7e797b4",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:5c9ba5a1-d4db-5e1e-bb30-c68e14386429"
+    "parent_artifact_id": "artifact:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903"
   },
   "workframe": {
     "name": "Loom",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260820T121200",
-    "source_revision": "2ce6c8f92bf3f705cfb41bfa555e0917c30ce733",
+    "at": "20260820T121800",
+    "source_revision": "c93b2711f25cd9f39707e0fd16cba94cb7e797b4",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "2ce6c8f92bf3f705cfb41bfa555e0917c30ce733",
+    "revision": "c93b2711f25cd9f39707e0fd16cba94cb7e797b4",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -75,9 +75,39 @@
         "object_id": "885f82eff68b56b085e8a8a88ddabd1e83f3de79"
       },
       {
+        "path": "audit/20260820T121500-closure-system/AUDIT.json",
+        "mode": "100644",
+        "object_id": "bec863914c09651f00ec24df233442e95c33aab8"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/AUDIT.md",
+        "mode": "100644",
+        "object_id": "98c0a8c2e673dee0a6aa16c38d39c735ddaef5bd"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/README.md",
+        "mode": "100644",
+        "object_id": "c87ab18339652dc75b47719984c3fe1f5e9a65d5"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/audit.validation.json",
+        "mode": "100644",
+        "object_id": "787328c3dfc84cfdb1ae951908e6fbf1049b99b8"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/evidence/README.md",
+        "mode": "100644",
+        "object_id": "bbc1863b403bccffe56563dc02fe8857f909c6fa"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/evidence/verification.txt",
+        "mode": "100644",
+        "object_id": "def4fa42f1b3dfde71f6fa919abeb648942c46fc"
+      },
+      {
         "path": "audit/README.md",
         "mode": "100644",
-        "object_id": "f3e479909033e934a76fa17fb13a06d31e9e3fdd"
+        "object_id": "c9399011e3302df6878a08a6fbcfd2509e834b53"
       },
       {
         "path": "loom/__init__.py",
@@ -305,7 +335,7 @@
         "object_id": "db7c340db94f1a07bd919d0229acaf18707c0fd0"
       }
     ],
-    "entries_sha256": "6ca0ba1ae512eb7dcd0a50c4ce8d1e1b34a5c9e1aea0e3f1fc9bdf575b170f1c",
+    "entries_sha256": "b43cabfd643361c271dbc19855783aae7f2bd3fb74bea4a40a80e20cec68d228",
     "mappings": [
       {
         "path": ".gitignore",
@@ -372,6 +402,72 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/AUDIT.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b067ec1c-ae9e-5763-ae69-60611a60a4ab"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/AUDIT.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ecefaa5b-f54e-589a-84ea-622caa0656e4"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:05d37970-cd9a-57d5-a646-2e005d0c6ed6"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/audit.validation.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e8fde914-0db9-5dc1-9127-7c646d985ef8"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/evidence/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:dd8e8128-19d5-5a0d-a873-f7686bbc108c"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/evidence/verification.txt",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:dd702fca-a046-5b55-aa07-d48bc0cea0c1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
       },
       {
         "path": "audit/README.md",
@@ -960,7 +1056,7 @@
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
+    "artifact_id": "carve:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
     "subject": "Loom conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -1034,6 +1130,72 @@
         "evidence": [
           {
             "ref": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b067ec1c-ae9e-5763-ae69-60611a60a4ab",
+        "label": "audit/20260820T121500-closure-system/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/AUDIT.json",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ecefaa5b-f54e-589a-84ea-622caa0656e4",
+        "label": "audit/20260820T121500-closure-system/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/AUDIT.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:05d37970-cd9a-57d5-a646-2e005d0c6ed6",
+        "label": "audit/20260820T121500-closure-system/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/README.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:e8fde914-0db9-5dc1-9127-7c646d985ef8",
+        "label": "audit/20260820T121500-closure-system/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/audit.validation.json",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:dd8e8128-19d5-5a0d-a873-f7686bbc108c",
+        "label": "audit/20260820T121500-closure-system/evidence/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/evidence/README.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:dd702fca-a046-5b55-aa07-d48bc0cea0c1",
+        "label": "audit/20260820T121500-closure-system/evidence/verification.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/evidence/verification.txt",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
@@ -1587,9 +1749,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:5c9ba5a1-d4db-5e1e-bb30-c68e14386429",
+      "parent_artifact_id": "carve:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
       "reconciliation_scope": "local",
-      "decision": "The five-part decomposition remains stable after the execution boundary gained seal-time role checks, retriable trigger planning, exact artifact inspection, fast route discovery, and adversarial response rendering tests.",
+      "decision": "The five-part decomposition remains stable after the final Audit Planes outpost closed all implementation findings and recorded the external Gemini acceptance limit.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -1700,6 +1862,12 @@
             "item:0313971f-2a3f-57f5-a79f-37f39d6f729c",
             "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef",
             "item:212a7266-424a-5b59-a1dc-9e277dc1b474",
+            "item:b067ec1c-ae9e-5763-ae69-60611a60a4ab",
+            "item:ecefaa5b-f54e-589a-84ea-622caa0656e4",
+            "item:05d37970-cd9a-57d5-a646-2e005d0c6ed6",
+            "item:e8fde914-0db9-5dc1-9127-7c646d985ef8",
+            "item:dd8e8128-19d5-5a0d-a873-f7686bbc108c",
+            "item:dd702fca-a046-5b55-aa07-d48bc0cea0c1",
             "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
             "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
             "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
@@ -1902,8 +2070,8 @@
         {
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
-          "state": "partial",
-          "summary": "Truth-typed Python and browser tests, clean source and web builds, authenticated manual routing, mutation controls, and an initial audit-remediation ledger exist; the final frozen-revision closure audit is the remaining assurance step.",
+          "state": "shipped",
+          "summary": "The installable wheel, production cockpit build, truth-typed Python and browser tests, authenticated manual routing, six rejected closure mutations, and a closed Audit Planes v4 outpost are present and hash-bound.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
@@ -1917,7 +2085,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:5c9ba5a1-d4db-5e1e-bb30-c68e14386429",
+    "parent_surface_id": "surface:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
     "preserved_claim_ids": [
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
       "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",

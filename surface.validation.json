@@ -7,16 +7,16 @@
       "name": "surface-validation",
       "version": 2
     },
-    "artifact_id": "artifact:deccaf3e-1eb7-4ece-8463-486e3abb6fb8",
-    "generated_at": "20260820T121202",
+    "artifact_id": "artifact:f2587105-eba7-4537-ad7b-5910560f3f62",
+    "generated_at": "20260820T121817",
     "producer": {
       "name": "surface-validator",
       "version": "2.0.1"
     },
-    "subject": "artifact:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
+    "subject": "artifact:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
     "binding": {
-      "artifact_id": "artifact:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
-      "sha256": "6d55f4307cbadac49be230dae644e763bab608bd8f000b33c3fa51a837b351fe"
+      "artifact_id": "artifact:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
+      "sha256": "a13b327b2ddce05ad89869eff28094a9019ecc5da60639b481177c456061f9b4"
     },
     "validator": {
       "name": "surface-validator",
@@ -27,14 +27,14 @@
   "receipt_schema_version": 2,
   "validator_version": "2.0.1",
   "surface_schema_version": 2,
-  "surface_id": "surface:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
-  "artifact_path": "/Users/rian/AXISVI/sui/flux/ephemera/20260820T121127-loom-surface-closure/SURFACE.json",
-  "artifact_sha256": "6d55f4307cbadac49be230dae644e763bab608bd8f000b33c3fa51a837b351fe",
-  "source_revision": "2ce6c8f92bf3f705cfb41bfa555e0917c30ce733",
+  "surface_id": "surface:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
+  "artifact_path": "/Users/rian/AXISVI/sui/flux/ephemera/20260820T121744-loom-surface-closed/SURFACE.json",
+  "artifact_sha256": "a13b327b2ddce05ad89869eff28094a9019ecc5da60639b481177c456061f9b4",
+  "source_revision": "c93b2711f25cd9f39707e0fd16cba94cb7e797b4",
   "external_census_matched": true,
   "evidence_census_accounted": true,
   "valid": true,
-  "parent_surface_id": "surface:5c9ba5a1-d4db-5e1e-bb30-c68e14386429",
-  "parent_artifact_path": "/Users/rian/AXISVI/sui/flux/ephemera/20260820T121127-loom-surface-closure/parent.json",
-  "parent_artifact_sha256": "6d4078bc51e41466e4042c6daf19eae3fa6bc8c1a726a3f2fd139ad4bff53c94"
+  "parent_surface_id": "surface:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
+  "parent_artifact_path": "/Users/rian/AXISVI/sui/flux/ephemera/20260820T121744-loom-surface-closed/parent.json",
+  "parent_artifact_sha256": "6d55f4307cbadac49be230dae644e763bab608bd8f000b33c3fa51a837b351fe"
 }

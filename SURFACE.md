@@ -1,8 +1,8 @@
 # Loom — Surface
 
-surface-id: surface:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903 · source-revision: 2ce6c8f92bf3f705cfb41bfa555e0917c30ce733 · generated: 20260820T121200
-view-artifact: artifact:0bca9cc5-ac71-5e6d-aa09-771ce3356ec7 · role: derived-view · parent-artifact: artifact:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903
-source-surface: SURFACE.json · parent-sha256: 6d55f4307cbadac49be230dae644e763bab608bd8f000b33c3fa51a837b351fe · renderer: surface-renderer/2.0.1
+surface-id: surface:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5 · source-revision: c93b2711f25cd9f39707e0fd16cba94cb7e797b4 · generated: 20260820T121800
+view-artifact: artifact:de134df9-5243-5cc9-b7b8-3dc7052f137d · role: derived-view · parent-artifact: artifact:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5
+source-surface: SURFACE.json · parent-sha256: a13b327b2ddce05ad89869eff28094a9019ecc5da60639b481177c456061f9b4 · renderer: surface-renderer/2.0.1
 
 ## 1 · Durable lattice kernel — Versioned contracts, append-only events, content-addressed context, graph operations, and independent manifest reconstruction. [1✓]
 - ✓ **shipped** — Loom persists an append-only invocation lattice whose current database, joins, context, and lineage can be reconstructed exactly from the ledger and content-addressed blobs. _(sources: loom/store.py)_
@@ -17,7 +17,7 @@ source-surface: SURFACE.json · parent-sha256: 6d55f4307cbadac49be230dae644e763b
 - ✓ **shipped** — The cockpit operates arbitrary Claude/Codex routing while enforcing workflow role-provider boundaries, showing unavailable routes honestly, and exposing exact preflight, retrospective context, artifact bytes, attempts, graph neighborhoods, workflow failures, and retry controls. _(sources: web/src/App.svelte)_
 
 ## 5 · Packaging and assurance — Install metadata, dependency locks, and truth-typed regression, property, contract, and oracle tests. [1✓]
-- ✓ **partial** — Truth-typed Python and browser tests, clean source and web builds, authenticated manual routing, mutation controls, and an initial audit-remediation ledger exist; the final frozen-revision closure audit is the remaining assurance step. _(sources: tests/test_kernel.py)_
+- ✓ **shipped** — The installable wheel, production cockpit build, truth-typed Python and browser tests, authenticated manual routing, six rejected closure mutations, and a closed Audit Planes v4 outpost are present and hash-bound. _(sources: tests/test_kernel.py)_
 
 ## Derived views
 
@@ -26,7 +26,7 @@ source-surface: SURFACE.json · parent-sha256: 6d55f4307cbadac49be230dae644e763b
 - 2 Execution and authority boundary — **shipped**: Claude and Codex execution is isolated, leased, journaled, cancellable, restart-aware, artifact-preserving, and bound to observable CLI/runtime identity with explicit provider proof limits.
 - 3 Evidence and workflow integrations — **partial**: Octopus import, governed modules, typed route-bound workflow packs, generic trigger actions, Slate/Axial projection, and read-only Platform Foundry reuse work; German Gemini qualification remains externally blocked.
 - 4 Response-first cockpit — **shipped**: The cockpit operates arbitrary Claude/Codex routing while enforcing workflow role-provider boundaries, showing unavailable routes honestly, and exposing exact preflight, retrospective context, artifact bytes, attempts, graph neighborhoods, workflow failures, and retry controls.
-- 5 Packaging and assurance — **partial**: Truth-typed Python and browser tests, clean source and web builds, authenticated manual routing, mutation controls, and an initial audit-remediation ledger exist; the final frozen-revision closure audit is the remaining assurance step.
+- 5 Packaging and assurance — **shipped**: The installable wheel, production cockpit build, truth-typed Python and browser tests, authenticated manual routing, six rejected closure mutations, and a closed Audit Planes v4 outpost are present and hash-bound.
 
 ### doing
 - None.
