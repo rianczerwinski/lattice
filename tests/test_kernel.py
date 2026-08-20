@@ -134,3 +134,36 @@ def test_contract_summary_requires_exact_resolving_transformation_lineage(loom_e
     true_summary = store.create_context_block(ContextBlockCreate(project_id=loom_env["project"]["project_id"], semantic_type="summary", content="short", transformation={"kind": "summary", "source_block_ids": [source["block_id"]]}))
     valid = store.create_draft(DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="use summary", route=loom_env["route"], selections=[ContextSelection(block_id=true_summary["block_id"], disposition=BlockDisposition.summarized, plane="knowledge", label="summary", derived_from_block_ids=[source["block_id"]])]))
     assert loom_env["loom"].seal(valid["draft_id"])["state"] == "sealed"
+
+
+@pytest.mark.oracle
+def test_oracle_append_only_change_ledger_rebuilds_current_views_and_context(loom_env, tmp_path) -> None:
+    root = completed_invocation(loom_env, "rebuild prompt", "rebuild answer")
+    child = loom_env["loom"].fork(root["invocation_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="continue after rebuild", route=loom_env["route"])
+    sealed = loom_env["loom"].seal(child["draft_id"])
+    expected_digest = loom_env["store"].state_digest()
+    destination = tmp_path / "rebuilt" / "loom.sqlite3"
+
+    rebuilt_digest = loom_env["store"].rebuild_database(destination)
+    rebuilt_store = LoomStore(loom_env["config"].__class__(data_root=destination.parent, port=9010))
+    inspected = Loom(rebuilt_store).inspect(sealed["invocation_id"])
+
+    assert rebuilt_digest == expected_digest == rebuilt_store.state_digest()
+    assert "continue after rebuild" in inspected["compiled_prompt"]
+    with sqlite3.connect(destination) as conn:
+        with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+            conn.execute("DELETE FROM ledger_changes WHERE seq=(SELECT MAX(seq) FROM ledger_changes)")
+
+
+@pytest.mark.oracle
+def test_negative_control_missing_change_cannot_reproduce_state_digest(loom_env, tmp_path) -> None:
+    completed_invocation(loom_env, "must be journaled", "terminal value")
+    expected = loom_env["store"].state_digest()
+    with sqlite3.connect(loom_env["config"].database) as conn:
+        conn.execute("DROP TRIGGER ledger_changes_no_delete")
+        conn.execute("DELETE FROM ledger_changes WHERE seq=(SELECT MAX(seq) FROM ledger_changes)")
+    destination = tmp_path / "truncated" / "loom.sqlite3"
+
+    rebuilt = loom_env["store"].rebuild_database(destination)
+
+    assert rebuilt != expected

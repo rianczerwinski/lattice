@@ -55,6 +55,21 @@ BEGIN SELECT RAISE(ABORT, 'Loom events are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events
 BEGIN SELECT RAISE(ABORT, 'Loom events are append-only'); END;
 
+CREATE TABLE IF NOT EXISTS ledger_changes(
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    change_id TEXT NOT NULL UNIQUE,
+    table_name TEXT NOT NULL,
+    operation TEXT NOT NULL CHECK(operation IN ('baseline','insert','update','delete')),
+    primary_key_json TEXT NOT NULL CHECK(json_valid(primary_key_json)),
+    row_json TEXT CHECK(row_json IS NULL OR json_valid(row_json)),
+    occurred_at TEXT NOT NULL
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS ledger_changes_no_update BEFORE UPDATE ON ledger_changes
+BEGIN SELECT RAISE(ABORT, 'Loom change ledger is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS ledger_changes_no_delete BEFORE DELETE ON ledger_changes
+BEGIN SELECT RAISE(ABORT, 'Loom change ledger is append-only'); END;
+
 CREATE TABLE IF NOT EXISTS projects(
     project_id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
@@ -279,6 +294,13 @@ CREATE INDEX IF NOT EXISTS edges_target ON edges(target_type, target_id);
 """
 
 
+CHANGE_TABLES = (
+    "projects", "context_blocks", "block_status", "roles", "role_sessions", "drafts", "invocations", "edges",
+    "attempts", "leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
+    "workflow_triggers", "role_context_defaults",
+)
+
+
 class LoomConflict(RuntimeError):
     pass
 
@@ -299,10 +321,12 @@ class LoomStore:
             attempt_columns = {row[1] for row in conn.execute("PRAGMA table_info(attempts)")}
             if "runtime_receipt_json" not in attempt_columns:
                 conn.execute("ALTER TABLE attempts ADD COLUMN runtime_receipt_json TEXT CHECK(runtime_receipt_json IS NULL OR json_valid(runtime_receipt_json))")
+            self._install_change_triggers(conn)
             conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)",
                 (stamp(),),
             )
+            self._backfill_change_ledger(conn)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.config.database, timeout=30, isolation_level=None)
@@ -311,7 +335,40 @@ class LoomStore:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=FULL")
         conn.execute("PRAGMA busy_timeout=30000")
+        conn.create_function("loom_stamp", 0, stamp)
+        conn.create_function("loom_replaying", 0, lambda: 0)
         return conn
+
+    @staticmethod
+    def _table_contract(conn: sqlite3.Connection, table: str) -> tuple[list[str], list[str]]:
+        columns = [dict(row) for row in conn.execute(f'PRAGMA table_info("{table}")')]
+        names = [row["name"] for row in columns]
+        primary = [row["name"] for row in sorted(columns, key=lambda item: item["pk"]) if row["pk"]]
+        if not primary:
+            raise RuntimeError(f"change-ledger table has no primary key: {table}")
+        return names, primary
+
+    @classmethod
+    def _install_change_triggers(cls, conn: sqlite3.Connection) -> None:
+        for table in CHANGE_TABLES:
+            columns, primary = cls._table_contract(conn, table)
+            for operation, ref in (("insert", "NEW"), ("update", "NEW"), ("delete", "OLD")):
+                pk_args = ",".join(f"'{name}',{ref}.\"{name}\"" for name in primary)
+                row_expr = "NULL" if operation == "delete" else "json_object(" + ",".join(f"'{name}',{ref}.\"{name}\"" for name in columns) + ")"
+                conn.execute(f'''CREATE TRIGGER IF NOT EXISTS "ledger_{table}_{operation}" AFTER {operation.upper()} ON "{table}" WHEN loom_replaying()=0 BEGIN
+                    INSERT INTO ledger_changes(change_id,table_name,operation,primary_key_json,row_json,occurred_at)
+                    VALUES(lower(hex(randomblob(16))),'{table}','{operation}',json_object({pk_args}),{row_expr},loom_stamp());
+                END''')
+
+    @classmethod
+    def _backfill_change_ledger(cls, conn: sqlite3.Connection) -> None:
+        if conn.execute("SELECT 1 FROM ledger_changes LIMIT 1").fetchone() is not None:
+            return
+        for table in CHANGE_TABLES:
+            _columns, primary = cls._table_contract(conn, table)
+            for row in conn.execute(f'SELECT * FROM "{table}"'):
+                value = dict(row)
+                conn.execute("INSERT INTO ledger_changes(change_id,table_name,operation,primary_key_json,row_json,occurred_at) VALUES(?,?,'baseline',?,?,?)", (opaque_id("change"), table, canonical_bytes({key: value[key] for key in primary}).decode(), canonical_bytes(value).decode(), stamp()))
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
@@ -828,6 +885,73 @@ class LoomStore:
         for row in rows:
             row["payload"] = json.loads(row.pop("payload_json"))
         return rows
+
+    def state_digest(self) -> str:
+        state: dict[str, list[dict[str, Any]]] = {}
+        with self._connect() as conn:
+            for table in CHANGE_TABLES:
+                _columns, primary = self._table_contract(conn, table)
+                order = ",".join(f'"{name}"' for name in primary)
+                state[table] = [dict(row) for row in conn.execute(f'SELECT * FROM "{table}" ORDER BY {order}')]
+        return sha256_bytes(canonical_bytes(state))
+
+    def rebuild_database(self, destination: Path) -> str:
+        """Reconstruct every derived Loom view from the append-only row-change ledger."""
+        destination = destination.resolve()
+        if destination.exists():
+            raise FileExistsError(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        target = sqlite3.connect(destination, isolation_level=None)
+        target.row_factory = sqlite3.Row
+        target.create_function("loom_stamp", 0, stamp)
+        target.create_function("loom_replaying", 0, lambda: 1)
+        try:
+            target.executescript(DDL)
+            target.execute("PRAGMA foreign_keys=ON")
+            target.execute("BEGIN IMMEDIATE")
+            with self._connect() as source:
+                for row in source.execute("SELECT * FROM events ORDER BY seq"):
+                    value = dict(row)
+                    columns = list(value)
+                    target.execute(f"INSERT INTO events({','.join(columns)}) VALUES({','.join('?' for _ in columns)})", tuple(value[name] for name in columns))
+                for change in source.execute("SELECT * FROM ledger_changes ORDER BY seq"):
+                    table = change["table_name"]
+                    if table not in CHANGE_TABLES:
+                        raise RuntimeError(f"change ledger names unsupported table: {table}")
+                    primary = json.loads(change["primary_key_json"])
+                    if change["operation"] == "delete":
+                        where = " AND ".join(f'"{name}"=?' for name in primary)
+                        target.execute(f'DELETE FROM "{table}" WHERE {where}', tuple(primary.values()))
+                    else:
+                        row = json.loads(change["row_json"])
+                        columns = list(row)
+                        if change["operation"] in {"baseline", "insert"}:
+                            target.execute(f'INSERT INTO "{table}"({",".join(f"\"{name}\"" for name in columns)}) VALUES({",".join("?" for _ in columns)})', tuple(row[name] for name in columns))
+                        else:
+                            non_primary = [name for name in columns if name not in primary]
+                            assignments = ",".join(f'"{name}"=?' for name in non_primary)
+                            where = " AND ".join(f'"{name}"=?' for name in primary)
+                            target.execute(f'UPDATE "{table}" SET {assignments} WHERE {where}', tuple(row[name] for name in non_primary) + tuple(primary.values()))
+                for row in source.execute("SELECT * FROM ledger_changes ORDER BY seq"):
+                    value = dict(row)
+                    columns = list(value)
+                    target.execute(f"INSERT INTO ledger_changes({','.join(columns)}) VALUES({','.join('?' for _ in columns)})", tuple(value[name] for name in columns))
+            target.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)", (stamp(),))
+            target.commit()
+        except BaseException:
+            target.rollback()
+            raise
+        finally:
+            target.close()
+        rebuilt = LoomStore(LoomConfig(data_root=destination.parent, host=self.config.host, port=self.config.port, octopus_base_url=self.config.octopus_base_url, lease_seconds=self.config.lease_seconds))
+        if rebuilt.config.database != destination:
+            raise RuntimeError("rebuild destination must be named loom.sqlite3 inside its data root")
+        for source_blob in self.blobs.root.glob("*/*"):
+            if source_blob.is_file():
+                content = source_blob.read_bytes()
+                if rebuilt.blobs.put(content) != source_blob.name:
+                    raise OSError(f"blob identity changed during rebuild: {source_blob}")
+        return rebuilt.state_digest()
 
     def record_event(self, *, project_id: str | None, event_type: str, subject_type: str, subject_id: str, payload: dict[str, Any]) -> str:
         with self.transaction() as conn:
