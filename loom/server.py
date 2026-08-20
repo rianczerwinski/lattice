@@ -111,6 +111,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     workflows = WorkflowRegistry(WORKFLOW_PACK_ROOT)
     workflows.register("quaternary", QuaternaryAdapter(config.quaternary_root / "quaternary.sqlite3", config.quaternary_root / "tools" / "gatherctl.py"))
     workflows.register("platform-foundry", PlatformFoundryAdapter(config.octopus_base_url))
+    store.reconcile_workflow_instances({pack_id: workflows.load(pack_id)["definition"]["allowed_transitions"][0]["from"] for pack_id in workflows.adapters})
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):

@@ -445,6 +445,23 @@ class LoomStore:
         with self._connect() as conn:
             return [dict(row) for row in conn.execute("SELECT * FROM projects ORDER BY created_at DESC")]
 
+    def reconcile_workflow_instances(self, initial_states: dict[str, str]) -> int:
+        """Bind pre-runtime workflow projects without guessing domain state from their blackboards."""
+        repaired = 0
+        with self.transaction() as conn:
+            missing = conn.execute("""SELECT p.project_id,p.workflow_pack FROM projects p
+                                      LEFT JOIN workflow_instances w USING(project_id)
+                                      WHERE p.workflow_pack IS NOT NULL AND w.project_id IS NULL""").fetchall()
+            for row in missing:
+                initial_state = initial_states.get(row["workflow_pack"])
+                if initial_state is None:
+                    continue
+                now = stamp()
+                conn.execute("INSERT INTO workflow_instances(project_id,pack_id,state,revision,automatic_grants_json,updated_at) VALUES(?,?,?,1,'[]',?)", (row["project_id"], row["workflow_pack"], initial_state, now))
+                self._event(conn, project_id=row["project_id"], event_type="workflow.instance-reconciled", subject_type="workflow-instance", subject_id=row["project_id"], payload={"pack_id": row["workflow_pack"], "state": initial_state, "revision": 1, "reason": "legacy-project-runtime-binding"})
+                repaired += 1
+        return repaired
+
     def create_workflow_project_atomic(
         self,
         *,

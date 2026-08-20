@@ -174,3 +174,15 @@ def test_platform_foundry_pack_reuses_workflow_kernel_without_gaining_octopus_wr
     assert registry.validate_transition("platform-foundry", "validating", "shadow")["to"] == "shadow"
     with pytest.raises(ValueError, match="not declared"):
         registry.validate_transition("platform-foundry", "observing", "promotable")
+
+
+@pytest.mark.regression
+def test_legacy_workflow_projects_receive_runtime_state_once_without_rewriting_domain_state(loom_env):
+    store = loom_env["store"]
+    project = store.create_project(ProjectCreate(title="legacy workflow", workflow_pack="quaternary"))
+
+    assert store.reconcile_workflow_instances({"quaternary": "semantic-intent"}) == 1
+    assert store.reconcile_workflow_instances({"quaternary": "semantic-intent"}) == 0
+    workflow = store.get_workflow_instance(project["project_id"])
+    assert workflow["state"] == "semantic-intent"
+    assert workflow["revision"] == 1
