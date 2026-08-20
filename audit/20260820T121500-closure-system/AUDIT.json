@@ -7,8 +7,8 @@
       "name": "audit-planes",
       "version": 4
     },
-    "artifact_id": "artifact:cb66c5a0-5adc-59bf-bd2f-e10df7b971da",
-    "generated_at": "20260820T121500",
+    "artifact_id": "artifact:0807321d-c0f1-5cfc-ae9e-01ada9ccb1fd",
+    "generated_at": "20260820T121900",
     "producer": {
       "name": "audit-planes",
       "version": "4.0.0"
@@ -17,25 +17,25 @@
     "sources": [
       {
         "ref": "git:/Users/rian/AXISVI",
-        "revision": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+        "revision": "31b3388579ce5d5e870c7bc58a13165578e6800f",
         "sha256": null
       }
     ]
   },
   "schema_version": "audit-planes/v4",
   "audit_id": "audit:loom-closure-system",
-  "audit_version": 1,
+  "audit_version": 2,
   "lifecycle": "closure-candidate",
   "source": {
     "root": "/Users/rian/AXISVI",
     "subtree": "axis/chariots/loom plus named model-runner, Slate, and Axial integration entry paths",
-    "revision": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3"
+    "revision": "31b3388579ce5d5e870c7bc58a13165578e6800f"
   },
   "surface_binding": {
     "path": "/Users/rian/AXISVI/axis/chariots/loom/SURFACE.json",
-    "artifact_id": "artifact:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
-    "sha256": "6d55f4307cbadac49be230dae644e763bab608bd8f000b33c3fa51a837b351fe",
-    "content_census_sha256": "6ca0ba1ae512eb7dcd0a50c4ce8d1e1b34a5c9e1aea0e3f1fc9bdf575b170f1c",
+    "artifact_id": "artifact:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
+    "sha256": "a13b327b2ddce05ad89869eff28094a9019ecc5da60639b481177c456061f9b4",
+    "content_census_sha256": "b43cabfd643361c271dbc19855783aae7f2bd3fb74bea4a40a80e20cec68d228",
     "excluded_generated_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -8367,7 +8367,7 @@
         "risk:1ee215a2-f8cf-59e0-a303-546c1c65786d"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/canonical.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 72 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 72 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:73aef2a2-2ebf-5859-b6ba-2664edcd1e7f",
@@ -8384,7 +8384,7 @@
         "risk:73aef2a2-2ebf-5859-b6ba-2664edcd1e7f"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/blob_store.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 56 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 56 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:dec99291-a0aa-5ae3-a151-7a031216e40e",
@@ -8401,7 +8401,7 @@
         "risk:dec99291-a0aa-5ae3-a151-7a031216e40e"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/contracts.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 325 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 325 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:b3615164-9867-5ea5-9a54-bd21458ef741",
@@ -8418,7 +8418,7 @@
         "risk:b3615164-9867-5ea5-9a54-bd21458ef741"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/store.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 1230 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 1230 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:2d0a4b86-0fa6-57dd-a51d-d79134ba476a",
@@ -8435,7 +8435,7 @@
         "risk:2d0a4b86-0fa6-57dd-a51d-d79134ba476a"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/compositor.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 128 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 128 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:77b2b930-9915-5eed-b302-14f77f19f7cb",
@@ -8452,7 +8452,7 @@
         "risk:77b2b930-9915-5eed-b302-14f77f19f7cb"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/manifest_reader.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 53 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 53 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:d26a5907-1b5d-5ca5-bec0-4787eef991fd",
@@ -8469,7 +8469,7 @@
         "risk:d26a5907-1b5d-5ca5-bec0-4787eef991fd"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/operations.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 133 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 133 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:6b61a7f5-806d-5877-9c2a-59ba88019098",
@@ -8486,7 +8486,7 @@
         "risk:6b61a7f5-806d-5877-9c2a-59ba88019098"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/security.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 84 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 84 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:abf4ce68-eb39-5b2a-b8a9-144f10688e45",
@@ -8503,7 +8503,7 @@
         "risk:abf4ce68-eb39-5b2a-b8a9-144f10688e45"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/supervisor.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 138 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 138 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:d4e2d796-005f-536f-90bf-661b0c22f2fa",
@@ -8520,7 +8520,7 @@
         "risk:d4e2d796-005f-536f-90bf-661b0c22f2fa"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/server.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 457 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 457 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:516a4e68-cf2d-5d68-a4c1-ff05a8e543da",
@@ -8537,7 +8537,7 @@
         "risk:516a4e68-cf2d-5d68-a4c1-ff05a8e543da"
       ],
       "method": "Full-file static inspection of axis/tools/model-runner/axis_model_runner/adapters.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 533 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 533 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:aafa322a-8c16-58c9-9b13-48ae1c3c9683",
@@ -8554,7 +8554,7 @@
         "risk:aafa322a-8c16-58c9-9b13-48ae1c3c9683"
       ],
       "method": "Full-file static inspection of axis/tools/model-runner/axis_model_runner/process.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 187 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 187 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:9372823a-8af7-5879-903d-4b06a2887446",
@@ -8571,7 +8571,7 @@
         "risk:9372823a-8af7-5879-903d-4b06a2887446"
       ],
       "method": "Full-file static inspection of axis/tools/model-runner/axis_model_runner/journal.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 166 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 166 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:37e49cd3-0fa8-5eb2-ae64-f206533ead39",
@@ -8588,7 +8588,7 @@
         "risk:37e49cd3-0fa8-5eb2-ae64-f206533ead39"
       ],
       "method": "Full-file static inspection of axis/tools/model-runner/axis_model_runner/checkpoint.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 367 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 367 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:89f15264-9833-5139-bc76-6fe5df22f696",
@@ -8605,7 +8605,7 @@
         "risk:89f15264-9833-5139-bc76-6fe5df22f696"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/web/src/App.svelte, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 302 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 302 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:dae7f3a4-70e1-5ff7-bcf2-441ffa95a8c6",
@@ -8622,7 +8622,7 @@
         "risk:dae7f3a4-70e1-5ff7-bcf2-441ffa95a8c6"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/web/src/api.ts, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 22 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 22 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:a5bd7fa0-7d7b-5819-9c28-3db2b1d4b6dd",
@@ -8639,7 +8639,7 @@
         "risk:a5bd7fa0-7d7b-5819-9c28-3db2b1d4b6dd"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/web/src/types.ts, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 32 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 32 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:a89799d3-f956-5164-b128-054575893888",
@@ -8656,7 +8656,7 @@
         "risk:a89799d3-f956-5164-b128-054575893888"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/pyproject.toml, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 46 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 46 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:778c53ec-dce8-56b0-8075-224ddea90b24",
@@ -8673,7 +8673,7 @@
         "risk:778c53ec-dce8-56b0-8075-224ddea90b24"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/web/package.json, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 25 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 25 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:0453fc83-960e-5b38-b5fe-b360f1b857e3",
@@ -8690,7 +8690,7 @@
         "risk:0453fc83-960e-5b38-b5fe-b360f1b857e3"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/config.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 53 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 53 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:692202de-45ee-53bf-a439-dc6ba23dfc74",
@@ -8707,7 +8707,7 @@
         "risk:692202de-45ee-53bf-a439-dc6ba23dfc74"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/web/src/renderMarkdown.ts, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 6 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 6 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:8e13e3eb-6dfe-5a95-9fe4-0e841da0fd6e",
@@ -8724,7 +8724,7 @@
         "risk:8e13e3eb-6dfe-5a95-9fe4-0e841da0fd6e"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/web/src/renderMarkdown.test.ts, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 13 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 13 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:d752976b-f528-5435-b599-ede50100260c",
@@ -8741,7 +8741,7 @@
         "risk:d752976b-f528-5435-b599-ede50100260c"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/context_modules.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 97 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 97 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:6d4480f2-f1e4-57bc-a2a2-1a2ee44669a0",
@@ -8758,7 +8758,7 @@
         "risk:6d4480f2-f1e4-57bc-a2a2-1a2ee44669a0"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/octopus_import.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 76 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 76 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:d4f9dae5-619c-56ec-bcde-5a3edc3ba3f3",
@@ -8775,7 +8775,7 @@
         "risk:d4f9dae5-619c-56ec-bcde-5a3edc3ba3f3"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/workflows.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 59 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 59 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:ab3f53b7-0d88-596c-b640-ee7c5554fd61",
@@ -8792,7 +8792,7 @@
         "risk:ab3f53b7-0d88-596c-b640-ee7c5554fd61"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/quaternary.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 94 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 94 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:61488c63-abda-5072-a447-ff0a46d853cf",
@@ -8809,7 +8809,7 @@
         "risk:61488c63-abda-5072-a447-ff0a46d853cf"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/workflow_packs/quaternary/pack.json, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 52 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 52 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:e883992f-56e5-5382-88c1-8ae9e80ecbdf",
@@ -8826,7 +8826,7 @@
         "risk:e883992f-56e5-5382-88c1-8ae9e80ecbdf"
       ],
       "method": "Full-file static inspection of axis/tools/slate-mirror/server.js, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 182 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 182 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:4cc40982-f96f-5a4b-a8c4-334f6e213f4b",
@@ -8843,7 +8843,7 @@
         "risk:4cc40982-f96f-5a4b-a8c4-334f6e213f4b"
       ],
       "method": "Full-file static inspection of sui/console/axial/scripts/project-loom.ts, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 49 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 49 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:06abbf1f-00d5-5c04-b11e-a4682bfc2dd1",
@@ -8860,7 +8860,7 @@
         "risk:06abbf1f-00d5-5c04-b11e-a4682bfc2dd1"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/loom/platform_foundry.py, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 30 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 30 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     },
     {
       "inspection_id": "inspection:7da52b84-102c-5799-a6e6-238cd56e17e9",
@@ -8877,7 +8877,7 @@
         "risk:7da52b84-102c-5799-a6e6-238cd56e17e9"
       ],
       "method": "Full-file static inspection of axis/chariots/loom/workflow_packs/platform-foundry/pack.json, followed by cross-check against the relevant truth-typed regression and negative-control paths.",
-      "receipt": "All 27 lines inspected at frozen revision 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3; file digest was captured before audit generation."
+      "receipt": "All 27 lines inspected at frozen revision 31b3388579ce5d5e870c7bc58a13165578e6800f; file digest was captured before audit generation."
     }
   ],
   "evidence": [
@@ -8885,401 +8885,401 @@
       "evidence_id": "evidence:6a3dc62e-5c1a-56c6-96ad-8d83d0660fe8",
       "kind": "test",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The performed closure suite exercised the material boundaries of Durable lattice and context truth kernel, including its planted false mutations and restart-sensitive behavior.",
       "excerpt": "Executed assurance for Durable lattice and context truth kernel: Python, browser, type, build, and live loopback receipts are enumerated in this frozen verification record.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:60ec7cbc-275c-54da-91a3-eb4e2eed8fb9",
       "kind": "test",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The performed closure suite exercised the material boundaries of Subscription execution and operator authority, including its planted false mutations and restart-sensitive behavior.",
       "excerpt": "Executed assurance for Subscription execution and operator authority: Python, browser, type, build, and live loopback receipts are enumerated in this frozen verification record.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:9ae0e318-3c12-5beb-8c98-4861f1b8c409",
       "kind": "test",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The performed closure suite exercised the material boundaries of Response-first cockpit and clean installation, including its planted false mutations and restart-sensitive behavior.",
       "excerpt": "Executed assurance for Response-first cockpit and clean installation: Python, browser, type, build, and live loopback receipts are enumerated in this frozen verification record.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:107dfb9b-090e-5d4b-8c8e-8f3367aa18aa",
       "kind": "test",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The performed closure suite exercised the material boundaries of Quaternary, Octopus, Slate, and Axial integration, including its planted false mutations and restart-sensitive behavior.",
       "excerpt": "Executed assurance for Quaternary, Octopus, Slate, and Axial integration: Python, browser, type, build, and live loopback receipts are enumerated in this frozen verification record.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:a263d456-844b-53ba-af01-e9745e0d0583",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_kernel.py",
       "sha256": "e50b5d2ee7604bcf381499a7112dd8003d83d46cc59cb031b05bc9db2cfe5a06",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for exact-context claims exceed what is validated and shown now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "\"\"\"Truth-typed assurance for Loom's storage and context kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:8bcbecae-6f12-5e91-9d51-e899bac51ca1",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for exact-context claims exceed what is validated and shown is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:5caf7b10-7ed3-5925-a5ff-6320e39c0b81.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:f12f3bdf-fa36-5cdf-8a59-c42a1b602af7",
       "kind": "test",
       "ref": "axis/tools/model-runner/tests/test_model_runner.py",
       "sha256": "e9a48a97bed8a7a48363569dc2335b5426feb6bb586be8b3d16d14d11ea5f0de",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for subscription-only execution is not enforced by the child environment now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "\"\"\"Truth-typed tests for the durable model-runner kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:fcc8a839-8aa9-5a51-82e7-6c88d86592b8",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for subscription-only execution is not enforced by the child environment is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:ea5107c2-62fd-5632-b9f3-649eb208fb92.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:3044686a-6ef0-5947-8839-44e4eaf09250",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_workflows.py",
       "sha256": "aa997bbadd914a6930e75209944ffad477d0958071aef41555af07bd207b739a",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for workflow packs are declarations without an enforcing engine now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "from __future__ import annotations import json import sqlite3",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:a0c9295a-512a-5bf3-8df5-944cc449be6e",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for workflow packs are declarations without an enforcing engine is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:6f54f5fd-e79e-5a3e-8aa5-a18d6570cd71.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:324539dc-f7f1-59c5-8f03-fc70bd1efbd8",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_workflows.py",
       "sha256": "aa997bbadd914a6930e75209944ffad477d0958071aef41555af07bd207b739a",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for external workflow writes have no durable idempotency boundary now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "from __future__ import annotations import json import sqlite3",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:91d66a22-0cdd-5870-88b6-1451856432f6",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for external workflow writes have no durable idempotency boundary is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:0baef75f-9b6d-50ff-b934-5de166e7765a.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:9a30eba8-20ce-5910-977b-e19de7df95e3",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_kernel.py",
       "sha256": "e50b5d2ee7604bcf381499a7112dd8003d83d46cc59cb031b05bc9db2cfe5a06",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for the append-only ledger cannot rebuild its derived state now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "\"\"\"Truth-typed assurance for Loom's storage and context kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:112f28ec-f94a-51fb-9fee-94ed00873df1",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for the append-only ledger cannot rebuild its derived state is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:9a3e943d-7991-5bfa-b068-03ee36cc6cd6.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:3ff79f3c-5da3-5e83-ab2d-fa9d80fb06ac",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_supervisor.py",
       "sha256": "61c285415325e51730ca8bcff847fec674c3d419d31f8ea21749c10f9b7ecc0d",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for provider artifacts disappear after successful execution now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "\"\"\"Concurrency and terminalization assurance for model execution.\"\"\" from __future__ import annotations import asyncio",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:203dc18a-5b24-5d2e-b1cd-f91074c7af34",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for provider artifacts disappear after successful execution is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:ac20454d-1f3e-5b13-aa62-0f20a50a2344.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:67f72223-878b-5cde-ade4-92a9c9c832cb",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_kernel.py",
       "sha256": "e50b5d2ee7604bcf381499a7112dd8003d83d46cc59cb031b05bc9db2cfe5a06",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for trailheads are roots rather than branch tips now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "\"\"\"Truth-typed assurance for Loom's storage and context kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:86c5c51d-7756-58ce-9545-3d22eea6f5b7",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for trailheads are roots rather than branch tips is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:667eb591-f5bc-56d9-88c6-0076904c893b.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:b04d3018-71b4-52dc-b1bf-ac4bf1c013bf",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_kernel.py",
       "sha256": "e50b5d2ee7604bcf381499a7112dd8003d83d46cc59cb031b05bc9db2cfe5a06",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for ordinary role creation leaves orphan context on failure now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "\"\"\"Truth-typed assurance for Loom's storage and context kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:161ce80f-bef8-55e8-b663-50e6d7b2fc0f",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for ordinary role creation leaves orphan context on failure is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:d6bea7db-bdf9-57cf-a2f8-ff9bc827a955.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:62d57d6e-2050-5bd4-8965-e4463c4cdbb5",
       "kind": "test",
       "ref": "axis/chariots/loom/pyproject.toml",
       "sha256": "9ff9d079b17265c0c3c75a6e39a699d0a02f419a93d40f15a4711857658c3abd",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for the clean wheel omits the cockpit and workflow packs now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "[build-system] requires = [\"hatchling>=1.27\"] build-backend = \"hatchling.build\"",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:8b2e3be6-9592-5802-b36e-b29b4bcc5923",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for the clean wheel omits the cockpit and workflow packs is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:4d96729d-056a-5024-8f78-41258fea9fbc.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:ec710369-3c90-56f1-ba29-052fd646225b",
       "kind": "test",
       "ref": "axis/chariots/loom/web/src/renderMarkdown.test.ts",
       "sha256": "a9aad736ea69cb68184bb24e0d1dbc60b3e82ac30e5ee57f8e5e5ec9420dd547",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for model-controlled html is rendered without sanitization now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "import { describe, expect, it } from 'vitest'; import { renderMarkdown } from './renderMarkdown'; describe('renderMarkdown', () => {",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:ed850bba-e809-5a24-aadc-6a76f7f3af98",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for model-controlled html is rendered without sanitization is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:0de2e74e-3ecf-57f5-b486-d52973f65de5.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:803ce573-d82b-59b7-a94f-a7a761d18281",
       "kind": "test",
       "ref": "axis/tools/model-runner/tests/test_model_runner.py",
       "sha256": "e9a48a97bed8a7a48363569dc2335b5426feb6bb586be8b3d16d14d11ea5f0de",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The permanent regression surface for gemini and grok expose private prompts in process arguments now rejects the previously observed mechanism instead of merely documenting it.",
       "excerpt": "\"\"\"Truth-typed tests for the durable model-runner kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:19956342-77a7-55bb-8146-aaabe609118e",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for gemini and grok expose private prompts in process arguments is bounded to the executed local suite and source inspection; provider-owned internals remain outside direct observation.",
       "excerpt": "The verification record names the commands, observed results, authenticated boundary, and remaining external proof limit for finding finding:e808ffcc-d6d8-5391-89f9-53b5422673b9.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:f8b1f765-705b-5661-817c-70839dcb9dc2",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_workflows.py",
       "sha256": "aa997bbadd914a6930e75209944ffad477d0958071aef41555af07bd207b739a",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The regression test for workflow role authority could be bypassed after draft creation plants the prior failure and observes the new control reject or recover it.",
       "excerpt": "from __future__ import annotations import json import sqlite3",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:04f0c79d-7f51-5540-a91a-6d440488ab1a",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for workflow role authority could be bypassed after draft creation is limited to the local runtime and cannot attest behavior of future provider CLI releases.",
       "excerpt": "The closure record preserves a bounded runtime receipt and does not claim provider-internal observability for Workflow role authority could be bypassed after draft creation.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:503f970b-6eaf-5153-9703-9ffa51f77f23",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_api.py",
       "sha256": "6d8039a3d00cbddf2786253bb3cb4b9383458dda41a7dbfe93189d576ee2b74d",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The regression test for committed workflow transitions could return ambiguous trigger failures plants the prior failure and observes the new control reject or recover it.",
       "excerpt": "\"\"\"Operator-boundary and API-state contracts.\"\"\" from __future__ import annotations import pytest",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:cabdd417-58fd-56e2-bbaf-40ecadf9f1aa",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for committed workflow transitions could return ambiguous trigger failures is limited to the local runtime and cannot attest behavior of future provider CLI releases.",
       "excerpt": "The closure record preserves a bounded runtime receipt and does not claim provider-internal observability for Committed workflow transitions could return ambiguous trigger failures.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:1712ab4a-d1dc-5b83-bc05-d26c52639ca1",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_api.py",
       "sha256": "6d8039a3d00cbddf2786253bb3cb4b9383458dda41a7dbfe93189d576ee2b74d",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The regression test for artifact inspection exposed metadata without exact content plants the prior failure and observes the new control reject or recover it.",
       "excerpt": "\"\"\"Operator-boundary and API-state contracts.\"\"\" from __future__ import annotations import pytest",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:4d86a043-0948-5cf9-aab3-a9be759bcffb",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for artifact inspection exposed metadata without exact content is limited to the local runtime and cannot attest behavior of future provider CLI releases.",
       "excerpt": "The closure record preserves a bounded runtime receipt and does not claim provider-internal observability for Artifact inspection exposed metadata without exact content.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:c24f71cd-4e68-58ef-a448-cb128b988db2",
       "kind": "test",
       "ref": "axis/tools/model-runner/tests/test_model_runner.py",
       "sha256": "e9a48a97bed8a7a48363569dc2335b5426feb6bb586be8b3d16d14d11ea5f0de",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The regression test for route discovery blocked cockpit boot on sequential cli probes plants the prior failure and observes the new control reject or recover it.",
       "excerpt": "\"\"\"Truth-typed tests for the durable model-runner kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:3810f3bc-9bf1-5569-aefc-a31b9ad4e306",
       "kind": "audit-log",
       "ref": "axis/chariots/loom/audit/20260820T121500-closure-system/evidence/verification.txt",
-      "sha256": "9e4a5117058aecfcf49cb01f394fed51b596ceb42822e8a2d3e9a2c6b871b0f8",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "sha256": "aec9577f4d96ed167e4f4cd3c4704cf7fc3a8b4880ca3f8e7b936ae8d89f8785",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "Counterevidence for route discovery blocked cockpit boot on sequential cli probes is limited to the local runtime and cannot attest behavior of future provider CLI releases.",
       "excerpt": "The closure record preserves a bounded runtime receipt and does not claim provider-internal observability for Route discovery blocked cockpit boot on sequential CLI probes.",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:b8c7cdd7-0d0c-55d0-81d5-6f0be9dc7bb3",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_kernel.py",
       "sha256": "e50b5d2ee7604bcf381499a7112dd8003d83d46cc59cb031b05bc9db2cfe5a06",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The closure oracle for durable-lattice executes the real boundary and includes a sibling negative control that would fail if the claimed invariant were removed.",
       "excerpt": "\"\"\"Truth-typed assurance for Loom's storage and context kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:86901457-ab1b-5436-aa47-1567849a06fc",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_api.py",
       "sha256": "6d8039a3d00cbddf2786253bb3cb4b9383458dda41a7dbfe93189d576ee2b74d",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The closure oracle for context-truth executes the real boundary and includes a sibling negative control that would fail if the claimed invariant were removed.",
       "excerpt": "\"\"\"Operator-boundary and API-state contracts.\"\"\" from __future__ import annotations import pytest",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:255f9464-de2a-551c-9da3-7e1c5050c46d",
       "kind": "test",
       "ref": "axis/tools/model-runner/tests/test_model_runner.py",
       "sha256": "e9a48a97bed8a7a48363569dc2335b5426feb6bb586be8b3d16d14d11ea5f0de",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The closure oracle for execution-authority executes the real boundary and includes a sibling negative control that would fail if the claimed invariant were removed.",
       "excerpt": "\"\"\"Truth-typed tests for the durable model-runner kernel.\"\"\" from __future__ import annotations import json",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:739582db-da44-562c-a9f3-7dcceec19222",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_operations.py",
       "sha256": "31cd0ec88465031c5de70b5c26d4662be3013b87ca23c8e4309be18481d38f57",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The closure oracle for manual-loom executes the real boundary and includes a sibling negative control that would fail if the claimed invariant were removed.",
       "excerpt": "\"\"\"Contract and property tests for conversational lattice operations.\"\"\" from __future__ import annotations import pytest",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:6b4fce8a-2d88-59cc-bce1-68838bfdfa54",
       "kind": "test",
       "ref": "axis/chariots/loom/tests/test_workflows.py",
       "sha256": "aa997bbadd914a6930e75209944ffad477d0958071aef41555af07bd207b739a",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The closure oracle for governed-workflows executes the real boundary and includes a sibling negative control that would fail if the claimed invariant were removed.",
       "excerpt": "from __future__ import annotations import json import sqlite3",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     },
     {
       "evidence_id": "evidence:4c5bdf40-fe8c-590d-902a-797b38e18c9f",
       "kind": "test",
       "ref": "axis/chariots/loom/web/src/renderMarkdown.test.ts",
       "sha256": "a9aad736ea69cb68184bb24e0d1dbc60b3e82ac30e5ee57f8e5e5ec9420dd547",
-      "state_token": "7cb12bbadd34ff943adc23e33e2584b30bb1b3c3",
+      "state_token": "31b3388579ce5d5e870c7bc58a13165578e6800f",
       "observation": "The closure oracle for cockpit-safety executes the real boundary and includes a sibling negative control that would fail if the claimed invariant were removed.",
       "excerpt": "import { describe, expect, it } from 'vitest'; import { renderMarkdown } from './renderMarkdown'; describe('renderMarkdown', () => {",
-      "collected_at": "20260820T121500"
+      "collected_at": "20260820T121900"
     }
   ],
   "evidence_mappings": [
@@ -10957,7 +10957,7 @@
           ]
         }
       ],
-      "performed_at": "20260820T121500"
+      "performed_at": "20260820T121900"
     }
   ],
   "closure_claims": [

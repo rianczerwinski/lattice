@@ -1,6 +1,6 @@
 Loom closure verification — 20260820T121500
 
-Frozen implementation revision: 7cb12bbadd34ff943adc23e33e2584b30bb1b3c3
+Frozen implementation and final Surface revision: 31b3388579ce5d5e870c7bc58a13165578e6800f
 
 Executed assurance:
 - axis/chariots/loom/.venv/bin/pytest -q: 41 passed; one upstream TestClient deprecation warning.

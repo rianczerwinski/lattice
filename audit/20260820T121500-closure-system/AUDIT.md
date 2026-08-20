@@ -2,7 +2,7 @@
 
 Contract: **valid**. Evidentiary assurance: **closed**. Admissible state: **closed-audited**.
 
-Canonical bytes: `bd941cd0705cdd6dca2f490313f18ce9043c9eb92de54d821e3125680c1249c2`. Source revision: `7cb12bbadd34ff943adc23e33e2584b30bb1b3c3`. Surface bytes: `6d55f4307cbadac49be230dae644e763bab608bd8f000b33c3fa51a837b351fe`.
+Canonical bytes: `500f8e3f502ea90c0d85150b93fd4595f590af863572eb86a3fb1134741b387e`. Source revision: `31b3388579ce5d5e870c7bc58a13165578e6800f`. Surface bytes: `a13b327b2ddce05ad89869eff28094a9019ecc5da60639b481177c456061f9b4`.
 
 ## Material findings
 
