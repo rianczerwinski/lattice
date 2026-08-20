@@ -9,7 +9,7 @@ import pytest
 import httpx
 
 from loom.context_modules import ContextModuleError, ContextModuleRunner
-from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, ProjectCreate, ProviderRoute, RoleCreate, WorkflowPackDefinition
+from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, DraftPatch, ProjectCreate, ProviderRoute, RoleCreate, WorkflowPackDefinition
 from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError
 from loom.platform_foundry import PlatformFoundryAdapter
 from loom.workflows import WorkflowRegistry
@@ -218,6 +218,33 @@ def test_workflow_role_route_is_enforced_instead_of_treated_as_cockpit_decoratio
     session = created["project"]["sessions"][0]
     with pytest.raises(Exception, match="bound to google through gemini"):
         store.create_draft(DraftCreate(project_id=created["project"]["project_id"], role_session_id=session["role_session_id"], prompt="pretend to be native", route=ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex")))
+
+
+@pytest.mark.regression
+def test_workflow_role_route_cannot_be_changed_after_draft_creation_or_sealed_from_legacy_state(loom_env):
+    store = loom_env["store"]
+    created = store.create_workflow_project_atomic(
+        title="route-bound",
+        purpose="",
+        workflow_pack="quaternary",
+        initial_state="semantic-intent",
+        role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "orchestration", "instructions": "Orchestrate."}],
+        blackboard_content=b"{}",
+        blackboard_source_ref="fixture:state",
+        slice_external_ref=None,
+    )
+    project = created["project"]
+    session = project["sessions"][0]
+    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="work", route=ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex")))
+    forbidden = ProviderRoute(provider="anthropic", model="claude-opus-4-1", harness="claude")
+
+    with pytest.raises(Exception, match="bound to openai through codex"):
+        store.patch_draft(draft["draft_id"], DraftPatch(expected_revision=1, route=forbidden))
+
+    with store.transaction() as conn:
+        conn.execute("UPDATE drafts SET route_json=? WHERE draft_id=?", (json.dumps(forbidden.model_dump(mode="json")), draft["draft_id"]))
+    with pytest.raises(Exception, match="bound to openai through codex"):
+        loom_env["loom"].seal(draft["draft_id"])
 
 
 @pytest.mark.contract

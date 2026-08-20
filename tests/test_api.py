@@ -50,6 +50,23 @@ def test_oracle_invocation_inspection_exposes_independently_reconstructed_prompt
 
 
 @pytest.mark.oracle
+def test_oracle_artifact_inspector_returns_exact_content_bytes(loom_env) -> None:
+    store = loom_env["store"]
+    draft = store.create_draft(DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="artifact", route=loom_env["route"]))
+    invocation = loom_env["loom"].seal(draft["draft_id"])
+    attempt = store.create_attempt(invocation["invocation_id"], "artifact-api-attempt", "test-boot", 9_999_999_999)
+    store.mark_attempt_running(attempt["attempt_id"])
+    result = store.finish_successful_attempt(attempt["attempt_id"], response="done", artifacts=[{"name": "proof.txt", "media_type": "text/plain", "content": "EXACT_ARTIFACT_CONTENT"}], journal_path="fixture:journal", runtime_receipt={"fixture": True})
+    artifact_id = result["artifacts"][0]["artifact_id"]
+    app = create_app(loom_env["config"])
+    with TestClient(app) as client:
+        inspected = client.get(f"/api/v1/artifacts/{artifact_id}")
+
+    assert inspected.status_code == 200
+    assert inspected.json()["content"] == "EXACT_ARTIFACT_CONTENT"
+
+
+@pytest.mark.oracle
 def test_closure_transition_automatically_seals_blinded_challenger_without_candidate_context(loom_env) -> None:
     store = loom_env["store"]
     created = store.create_workflow_project_atomic(title="closure workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
@@ -73,6 +90,40 @@ def test_closure_transition_automatically_seals_blinded_challenger_without_candi
     store.mark_attempt_running(attempt["attempt_id"])
     store.finish_successful_attempt(attempt["attempt_id"], response="independent result", artifacts=[], journal_path="fixture:journal", runtime_receipt={"fixture": True})
     assert store.get_workflow_instance(project_id)["triggers"][0]["state"] == "completed"
+
+
+@pytest.mark.regression
+def test_trigger_planning_failure_is_visible_retriable_and_does_not_lie_about_committed_state(monkeypatch, loom_env) -> None:
+    store = loom_env["store"]
+    created = store.create_workflow_project_atomic(title="retry workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
+    project_id = created["project"]["project_id"]
+    evidence = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="search-receipts", content="independent"))
+    candidate = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="closure-candidate", content="excluded"))
+    app = create_app(loom_env["config"])
+    original = app.state.store.create_draft
+    calls = 0
+
+    def fail_once(value):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OSError("planted post-commit planning failure")
+        return original(value)
+
+    monkeypatch.setattr(app.state.store, "create_draft", fail_once)
+    with TestClient(app) as client:
+        csrf = client.get("/api/session").json()["csrf"]
+        headers = {"x-loom-csrf": csrf, "origin": "http://testserver"}
+        transition = client.post("/api/v1/workflow-packs/quaternary/transitions", headers=headers, json={"project_id": project_id, "expected_revision": 1, "from_state": "countersearch", "to_state": "closure-candidate", "evidence_block_ids": [evidence["block_id"]], "payload": {"closure_candidate_block_id": candidate["block_id"]}})
+        body = transition.json()
+        retried = client.post(f"/api/v1/workflow-triggers/{body['trigger']['trigger_id']}/retry", headers=headers, json={})
+
+    assert transition.status_code == 200
+    assert body["workflow"]["state"] == "closure-candidate"
+    assert body["trigger"]["state"] == "pending"
+    assert "planted post-commit planning failure" in body["trigger_error"]
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["trigger"]["state"] == "planned"
 
 
 @pytest.mark.oracle

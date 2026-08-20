@@ -151,7 +151,32 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     @app.get("/api/v1/routes")
     async def routes() -> list[dict[str, Any]]:
         from axis_model_runner import installed_adapter_status
-        return installed_adapter_status()
+        return await asyncio.to_thread(installed_adapter_status, probe_versions=False)
+
+    async def resolve_trigger_route(project_id: str, action: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        project = store.get_project(project_id)
+        role = next((item for item in project["roles"] if item["workflow_role_key"] == action["role_id"]), None)
+        if role is None:
+            raise LoomConflict(f"workflow trigger role is unavailable: {action['role_id']}")
+        session = next(item for item in project["sessions"] if item["role_id"] == role["role_id"])
+        policy = role["route_policy"]
+        if policy["kind"] != "model":
+            raise LoomConflict("automatic invocation trigger requires a model-bound role")
+        from axis_model_runner import installed_adapter_status
+        statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=False)
+        route_status = next((item for item in statuses if item["installed"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
+        if route_status is None:
+            raise LoomConflict(f"qualified {policy['provider']} trigger route is unavailable")
+        return session, policy, route_status
+
+    def materialize_trigger_invocation(*, project_id: str, trigger: dict[str, Any], action: dict[str, Any], evidence_block_ids: list[str], trigger_plan: tuple[dict[str, Any], dict[str, Any], dict[str, Any]]) -> dict[str, Any]:
+        session, policy, route_status = trigger_plan
+        selections = [ContextSelection(block_id=block_id, plane="knowledge", label=f"independent-evidence:{index}") for index, block_id in enumerate(evidence_block_ids)]
+        draft = store.create_draft(DraftCreate(project_id=project_id, role_session_id=session["role_session_id"], prompt=action["prompt"], route=ProviderRoute(provider=policy["provider"], model=route_status["model_code"], harness=policy["harness"], effort="high"), selections=selections, relation=EdgeRelation.triggered_by))
+        invocation = loom.seal(draft["draft_id"])
+        store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
+        store.add_edge(project_id=project_id, relation=EdgeRelation.triggered_by, source_type="invocation", source_id=invocation["invocation_id"], source_revision=invocation["manifest_sha256"], target_type="workflow-trigger", target_id=trigger["trigger_id"], target_revision=trigger["source_transition_id"], metadata={"blinded": True})
+        return invocation
 
     @app.post("/api/v1/projects")
     async def create_project(value: ProjectCreate):
@@ -235,6 +260,10 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     @app.get("/api/v1/invocations/{invocation_id}")
     async def inspect(invocation_id: str):
         return loom.inspect(invocation_id)
+
+    @app.get("/api/v1/artifacts/{artifact_id}")
+    async def inspect_artifact(artifact_id: str):
+        return store.get_artifact(artifact_id)
 
     @app.get("/api/v1/invocations/{invocation_id}/neighborhood")
     async def neighborhood(invocation_id: str, depth: int = 2):
@@ -342,28 +371,40 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
                 raise HTTPException(409, "excluded trigger context belongs to another project")
             if excluded_block_id in value.evidence_block_ids:
                 raise HTTPException(422, "trigger evidence cannot include its explicitly excluded block")
+        trigger_plan = None
+        if trigger_definition and trigger_definition["automatic"] and action["type"] == "invoke_role":
+            trigger_plan = await resolve_trigger_route(value.project_id, action)
         receipt = store.advance_workflow(project_id=value.project_id, pack_id=pack_id, expected_revision=value.expected_revision, from_state=value.from_state, to_state=value.to_state, evidence_block_ids=value.evidence_block_ids, payload=value.payload, trigger=trigger_definition, requires_completed_trigger=declared.get("requires_completed_trigger"))
         trigger = receipt.get("trigger")
-        if trigger and trigger_definition and trigger_definition["automatic"] and action["type"] == "invoke_role":
-            project = store.get_project(value.project_id)
-            role = next((item for item in project["roles"] if item["workflow_role_key"] == action["role_id"]), None)
-            if role is None:
-                raise LoomConflict(f"workflow trigger role is unavailable: {action['role_id']}")
-            session = next(item for item in project["sessions"] if item["role_id"] == role["role_id"])
-            policy = role["route_policy"]
-            if policy["kind"] != "model":
-                raise LoomConflict("automatic invocation trigger requires a model-bound role")
-            from axis_model_runner import installed_adapter_status
-            route_status = next((item for item in installed_adapter_status() if item["installed"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
-            if route_status is None:
-                raise LoomConflict(f"qualified {policy['provider']} trigger route is unavailable")
-            selections = [ContextSelection(block_id=block_id, plane="knowledge", label=f"independent-evidence:{index}") for index, block_id in enumerate(value.evidence_block_ids)]
-            draft = store.create_draft(DraftCreate(project_id=value.project_id, role_session_id=session["role_session_id"], prompt=action["prompt"], route=ProviderRoute(provider=policy["provider"], model=route_status["model_code"], harness=policy["harness"], effort="high"), selections=selections, relation=EdgeRelation.triggered_by))
-            invocation = loom.seal(draft["draft_id"])
-            store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
-            store.add_edge(project_id=value.project_id, relation=EdgeRelation.triggered_by, source_type="invocation", source_id=invocation["invocation_id"], source_revision=invocation["manifest_sha256"], target_type="workflow-trigger", target_id=trigger["trigger_id"], target_revision=trigger["source_transition_id"], metadata={"blinded": True})
-            receipt["challenger_invocation"] = invocation
+        if trigger and trigger_plan:
+            try:
+                invocation = materialize_trigger_invocation(project_id=value.project_id, trigger=trigger, action=action, evidence_block_ids=value.evidence_block_ids, trigger_plan=trigger_plan)
+                receipt["challenger_invocation"] = invocation
+            except BaseException as error:
+                trigger_error = f"{type(error).__name__}: {error}"
+                store.fail_workflow_trigger_planning(trigger["trigger_id"], error_text=trigger_error)
+                receipt["trigger"] = store.get_workflow_trigger(trigger["trigger_id"])
+                receipt["trigger_error"] = trigger_error
         return receipt
+
+    @app.post("/api/v1/workflow-triggers/{trigger_id}/retry")
+    async def retry_workflow_trigger(trigger_id: str):
+        trigger = store.get_workflow_trigger(trigger_id)
+        if trigger["state"] != "pending":
+            raise LoomConflict("workflow trigger is not pending")
+        definition = workflows.load(trigger["pack_id"])["definition"]
+        trigger_definition = next((item for item in definition["triggers"] if item["trigger"] == trigger["trigger_name"]), None)
+        if not trigger_definition or not trigger_definition["automatic"] or trigger_definition["action"]["type"] != "invoke_role":
+            raise LoomConflict("workflow trigger has no retryable automatic invocation")
+        action = trigger_definition["action"]
+        try:
+            trigger_plan = await resolve_trigger_route(trigger["project_id"], action)
+            invocation = materialize_trigger_invocation(project_id=trigger["project_id"], trigger=trigger, action=action, evidence_block_ids=trigger["evidence_block_ids"], trigger_plan=trigger_plan)
+            return {"trigger": store.get_workflow_trigger(trigger_id), "challenger_invocation": invocation}
+        except BaseException as error:
+            trigger_error = f"{type(error).__name__}: {error}"
+            store.fail_workflow_trigger_planning(trigger_id, error_text=trigger_error)
+            raise HTTPException(409, trigger_error) from error
 
     @app.post("/api/v1/import/octopus")
     async def import_octopus(value: ImportConversationRequest):

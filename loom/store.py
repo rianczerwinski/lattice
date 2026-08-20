@@ -276,6 +276,7 @@ CREATE TABLE IF NOT EXISTS workflow_triggers(
     state TEXT NOT NULL,
     source_transition_id TEXT NOT NULL REFERENCES workflow_transitions(transition_id),
     result_ref TEXT,
+    error_text TEXT,
     created_at TEXT NOT NULL,
     completed_at TEXT
 ) STRICT;
@@ -328,6 +329,9 @@ class LoomStore:
                 conn.execute("ALTER TABLE roles ADD COLUMN workflow_role_key TEXT")
             if "route_policy_json" not in role_columns:
                 conn.execute("ALTER TABLE roles ADD COLUMN route_policy_json TEXT NOT NULL DEFAULT '{\"kind\":\"operator-selectable\"}' CHECK(json_valid(route_policy_json))")
+            trigger_columns = {row[1] for row in conn.execute("PRAGMA table_info(workflow_triggers)")}
+            if "error_text" not in trigger_columns:
+                conn.execute("ALTER TABLE workflow_triggers ADD COLUMN error_text TEXT")
             self._install_change_triggers(conn)
             conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)",
@@ -430,6 +434,18 @@ class LoomStore:
         if spec["provider"] in {"local", "operator"}:
             return {"kind": "non-model", "provider": spec["provider"]}
         return {"kind": "model", "provider": spec["provider"], "harness": spec["harness"], "allowed_models": spec.get("allowed_models", [])}
+
+    def _assert_route_authorized(self, role_session_id: str, route: dict[str, Any]) -> None:
+        session = self.get_role_session(role_session_id)
+        role = self.get_role(session["role_id"])
+        policy = role["route_policy"]
+        if policy["kind"] == "non-model":
+            raise LoomConflict(f"{role['name']} is not a model-execution role")
+        if policy["kind"] == "model":
+            if route["provider"] != policy["provider"] or route["harness"] != policy["harness"]:
+                raise LoomConflict(f"{role['name']} is bound to {policy['provider']} through {policy['harness']}")
+            if policy["allowed_models"] and route["model"] not in policy["allowed_models"]:
+                raise LoomConflict(f"{role['name']} does not authorize model {route['model']}")
 
     def create_project(self, value: ProjectCreate) -> dict[str, Any]:
         project_id = opaque_id("project")
@@ -667,15 +683,7 @@ class LoomStore:
         session = self.get_role_session(value.role_session_id)
         if session["project_id"] != value.project_id:
             raise LoomConflict("role session does not belong to project")
-        role = self.get_role(session["role_id"])
-        policy = role["route_policy"]
-        if policy["kind"] == "non-model":
-            raise LoomConflict(f"{role['name']} is not a model-execution role")
-        if policy["kind"] == "model":
-            if value.route.provider != policy["provider"] or value.route.harness != policy["harness"]:
-                raise LoomConflict(f"{role['name']} is bound to {policy['provider']} through {policy['harness']}")
-            if policy["allowed_models"] and value.route.model not in policy["allowed_models"]:
-                raise LoomConflict(f"{role['name']} does not authorize model {value.route.model}")
+        self._assert_route_authorized(value.role_session_id, value.route.model_dump(mode="json"))
         for parent_id in value.parent_invocation_ids:
             parent = self.get_invocation(parent_id)
             if parent["project_id"] != value.project_id:
@@ -712,6 +720,7 @@ class LoomStore:
         if patch.prompt is not None:
             prompt_block_id = self.create_context_block(ContextBlockCreate(project_id=current["project_id"], semantic_type="user-prompt", content=patch.prompt, evidence_level="operator-intent"))["block_id"]
         route = patch.route.model_dump(mode="json") if patch.route else current["route"]
+        self._assert_route_authorized(current["role_session_id"], route)
         selections = [item.model_dump(mode="json") for item in patch.selections] if patch.selections is not None else current["selections"]
         parents = patch.parent_invocation_ids if patch.parent_invocation_ids is not None else current["parents"]
         revision = current["revision"] + 1
@@ -727,6 +736,7 @@ class LoomStore:
         return self.get_draft(draft_id)
 
     def insert_invocation(self, draft: dict[str, Any], manifest: dict[str, Any], manifest_sha: str, compiled_prompt_sha: str) -> dict[str, Any]:
+        self._assert_route_authorized(draft["role_session_id"], draft["route"])
         invocation_id = manifest["invocation_id"]
         now = stamp()
         with self.transaction() as conn:
@@ -825,6 +835,14 @@ class LoomStore:
     def list_invocations(self, project_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
             return [dict(row) for row in conn.execute("SELECT invocation_id,project_id,role_session_id,state,manifest_sha256,output_block_id,terminal_kind,created_at,completed_at FROM invocations WHERE project_id=? ORDER BY created_at", (project_id,))]
+
+    def get_artifact(self, artifact_id: str, *, include_content: bool = True) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute("SELECT * FROM artifacts WHERE artifact_id=?", (artifact_id,)).fetchone(), artifact_id)
+        row["generated"] = json.loads(row.pop("generated_json"))
+        if include_content:
+            row["content"] = self.blobs.get(row["content_sha256"]).decode("utf-8")
+        return row
 
     def create_attempt(self, invocation_id: str, idempotency_key: str, boot_id: str, expires_at: int) -> dict[str, Any]:
         with self.transaction() as conn:
@@ -1130,7 +1148,7 @@ class LoomStore:
                 trigger_state = "completed" if trigger_completed else "pending"
                 result_ref = trigger_result_ref
                 completed_at = now if trigger_state == "completed" else None
-                conn.execute("INSERT INTO workflow_triggers(trigger_id,project_id,trigger_name,required_action,state,source_transition_id,result_ref,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?)", (trigger_id, project_id, trigger["trigger"], trigger["required_action"], trigger_state, transition_id, result_ref, now, completed_at))
+                conn.execute("INSERT INTO workflow_triggers(trigger_id,project_id,trigger_name,required_action,state,source_transition_id,result_ref,error_text,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?)", (trigger_id, project_id, trigger["trigger"], trigger["required_action"], trigger_state, transition_id, result_ref, None, now, completed_at))
                 self._event(conn, project_id=project_id, event_type=f"workflow.trigger-{trigger_state}", subject_type="workflow-trigger", subject_id=trigger_id, payload={"trigger": trigger["trigger"], "required_action": trigger["required_action"], "result_ref": result_ref})
                 trigger_row = dict(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone())
         return {"workflow": self.get_workflow_instance(project_id), "transition_id": transition_id, "trigger": trigger_row}
@@ -1152,14 +1170,35 @@ class LoomStore:
             self._event(conn, project_id=trigger["project_id"], event_type="workflow.trigger-completed", subject_type="workflow-trigger", subject_id=trigger_id, payload={"result_ref": result_ref})
         return self.get_workflow_instance(trigger["project_id"])
 
+    def get_workflow_trigger(self, trigger_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute(
+                """SELECT t.*,x.pack_id,x.from_state,x.to_state,x.revision AS transition_revision,
+                          x.evidence_block_ids_json,x.payload_sha256
+                   FROM workflow_triggers t JOIN workflow_transitions x ON x.transition_id=t.source_transition_id
+                   WHERE t.trigger_id=?""",
+                (trigger_id,),
+            ).fetchone(), trigger_id)
+        row["evidence_block_ids"] = json.loads(row.pop("evidence_block_ids_json"))
+        return row
+
     def plan_workflow_trigger(self, trigger_id: str, *, result_ref: str) -> dict[str, Any]:
         with self.transaction() as conn:
             trigger = self._row(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone(), trigger_id)
             if trigger["state"] != "pending":
                 raise LoomConflict("workflow trigger is not pending")
-            conn.execute("UPDATE workflow_triggers SET state='planned',result_ref=? WHERE trigger_id=?", (result_ref, trigger_id))
+            conn.execute("UPDATE workflow_triggers SET state='planned',result_ref=?,error_text=NULL WHERE trigger_id=?", (result_ref, trigger_id))
             self._event(conn, project_id=trigger["project_id"], event_type="workflow.trigger-planned", subject_type="workflow-trigger", subject_id=trigger_id, payload={"result_ref": result_ref})
         return self.get_workflow_instance(trigger["project_id"])
+
+    def fail_workflow_trigger_planning(self, trigger_id: str, *, error_text: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            trigger = self._row(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone(), trigger_id)
+            if trigger["state"] != "pending":
+                raise LoomConflict("workflow trigger is not pending")
+            conn.execute("UPDATE workflow_triggers SET error_text=? WHERE trigger_id=?", (error_text, trigger_id))
+            self._event(conn, project_id=trigger["project_id"], event_type="workflow.trigger-planning-failed", subject_type="workflow-trigger", subject_id=trigger_id, payload={"error_text": error_text})
+        return self.get_workflow_trigger(trigger_id)
 
     def get_attempt(self, attempt_id: str) -> dict[str, Any]:
         with self._connect() as conn:
