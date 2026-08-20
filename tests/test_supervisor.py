@@ -11,6 +11,15 @@ from loom.contracts import DraftCreate, ExecuteRequest
 from loom.supervisor import ExecutionSupervisor
 
 
+def fake_journal(tmp_path: Path) -> Path:
+    journal = tmp_path / "journal"
+    journal.mkdir(exist_ok=True)
+    (journal / "request.json").write_text('{"driver":"codex","model":"test","metadata":{"cli_version":"test-cli 1","binary":"/test/codex","isolation":{"working_directory":"fresh-temporary"}}}', encoding="utf-8")
+    (journal / "checkpoint.json").write_text('{"native_session":{"strategy":"codex","id":null,"state_dir":null},"observed":{"stdout_bytes":0}}', encoding="utf-8")
+    (journal / "terminal.json").write_text('{"status":"success"}', encoding="utf-8")
+    return journal
+
+
 @pytest.mark.asyncio
 @pytest.mark.concurrency
 async def test_concurrency_idempotent_execution_produces_one_attempt(monkeypatch, loom_env, tmp_path) -> None:
@@ -19,7 +28,7 @@ async def test_concurrency_idempotent_execution_produces_one_attempt(monkeypatch
 
     def fake_invoke(adapter, **kwargs):
         kwargs["on_chunk"]("stdout", b"working")
-        return {"response": "finished", "artifacts": []}, tmp_path / "journal"
+        return {"response": "finished", "artifacts": []}, fake_journal(tmp_path)
 
     monkeypatch.setattr("loom.supervisor.invoke_subscription", fake_invoke)
     supervisor = ExecutionSupervisor(loom_env["store"])
@@ -62,7 +71,7 @@ async def test_oracle_provider_artifacts_are_content_addressed_and_linked(monkey
     invocation = loom_env["loom"].seal(draft["draft_id"])
 
     def fake_invoke(*args, **kwargs):
-        return {"response": "made it", "artifacts": [{"name": "answer.txt", "media_type": "text/plain", "content": "exact artifact bytes"}]}, tmp_path / "journal"
+        return {"response": "made it", "artifacts": [{"name": "answer.txt", "media_type": "text/plain", "content": "exact artifact bytes"}]}, fake_journal(tmp_path)
 
     monkeypatch.setattr("loom.supervisor.invoke_subscription", fake_invoke)
     supervisor = ExecutionSupervisor(loom_env["store"])
@@ -75,3 +84,5 @@ async def test_oracle_provider_artifacts_are_content_addressed_and_linked(monkey
     artifact = result["artifacts"][0]
     assert loom_env["store"].blobs.get(artifact["content_sha256"]) == b"exact artifact bytes"
     assert any(edge["target_id"] == artifact["artifact_id"] and edge["relation"] == "produced" for edge in result["edges"])
+    assert result["attempts"][0]["runtime_receipt"]["cli_version"] == "test-cli 1"
+    assert result["attempts"][0]["runtime_receipt"]["native_session"]["strategy"] == "codex"

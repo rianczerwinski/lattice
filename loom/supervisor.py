@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 import time
 import uuid
@@ -20,6 +21,31 @@ from .canonical import sha256_bytes
 from .contracts import AttemptState, ExecuteRequest
 from .manifest_reader import verify_and_reconstruct
 from .store import LoomConflict, LoomStore
+
+
+def _runtime_receipt(journal: Any) -> dict[str, Any]:
+    root = __import__("pathlib").Path(journal)
+    request_path = root / "request.json"
+    checkpoint_path = root / "checkpoint.json"
+    terminal_path = root / "terminal.json"
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    terminal = json.loads(terminal_path.read_text(encoding="utf-8")) if terminal_path.is_file() else None
+    return {
+        "kind": "loom-model-runtime-receipt",
+        "journal_path": str(root),
+        "request_sha256": sha256_bytes(request_path.read_bytes()),
+        "checkpoint_sha256": sha256_bytes(checkpoint_path.read_bytes()),
+        "terminal_sha256": sha256_bytes(terminal_path.read_bytes()) if terminal_path.is_file() else None,
+        "driver": request["driver"],
+        "model": request["model"],
+        "cli_version": request["metadata"].get("cli_version"),
+        "binary": request["metadata"].get("binary"),
+        "isolation": request["metadata"].get("isolation"),
+        "native_session": checkpoint.get("native_session"),
+        "observed": checkpoint.get("observed"),
+        "terminal": terminal,
+    }
 
 
 class ExecutionSupervisor:
@@ -103,9 +129,10 @@ class ExecutionSupervisor:
             artifacts = payload.get("artifacts")
             if not isinstance(artifacts, list) or any(not isinstance(item, dict) or set(item) != {"name", "media_type", "content"} or not all(isinstance(item[key], str) for key in item) for item in artifacts):
                 raise SubscriptionInvocationFailed("malformed_output", "provider response contained invalid artifacts", journal=journal)
-            self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal))
+            self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal), runtime_receipt=_runtime_receipt(journal))
         except SubscriptionInvocationFailed as error:
             terminal = AttemptState.interrupted if error.kind == "operator_interruption" else AttemptState.failed
-            self.store.finish_attempt(attempt_id, state=terminal, failure_kind=error.kind, error_text=str(error), journal_path=str(error.journal) if error.journal else None)
+            receipt = _runtime_receipt(error.journal) if error.journal and (error.journal / "request.json").is_file() else None
+            self.store.finish_attempt(attempt_id, state=terminal, failure_kind=error.kind, error_text=str(error), journal_path=str(error.journal) if error.journal else None, runtime_receipt=receipt)
         except BaseException as error:  # execution boundary must always terminalize
             self.store.finish_attempt(attempt_id, state=AttemptState.failed, failure_kind="harness_failure", error_text=f"{type(error).__name__}: {error}")

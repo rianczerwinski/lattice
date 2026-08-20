@@ -169,6 +169,7 @@ CREATE TABLE IF NOT EXISTS attempts(
     output_sha256 TEXT,
     failure_kind TEXT,
     error_text TEXT,
+    runtime_receipt_json TEXT CHECK(runtime_receipt_json IS NULL OR json_valid(runtime_receipt_json)),
     started_at TEXT NOT NULL,
     heartbeat_at TEXT,
     completed_at TEXT,
@@ -295,6 +296,9 @@ class LoomStore:
         self._write_lock = threading.RLock()
         with self._connect() as conn:
             conn.executescript(DDL)
+            attempt_columns = {row[1] for row in conn.execute("PRAGMA table_info(attempts)")}
+            if "runtime_receipt_json" not in attempt_columns:
+                conn.execute("ALTER TABLE attempts ADD COLUMN runtime_receipt_json TEXT CHECK(runtime_receipt_json IS NULL OR json_valid(runtime_receipt_json))")
             conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)",
                 (stamp(),),
@@ -645,11 +649,13 @@ class LoomStore:
         row["manifest"] = json.loads(row.pop("manifest_json"))
         row["route"] = json.loads(row.pop("route_json"))
         row["response_schema"] = json.loads(row.pop("response_schema_json"))
+        for attempt in row["attempts"]:
+            attempt["runtime_receipt"] = json.loads(attempt.pop("runtime_receipt_json")) if attempt.get("runtime_receipt_json") else None
         if row["output_block_id"]:
             row["output_block"] = self.get_block(row["output_block_id"])
         return row
 
-    def finish_successful_attempt(self, attempt_id: str, *, response: str, artifacts: list[dict[str, str]], journal_path: str) -> dict[str, Any]:
+    def finish_successful_attempt(self, attempt_id: str, *, response: str, artifacts: list[dict[str, str]], journal_path: str, runtime_receipt: dict[str, Any]) -> dict[str, Any]:
         """Persist the complete provider result and terminal receipt as one ledger transition."""
         response_bytes = response.encode("utf-8")
         response_sha = self.blobs.put(response_bytes)
@@ -677,7 +683,7 @@ class LoomStore:
                 conn.execute("INSERT INTO artifacts(artifact_id,project_id,artifact_kind,generated_json,content_sha256,created_at) VALUES(?,?,?,?,?,?)", (artifact_id, attempt["project_id"], "provider-output", canonical_bytes(record).decode(), content_sha, now))
                 self._event(conn, project_id=attempt["project_id"], event_type="artifact.created", subject_type="artifact", subject_id=artifact_id, payload=record)
                 self._insert_edge(conn, project_id=attempt["project_id"], relation=EdgeRelation.produced, source_type="invocation", source_id=attempt["invocation_id"], source_revision=attempt["manifest_sha256"], target_type="artifact", target_id=artifact_id, target_revision=content_sha, metadata={"name": artifact["name"], "media_type": artifact["media_type"]})
-            conn.execute("UPDATE attempts SET state='succeeded',journal_path=?,output_sha256=?,completed_at=? WHERE attempt_id=?", (journal_path, response_sha, now, attempt_id))
+            conn.execute("UPDATE attempts SET state='succeeded',journal_path=?,output_sha256=?,runtime_receipt_json=?,completed_at=? WHERE attempt_id=?", (journal_path, response_sha, canonical_bytes(runtime_receipt).decode(), now, attempt_id))
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             conn.execute("UPDATE invocations SET state='succeeded',output_block_id=?,terminal_kind='succeeded',completed_at=? WHERE invocation_id=?", (block_id, now, attempt["invocation_id"]))
             self._event(conn, project_id=attempt["project_id"], event_type="attempt.succeeded", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": block_id, "artifact_ids": [item[1] for item in prepared_artifacts]})
@@ -725,7 +731,7 @@ class LoomStore:
             if changed:
                 conn.execute("UPDATE leases SET expires_at=? WHERE attempt_id=? AND state='active'", (expires_at, attempt_id))
 
-    def finish_attempt(self, attempt_id: str, *, state: AttemptState, output_block_id: str | None = None, output_sha256: str | None = None, failure_kind: str | None = None, error_text: str | None = None, journal_path: str | None = None) -> dict[str, Any]:
+    def finish_attempt(self, attempt_id: str, *, state: AttemptState, output_block_id: str | None = None, output_sha256: str | None = None, failure_kind: str | None = None, error_text: str | None = None, journal_path: str | None = None, runtime_receipt: dict[str, Any] | None = None) -> dict[str, Any]:
         if state not in {AttemptState.succeeded, AttemptState.failed, AttemptState.interrupted, AttemptState.orphaned}:
             raise ValueError("attempt terminal state required")
         with self.transaction() as conn:
@@ -733,7 +739,7 @@ class LoomStore:
             if attempt["state"] not in {AttemptState.leased.value, AttemptState.running.value}:
                 raise LoomConflict("terminal attempts are immutable")
             now = stamp()
-            conn.execute("UPDATE attempts SET state=?,journal_path=COALESCE(?,journal_path),output_sha256=?,failure_kind=?,error_text=?,completed_at=? WHERE attempt_id=?", (state.value, journal_path, output_sha256, failure_kind, error_text, now, attempt_id))
+            conn.execute("UPDATE attempts SET state=?,journal_path=COALESCE(?,journal_path),output_sha256=?,failure_kind=?,error_text=?,runtime_receipt_json=?,completed_at=? WHERE attempt_id=?", (state.value, journal_path, output_sha256, failure_kind, error_text, canonical_bytes(runtime_receipt).decode() if runtime_receipt else None, now, attempt_id))
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             invocation_state = InvocationState.succeeded if state == AttemptState.succeeded else InvocationState.interrupted if state in {AttemptState.interrupted, AttemptState.orphaned} else InvocationState.failed
             conn.execute("UPDATE invocations SET state=?,output_block_id=COALESCE(?,output_block_id),terminal_kind=?,completed_at=? WHERE invocation_id=?", (invocation_state.value, output_block_id, failure_kind or state.value, now, attempt["invocation_id"]))
@@ -944,7 +950,9 @@ class LoomStore:
 
     def get_attempt(self, attempt_id: str) -> dict[str, Any]:
         with self._connect() as conn:
-            return self._row(conn.execute("SELECT * FROM attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            row = self._row(conn.execute("SELECT * FROM attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+        row["runtime_receipt"] = json.loads(row.pop("runtime_receipt_json")) if row.get("runtime_receipt_json") else None
+        return row
 
     def graph_neighborhood(self, invocation_id: str, depth: int = 2) -> dict[str, Any]:
         if depth < 0 or depth > 5:
