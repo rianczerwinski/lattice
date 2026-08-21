@@ -1,32 +1,32 @@
 # Loom — Surface
 
-surface-id: surface:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5 · source-revision: c93b2711f25cd9f39707e0fd16cba94cb7e797b4 · generated: 20260820T121800
-view-artifact: artifact:de134df9-5243-5cc9-b7b8-3dc7052f137d · role: derived-view · parent-artifact: artifact:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5
-source-surface: SURFACE.json · parent-sha256: a13b327b2ddce05ad89869eff28094a9019ecc5da60639b481177c456061f9b4 · renderer: surface-renderer/2.0.1
+surface-id: surface:a13913a0-618e-59d4-a800-81458d10aecd · source-revision: b7c1af32042bae234f1eb56332d658feaca0741c · generated: 20260821T160714
+view-artifact: artifact:bb125555-a377-5322-836f-76f8c1961416 · role: derived-view · parent-artifact: artifact:a13913a0-618e-59d4-a800-81458d10aecd
+source-surface: SURFACE.json · parent-sha256: 046ac286fff0b002691853ddf1f1c555191e9c82572766be371db4d7dbf5866b · renderer: surface-renderer/2.0.1
 
 ## 1 · Durable lattice kernel — Versioned contracts, append-only events, content-addressed context, graph operations, and independent manifest reconstruction. [1✓]
-- ✓ **shipped** — Loom persists an append-only invocation lattice whose current database, joins, context, and lineage can be reconstructed exactly from the ledger and content-addressed blobs. _(sources: loom/store.py)_
+- ✓ **partial** — Loom persists an append-only invocation lattice, but cross-project topic slices, replay fidelity, semantic diffing, and extracted-artifact durability are presently partial. _(sources: loom/store.py)_
 
 ## 2 · Execution and authority boundary — Loopback API authority and leased subscription-CLI execution with durable failure state. [1✓]
-- ✓ **shipped** — Claude and Codex execution is isolated, leased, journaled, cancellable, restart-aware, artifact-preserving, and bound to observable CLI/runtime identity with explicit provider proof limits. _(sources: loom/supervisor.py)_
+- ✓ **partial** — Claude and Codex invocations are leased and journaled, but the observable execution contract is partial because declared session, workspace, tool, permission, and network policies are not yet executed faithfully. _(sources: loom/supervisor.py)_
 
 ## 3 · Evidence and workflow integrations — Octopus exact-source import, governed context modules, workflow packs, and the quaternary boundary. [1✓]
-- ✓ **partial** — Octopus import, governed modules, typed route-bound workflow packs, generic trigger actions, Slate/Axial projection, and read-only Platform Foundry reuse work; German Gemini qualification remains externally blocked. _(sources: loom/octopus_import.py, tests/test_workflows.py)_
+- ✓ **partial** — Octopus import, governed workflow packs, Slate/Axial projection, and Platform Foundry inspection exist; import idempotency and the complete German quaternary workflow remain partial. _(sources: loom/octopus_import.py, tests/test_workflows.py)_
 
 ## 4 · Response-first cockpit — The Svelte conversational surface and its compiled same-origin assets. [1✓]
-- ✓ **shipped** — The cockpit operates arbitrary Claude/Codex routing while enforcing workflow role-provider boundaries, showing unavailable routes honestly, and exposing exact preflight, retrospective context, artifact bytes, attempts, graph neighborhoods, workflow failures, and retry controls. _(sources: web/src/App.svelte)_
+- ✓ **partial** — The cockpit supports manual Claude/Codex forks, joins, routing, and inspection, while governed workflow operation and runtime-policy truth remain partial. _(sources: web/src/App.svelte)_
 
 ## 5 · Packaging and assurance — Install metadata, dependency locks, and truth-typed regression, property, contract, and oracle tests. [1✓]
-- ✓ **shipped** — The installable wheel, production cockpit build, truth-typed Python and browser tests, authenticated manual routing, six rejected closure mutations, and a closed Audit Planes v4 outpost are present and hash-bound. _(sources: tests/test_kernel.py)_
+- ✓ **partial** — Build and test machinery exists, but the prior closure audit is not independent evidence of completion and material redteam findings remain active. _(sources: tests/test_kernel.py)_
 
 ## Derived views
 
 ### is
-- 1 Durable lattice kernel — **shipped**: Loom persists an append-only invocation lattice whose current database, joins, context, and lineage can be reconstructed exactly from the ledger and content-addressed blobs.
-- 2 Execution and authority boundary — **shipped**: Claude and Codex execution is isolated, leased, journaled, cancellable, restart-aware, artifact-preserving, and bound to observable CLI/runtime identity with explicit provider proof limits.
-- 3 Evidence and workflow integrations — **partial**: Octopus import, governed modules, typed route-bound workflow packs, generic trigger actions, Slate/Axial projection, and read-only Platform Foundry reuse work; German Gemini qualification remains externally blocked.
-- 4 Response-first cockpit — **shipped**: The cockpit operates arbitrary Claude/Codex routing while enforcing workflow role-provider boundaries, showing unavailable routes honestly, and exposing exact preflight, retrospective context, artifact bytes, attempts, graph neighborhoods, workflow failures, and retry controls.
-- 5 Packaging and assurance — **shipped**: The installable wheel, production cockpit build, truth-typed Python and browser tests, authenticated manual routing, six rejected closure mutations, and a closed Audit Planes v4 outpost are present and hash-bound.
+- 1 Durable lattice kernel — **partial**: Loom persists an append-only invocation lattice, but cross-project topic slices, replay fidelity, semantic diffing, and extracted-artifact durability are presently partial.
+- 2 Execution and authority boundary — **partial**: Claude and Codex invocations are leased and journaled, but the observable execution contract is partial because declared session, workspace, tool, permission, and network policies are not yet executed faithfully.
+- 3 Evidence and workflow integrations — **partial**: Octopus import, governed workflow packs, Slate/Axial projection, and Platform Foundry inspection exist; import idempotency and the complete German quaternary workflow remain partial.
+- 4 Response-first cockpit — **partial**: The cockpit supports manual Claude/Codex forks, joins, routing, and inspection, while governed workflow operation and runtime-policy truth remain partial.
+- 5 Packaging and assurance — **partial**: Build and test machinery exists, but the prior closure audit is not independent evidence of completion and material redteam findings remain active.
 
 ### doing
 - None.

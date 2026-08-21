@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
+  "surface_id": "surface:a13913a0-618e-59d4-a800-81458d10aecd",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
-    "generated_at": "20260820T121800",
+    "artifact_id": "artifact:a13913a0-618e-59d4-a800-81458d10aecd",
+    "generated_at": "20260821T160714",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "c93b2711f25cd9f39707e0fd16cba94cb7e797b4",
+        "revision": "b7c1af32042bae234f1eb56332d658feaca0741c",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903"
+    "parent_artifact_id": "artifact:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5"
   },
   "workframe": {
     "name": "Loom",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260820T121800",
-    "source_revision": "c93b2711f25cd9f39707e0fd16cba94cb7e797b4",
+    "at": "20260821T160714",
+    "source_revision": "b7c1af32042bae234f1eb56332d658feaca0741c",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "c93b2711f25cd9f39707e0fd16cba94cb7e797b4",
+    "revision": "b7c1af32042bae234f1eb56332d658feaca0741c",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -77,12 +77,12 @@
       {
         "path": "audit/20260820T121500-closure-system/AUDIT.json",
         "mode": "100644",
-        "object_id": "bec863914c09651f00ec24df233442e95c33aab8"
+        "object_id": "9922912fe6266c6a0df46f7e4fb5f2bebd7ae1ae"
       },
       {
         "path": "audit/20260820T121500-closure-system/AUDIT.md",
         "mode": "100644",
-        "object_id": "98c0a8c2e673dee0a6aa16c38d39c735ddaef5bd"
+        "object_id": "f39a0f96bb874b6677dcaa920cfdc79b5d755853"
       },
       {
         "path": "audit/20260820T121500-closure-system/README.md",
@@ -92,7 +92,7 @@
       {
         "path": "audit/20260820T121500-closure-system/audit.validation.json",
         "mode": "100644",
-        "object_id": "787328c3dfc84cfdb1ae951908e6fbf1049b99b8"
+        "object_id": "f46c75d4b50664a134fe5655f16bd4421782740f"
       },
       {
         "path": "audit/20260820T121500-closure-system/evidence/README.md",
@@ -102,7 +102,7 @@
       {
         "path": "audit/20260820T121500-closure-system/evidence/verification.txt",
         "mode": "100644",
-        "object_id": "def4fa42f1b3dfde71f6fa919abeb648942c46fc"
+        "object_id": "0becc0fa2339393af8cafa6e9fd6e33a88487b39"
       },
       {
         "path": "audit/README.md",
@@ -335,7 +335,7 @@
         "object_id": "db7c340db94f1a07bd919d0229acaf18707c0fd0"
       }
     ],
-    "entries_sha256": "b43cabfd643361c271dbc19855783aae7f2bd3fb74bea4a40a80e20cec68d228",
+    "entries_sha256": "c8f879a0de52b518e5edde33617ac04b25670607763ea29d42c3b59e90d25f2d",
     "mappings": [
       {
         "path": ".gitignore",
@@ -368,7 +368,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260818T140529-initial-system/AUDIT.md",
@@ -379,7 +379,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260818T140529-initial-system/audit.validation.json",
@@ -390,7 +390,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
@@ -401,7 +401,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260820T121500-closure-system/AUDIT.json",
@@ -412,7 +412,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260820T121500-closure-system/AUDIT.md",
@@ -423,7 +423,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260820T121500-closure-system/README.md",
@@ -434,7 +434,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260820T121500-closure-system/audit.validation.json",
@@ -445,7 +445,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260820T121500-closure-system/evidence/README.md",
@@ -456,7 +456,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/20260820T121500-closure-system/evidence/verification.txt",
@@ -467,7 +467,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "audit/README.md",
@@ -478,7 +478,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Generated assurance evidence belongs to the independent packaging-and-proof boundary."
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
       },
       {
         "path": "loom/__init__.py",
@@ -991,7 +991,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The store implements an append-only change ledger, content-addressed graph state, immutable manifests, leases, workflow state, slices, and exact database reconstruction."
+      "observation": "The store implements the append-only temporal graph, but current slice scoping, replay, diff, and extraction defects make the graph capability partial."
     },
     {
       "id": "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -1001,7 +1001,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The supervisor executes sealed invocations through qualified, isolated subscription CLIs and persists versioned runtime receipts, artifacts, cancellation, and terminal failure state."
+      "observation": "The supervisor journals and leases subscription-backed invocations, but requested workspace, session, tool, permission, and network policies are not yet faithfully executed."
     },
     {
       "id": "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -1011,7 +1011,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "Workflow packs now carry explicit initial state, typed provider and harness authority, transition-bound triggers, and constrained declarative actions; legacy projects reconcile those policies from the canonical pack before use."
+      "observation": "Octopus import and workflow-pack boundaries exist, while import idempotency and the complete German quaternary exchange remain open."
     },
     {
       "id": "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
@@ -1021,7 +1021,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The cockpit filters routes by the selected role's executable policy and renders unavailable model roles without silently substituting another provider."
+      "observation": "The cockpit operates manual Claude/Codex routing and inspection, but it does not yet expose the complete governed workflow or guarantee that displayed execution policy matched runtime behavior."
     },
     {
       "id": "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
@@ -1031,7 +1031,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "Forty-one Loom tests plus twenty model-runner tests and two browser-render mutations cover provider-role impersonation, seal-time route changes, post-transition trigger failure and retry, exact artifact bytes, restart recovery, and hostile model HTML."
+      "observation": "The test suite exercises the current happy paths, but the closure audit and reproduced defects demonstrate missing independent oracles for several central guarantees."
     },
     {
       "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
@@ -1056,7 +1056,7 @@
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
+    "artifact_id": "carve:a13913a0-618e-59d4-a800-81458d10aecd",
     "subject": "Loom conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -1749,9 +1749,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
+      "parent_artifact_id": "carve:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
       "reconciliation_scope": "local",
-      "decision": "The five-part decomposition remains stable after the final Audit Planes outpost closed all implementation findings and recorded the external Gemini acceptance limit.",
+      "decision": "The five-part capability decomposition remains the strongest cut; the new evidence changes assurance and developmental claims inside existing branches rather than their semantic ownership.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -1928,13 +1928,13 @@
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "A fresh split by temporal graph, execution, domain workflow, cockpit, and assurance still produces fewer crossings than provider-first or workflow-first alternatives.",
+          "claim": "A fresh provider-first or workflow-first challenger still creates more cross-ownership traffic than the incumbent temporal-graph, execution, workflow, cockpit, and assurance cut; the redteam findings are state corrections within those owners.",
           "evidence": [
             "loom/store.py",
             "loom/supervisor.py",
-            "loom/platform_foundry.py",
+            "loom/workflows.py",
             "web/src/App.svelte",
-            "tests/test_workflows.py"
+            "audit/20260820T121500-closure-system/AUDIT.json"
           ]
         }
       }
@@ -1993,8 +1993,8 @@
         {
           "id": "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
           "mode": "is",
-          "state": "shipped",
-          "summary": "Loom persists an append-only invocation lattice whose current database, joins, context, and lineage can be reconstructed exactly from the ledger and content-addressed blobs.",
+          "state": "partial",
+          "summary": "Loom persists an append-only invocation lattice, but cross-project topic slices, replay fidelity, semantic diffing, and extracted-artifact durability are presently partial.",
           "detail": null,
           "source_ids": [
             "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
@@ -2012,8 +2012,8 @@
         {
           "id": "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
           "mode": "is",
-          "state": "shipped",
-          "summary": "Claude and Codex execution is isolated, leased, journaled, cancellable, restart-aware, artifact-preserving, and bound to observable CLI/runtime identity with explicit provider proof limits.",
+          "state": "partial",
+          "summary": "Claude and Codex invocations are leased and journaled, but the observable execution contract is partial because declared session, workspace, tool, permission, and network policies are not yet executed faithfully.",
           "detail": null,
           "source_ids": [
             "source:1bed9604-7f0c-589c-a954-1508e9e796f2"
@@ -2032,7 +2032,7 @@
           "id": "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
           "mode": "is",
           "state": "partial",
-          "summary": "Octopus import, governed modules, typed route-bound workflow packs, generic trigger actions, Slate/Axial projection, and read-only Platform Foundry reuse work; German Gemini qualification remains externally blocked.",
+          "summary": "Octopus import, governed workflow packs, Slate/Axial projection, and Platform Foundry inspection exist; import idempotency and the complete German quaternary workflow remain partial.",
           "detail": null,
           "source_ids": [
             "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -2051,8 +2051,8 @@
         {
           "id": "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
           "mode": "is",
-          "state": "shipped",
-          "summary": "The cockpit operates arbitrary Claude/Codex routing while enforcing workflow role-provider boundaries, showing unavailable routes honestly, and exposing exact preflight, retrospective context, artifact bytes, attempts, graph neighborhoods, workflow failures, and retry controls.",
+          "state": "partial",
+          "summary": "The cockpit supports manual Claude/Codex forks, joins, routing, and inspection, while governed workflow operation and runtime-policy truth remain partial.",
           "detail": null,
           "source_ids": [
             "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
@@ -2070,8 +2070,8 @@
         {
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
-          "state": "shipped",
-          "summary": "The installable wheel, production cockpit build, truth-typed Python and browser tests, authenticated manual routing, six rejected closure mutations, and a closed Audit Planes v4 outpost are present and hash-bound.",
+          "state": "partial",
+          "summary": "Build and test machinery exists, but the prior closure audit is not independent evidence of completion and material redteam findings remain active.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
@@ -2085,7 +2085,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:5f62dbb8-18f8-54ac-bafd-d1eb8c4be903",
+    "parent_surface_id": "surface:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
     "preserved_claim_ids": [
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
       "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
