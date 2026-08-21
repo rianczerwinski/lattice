@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from axis_model_runner import DEFAULT_ADAPTERS
+from axis_model_runner import DEFAULT_ADAPTERS, validate_execution_policy
 
 from .canonical import canonical_bytes, generated_object, opaque_id, sha256_bytes, sha256_json
 from .contracts import BlockDisposition, ContextSelection
@@ -39,11 +39,18 @@ class ContextCompositor:
 
     def compile(self, draft: dict[str, Any]) -> tuple[dict[str, Any], bytes]:
         explicit = [ContextSelection.model_validate(item) for item in draft["selections"]]
-        combined = self._implicit_selections(draft) + explicit
-        identities: set[tuple[str, str, str]] = set()
+        combined = explicit if draft.get("context_mode", "standard") == "explicit" else self._implicit_selections(draft) + explicit
+        identities: set[tuple[str, str, str, str, tuple[str, ...], str | None]] = set()
         entries: list[tuple[ContextSelection, dict[str, Any]]] = []
         for selection in combined:
-            identity = (selection.block_id, selection.plane, selection.disposition.value)
+            identity = (
+                selection.block_id,
+                selection.plane,
+                selection.disposition.value,
+                selection.label,
+                tuple(selection.derived_from_block_ids),
+                selection.reason,
+            )
             if identity in identities:
                 continue
             identities.add(identity)
@@ -64,9 +71,20 @@ class ContextCompositor:
         omitted: list[dict[str, Any]] = []
         prompt_parts: list[bytes] = []
         sources: list[dict[str, str | None]] = []
+        source_identities: set[tuple[str, str, str]] = set()
         for ordinal, (selection, block) in enumerate(entries):
             source = {"ref": f"loom:block/{block['block_id']}", "revision": str(block["status_revision"]), "sha256": block["content_sha256"]}
-            sources.append(source)
+            source_identity = (source["ref"], source["revision"], source["sha256"])
+            if source_identity not in source_identities:
+                source_identities.add(source_identity)
+                sources.append(source)
+            for derived_block_id in selection.derived_from_block_ids:
+                derived = self.store.get_block(derived_block_id, include_content=False)
+                derived_source = {"ref": f"loom:block/{derived_block_id}", "revision": str(derived["status_revision"]), "sha256": derived["content_sha256"]}
+                derived_identity = (derived_source["ref"], derived_source["revision"], derived_source["sha256"])
+                if derived_identity not in source_identities:
+                    source_identities.add(derived_identity)
+                    sources.append(derived_source)
             item = {
                 "ordinal": ordinal,
                 "block_id": block["block_id"],
@@ -91,6 +109,14 @@ class ContextCompositor:
         route = draft["route"]
         adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"]), None)
         proof_limits = list(adapter.proof_limits) if adapter else ["provider route has not been qualified"]
+        effective_policy = validate_execution_policy(
+            adapter,
+            session_policy=route["session_policy"],
+            tools=route["tools"],
+            permissions=route["permissions"],
+            workspace=route["workspace"],
+            network_policy=route["network_policy"],
+        ) if adapter else None
         invocation_id = opaque_id("invocation")
         manifest: dict[str, Any] = {
             "generated_object": generated_object(kind="loom-context-manifest", schema_name="loom-context-manifest", subject=f"loom-invocation:{invocation_id}", sources=sources),
@@ -100,14 +126,12 @@ class ContextCompositor:
             "role_session_id": draft["role_session_id"],
             "draft_id": draft["draft_id"],
             "draft_revision": draft["revision"],
+            "context_mode": draft.get("context_mode", "standard"),
             "ancestry": [{"invocation_id": parent, "manifest_sha256": self.store.get_invocation(parent)["manifest_sha256"]} for parent in draft["parents"]],
             "segments": segments,
             "omitted": omitted,
             "capabilities": {
-                "tools": route["tools"],
-                "permissions": route["permissions"],
-                "workspace": route["workspace"],
-                "network_policy": route["network_policy"],
+                **effective_policy,
             },
             "execution": route,
             "compilation": {

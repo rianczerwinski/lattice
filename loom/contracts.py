@@ -133,6 +133,13 @@ class ContextSelection(StrictModel):
     derived_from_block_ids: list[str] = Field(default_factory=list)
     reason: str | None = None
 
+    @field_validator("label")
+    @classmethod
+    def label_is_single_line_and_unambiguous(cls, value: str) -> str:
+        if any(ord(char) < 32 or ord(char) == 127 for char in value) or "<<<" in value:
+            raise ValueError("context labels cannot contain controls or Loom framing tokens")
+        return value
+
 
 class DraftCreate(StrictModel):
     project_id: str
@@ -142,6 +149,7 @@ class DraftCreate(StrictModel):
     selections: list[ContextSelection] = Field(default_factory=list)
     parent_invocation_ids: list[str] = Field(default_factory=list, max_length=32)
     relation: EdgeRelation = EdgeRelation.responds_to
+    context_mode: Literal["standard", "explicit"] = "standard"
     response_schema: dict[str, Any] = Field(
         default_factory=lambda: {
             "type": "object",
@@ -173,6 +181,19 @@ class DraftCreate(StrictModel):
             raise ValueError("parent invocation IDs must be unique")
         return value
 
+    @model_validator(mode="after")
+    def explicit_context_is_complete(self) -> "DraftCreate":
+        if self.context_mode == "explicit":
+            prompts = [
+                item
+                for item in self.selections
+                if item.plane == "current_prompt"
+                and item.disposition in {BlockDisposition.selected, BlockDisposition.summarized}
+            ]
+            if len(prompts) != 1:
+                raise ValueError("explicit context requires exactly one selected current-prompt block")
+        return self
+
 
 class DraftPatch(StrictModel):
     expected_revision: int = Field(ge=1)
@@ -193,6 +214,7 @@ class TagRequest(StrictModel):
 
 class SliceCreate(StrictModel):
     project_id: str
+    scope: Literal["project", "global"] = "project"
     name: str = Field(min_length=1, max_length=300)
     query: dict[str, Any]
     external_ref: str | None = None

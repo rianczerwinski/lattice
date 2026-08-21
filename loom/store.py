@@ -11,6 +11,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from axis_model_runner import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_execution_policy
+
 from .blob_store import BlobStore
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, stamp
 from .config import LoomConfig
@@ -133,6 +135,7 @@ CREATE TABLE IF NOT EXISTS drafts(
     selections_json TEXT NOT NULL CHECK(json_valid(selections_json)),
     parents_json TEXT NOT NULL CHECK(json_valid(parents_json)),
     relation TEXT NOT NULL,
+    context_mode TEXT NOT NULL DEFAULT 'standard',
     response_schema_json TEXT NOT NULL CHECK(json_valid(response_schema_json)),
     revision INTEGER NOT NULL DEFAULT 1,
     state TEXT NOT NULL,
@@ -210,6 +213,7 @@ ON leases(invocation_id) WHERE state='active';
 CREATE TABLE IF NOT EXISTS slices(
     slice_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(project_id),
+    scope TEXT NOT NULL DEFAULT 'project' CHECK(scope IN ('project','global')),
     name TEXT NOT NULL,
     query_json TEXT NOT NULL CHECK(json_valid(query_json)),
     external_ref TEXT UNIQUE,
@@ -241,6 +245,22 @@ CREATE TABLE IF NOT EXISTS workflow_commands(
     error_text TEXT,
     started_at TEXT NOT NULL,
     completed_at TEXT
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS conversation_imports(
+    import_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    conversation_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    transcript_sha256 TEXT NOT NULL CHECK(length(transcript_sha256)=64),
+    refs_sha256 TEXT NOT NULL CHECK(length(refs_sha256)=64),
+    state TEXT NOT NULL,
+    owner_boot_id TEXT NOT NULL,
+    result_sha256 TEXT,
+    error_text TEXT,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    UNIQUE(project_id,conversation_id,provider,transcript_sha256,refs_sha256)
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS one_running_workflow_command
@@ -300,7 +320,7 @@ CREATE INDEX IF NOT EXISTS edges_target ON edges(target_type, target_id);
 CHANGE_TABLES = (
     "projects", "context_blocks", "block_status", "roles", "role_sessions", "drafts", "invocations", "edges",
     "attempts", "leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
-    "workflow_triggers", "role_context_defaults",
+    "workflow_triggers", "role_context_defaults", "conversation_imports",
 )
 
 
@@ -332,6 +352,13 @@ class LoomStore:
             trigger_columns = {row[1] for row in conn.execute("PRAGMA table_info(workflow_triggers)")}
             if "error_text" not in trigger_columns:
                 conn.execute("ALTER TABLE workflow_triggers ADD COLUMN error_text TEXT")
+            draft_columns = {row[1] for row in conn.execute("PRAGMA table_info(drafts)")}
+            if "context_mode" not in draft_columns:
+                conn.execute("ALTER TABLE drafts ADD COLUMN context_mode TEXT NOT NULL DEFAULT 'standard'")
+            slice_columns = {row[1] for row in conn.execute("PRAGMA table_info(slices)")}
+            if "scope" not in slice_columns:
+                conn.execute("ALTER TABLE slices ADD COLUMN scope TEXT NOT NULL DEFAULT 'project'")
+            conn.execute("UPDATE slices SET scope='global' WHERE external_ref IS NOT NULL")
             self._install_change_triggers(conn)
             conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)",
@@ -446,6 +473,20 @@ class LoomStore:
                 raise LoomConflict(f"{role['name']} is bound to {policy['provider']} through {policy['harness']}")
             if policy["allowed_models"] and route["model"] not in policy["allowed_models"]:
                 raise LoomConflict(f"{role['name']} does not authorize model {route['model']}")
+        adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
+        if adapter is None:
+            raise LoomConflict("provider and official CLI route are not qualified together")
+        try:
+            validate_execution_policy(
+                adapter,
+                session_policy=route["session_policy"],
+                tools=route["tools"],
+                permissions=route["permissions"],
+                workspace=route["workspace"],
+                network_policy=route["network_policy"],
+            )
+        except SubscriptionRouteUnavailable as error:
+            raise LoomConflict(str(error)) from error
 
     def create_project(self, value: ProjectCreate) -> dict[str, Any]:
         project_id = opaque_id("project")
@@ -474,7 +515,7 @@ class LoomStore:
             project["trailheads"] = [dict(row) for row in conn.execute(
                 """SELECT i.* FROM invocations i
                    WHERE i.project_id=? AND NOT EXISTS(
-                     SELECT 1 FROM edges e WHERE e.relation='inherited_context_from'
+                     SELECT 1 FROM edges e WHERE e.source_type='invocation'
                      AND e.target_type='invocation' AND e.target_id=i.invocation_id)
                    ORDER BY i.created_at DESC LIMIT 3""", (project_id,))]
         if project["workflow"] and blackboard_id:
@@ -577,7 +618,7 @@ class LoomStore:
             if slice_external_ref and slice_id:
                 self._insert_edge(conn, project_id=project_id, relation=EdgeRelation.concerns, source_type="context-block", source_id=blackboard_id, source_revision=blackboard_sha, target_type="external-concern", target_id=slice_external_ref, target_revision=slice_external_ref, metadata={"workflow_pack": workflow_pack})
                 query = {"concern_ref": slice_external_ref, "object_types": ["invocation", "context-block"]}
-                conn.execute("INSERT INTO slices(slice_id,project_id,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,?,?,?,?,?)", (slice_id, project_id, title, canonical_bytes(query).decode(), slice_external_ref, now, now))
+                conn.execute("INSERT INTO slices(slice_id,project_id,scope,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,'global',?,?,?,?,?)", (slice_id, project_id, title, canonical_bytes(query).decode(), slice_external_ref, now, now))
                 self._event(conn, project_id=project_id, event_type="slice.created", subject_type="slice", subject_id=slice_id, payload={"project_id": project_id, "name": title, "query": query, "external_ref": slice_external_ref})
         return {"project": self.get_project(project_id), "blackboard": self.get_block(blackboard_id, include_content=False), "slice": self.get_slice(slice_id) if slice_id else None}
 
@@ -679,7 +720,7 @@ class LoomStore:
         with self._connect() as conn:
             return self._row(conn.execute("SELECT * FROM role_sessions WHERE role_session_id=?", (session_id,)).fetchone(), session_id)
 
-    def create_draft(self, value: DraftCreate) -> dict[str, Any]:
+    def create_draft(self, value: DraftCreate, *, prompt_block_id: str | None = None) -> dict[str, Any]:
         session = self.get_role_session(value.role_session_id)
         if session["project_id"] != value.project_id:
             raise LoomConflict("role session does not belong to project")
@@ -688,16 +729,21 @@ class LoomStore:
             parent = self.get_invocation(parent_id)
             if parent["project_id"] != value.project_id:
                 raise LoomConflict("parent invocation does not belong to project")
-        prompt_block = self.create_context_block(ContextBlockCreate(project_id=value.project_id, semantic_type="user-prompt", content=value.prompt, evidence_level="operator-intent"))
+        if prompt_block_id is None:
+            prompt_block = self.create_context_block(ContextBlockCreate(project_id=value.project_id, semantic_type="user-prompt", content=value.prompt, evidence_level="operator-intent"))
+        else:
+            prompt_block = self.get_block(prompt_block_id)
+            if prompt_block["project_id"] != value.project_id or prompt_block["content"] != value.prompt:
+                raise LoomConflict("reused prompt block does not match the draft project and bytes")
         draft_id = opaque_id("draft")
         now = stamp()
         with self.transaction() as conn:
             conn.execute(
-                """INSERT INTO drafts(draft_id,project_id,role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,response_schema_json,revision,state,created_at,updated_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,1,?,?,?)""",
+                """INSERT INTO drafts(draft_id,project_id,role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,context_mode,response_schema_json,revision,state,created_at,updated_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?,?)""",
                 (draft_id, value.project_id, value.role_session_id, prompt_block["block_id"],
                  canonical_bytes(value.route.model_dump(mode="json")).decode(), canonical_bytes([item.model_dump(mode="json") for item in value.selections]).decode(),
-                 canonical_bytes(value.parent_invocation_ids).decode(), value.relation.value, canonical_bytes(value.response_schema).decode(),
+                 canonical_bytes(value.parent_invocation_ids).decode(), value.relation.value, value.context_mode, canonical_bytes(value.response_schema).decode(),
                  DraftState.editable.value, now, now),
             )
             self._event(conn, project_id=value.project_id, event_type="draft.created", subject_type="draft", subject_id=draft_id, payload={"prompt_block_id": prompt_block["block_id"], "parents": value.parent_invocation_ids})
@@ -752,7 +798,7 @@ class LoomStore:
             conn.execute("UPDATE drafts SET state='sealed',invocation_id=?,updated_at=? WHERE draft_id=?", (invocation_id, now, draft["draft_id"]))
             self._event(conn, project_id=draft["project_id"], event_type="invocation.sealed", subject_type="invocation", subject_id=invocation_id, payload={"manifest_artifact_id": manifest["generated_object"]["artifact_id"], "manifest_sha256": manifest_sha})
             for parent_id in draft["parents"]:
-                self._insert_edge(conn, project_id=draft["project_id"], relation=EdgeRelation.inherited_context_from, source_type="invocation", source_id=invocation_id, source_revision=manifest_sha, target_type="invocation", target_id=parent_id, target_revision=self._invocation_revision(conn, parent_id), metadata={})
+                self._insert_edge(conn, project_id=draft["project_id"], relation=EdgeRelation(draft["relation"]), source_type="invocation", source_id=invocation_id, source_revision=manifest_sha, target_type="invocation", target_id=parent_id, target_revision=self._invocation_revision(conn, parent_id), metadata={})
         return self.get_invocation(invocation_id)
 
     @staticmethod
@@ -826,7 +872,7 @@ class LoomStore:
             conn.execute("UPDATE attempts SET state='succeeded',journal_path=?,output_sha256=?,runtime_receipt_json=?,completed_at=? WHERE attempt_id=?", (journal_path, response_sha, canonical_bytes(runtime_receipt).decode(), now, attempt_id))
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             conn.execute("UPDATE invocations SET state='succeeded',output_block_id=?,terminal_kind='succeeded',completed_at=? WHERE invocation_id=?", (block_id, now, attempt["invocation_id"]))
-            completed_triggers = conn.execute("UPDATE workflow_triggers SET state='completed',completed_at=? WHERE result_ref=? AND state='planned'", (now, attempt["invocation_id"])).rowcount
+            completed_triggers = conn.execute("UPDATE workflow_triggers SET state='completed',error_text=NULL,completed_at=? WHERE result_ref=? AND state IN ('planned','execution_failed')", (now, attempt["invocation_id"])).rowcount
             self._event(conn, project_id=attempt["project_id"], event_type="attempt.succeeded", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": block_id, "artifact_ids": [item[1] for item in prepared_artifacts]})
             if completed_triggers:
                 self._event(conn, project_id=attempt["project_id"], event_type="workflow.trigger-completed", subject_type="invocation", subject_id=attempt["invocation_id"], payload={"result_ref": attempt["invocation_id"], "trigger_count": completed_triggers})
@@ -894,8 +940,10 @@ class LoomStore:
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             invocation_state = InvocationState.succeeded if state == AttemptState.succeeded else InvocationState.interrupted if state in {AttemptState.interrupted, AttemptState.orphaned} else InvocationState.failed
             conn.execute("UPDATE invocations SET state=?,output_block_id=COALESCE(?,output_block_id),terminal_kind=?,completed_at=? WHERE invocation_id=?", (invocation_state.value, output_block_id, failure_kind or state.value, now, attempt["invocation_id"]))
-            conn.execute("UPDATE workflow_triggers SET state='failed',completed_at=? WHERE result_ref=? AND state='planned'", (now, attempt["invocation_id"]))
+            failed_triggers = conn.execute("UPDATE workflow_triggers SET state='execution_failed',error_text=?,completed_at=NULL WHERE result_ref=? AND state='planned'", (error_text or failure_kind or state.value, attempt["invocation_id"])).rowcount
             self._event(conn, project_id=attempt["project_id"], event_type=f"attempt.{state.value}", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": output_block_id, "failure_kind": failure_kind})
+            if failed_triggers:
+                self._event(conn, project_id=attempt["project_id"], event_type="workflow.trigger-execution-failed", subject_type="invocation", subject_id=attempt["invocation_id"], payload={"failure_kind": failure_kind, "error_text": error_text, "trigger_count": failed_triggers})
         return self.get_invocation(attempt["invocation_id"])
 
     def attach_imported_output(self, invocation_id: str, output_block_id: str) -> dict[str, Any]:
@@ -922,7 +970,7 @@ class LoomStore:
         slice_id = opaque_id("slice")
         now = stamp()
         with self.transaction() as conn:
-            conn.execute("INSERT INTO slices(slice_id,project_id,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,?,?,?,?,?)", (slice_id, value.project_id, value.name, canonical_bytes(value.query).decode(), value.external_ref, now, now))
+            conn.execute("INSERT INTO slices(slice_id,project_id,scope,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)", (slice_id, value.project_id, value.scope, value.name, canonical_bytes(value.query).decode(), value.external_ref, now, now))
             self._event(conn, project_id=value.project_id, event_type="slice.created", subject_type="slice", subject_id=slice_id, payload=value.model_dump(mode="json"))
         return self.get_slice(slice_id)
 
@@ -942,29 +990,34 @@ class LoomStore:
         query = slice_row.get("query") or json.loads(slice_row["query_json"])
         concern = query.get("concern_ref")
         object_types = set(query.get("object_types", ["invocation"]))
+        global_scope = slice_row.get("scope", "project") == "global"
         items: list[dict[str, Any]] = []
         with self._connect() as conn:
             if "invocation" in object_types and concern:
-                rows = conn.execute(
-                    """SELECT i.invocation_id,i.state,i.role_session_id,i.output_block_id,i.created_at
-                       FROM edges e JOIN invocations i ON i.invocation_id=e.source_id
-                       WHERE e.relation='concerns' AND e.target_id=? AND i.project_id=? ORDER BY i.created_at""",
-                    (concern, slice_row["project_id"]),
-                )
+                sql = """SELECT i.invocation_id,i.project_id,i.state,i.role_session_id,i.output_block_id,i.created_at
+                         FROM edges e JOIN invocations i ON i.invocation_id=e.source_id
+                         WHERE e.relation='concerns' AND e.target_id=?"""
+                params: list[Any] = [concern]
+                if not global_scope:
+                    sql += " AND i.project_id=?"
+                    params.append(slice_row["project_id"])
+                sql += " ORDER BY i.created_at,i.invocation_id"
+                rows = conn.execute(sql, params)
                 items.extend({**dict(row), "object_type": "invocation", "object_id": row["invocation_id"]} for row in rows)
             elif "invocation" in object_types:
                 rows = conn.execute("SELECT invocation_id,state,role_session_id,output_block_id,created_at FROM invocations WHERE project_id=? ORDER BY created_at", (slice_row["project_id"],))
                 items.extend({**dict(row), "object_type": "invocation", "object_id": row["invocation_id"]} for row in rows)
             if "context-block" in object_types:
-                params: list[Any] = [slice_row["project_id"]]
+                params = []
                 sql = """SELECT b.block_id,b.semantic_type,b.content_sha256,b.created_at,s.status
                          FROM context_blocks b JOIN block_status s USING(block_id)"""
                 if concern:
                     sql += " JOIN edges e ON e.source_type='context-block' AND e.source_id=b.block_id AND e.relation='concerns' AND e.target_id=?"
                     params.append(concern)
-                sql += " WHERE b.project_id=?" if not concern else " WHERE b.project_id=?"
-                if concern:
-                    params = [concern, slice_row["project_id"]]
+                if not global_scope:
+                    sql += " WHERE b.project_id=?"
+                    params.append(slice_row["project_id"])
+                sql += " ORDER BY b.created_at,b.block_id"
                 for row in conn.execute(sql, params):
                     items.append({**dict(row), "object_type": "context-block", "object_id": row["block_id"], "response": self.blobs.get(row["content_sha256"]).decode("utf-8")})
         for item in items:
@@ -1051,6 +1104,69 @@ class LoomStore:
     def record_event(self, *, project_id: str | None, event_type: str, subject_type: str, subject_id: str, payload: dict[str, Any]) -> str:
         with self.transaction() as conn:
             return self._event(conn, project_id=project_id, event_type=event_type, subject_type=subject_type, subject_id=subject_id, payload=payload)
+
+    def claim_conversation_import(self, *, project_id: str, conversation_id: str, provider: str, transcript_sha256: str, refs_sha256: str, boot_id: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (project_id,)).fetchone() is None:
+                raise LoomNotFound(project_id)
+            prior = conn.execute("""SELECT * FROM conversation_imports
+                                    WHERE project_id=? AND conversation_id=? AND provider=? AND transcript_sha256=? AND refs_sha256=?""", (project_id, conversation_id, provider, transcript_sha256, refs_sha256)).fetchone()
+            if prior is not None:
+                value = dict(prior)
+                if value["state"] == "completed":
+                    value["claimed"] = False
+                    return value
+                if value["state"] == "running":
+                    raise LoomConflict("exact conversation import is already running")
+                conn.execute("UPDATE conversation_imports SET state='running',owner_boot_id=?,error_text=NULL,started_at=?,completed_at=NULL WHERE import_id=?", (boot_id, stamp(), value["import_id"]))
+                self._event(conn, project_id=project_id, event_type="conversation-import.restarted", subject_type="conversation-import", subject_id=value["import_id"], payload={"conversation_id": conversation_id, "provider": provider})
+                value = dict(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (value["import_id"],)).fetchone())
+                value["claimed"] = True
+                return value
+            import_id = opaque_id("conversation_import")
+            now = stamp()
+            conn.execute("""INSERT INTO conversation_imports(import_id,project_id,conversation_id,provider,transcript_sha256,refs_sha256,state,owner_boot_id,started_at)
+                            VALUES(?,?,?,?,?,?,'running',?,?)""", (import_id, project_id, conversation_id, provider, transcript_sha256, refs_sha256, boot_id, now))
+            self._event(conn, project_id=project_id, event_type="conversation-import.started", subject_type="conversation-import", subject_id=import_id, payload={"conversation_id": conversation_id, "provider": provider, "transcript_sha256": transcript_sha256, "refs_sha256": refs_sha256})
+            value = dict(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (import_id,)).fetchone())
+            value["claimed"] = True
+            return value
+
+    def complete_conversation_import(self, import_id: str, *, result: dict[str, Any]) -> dict[str, Any]:
+        raw = canonical_bytes(result)
+        result_sha = self.blobs.put(raw)
+        with self.transaction() as conn:
+            row = self._row(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (import_id,)).fetchone(), import_id)
+            if row["state"] != "running":
+                raise LoomConflict("conversation import is not running")
+            now = stamp()
+            conn.execute("UPDATE conversation_imports SET state='completed',result_sha256=?,completed_at=? WHERE import_id=?", (result_sha, now, import_id))
+            self._event(conn, project_id=row["project_id"], event_type="conversation-import.completed", subject_type="conversation-import", subject_id=import_id, payload={"result_sha256": result_sha})
+        return self.get_conversation_import(import_id, include_result=True)
+
+    def fail_conversation_import(self, import_id: str, *, error_text: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            row = self._row(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (import_id,)).fetchone(), import_id)
+            if row["state"] != "running":
+                raise LoomConflict("conversation import is not running")
+            conn.execute("UPDATE conversation_imports SET state='failed',error_text=?,completed_at=? WHERE import_id=?", (error_text, stamp(), import_id))
+            self._event(conn, project_id=row["project_id"], event_type="conversation-import.failed", subject_type="conversation-import", subject_id=import_id, payload={"error_text": error_text})
+        return self.get_conversation_import(import_id)
+
+    def get_conversation_import(self, import_id: str, *, include_result: bool = False) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (import_id,)).fetchone(), import_id)
+        if include_result and row.get("result_sha256"):
+            row["result"] = json.loads(self.blobs.get(row["result_sha256"]))
+        return row
+
+    def reconcile_conversation_imports(self, boot_id: str) -> int:
+        with self.transaction() as conn:
+            rows = [dict(row) for row in conn.execute("SELECT import_id,project_id FROM conversation_imports WHERE state='running' AND owner_boot_id<>?", (boot_id,))]
+            for row in rows:
+                conn.execute("UPDATE conversation_imports SET state='interrupted',error_text='Loom restarted before the import receipt became durable',completed_at=? WHERE import_id=?", (stamp(), row["import_id"]))
+                self._event(conn, project_id=row["project_id"], event_type="conversation-import.interrupted", subject_type="conversation-import", subject_id=row["import_id"], payload={"reason": "process_restart"})
+        return len(rows)
 
     def claim_workflow_command(self, *, project_id: str, pack_id: str, operation: str, arguments: dict[str, Any], idempotency_key: str, boot_id: str) -> dict[str, Any]:
         arguments_json = canonical_bytes(arguments).decode()
@@ -1187,7 +1303,11 @@ class LoomStore:
             trigger = self._row(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone(), trigger_id)
             if trigger["state"] != "pending":
                 raise LoomConflict("workflow trigger is not pending")
+            invocation = self._row(conn.execute("SELECT project_id,manifest_sha256 FROM invocations WHERE invocation_id=?", (result_ref,)).fetchone(), result_ref)
+            if invocation["project_id"] != trigger["project_id"]:
+                raise LoomConflict("workflow trigger result belongs to another project")
             conn.execute("UPDATE workflow_triggers SET state='planned',result_ref=?,error_text=NULL WHERE trigger_id=?", (result_ref, trigger_id))
+            self._insert_edge(conn, project_id=trigger["project_id"], relation=EdgeRelation.triggered_by, source_type="invocation", source_id=result_ref, source_revision=invocation["manifest_sha256"], target_type="workflow-trigger", target_id=trigger_id, target_revision=trigger["source_transition_id"], metadata={"blinded": True})
             self._event(conn, project_id=trigger["project_id"], event_type="workflow.trigger-planned", subject_type="workflow-trigger", subject_id=trigger_id, payload={"result_ref": result_ref})
         return self.get_workflow_instance(trigger["project_id"])
 
@@ -1209,22 +1329,36 @@ class LoomStore:
     def graph_neighborhood(self, invocation_id: str, depth: int = 2) -> dict[str, Any]:
         if depth < 0 or depth > 5:
             raise ValueError("depth must be between 0 and 5")
-        seen = {invocation_id}
-        frontier = {invocation_id}
+        self.get_invocation(invocation_id)
+        seen: set[tuple[str, str]] = {("invocation", invocation_id)}
+        frontier = set(seen)
         edges: dict[str, dict[str, Any]] = {}
         with self._connect() as conn:
             for _ in range(depth):
                 if not frontier:
                     break
-                placeholders = ",".join("?" for _ in frontier)
-                found = [dict(row) for row in conn.execute(f"SELECT * FROM edges WHERE source_id IN ({placeholders}) OR target_id IN ({placeholders})", (*frontier, *frontier))]
-                next_frontier: set[str] = set()
+                found: list[dict[str, Any]] = []
+                for object_type, object_id in sorted(frontier):
+                    found.extend(dict(row) for row in conn.execute("SELECT * FROM edges WHERE (source_type=? AND source_id=?) OR (target_type=? AND target_id=?)", (object_type, object_id, object_type, object_id)))
+                next_frontier: set[tuple[str, str]] = set()
                 for edge in found:
                     edges[edge["edge_id"]] = edge
-                    for identifier in (edge["source_id"], edge["target_id"]):
-                        if identifier not in seen:
-                            seen.add(identifier)
-                            next_frontier.add(identifier)
+                    for identity in ((edge["source_type"], edge["source_id"]), (edge["target_type"], edge["target_id"])):
+                        if identity not in seen:
+                            seen.add(identity)
+                            next_frontier.add(identity)
                 frontier = next_frontier
-            nodes = [dict(row) for row in conn.execute(f"SELECT invocation_id,state,role_session_id,output_block_id,created_at FROM invocations WHERE invocation_id IN ({','.join('?' for _ in seen)})", tuple(seen))] if seen else []
+            nodes: list[dict[str, Any]] = []
+            for object_type, object_id in sorted(seen):
+                if object_type == "invocation":
+                    row = conn.execute("SELECT invocation_id AS object_id,state,role_session_id,output_block_id,created_at FROM invocations WHERE invocation_id=?", (object_id,)).fetchone()
+                elif object_type == "context-block":
+                    row = conn.execute("SELECT block_id AS object_id,semantic_type,content_sha256,created_at FROM context_blocks WHERE block_id=?", (object_id,)).fetchone()
+                elif object_type == "artifact":
+                    row = conn.execute("SELECT artifact_id AS object_id,artifact_kind,content_sha256,created_at FROM artifacts WHERE artifact_id=?", (object_id,)).fetchone()
+                elif object_type == "workflow-trigger":
+                    row = conn.execute("SELECT trigger_id AS object_id,trigger_name,state,required_action,created_at FROM workflow_triggers WHERE trigger_id=?", (object_id,)).fetchone()
+                else:
+                    row = None
+                nodes.append({"object_type": object_type, "object_id": object_id, **(dict(row) if row else {"external": True})})
         return {"root": invocation_id, "nodes": nodes, "edges": list(edges.values())}

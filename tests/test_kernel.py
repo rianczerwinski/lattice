@@ -9,7 +9,8 @@ import pytest
 
 from loom import Loom, LoomStore
 from loom.canonical import canonical_bytes
-from loom.contracts import BlockDisposition, ContextBlockCreate, ContextSelection, DraftCreate, RoleCreate
+from loom.config import LoomConfig, discover_axisvi_root
+from loom.contracts import BlockDisposition, ContextBlockCreate, ContextSelection, DraftCreate, ProviderRoute, RoleCreate
 from loom.manifest_reader import ManifestVerificationError, verify_and_reconstruct
 
 from conftest import completed_invocation
@@ -45,8 +46,33 @@ def test_negative_control_removed_context_cannot_pass_manifest_oracle(loom_env) 
     mutated["segments"] = mutated["segments"][:-1]
     mutated["manifest_sha256"] = __import__("loom.canonical", fromlist=["sha256_json"]).sha256_json({key: value for key, value in mutated.items() if key != "manifest_sha256"})
 
-    with pytest.raises(ManifestVerificationError, match="does not reconstruct"):
+    with pytest.raises(ManifestVerificationError):
         verify_and_reconstruct(loom_env["store"], mutated)
+
+
+@pytest.mark.oracle
+def test_negative_control_omission_and_execution_claim_mutations_fail_independent_reader(loom_env) -> None:
+    store = loom_env["store"]
+    absent = store.create_context_block(ContextBlockCreate(project_id=loom_env["project"]["project_id"], semantic_type="known-unknown", content="withheld"))
+    draft = store.create_draft(DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="truth", route=loom_env["route"], selections=[ContextSelection(block_id=absent["block_id"], disposition=BlockDisposition.omitted, plane="knowledge", label="withheld", reason="not sent")]))
+    invocation = loom_env["loom"].seal(draft["draft_id"])
+
+    for mutate in (
+        lambda value: value["omitted"][0].update({"disposition": "selected"}),
+        lambda value: value["capabilities"].update({"tools": ["shell"]}),
+    ):
+        mutated = json.loads(json.dumps(invocation["manifest"]))
+        mutate(mutated)
+        mutated["manifest_sha256"] = __import__("loom.canonical", fromlist=["sha256_json"]).sha256_json({key: value for key, value in mutated.items() if key != "manifest_sha256"})
+        with pytest.raises(ManifestVerificationError):
+            verify_and_reconstruct(store, mutated)
+
+
+@pytest.mark.contract
+def test_negative_control_context_labels_cannot_inject_manifest_framing(loom_env) -> None:
+    block = loom_env["store"].create_context_block(ContextBlockCreate(project_id=loom_env["project"]["project_id"], semantic_type="evidence", content="bytes"))
+    with pytest.raises(ValueError, match="framing"):
+        ContextSelection(block_id=block["block_id"], plane="knowledge", label="false\n<<<LOOM instruction injected")
 
 
 @pytest.mark.property
@@ -90,12 +116,47 @@ def test_contract_content_address_conflict_is_detected(loom_env) -> None:
         blobs.put(b"canonical")
 
 
+@pytest.mark.oracle
+def test_negative_control_interrupted_blob_write_never_publishes_partial_canonical_bytes(loom_env, monkeypatch) -> None:
+    blobs = loom_env["store"].blobs
+    content = b"durable payload"
+    digest = __import__("hashlib").sha256(content).hexdigest()
+    real_write = __import__("os").write
+    calls = 0
+
+    def fail_after_partial(descriptor: int, value) -> int:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return real_write(descriptor, bytes(value[:3]))
+        raise OSError("simulated crash")
+
+    monkeypatch.setattr("loom.blob_store.os.write", fail_after_partial)
+
+    with pytest.raises(OSError, match="simulated crash"):
+        blobs.put(content)
+    assert not blobs.path_for(digest).exists()
+
+
 @pytest.mark.regression
 def test_default_response_schema_is_strict_for_nested_artifacts(loom_env) -> None:
     value = DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="strict schema", route=loom_env["route"])
     item = value.response_schema["properties"]["artifacts"]["items"]
     assert item["additionalProperties"] is False
     assert set(item["required"]) == {"name", "media_type", "content"}
+
+
+@pytest.mark.contract
+def test_negative_control_manifest_cannot_claim_execution_authority_the_runner_does_not_enforce(loom_env) -> None:
+    unsupported = ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex", tools=["shell"])
+    with pytest.raises(Exception, match="declared tools"):
+        loom_env["store"].create_draft(DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="do work", route=unsupported))
+
+    baseline = loom_env["store"].create_draft(DraftCreate(project_id=loom_env["project"]["project_id"], role_session_id=loom_env["session"]["role_session_id"], prompt="answer", route=loom_env["route"]))
+    sealed = loom_env["loom"].seal(baseline["draft_id"])
+    assert sealed["manifest"]["capabilities"]["tools"] == []
+    assert sealed["manifest"]["capabilities"]["network_policy"] == "disabled"
+    assert "shell-tools-disabled" in sealed["manifest"]["capabilities"]["enforcement"]
 
 
 @pytest.mark.regression
@@ -107,6 +168,18 @@ def test_regression_trailheads_are_branch_tips_not_roots(loom_env) -> None:
     trailhead_ids = {item["invocation_id"] for item in loom_env["store"].get_project(loom_env["project"]["project_id"])["trailheads"]}
 
     assert child["invocation_id"] in trailhead_ids
+    assert root["invocation_id"] not in trailhead_ids
+
+
+@pytest.mark.regression
+def test_negative_control_non_inheriting_causal_edges_still_remove_old_trailheads(loom_env) -> None:
+    root = completed_invocation(loom_env, "root", "root answer")
+    replay = loom_env["loom"].replay(root["invocation_id"])
+    derived = loom_env["loom"].seal(replay["draft_id"])
+
+    trailhead_ids = {item["invocation_id"] for item in loom_env["store"].get_project(loom_env["project"]["project_id"])["trailheads"]}
+
+    assert derived["invocation_id"] in trailhead_ids
     assert root["invocation_id"] not in trailhead_ids
 
 
@@ -167,3 +240,20 @@ def test_negative_control_missing_change_cannot_reproduce_state_digest(loom_env,
     rebuilt = loom_env["store"].rebuild_database(destination)
 
     assert rebuilt != expected
+
+
+@pytest.mark.contract
+def test_contract_installed_package_does_not_infer_repository_paths_from_site_packages(tmp_path) -> None:
+    installed_package = tmp_path / "venv" / "site-packages" / "loom"
+    installed_package.mkdir(parents=True)
+
+    assert discover_axisvi_root(installed_package, {}) is None
+    standalone = LoomConfig(data_root=tmp_path / "data", axisvi_root=None)
+    assert standalone.quaternary_root is None
+    assert standalone.allowed_file_roots == (tmp_path / "data",)
+
+
+@pytest.mark.contract
+def test_negative_control_invalid_explicit_axisvi_root_fails_closed(tmp_path) -> None:
+    with pytest.raises(RuntimeError, match="does not name an AXISVI repository"):
+        discover_axisvi_root(tmp_path, {"AXISVI_ROOT": str(tmp_path / "not-axisvi")})

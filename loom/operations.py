@@ -8,6 +8,7 @@ from typing import Any
 from .canonical import canonical_bytes, generated_object, opaque_id, sha256_bytes, sha256_json
 from .compositor import ContextCompositor
 from .contracts import (
+    ContextBlockCreate,
     ContextSelection,
     DraftCreate,
     EdgeRelation,
@@ -78,15 +79,41 @@ class Loom:
     def diff(self, invocation_a: str, invocation_b: str) -> dict[str, Any]:
         left = self.store.get_invocation(invocation_a)
         right = self.store.get_invocation(invocation_b)
-        left_segments = {item["block_id"]: item for item in left["manifest"]["segments"]}
-        right_segments = {item["block_id"]: item for item in right["manifest"]["segments"]}
+
+        def semantic_identity(item: dict[str, Any]) -> tuple[Any, ...]:
+            return (
+                item["block_id"],
+                item["plane"],
+                item["disposition"],
+                item["label"],
+                tuple(item.get("derived_from_block_ids", [])),
+                item.get("reason"),
+            )
+
+        left_context = left["manifest"]["segments"] + left["manifest"]["omitted"]
+        right_context = right["manifest"]["segments"] + right["manifest"]["omitted"]
+        left_segments = {semantic_identity(item): item for item in left_context}
+        right_segments = {semantic_identity(item): item for item in right_context}
         left_ids, right_ids = set(left_segments), set(right_segments)
+        left_by_block: dict[str, list[dict[str, Any]]] = {}
+        right_by_block: dict[str, list[dict[str, Any]]] = {}
+        for item in left_context:
+            left_by_block.setdefault(item["block_id"], []).append(item)
+        for item in right_context:
+            right_by_block.setdefault(item["block_id"], []).append(item)
+        changed = [
+            {"block_id": block_id, "left": left_by_block[block_id], "right": right_by_block[block_id]}
+            for block_id in sorted(set(left_by_block) & set(right_by_block))
+            if {semantic_identity(item) for item in left_by_block[block_id]}
+            != {semantic_identity(item) for item in right_by_block[block_id]}
+        ]
         return {
             "left": invocation_a,
             "right": invocation_b,
             "only_left": [left_segments[item] for item in sorted(left_ids - right_ids)],
             "only_right": [right_segments[item] for item in sorted(right_ids - left_ids)],
             "shared": [left_segments[item] for item in sorted(left_ids & right_ids)],
+            "changed_semantics": changed,
             "execution_delta": {key: {"left": left["route"].get(key), "right": right["route"].get(key)} for key in sorted(set(left["route"]) | set(right["route"])) if left["route"].get(key) != right["route"].get(key)},
             "output_delta": {
                 "left_sha256": left.get("output_block", {}).get("content_sha256"),
@@ -99,8 +126,45 @@ class Loom:
         manifest = original["manifest"]
         prompt_segment = next(item for item in manifest["segments"] if item["plane"] == "current_prompt")
         original_prompt = self.store.get_block(prompt_segment["block_id"])["content"]
-        explicit = [ContextSelection.model_validate({key: item[key] for key in ("block_id", "disposition", "plane", "label", "derived_from_block_ids", "reason")}) for item in manifest["segments"] if item["plane"] not in {"instruction", "ancestry", "current_prompt"}]
-        draft = self.store.create_draft(DraftCreate(project_id=original["project_id"], role_session_id=original["role_session_id"], prompt=prompt or original_prompt, route=route or ProviderRoute.model_validate(original["route"]), selections=explicit, parent_invocation_ids=[invocation_id], relation=EdgeRelation.derived_from, response_schema=original["response_schema"]))
+        explicit = [
+            ContextSelection.model_validate(
+                {key: item[key] for key in ("block_id", "disposition", "plane", "label", "derived_from_block_ids", "reason")}
+            )
+            for item in manifest["segments"] + manifest["omitted"]
+        ]
+        replay_prompt = original_prompt
+        prompt_block_id = prompt_segment["block_id"]
+        if prompt is not None:
+            replay_prompt = prompt
+            prompt_block = self.store.create_context_block(
+                ContextBlockCreate(
+                    project_id=original["project_id"],
+                    semantic_type="user-prompt",
+                    content=prompt,
+                    evidence_level="operator-intent",
+                )
+            )
+            prompt_block_id = prompt_block["block_id"]
+            explicit = [
+                selection.model_copy(update={"block_id": prompt_block_id})
+                if selection.plane == "current_prompt"
+                else selection
+                for selection in explicit
+            ]
+        draft = self.store.create_draft(
+            DraftCreate(
+                project_id=original["project_id"],
+                role_session_id=original["role_session_id"],
+                prompt=replay_prompt,
+                route=route or ProviderRoute.model_validate(original["route"]),
+                selections=explicit,
+                parent_invocation_ids=[invocation_id],
+                relation=EdgeRelation.derived_from,
+                context_mode="explicit",
+                response_schema=original["response_schema"],
+            ),
+            prompt_block_id=prompt_block_id,
+        )
         return draft
 
     def tag(self, invocation_id: str, value: TagRequest) -> dict[str, Any]:
@@ -109,7 +173,7 @@ class Loom:
         edge_id = self.store.add_edge(project_id=invocation["project_id"], relation=EdgeRelation.concerns, source_type="invocation", source_id=invocation_id, source_revision=invocation["manifest_sha256"], target_type="external-concern", target_id=value.concern_ref, target_revision=target_revision, metadata={"label": value.label})
         existing = self.store.get_slice_by_external_ref(value.concern_ref)
         if existing is None:
-            existing = self.store.create_slice(SliceCreate(project_id=invocation["project_id"], name=value.label, external_ref=value.concern_ref, query={"concern_ref": value.concern_ref}))
+            existing = self.store.create_slice(SliceCreate(project_id=invocation["project_id"], scope="global", name=value.label, external_ref=value.concern_ref, query={"concern_ref": value.concern_ref}))
         return {"edge_id": edge_id, "slice": existing}
 
     def extract(self, project_id: str, invocation_ids: list[str], title: str) -> dict[str, Any]:
@@ -126,8 +190,9 @@ class Loom:
             "evidence_policy": "project evidence remains a parameter and is not copied",
         }
         raw = canonical_bytes(artifact)
+        content_sha = self.store.blobs.put(raw)
         artifact_id = artifact["generated_object"]["artifact_id"]
         with self.store.transaction() as conn:
-            conn.execute("INSERT INTO artifacts(artifact_id,project_id,artifact_kind,generated_json,content_sha256,created_at) VALUES(?,?,?,?,?,?)", (artifact_id, project_id, "workflow-template", raw.decode(), sha256_bytes(raw), __import__("time").strftime("%Y%m%dT%H%M%S")))
+            conn.execute("INSERT INTO artifacts(artifact_id,project_id,artifact_kind,generated_json,content_sha256,created_at) VALUES(?,?,?,?,?,?)", (artifact_id, project_id, "workflow-template", raw.decode(), content_sha, __import__("time").strftime("%Y%m%dT%H%M%S")))
             self.store._event(conn, project_id=project_id, event_type="workflow.extracted", subject_type="artifact", subject_id=artifact_id, payload={"title": title, "invocations": invocation_ids})
         return artifact

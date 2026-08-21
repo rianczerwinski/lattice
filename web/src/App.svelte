@@ -22,7 +22,7 @@
   let artifactContents: Record<string, string> = {};
 
   $: selectedRole = project?.roles?.find((role) => role.role_id === project?.sessions?.find((session) => session.role_session_id === selectedSession)?.role_id);
-  $: installedRoutes = routes.filter((route) => route.installed && ['anthropic', 'openai'].includes(route.provider_code) && (!selectedRole || selectedRole.route_policy.kind === 'operator-selectable' || (selectedRole.route_policy.kind === 'model' && selectedRole.route_policy.provider === route.provider_code && selectedRole.route_policy.harness === route.official_cli && (!selectedRole.route_policy.allowed_models?.length || selectedRole.route_policy.allowed_models.includes(route.model_code)))));
+  $: installedRoutes = routes.filter((route) => route.qualified && ['anthropic', 'openai'].includes(route.provider_code) && (!selectedRole || selectedRole.route_policy.kind === 'operator-selectable' || (selectedRole.route_policy.kind === 'model' && selectedRole.route_policy.provider === route.provider_code && selectedRole.route_policy.harness === route.official_cli && (!selectedRole.route_policy.allowed_models?.length || selectedRole.route_policy.allowed_models.includes(route.model_code)))));
   $: if (installedRoutes.length && !installedRoutes.some((route) => `${route.provider_code}:${route.model_code}` === selectedRoute)) selectedRoute = `${installedRoutes[0].provider_code}:${installedRoutes[0].model_code}`;
   $: if (!installedRoutes.length && selectedRole) selectedRoute = '';
   $: activeRoute = installedRoutes.find((route) => `${route.provider_code}:${route.model_code}` === selectedRoute);
@@ -35,7 +35,7 @@
     try {
       await beginSession();
       [projects, routes] = await Promise.all([api<Project[]>('/api/v1/projects'), api<Route[]>('/api/v1/routes')]);
-      const firstRoute = routes.find((route) => route.installed && route.provider_code === 'anthropic') ?? routes.find((route) => route.installed && route.provider_code === 'openai');
+      const firstRoute = routes.find((route) => route.qualified && route.provider_code === 'anthropic') ?? routes.find((route) => route.qualified && route.provider_code === 'openai');
       if (firstRoute) selectedRoute = `${firstRoute.provider_code}:${firstRoute.model_code}`;
       if (projects[0]) await openProject(projects[0].project_id);
     } catch (cause) {

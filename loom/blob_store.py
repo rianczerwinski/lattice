@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 
 from .canonical import sha256_bytes
@@ -26,13 +27,14 @@ class BlobStore:
         digest = sha256_bytes(content)
         path = self.path_for(digest)
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        try:
-            descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError:
+        if path.exists():
             if path.read_bytes() != content:
                 raise OSError(f"content-address conflict for {digest}")
             return digest
+        descriptor, temporary_name = tempfile.mkstemp(prefix=f".{digest}.", suffix=".pending", dir=path.parent)
+        temporary = Path(temporary_name)
         try:
+            os.fchmod(descriptor, 0o600)
             view = memoryview(content)
             while view:
                 written = os.write(descriptor, view)
@@ -42,11 +44,19 @@ class BlobStore:
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
-        directory = os.open(path.parent, os.O_RDONLY)
         try:
-            os.fsync(directory)
+            try:
+                os.link(temporary, path)
+            except FileExistsError:
+                if path.read_bytes() != content:
+                    raise OSError(f"content-address conflict for {digest}")
+            directory = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
         finally:
-            os.close(directory)
+            temporary.unlink(missing_ok=True)
         return digest
 
     def get(self, digest: str) -> bytes:

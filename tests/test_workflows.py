@@ -9,7 +9,7 @@ import pytest
 import httpx
 
 from loom.context_modules import ContextModuleError, ContextModuleRunner
-from loom.contracts import ContextModuleDefinition, ContextModuleMode, DraftCreate, DraftPatch, ProjectCreate, ProviderRoute, RoleCreate, WorkflowPackDefinition
+from loom.contracts import AttemptState, ContextModuleDefinition, ContextModuleMode, DraftCreate, DraftPatch, ProjectCreate, ProviderRoute, RoleCreate, WorkflowPackDefinition
 from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError
 from loom.platform_foundry import PlatformFoundryAdapter
 from loom.workflows import WorkflowRegistry
@@ -260,3 +260,53 @@ def test_workflow_initial_state_and_trigger_binding_survive_transition_reorderin
     broken["allowed_transitions"].append({"from": "unreachable", "to": "island"})
     with pytest.raises(ValueError, match="reachable"):
         WorkflowPackDefinition.model_validate(broken)
+
+
+def _planned_trigger_fixture(loom_env):
+    store = loom_env["store"]
+    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    created = store.create_workflow_project_atomic(title="trigger fixture", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "verifier", "name": "Verifier", "provider": "openai", "harness": "codex", "authority": "challenge-only", "instructions": "Challenge."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
+    project = created["project"]
+    declared = registry.validate_transition("quaternary", "countersearch", "closure-candidate")
+    transition = store.advance_workflow(project_id=project["project_id"], pack_id="quaternary", expected_revision=1, from_state="countersearch", to_state="closure-candidate", evidence_block_ids=[], payload={}, trigger=declared["trigger_definition"])
+    session = project["sessions"][0]
+    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="challenge", route=loom_env["route"]))
+    invocation = loom_env["loom"].seal(draft["draft_id"])
+    return transition["trigger"], invocation
+
+
+@pytest.mark.concurrency
+def test_negative_control_trigger_plan_and_lineage_edge_commit_atomically(monkeypatch, loom_env):
+    store = loom_env["store"]
+    trigger, invocation = _planned_trigger_fixture(loom_env)
+
+    def fail_edge(*_args, **_kwargs):
+        raise OSError("planted lineage failure")
+
+    monkeypatch.setattr(store, "_insert_edge", fail_edge)
+    with pytest.raises(OSError, match="planted lineage failure"):
+        store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
+
+    recovered = store.get_workflow_trigger(trigger["trigger_id"])
+    assert recovered["state"] == "pending"
+    assert recovered["result_ref"] is None
+
+
+@pytest.mark.oracle
+def test_oracle_failed_trigger_invocation_can_retry_to_completion(loom_env):
+    store = loom_env["store"]
+    trigger, invocation = _planned_trigger_fixture(loom_env)
+    store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
+    first = store.create_attempt(invocation["invocation_id"], "trigger-failure-attempt", "test-boot", 9_999_999_999)
+    store.mark_attempt_running(first["attempt_id"])
+    store.finish_attempt(first["attempt_id"], state=AttemptState.failed, failure_kind="outage", error_text="planted provider outage")
+
+    failed = store.get_workflow_trigger(trigger["trigger_id"])
+    assert failed["state"] == "execution_failed"
+    second = store.create_attempt(invocation["invocation_id"], "trigger-success-attempt", "test-boot", 9_999_999_999)
+    store.mark_attempt_running(second["attempt_id"])
+    store.finish_successful_attempt(second["attempt_id"], response="independent result", artifacts=[], journal_path="fixture:journal", runtime_receipt={"fixture": True})
+
+    completed = store.get_workflow_trigger(trigger["trigger_id"])
+    assert completed["state"] == "completed"
+    assert completed["error_text"] is None

@@ -122,6 +122,11 @@ class ExecutionSupervisor:
                 timeout=float(self.store.config.lease_seconds),
                 cancel_event=cancel,
                 on_chunk=on_chunk,
+                session_policy=invocation["route"]["session_policy"],
+                tools=invocation["route"]["tools"],
+                permissions=invocation["route"]["permissions"],
+                workspace=invocation["route"]["workspace"],
+                network_policy=invocation["route"]["network_policy"],
             )
             response = payload.get("response")
             if not isinstance(response, str):

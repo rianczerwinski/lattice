@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
-from .config import AXIS_ROOT, WEB_DIST, WORKFLOW_PACK_ROOT, LoomConfig
+from .config import WEB_DIST, WORKFLOW_PACK_ROOT, LoomConfig
 from .canonical import canonical_bytes, sha256_bytes
 from .contracts import (
     ContextBlockCreate,
@@ -107,9 +107,11 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     sessions = OperatorSessions()
     cli_token = ensure_cli_token(config.operator_token)
     importer = OctopusImporter(store, loom, config.octopus_base_url)
-    context_modules = ContextModuleRunner(allowed_file_roots=(AXIS_ROOT,), octopus_base_url=config.octopus_base_url)
+    store.reconcile_conversation_imports(importer.boot_id)
+    context_modules = ContextModuleRunner(allowed_file_roots=config.allowed_file_roots, octopus_base_url=config.octopus_base_url)
     workflows = WorkflowRegistry(WORKFLOW_PACK_ROOT)
-    workflows.register("quaternary", QuaternaryAdapter(config.quaternary_root / "quaternary.sqlite3", config.quaternary_root / "tools" / "gatherctl.py"))
+    if config.quaternary_root and (config.quaternary_root / "quaternary.sqlite3").is_file() and (config.quaternary_root / "tools" / "gatherctl.py").is_file():
+        workflows.register("quaternary", QuaternaryAdapter(config.quaternary_root / "quaternary.sqlite3", config.quaternary_root / "tools" / "gatherctl.py"))
     workflows.register("platform-foundry", PlatformFoundryAdapter(config.octopus_base_url))
     loaded_packs = {pack_id: workflows.load(pack_id)["definition"] for pack_id in workflows.adapters}
     store.reconcile_workflow_instances({pack_id: definition["initial_state"] for pack_id, definition in loaded_packs.items()})
@@ -164,7 +166,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
             raise LoomConflict("automatic invocation trigger requires a model-bound role")
         from axis_model_runner import installed_adapter_status
         statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=False)
-        route_status = next((item for item in statuses if item["installed"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
+        route_status = next((item for item in statuses if item["qualified"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
         if route_status is None:
             raise LoomConflict(f"qualified {policy['provider']} trigger route is unavailable")
         return session, policy, route_status
@@ -175,7 +177,6 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
         draft = store.create_draft(DraftCreate(project_id=project_id, role_session_id=session["role_session_id"], prompt=action["prompt"], route=ProviderRoute(provider=policy["provider"], model=route_status["model_code"], harness=policy["harness"], effort="high"), selections=selections, relation=EdgeRelation.triggered_by))
         invocation = loom.seal(draft["draft_id"])
         store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
-        store.add_edge(project_id=project_id, relation=EdgeRelation.triggered_by, source_type="invocation", source_id=invocation["invocation_id"], source_revision=invocation["manifest_sha256"], target_type="workflow-trigger", target_id=trigger["trigger_id"], target_revision=trigger["source_transition_id"], metadata={"blinded": True})
         return invocation
 
     @app.post("/api/v1/projects")
