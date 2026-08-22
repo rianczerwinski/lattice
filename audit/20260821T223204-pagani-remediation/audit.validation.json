@@ -1,0 +1,1842 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "attestation",
+    "kind": "audit-validation",
+    "schema": {
+      "name": "audit-planes-validation",
+      "version": 4
+    },
+    "artifact_id": "artifact:84493caf-57d2-551f-9f76-34fb74c3e558",
+    "generated_at": "20260821T223204",
+    "producer": {
+      "name": "audit-planes-validator",
+      "version": "4.0.0"
+    },
+    "subject": "audit:loom-closure-system",
+    "sources": [
+      {
+        "ref": "AUDIT.json",
+        "revision": "3",
+        "sha256": "78e11f89f86c81ea07fd102edbb526ace18c1b9352fe395e4ecaf2f36915f72b"
+      }
+    ],
+    "binding": {
+      "artifact_id": "artifact:aa065c88-e0b6-55e2-b74b-e24f49f65586",
+      "sha256": "78e11f89f86c81ea07fd102edbb526ace18c1b9352fe395e4ecaf2f36915f72b"
+    },
+    "validator": {
+      "name": "audit-planes-validator",
+      "version": "4.0.0"
+    },
+    "result": "passed"
+  },
+  "artifact_sha256": "78e11f89f86c81ea07fd102edbb526ace18c1b9352fe395e4ecaf2f36915f72b",
+  "contract_valid": true,
+  "evidentiary_assurance": "closed",
+  "admissible_state": "closed-audited",
+  "errors": [],
+  "blockers": [],
+  "atom_depths": [
+    {
+      "assessment_id": "assessment:f4a2cf15-fbbd-5873-9eff-607cc815605c",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "discoverability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e15abca2-e1c4-5511-a66d-2fd1df8ea8bd",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "dead-code",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9914883f-9fcb-518d-81da-fa2a0f3a7153",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "duplication",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:c4bd490d-1c3a-5490-b7db-01a85ee04510",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "file-cohesion",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:85600018-acfe-53f2-82f9-b3096951b50e",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "layering",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:427470d5-f3fb-5aee-a71a-a0431c01570a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "atom": "dependency-graph-health",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:7f1a72f4-07f5-59f5-a411-0c6a80d7e630",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:cc60cb75-8b39-5fd0-823a-9ce1c18752b1",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:02d75ce8-43e9-53e7-8e1f-7509ea83a03b",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d6188a50-1aa4-517b-9608-5800626688cc",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:c307528c-bed5-5ff6-9a5e-bc3ce2827e87",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "error-model",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:5ba1093f-9bc8-5f03-b430-5a42fcc2d51d",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "state-model",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:74a2612c-bb7f-5cad-9de5-acd647c8a166",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "atom": "testability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:c89f34ce-2912-504e-aea8-e6600f32b12b",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:3e4d10f7-8e30-556a-838c-9e303ba365bd",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:97c810a2-5684-5090-8a2e-a3b8696486eb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:85e18ab3-3aba-5fe7-b19d-c55e2738d2ae",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:3a9e773c-2cf4-5260-9dba-673fdbc27d31",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:7ad8012c-dde3-584e-bc35-e731b30c05b1",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:80d9116b-7edd-5fae-9fec-8b20e21a5bfa",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:cc0726af-dc1f-56ab-8bde-564c846fcfdb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:4c424ca2-aa53-5451-b6d4-520e2495becd",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:2be20b27-0eb0-577e-a4c4-68b4d0fea71e",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:6f38025f-74dd-5842-8a6e-afb00b4e2225",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9daf3466-874b-52e3-b699-3d624446d518",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d5c849ff-35dc-561e-bc39-7b8c69ade222",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:f59e1cea-ce64-56f8-bb17-e47aab7dd3f2",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:7426083c-5d02-506d-acca-47d71d0eb256",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e9eb9e91-0aaf-5d76-b88a-aec341a16f5f",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9e2e747b-163a-5d7e-acad-4d817e071679",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b9556721-a638-52bf-b37a-854b82c2301a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:a74ddd4c-6984-515a-a4c0-68c71934e0c8",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d3bfb5ca-e085-5604-b0c2-204ae251135d",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:580fc6c0-362e-5006-b922-568d5a9e92e8",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:f24c5f95-9558-5c27-8cd0-4845b50b4448",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9d49be2a-e0a2-5ace-90d6-63384bbc5c0a",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:54747d1f-16d4-5243-91d4-a8e103cf42ce",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:da31e813-1d75-5abf-ab18-b265062cde29",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d60dd058-e1f7-5ebf-a16b-8fe5e93d60e4",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "toctou",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:36a2192f-ac77-5bc8-bd85-1dd64b233e76",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:4af9ca12-9c0b-580e-b2da-cf32a70ce3cc",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:cc20b5ca-c6d1-5b4d-8bb7-fa8343f05b22",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:886a48b9-d5b9-5c9e-8a3c-d803fccd2bcb",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:57787f76-abfe-5862-b55e-e5fccd13b2ea",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:acd04335-50a5-565f-990f-cbe766021803",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:11fc80f6-0ba7-59c5-84b2-5d60dbfb4112",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:81350a39-ce69-5acd-a445-e8c982136984",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:82864b1b-ae3e-5947-975e-20158c9ae748",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d7000bf0-ee23-5096-ad0e-bf60c791adc7",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:3bfeb2b8-24e7-50fb-a4ad-9f7e900fdd8e",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:52b131ec-c17f-5d40-8d28-6d4ce32974b4",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:2b10969c-2db6-5932-acd8-ee2bd4fe1bd8",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:75296b0a-1774-5be5-bfa2-50d70505351b",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:05a934d2-37ec-5d04-adb5-af3a94c69568",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:5070b428-a806-5a61-8f7b-10e339d0e3a5",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:712fd2bb-897f-54f5-ba05-dc07219daffe",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:306b0bcb-5a94-5a3b-945f-ef3d9dcf92a9",
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9acbee22-3cbe-54ca-b8c0-8a2ccdce1e7b",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:90a1bf05-7017-5824-be6f-56468e362673",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:1f4bff40-9e09-5378-903a-b9c55d676377",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9098a562-028f-574d-b137-e71c79984722",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:382bcec1-9611-5d4c-a831-ee7b6e5c04e5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "error-model",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:954952eb-d03b-51e4-a60b-230fd31ce7a2",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "state-model",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:21924c39-1b67-52b7-a57c-7fa28791ceb8",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "atom": "testability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:5f343837-92c4-5a7e-993e-a41edc1c571b",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:c28544b7-f6e1-5956-9a84-ce26665126fa",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:49b31358-fb83-5701-8690-5bb7f0b8b429",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:670185af-a8ec-58a6-a57d-8f9d7b8a8244",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:55e2950b-b7bc-5e49-93db-55e0402cb2d9",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:49f247fe-24aa-58f3-a4c4-4388e32b012a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:8b50447c-a788-5cc6-8590-4bd3c021e8c6",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:62e781ba-25e1-54da-876f-5906a7411fcd",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:df70db2b-2663-5f6f-a393-9a6b8e0eceb6",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d1de1436-3cd1-59d4-b950-4b5373eb898e",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:5b364755-fb78-57e9-bc9b-f733f76fc308",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:69eda9b3-b33c-5993-87bb-fd867fa33f47",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:50ae0bb0-d115-5989-97ff-754cf43a3507",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:6a4d2397-943d-5fc8-988d-64a7c4a91f30",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:0c5657b8-c72d-5042-b476-e2aa28ee752f",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:3f1b4043-51a3-59b8-8a55-9785b2959d87",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "redundant-computation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:18c512c9-7278-59aa-9f90-0bb1d7922923",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "hot-loop-vectorization",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:949d8ed7-5608-5d02-87f2-fc7e5a963ee2",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "inner-loop-allocation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:f33347b6-e6c3-5247-8032-70c9ddf33183",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "memory-layout",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:52fd6aa1-16bc-5847-99ad-106852c0b267",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "realtime-budget",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b5aa3e37-27e6-59c3-8b83-36e90e90c8b3",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "atom": "resource-amortization",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d4918ed5-99a0-507e-95c6-d903b5761099",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b31c517d-a932-56eb-8fad-243d22caa09f",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:a62004b9-edd7-54fa-bd5e-b1c8d92d8994",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:3bc76c65-1616-5a73-9685-cb5197db583d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:dd363184-4eff-50a9-9553-13fe3bcffa77",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e74a4eb8-f820-5732-a2fb-7c6422881497",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:c2d33299-73cd-53f4-9db9-d18224e1bbc5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:ce67bd8b-36ac-5092-8631-30d27e52a44f",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:234bd7c5-c65a-545c-b2c9-e9bbf06977eb",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:50dbe16f-9359-5858-ad4b-aa83b8dcea6d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:f64696fc-5ef1-5bd2-bda7-3cc929ccf9a0",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "toctou",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:7096ad29-dc9e-5220-af2c-127ec20be8a7",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:da55aba0-8508-5129-8eeb-a952015fa214",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b1b07b08-53ab-539b-bc97-c9ea2917fabe",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:f43389bb-897e-59be-b886-8448fef12f14",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e9a0f9a1-08c5-59fd-8a75-99db8d50def7",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:4bc8209d-3281-5f8e-bcfe-08fa8fe285a5",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:755f9dfc-d8ed-5dd2-aeae-3a2ed8da972d",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:0971f6eb-1ffa-5765-8a29-edaed9aeb4a3",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:50a3f14b-69cc-5b99-a046-d0789e4dc327",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b3d6f89f-3541-5d96-a5e3-1fc9acf3b88c",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:28fa30c7-4efc-53d4-bde8-35663f1509a3",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:428acd14-a1e2-507f-a54a-77abdeb743bd",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:a97d47bd-f36c-5c97-a5e7-20dd3a9868fd",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e1ecbb2f-fb1d-5cb5-9c75-317ea3690c2c",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9f2283b1-e6e7-59ae-86e1-8b84799d0e66",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:39d50ff1-f456-5f5e-ad7f-2fe367e81abb",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:61df9ad9-8331-5b36-b000-69e257501a17",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b0f02edd-f9b9-5927-8a4c-651d31dcba27",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:16f9f6db-ba40-5ad4-8d56-d8c265b0f254",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "metadata",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:90c58ef5-2f75-5793-af76-eb48228a7dd7",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "dependency-spec",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e23f491b-2e9f-5380-8b79-ea77a9fed6df",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "clean-build",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d7c11e55-4176-5e31-8de4-06a6a8139498",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "asset-inclusion",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:fd3d124a-6b73-50fe-b34e-d205a7c800fd",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "clean-install",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:30fcfb04-6c74-57f2-bbad-0270725e043a",
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "atom": "path-resolution",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:344c57d6-ee3e-50b0-9a0a-7b51dcebcff2",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:839e96bb-2cb4-5eb4-953a-4d6502648b52",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e8ca2162-fb51-594b-91ad-7d327e234721",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:101b0ee1-eb18-545f-9432-84004d026f6c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:585a27a7-0060-554f-aea6-db0c6bf2c8c2",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:647b7a4c-2ee8-592c-9e93-aaba940fc80d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:bf28a061-ce4a-56e9-a514-3dea085ed013",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b14bb0f9-7fab-590d-8b36-0e25aed8b0f3",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:172b69a6-e65f-567a-b3e1-d3a28062e90d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:0b28bf2a-b864-5e07-bfe5-2e4c3a56fe94",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d3238bf6-aa13-548a-b8c1-b8dc03ea3a11",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:46169978-ef37-518d-a1c6-4b8a3c06df9d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:c0e95901-fdc5-5e33-b3a3-ce74df45c285",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:1d9b2b12-7000-5058-8fee-4df7fb351755",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:cc0afa23-f1b8-5823-b25a-f59352b8c42e",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:054bb8e6-547f-5fde-b1fb-0738c7ddf895",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:0049c881-efb7-533f-9f91-3cd7f5d18a5a",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:16c23263-11ec-5dbb-a024-0c3850de924c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:c7579112-e01f-5ae4-aea2-226bb3ee5ec9",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:911936cf-7a5e-555d-ad20-63044625af1b",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:fd54f199-95af-5d05-ab26-d44c16423ac5",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:293c166c-fbeb-5874-a2df-f99bc9710699",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:ed84d3f1-38c8-5f94-88f3-0f9e4ae1d0d5",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e8f006aa-d329-55be-9673-082602159c1e",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:ccae7841-6d38-559e-8e78-064fc219491f",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:5ade64bf-fa4e-5ca8-a700-7623dd57ec49",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:3e12c66a-7012-5ea6-885e-7ac058675439",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:775a897b-f814-51ba-96ad-2a153c7d4797",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:8a33de43-9694-5e69-9a0b-7914649e6810",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:8408e030-11be-5a46-9a16-d386ed68a547",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:a3334ae6-fc5f-53ed-9921-80fb7fc2cd2c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:7d228bd2-f359-54a4-a8fb-e947233e8266",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:ffe16f12-97de-590c-99f2-43bb047ff730",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:7c8a9f42-b078-59fd-8fd5-c02e93cefe1e",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:05c9aa6e-3508-542e-9037-4b6f7b8ee2de",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:74bb0528-b269-5b07-a08c-e18685d6950a",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:f99bb6aa-22f6-527b-a41b-4d0340fa208c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:10cfbe05-e73e-5da9-9412-70123ac7a64d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "metadata",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:cce24702-86c1-5288-99e8-c41d98aea747",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "dependency-spec",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:4521a9f5-69af-57cd-bfd9-35d89e9d6324",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "clean-build",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9331357e-dce9-5813-b3c0-e7b659b27883",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "asset-inclusion",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:dbcc6a53-6f9e-5c7d-9eaf-0b873381bb3c",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "clean-install",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:eee70d63-cddb-5f3a-8a0e-75804abaac51",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "atom": "path-resolution",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:af16471f-71ee-5705-b267-e0f242a1c3e8",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "audience-framing",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:bc8f38c9-9b34-5856-83ab-3510d1d761d6",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "first-run",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:2ce121bd-bf22-5d25-ade0-9ca86c6c9efc",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "positioning",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:7493ad02-97e5-543c-9fbc-6716afc7de3f",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "doc-coverage",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:152a0929-8916-54ce-b676-aa496ce20530",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "accessibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:64e2c2df-a332-5470-8cd9-7a300195694d",
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "atom": "community-infra",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:01202c80-c270-5861-9488-e1c880e50804",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:c9021628-24c3-54dd-8d85-d95883cdd6f9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d885bc1d-a6da-5662-a03d-c35e7412ecc0",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:96a52506-5e8b-5afc-9d4c-71f6fe94dd4d",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:cf619210-8b8a-5eb5-862a-2957c54222d4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "error-model",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b7363ebc-2410-5398-bf2e-d0783ddb0448",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "state-model",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:377f5c39-2eb9-5a00-b3db-4a272a8ee0f3",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "atom": "testability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:6ba6629d-8273-5147-9587-626d4d6912f3",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b5a0a345-4710-5e8e-8dd7-3d60b4f795ad",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:2fb97239-9ee8-5bb0-bd4d-ec887038faf9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d0f56c25-008b-5332-bac5-3e6b58aefc9e",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e0d90055-aa43-5cdb-b0d0-21aa8234dd31",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:89666982-7a9e-572d-b4e0-3c886d9cce7b",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:1a344910-b379-5014-a75c-7eebe643fab5",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:9cd43bed-bd97-5f37-8ac2-a2d0d4e2877b",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:68fba8c8-a4ac-5129-953f-0849d4972e6d",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:ad59590c-6a3e-5b89-bb17-85dffe1060e8",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:278e602b-678a-5274-8208-dcb3c3fde260",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:057d4975-9a3a-504e-b51b-b88f61bddca0",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:1c183dc3-f963-5992-bf83-ad453d01b034",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e7958f68-2777-52cf-9154-74a8694982fa",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:f3046818-4035-5fa7-a84a-10924c8bfebf",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e1d1fe6d-36c7-5f0e-afab-1ef60d7569e4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:0827b510-6357-5fae-bab7-77d4bc33cf46",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:0465f0f2-7bd6-5490-9962-f4cb06124b0f",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:fd617dd3-e5e7-5ad8-a0cb-60eb030394b4",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:154895fb-2a31-5c9a-8915-664643c7fdf9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:bcc394f1-fc45-5107-8409-40e5820f48ac",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:fc5b8140-2584-55c7-9682-82f97de0cee0",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b44c8751-cb5b-51a5-9dfd-1d9a88e2d300",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:10120b07-a29c-563a-a87b-0c5f221ecf13",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:154fb5fb-1c04-530e-8c55-dc68da5562ec",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:15590bd4-28c7-5520-8ab9-cb458f107723",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "toctou",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:4a8e6f9e-d28b-58c6-b5e3-b6112b3af5b3",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:41b051f1-a1fd-57c8-bfb4-04351c458282",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:2cb12b7b-c51b-5900-b58a-3ff6075f810b",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b3bd8006-a1f1-5911-a12e-179df702dd9a",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:5679f047-6ed3-598d-9e5f-f715a56918ca",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:bfe7402e-4774-5128-87f3-d74c0a6acc06",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d9476768-8cc2-567d-aecf-7af2d2d00eb9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:e1403179-761f-5f61-9c0e-3328269502c1",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:624ab414-2887-5148-ad94-7c72ef671071",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:58ddf94a-5640-5eb3-a0bd-e0f54172717e",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:fb623e5c-8163-5e62-83f1-ac9038a6e9c3",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:a2c49364-9d53-561d-8628-6985ccb0f500",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:290414b7-d384-579c-bd12-5b7af62006c8",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:b22b5300-7c34-533d-8ef5-838d6d2a861d",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:0470581d-11c8-5e39-afec-b270831f497f",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:cc15768c-041e-55ed-9763-a883d99d5cef",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:370e53a9-ca22-5265-9e3f-e22dcc1e3f5b",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:d34e05b9-4e62-5913-8e37-f0dda01ac5d7",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:10c491de-c03e-5b8a-ad16-bb01a3fc7d38",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "audience-framing",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:0665d81d-4f55-592b-889b-d680ef30b02a",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "first-run",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:afcf132b-367c-5ee0-ba61-d7a061ed24b9",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "positioning",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:7a85d642-9905-597a-bf5b-7f689e2feb3b",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "doc-coverage",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:bead1eb5-a8c0-503f-89f8-5fb6386b4f25",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "accessibility",
+      "achieved": "standard"
+    },
+    {
+      "assessment_id": "assessment:655a25c9-533e-5450-8f6c-2d3a27ff2857",
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "atom": "community-infra",
+      "achieved": "standard"
+    }
+  ],
+  "achieved_depths": [
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 2,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 3,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 4,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 5,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 6,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 7,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 8,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 9,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 10,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b170973-d145-588d-a5fc-6192e21d2592",
+      "plane_id": 11,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 1,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 2,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 3,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 4,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 6,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 7,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 8,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 9,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b18532c-d0ac-5fdf-a024-3b46e8e34aa6",
+      "plane_id": 10,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 2,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 3,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 4,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 6,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 7,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 8,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 9,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 10,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7b872e2e-8428-55f9-9d56-8c069b13f136",
+      "plane_id": 12,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 3,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 4,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 6,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 8,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 9,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 10,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 11,
+      "target": "standard",
+      "achieved": "standard"
+    },
+    {
+      "subject_id": "subject:7eca51c8-648b-5322-9254-502fdb52dc41",
+      "plane_id": 12,
+      "target": "standard",
+      "achieved": "standard"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+Loom Pagani remediation verification — 20260821T223204
+
+Frozen implementation revision: 79cdd01022cd215d08bdf5710d3484892a855e1a
+
+Executed assurance:
+- `uv run pytest -q` in axis/chariots/loom: 144 passed; one upstream Starlette TestClient deprecation warning.
+- `python3 -m unittest discover -s tests -q` in axis/tools/model-runner: 32 passed.
+- `npm test -- --run` in axis/chariots/loom/web: 3 files and 7 tests passed.
+- `npm run check` in axis/chariots/loom/web: 0 errors and 0 warnings.
+- `npm run build` in axis/chariots/loom/web: production build succeeded and emitted index-C5egGcfF.js plus index-DYXbQRUy.css.
+- `node --test server.test.js` in axis/tools/slate-mirror: 5 passed.
+- `npx tsx --test scripts/project-loom.test.ts` in sui/console/axial: 3 passed.
+- `python3 -m compileall -q` over Loom and model-runner: passed.
+- Clean wheel builds succeeded for axis-loom 0.1.0 and axis-model-runner 1.1.0; the Loom wheel contains the current cockpit, workflow packs, http_boundary.py, and workflow_template_reader.py, while the model-runner wheel declares jsonschema 4.26 or newer below version 5.
+
+Rendered same-origin acceptance on http://127.0.0.1:9010:
+- The response-first cockpit loaded the seeded two-trailhead lattice with no browser console warnings or errors.
+- Entering a next prompt enabled preflight inspection and rendered `Ready to seal · 1344 bytes`, exact active context blocks, their hashes, the compiled-context inspector, and the provider boundary before execution.
+- Opening the German quaternary live view created a governed project backed by authoritative quaternary state, exposed all seven workflow roles, and preserved the Codex-only qualified route without fabricating a Gemini lane.
+- Server receipts show successful same-origin session, project, route, workflow-pack, invocation, bounded-neighborhood, draft, preview, and governed-project requests, followed by clean shutdown.
+
+Permanent negative controls cover ledger/state divergence, stale seal compare-and-swap, transformed context relabeled as verbatim, hidden omissions, malformed or oversized canonical JSON, aggregate output overflow before persistence, structured-output schema violations, cross-project ancestry, unbounded or unstable slices, false completion, workflow route impersonation, repeated external commands, incorrect quaternary state selection, changed row-set receipts, unsafe Slate HTML and identity, unverified Axial claims, and stale Loom-owned concern links.
+
+Proof limits:
+- Gemini CLI 0.45.0 rejects the available consumer account with `IneligibleTierError`, and its exact-context isolation could not be qualified. The complete authenticated German native-role exchange is therefore not claimed complete.
+- Official provider services may apply server-owned instructions or transformations that their CLIs do not expose. Loom records this as provider opacity and claims exactness only for locally observable context and influences.
+- The rendered acceptance used seeded local provider results to avoid new provider spend. Authenticated Claude and Codex execution remains evidenced by prior local Loom journals, but was not repeated on this exact revision.
