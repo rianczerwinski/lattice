@@ -17,26 +17,46 @@ from axis_model_runner import (
     invoke_subscription,
 )
 
-from .canonical import sha256_bytes
 from .contracts import AttemptState, ExecuteRequest
 from .manifest_reader import verify_and_reconstruct
 from .store import LoomConflict, LoomStore
 
 
-def _runtime_receipt(journal: Any) -> dict[str, Any]:
+MAX_RUNTIME_CONTROL_BYTES = 1024 * 1024
+
+
+def _read_runtime_control(path: Any) -> bytes:
+    size = path.stat().st_size
+    if size > MAX_RUNTIME_CONTROL_BYTES:
+        raise OSError(f"model journal control file exceeds {MAX_RUNTIME_CONTROL_BYTES} bytes: {path.name}")
+    content = path.read_bytes()
+    if len(content) != size:
+        raise OSError(f"model journal control file changed while being read: {path.name}")
+    return content
+
+
+def _runtime_receipt(journal: Any, blob_store) -> dict[str, Any]:
     root = __import__("pathlib").Path(journal)
-    request_path = root / "request.json"
-    checkpoint_path = root / "checkpoint.json"
-    terminal_path = root / "terminal.json"
-    request = json.loads(request_path.read_text(encoding="utf-8"))
-    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-    terminal = json.loads(terminal_path.read_text(encoding="utf-8")) if terminal_path.is_file() else None
+    files: dict[str, dict[str, Any]] = {}
+    raw_files: dict[str, bytes] = {}
+    for path in sorted(root.iterdir(), key=lambda item: item.name):
+        if not path.is_file() or path.is_symlink():
+            continue
+        digest, byte_count = blob_store.put_file(path)
+        files[path.name] = {"ref": f"loom:blob/{digest}", "sha256": digest, "byte_count": byte_count}
+        if path.name in {"request.json", "checkpoint.json", "terminal.json"}:
+            raw_files[path.name] = _read_runtime_control(path)
+    if "request.json" not in raw_files or "checkpoint.json" not in raw_files:
+        raise OSError("model journal is missing its bound request or checkpoint")
+    request = json.loads(raw_files["request.json"].decode("utf-8", errors="strict"))
+    checkpoint = json.loads(raw_files["checkpoint.json"].decode("utf-8", errors="strict"))
+    terminal = json.loads(raw_files["terminal.json"].decode("utf-8", errors="strict")) if "terminal.json" in raw_files else None
     return {
         "kind": "loom-model-runtime-receipt",
         "journal_path": str(root),
-        "request_sha256": sha256_bytes(request_path.read_bytes()),
-        "checkpoint_sha256": sha256_bytes(checkpoint_path.read_bytes()),
-        "terminal_sha256": sha256_bytes(terminal_path.read_bytes()) if terminal_path.is_file() else None,
+        "request_sha256": files["request.json"]["sha256"],
+        "checkpoint_sha256": files["checkpoint.json"]["sha256"],
+        "terminal_sha256": files.get("terminal.json", {}).get("sha256"),
         "driver": request["driver"],
         "model": request["model"],
         "cli_version": request["metadata"].get("cli_version"),
@@ -45,6 +65,7 @@ def _runtime_receipt(journal: Any) -> dict[str, Any]:
         "native_session": checkpoint.get("native_session"),
         "observed": checkpoint.get("observed"),
         "terminal": terminal,
+        "files": files,
     }
 
 
@@ -75,13 +96,18 @@ class ExecutionSupervisor:
     async def execute(self, invocation_id: str, request: ExecuteRequest) -> dict[str, Any]:
         expires_at = int(time.time()) + self.store.config.lease_seconds
         attempt = await asyncio.to_thread(self.store.create_attempt, invocation_id, request.idempotency_key, self.boot_id, expires_at)
+        # Capture the replay cursor before scheduling provider work so the cockpit
+        # cannot miss a chunk emitted between the HTTP response and EventSource.
+        event_cursor = await asyncio.to_thread(self.store.latest_event_seq)
         if attempt["state"] == AttemptState.leased.value and attempt["attempt_id"] not in self._tasks:
             cancel = threading.Event()
             self._cancellations[attempt["attempt_id"]] = cancel
             task = asyncio.create_task(self._run(attempt["attempt_id"], cancel), name=f"loom-{attempt['attempt_id']}")
             self._tasks[attempt["attempt_id"]] = task
             task.add_done_callback(lambda _task, attempt_id=attempt["attempt_id"]: self._complete_task(attempt_id))
-        return self.store.get_attempt(attempt["attempt_id"])
+        result = self.store.get_attempt(attempt["attempt_id"])
+        result["event_cursor"] = event_cursor
+        return result
 
     def _complete_task(self, attempt_id: str) -> None:
         self._tasks.pop(attempt_id, None)
@@ -103,12 +129,14 @@ class ExecutionSupervisor:
         project_id = invocation["project_id"]
         try:
             self.store.mark_attempt_running(attempt_id)
+            if invocation["manifest"].get("contract_version") not in {"LoomContextManifest/2.0", "LoomContextManifest/3.0"} or invocation["manifest"].get("response_contract") != invocation["response_schema"]:
+                raise LoomConflict("invocation response contract is not execution-bound by an executable context manifest")
             prompt = verify_and_reconstruct(self.store, invocation["manifest"]).decode("utf-8")
             adapter = self._adapter(invocation["route"])
 
             def on_chunk(channel: str, chunk: bytes) -> None:
                 digest = self.store.blobs.put(chunk)
-                self.store.record_event(project_id=project_id, event_type="attempt.chunk", subject_type="attempt", subject_id=attempt_id, payload={"channel": channel, "sha256": digest, "byte_count": len(chunk), "preview": chunk.decode("utf-8", errors="replace")[:1000]})
+                self.store.record_event(project_id=project_id, event_type="attempt.chunk", subject_type="attempt", subject_id=attempt_id, payload={"channel": channel, "content_ref": f"loom:blob/{digest}", "sha256": digest, "byte_count": len(chunk), "preview": chunk.decode("utf-8", errors="replace")[:1000]})
                 self.store.heartbeat_attempt(attempt_id, int(time.time()) + self.store.config.lease_seconds)
 
             payload, journal = await asyncio.to_thread(
@@ -134,10 +162,10 @@ class ExecutionSupervisor:
             artifacts = payload.get("artifacts")
             if not isinstance(artifacts, list) or any(not isinstance(item, dict) or set(item) != {"name", "media_type", "content"} or not all(isinstance(item[key], str) for key in item) for item in artifacts):
                 raise SubscriptionInvocationFailed("malformed_output", "provider response contained invalid artifacts", journal=journal)
-            self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal), runtime_receipt=_runtime_receipt(journal))
+            self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal), runtime_receipt=_runtime_receipt(journal, self.store.blobs))
         except SubscriptionInvocationFailed as error:
             terminal = AttemptState.interrupted if error.kind == "operator_interruption" else AttemptState.failed
-            receipt = _runtime_receipt(error.journal) if error.journal and (error.journal / "request.json").is_file() else None
+            receipt = _runtime_receipt(error.journal, self.store.blobs) if error.journal and (error.journal / "request.json").is_file() else None
             self.store.finish_attempt(attempt_id, state=terminal, failure_kind=error.kind, error_text=str(error), journal_path=str(error.journal) if error.journal else None, runtime_receipt=receipt)
         except BaseException as error:  # execution boundary must always terminalize
             self.store.finish_attempt(attempt_id, state=AttemptState.failed, failure_kind="harness_failure", error_text=f"{type(error).__name__}: {error}")

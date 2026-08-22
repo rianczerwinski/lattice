@@ -21,7 +21,7 @@ web/                   response-first Svelte cockpit and production build
 workflow_packs/        versioned declarative first-party workflow definitions
 ```
 
-The manual Loom acceptance path has been exercised through authenticated Claude and Codex subscriptions: independent prompts, a common-parent fork to both providers, reciprocal cross-feed, a two-parent join, exact manifest reconstruction, provider failure receipt, restart, and continuation. The German Slate slice is live and presently reports the authoritative quaternary generation as `calibrating`; Loom does not mislabel that workflow as closed.
+The manual Loom acceptance path has been exercised through authenticated Claude and Codex subscriptions: independent prompts, a common-parent fork to both providers, reciprocal cross-feed, a two-parent join, exact manifest reconstruction, provider failure receipt, restart, and continuation. The governed German workflow machinery is implemented, but its authenticated native Gemini lane remains unavailable: the installed official CLI rejects the consumer tier and cannot presently meet Loom's exact-context isolation contract. Loom therefore does not claim the complete German acceptance path.
 
 ## Telos
 
@@ -204,7 +204,7 @@ The ordinary interaction is:
 
 1. The user or a trigger proposes the next invocation.
 2. Loom compiles a context manifest from the role view, selected ancestry, project state, and explicit modules.
-3. The user may inspect or edit the consequential delta before execution.
+3. The user may inspect the exact compiled context and its per-parent consequential delta before execution.
 4. The selected runtime executes through a leased, journaled action.
 5. Loom persists the response, trace, artifacts, and edges before projecting the new state.
 6. The next frontier is derived from the updated state.

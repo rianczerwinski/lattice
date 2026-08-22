@@ -1,8 +1,12 @@
 {
   "pack_id": "quaternary",
-  "version": 1,
+  "version": 2,
   "title": "German quaternary research",
   "initial_state": "semantic-intent",
+  "project_selector": [
+    {"key": "language", "label": "Language code", "value_type": "string", "required": true, "default": "de"},
+    {"key": "preparation_id", "label": "Preparation ID (optional)", "value_type": "string", "required": false}
+  ],
   "roles": [
     {"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "authority": "propose-only"},
     {"role_id": "native-partner", "name": "German native-language partner", "provider": "google", "harness": "gemini", "authority": "language-proposal-only"},
@@ -14,13 +18,13 @@
   ],
   "context_modules": [],
   "allowed_transitions": [
-    {"from": "semantic-intent", "to": "native-query-proposal"},
-    {"from": "native-query-proposal", "to": "frozen-query", "trigger": "query-accepted"},
-    {"from": "frozen-query", "to": "search-receipts"},
-    {"from": "search-receipts", "to": "terminology-amendment"},
-    {"from": "terminology-amendment", "to": "countersearch"},
-    {"from": "countersearch", "to": "closure-candidate", "trigger": "closure-proposed"},
-    {"from": "closure-candidate", "to": "blinded-challenge", "requires_completed_trigger": "closure-proposed"}
+    {"from": "semantic-intent", "to": "native-query-proposal", "minimum_evidence_blocks": 1, "minimum_terminal_invocation_outputs": 1, "terminal_outputs_after_current_state_entry": true, "terminal_output_requirements": [{"workflow_role_key": "native-partner", "invocation_states": ["succeeded"], "minimum_count": 1, "after_current_state_entry": true}]},
+    {"from": "native-query-proposal", "to": "frozen-query", "trigger": "query-accepted", "minimum_evidence_blocks": 1, "minimum_terminal_invocation_outputs": 1, "terminal_outputs_after_current_state_entry": true, "terminal_output_requirements": [{"workflow_role_key": "native-partner", "invocation_states": ["succeeded"], "minimum_count": 1, "after_current_state_entry": true}]},
+    {"from": "frozen-query", "to": "search-receipts", "minimum_evidence_blocks": 1, "evidence_requirements": [{"semantic_type": "workflow-blackboard-snapshot", "authority": "quaternary", "status": "active", "provenance": "current_workflow_blackboard", "minimum_count": 1, "after_current_state_entry": true}]},
+    {"from": "search-receipts", "to": "terminology-amendment", "minimum_evidence_blocks": 2, "minimum_terminal_invocation_outputs": 1, "terminal_outputs_after_current_state_entry": true, "terminal_output_requirements": [{"workflow_role_key": "terminology-surfacer", "invocation_states": ["succeeded"], "minimum_count": 1, "after_current_state_entry": true}], "evidence_requirements": [{"semantic_type": "workflow-blackboard-snapshot", "authority": "quaternary", "status": "active", "provenance": "current_workflow_blackboard", "minimum_count": 1, "after_current_state_entry": true}]},
+    {"from": "terminology-amendment", "to": "countersearch", "minimum_evidence_blocks": 1, "minimum_terminal_invocation_outputs": 1, "terminal_outputs_after_current_state_entry": true, "terminal_output_requirements": [{"workflow_role_key": "native-partner", "invocation_states": ["succeeded"], "minimum_count": 1, "after_current_state_entry": true}]},
+    {"from": "countersearch", "to": "closure-candidate", "trigger": "closure-proposed", "minimum_evidence_blocks": 2, "minimum_terminal_invocation_outputs": 1, "terminal_outputs_after_current_state_entry": true, "terminal_output_requirements": [{"workflow_role_key": "sol", "invocation_states": ["succeeded"], "minimum_count": 1, "after_current_state_entry": true}], "evidence_requirements": [{"semantic_type": "workflow-blackboard-snapshot", "authority": "quaternary", "status": "active", "provenance": "current_workflow_blackboard", "minimum_count": 1, "after_current_state_entry": true}]},
+    {"from": "closure-candidate", "to": "blinded-challenge", "requires_completed_trigger": "closure-proposed", "minimum_evidence_blocks": 1, "minimum_terminal_invocation_outputs": 1, "terminal_outputs_after_current_state_entry": true, "terminal_output_requirements": [{"workflow_role_key": "verifier", "invocation_states": ["succeeded"], "minimum_count": 1, "after_current_state_entry": true}]}
   ],
   "triggers": [
     {
@@ -39,6 +43,143 @@
       "required_action": "freeze-exact-query-bytes-before-execution",
       "automatic": true,
       "action": {"type": "freeze_payload_field", "field": "query_bytes"}
+    }
+  ],
+  "commands": [
+    {
+      "operation": "next-language",
+      "label": "Find the active language generation",
+      "description": "Read the authoritative control plane and identify the one language generation that can advance.",
+      "authority": "read",
+      "arguments": []
+    },
+    {
+      "operation": "language-status",
+      "label": "Refresh German state",
+      "description": "Read a byte-bound snapshot of preparation, action, evidence, preflight, and readiness state without changing it.",
+      "authority": "read",
+      "arguments": [
+        {"key": "language", "label": "Language code", "value_type": "string", "required": false, "default": "de"},
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": false}
+      ]
+    },
+    {
+      "operation": "peek",
+      "label": "Inspect recent quaternary events",
+      "description": "Read the newest append-only events for one preparation without changing authoritative state.",
+      "authority": "read",
+      "arguments": [
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true},
+        {"key": "last", "label": "Event count", "value_type": "integer", "required": false, "default": 20, "minimum": 1, "maximum": 1000}
+      ]
+    },
+    {
+      "operation": "prepare-language",
+      "label": "Create German preparation",
+      "description": "Create or recover the durable German calibration generation before any broad search runs.",
+      "authority": "write",
+      "arguments": [{"key": "language", "label": "Language code", "value_type": "string", "required": true, "default": "de"}]
+    },
+    {
+      "operation": "qualify-language",
+      "label": "Run sealed linguistic qualification",
+      "description": "Transmit the sealed role packet through qualified subscription CLIs and preserve each attempt journal. This can incur substantial subscription usage.",
+      "authority": "provider_transmission",
+      "arguments": [
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true},
+        {"key": "effort", "label": "Effort", "value_type": "string", "required": false, "default": "high"},
+        {"key": "timeout", "label": "Timeout seconds", "value_type": "integer", "required": false, "default": 900, "minimum": 1, "maximum": 3600}
+      ]
+    },
+    {
+      "operation": "retry-model-action",
+      "label": "Retry one failed model action",
+      "description": "Create a new attempt for a named failed consultation while preserving the failed attempt and its evidence.",
+      "authority": "provider_transmission",
+      "arguments": [
+        {"key": "action_id", "label": "Action ID", "value_type": "string", "required": true},
+        {"key": "reason", "label": "Evidence-backed retry reason", "value_type": "string", "required": true}
+      ]
+    },
+    {
+      "operation": "seal-language-evaluation",
+      "label": "Seal independent evaluation",
+      "description": "Import an independently authored evaluator packet and bind its exact bytes before qualification can settle.",
+      "authority": "write",
+      "arguments": [
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true},
+        {"key": "input", "label": "Evaluator packet path", "value_type": "file", "required": true, "max_bytes": 67108864},
+        {"key": "evaluator", "label": "Evaluator identity", "value_type": "string", "required": true}
+      ]
+    },
+    {
+      "operation": "record-language-authority",
+      "label": "Record language authority evidence",
+      "description": "Preserve an approved local source file and public locator as language authority evidence; it does not itself validate a model proposal.",
+      "authority": "write",
+      "arguments": [
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true},
+        {"key": "language_code", "label": "Source language code", "value_type": "string", "required": true, "default": "de"},
+        {"key": "locator", "label": "Source locator", "value_type": "string", "required": true},
+        {"key": "body_path", "label": "Authority body file", "value_type": "file", "required": true, "max_bytes": 67108864},
+        {"key": "media_type", "label": "Media type", "value_type": "string", "required": false, "default": "text/html"},
+        {"key": "recorder", "label": "Recorder", "value_type": "string", "required": false, "default": "loom-operator"}
+      ]
+    },
+    {
+      "operation": "review-language-contributions",
+      "label": "Resolve model contributions",
+      "description": "Import terminal incorporated, merged, or rejected dispositions for every model proposal.",
+      "authority": "write",
+      "arguments": [
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true},
+        {"key": "input", "label": "Review packet path", "value_type": "file", "required": true, "max_bytes": 67108864},
+        {"key": "reviewer", "label": "Reviewer identity", "value_type": "string", "required": true}
+      ]
+    },
+    {
+      "operation": "freeze-language-profile",
+      "label": "Freeze native retrieval profile",
+      "description": "Bind the reviewed language lanes, forms, terminology, sources, residuals, and false friends as one immutable profile.",
+      "authority": "write",
+      "arguments": [
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true},
+        {"key": "input", "label": "Profile packet path", "value_type": "file", "required": true, "max_bytes": 67108864}
+      ]
+    },
+    {
+      "operation": "freeze-language-query-plan",
+      "label": "Freeze query portfolio",
+      "description": "Bind exact source-native query bytes and their coverage roles before execution.",
+      "authority": "write",
+      "arguments": [
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true},
+        {"key": "input", "label": "Query-plan packet path", "value_type": "file", "required": true, "max_bytes": 67108864}
+      ]
+    },
+    {
+      "operation": "preflight-language",
+      "label": "Run bounded preflight",
+      "description": "Execute only non-coverage canaries and source checks, preserving raw receipts and contrastive outcomes.",
+      "authority": "write",
+      "arguments": [{"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true}]
+    },
+    {
+      "operation": "create-gather",
+      "label": "Create broad gather",
+      "description": "Create the immutable gather generation only after independent readiness is current for the exact preparation dependencies.",
+      "authority": "write",
+      "arguments": [{"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true}]
+    },
+    {
+      "operation": "stop-language-preparation",
+      "label": "Stop preparation",
+      "description": "Terminally stop the named generation with an explicit reason; prior evidence remains preserved.",
+      "authority": "write",
+      "arguments": [
+        {"key": "preparation_id", "label": "Preparation ID", "value_type": "string", "required": true},
+        {"key": "reason", "label": "Reason", "value_type": "string", "required": true}
+      ]
     }
   ],
   "closure_contract": {

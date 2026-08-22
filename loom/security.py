@@ -2,31 +2,96 @@
 
 from __future__ import annotations
 
+import fcntl
 import hmac
 import os
 import secrets
+import stat
+import time
+from collections import OrderedDict
 from pathlib import Path
+from typing import Callable
 
 from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
+from .http_boundary import HTTPBoundaryError, canonical_origin
+
 
 SAFE_METHODS = {"GET", "HEAD"}
+
+
+def configured_development_origin() -> str | None:
+    configured = os.environ.get("LOOM_DEV_ORIGIN")
+    if not configured:
+        return None
+    try:
+        return canonical_origin(configured, origin_only=True)
+    except HTTPBoundaryError as error:
+        raise ValueError(f"LOOM_DEV_ORIGIN is invalid: {error}") from error
+
+
+class ServiceInstanceLock:
+    """Exclusive process-lifetime ownership of one Loom canonical data root."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._descriptor: int | None = None
+
+    def acquire(self) -> None:
+        if self._descriptor is not None:
+            return
+        descriptor = os.open(self.path, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            os.ftruncate(descriptor, 0)
+            os.write(descriptor, f"pid={os.getpid()}\n".encode("ascii"))
+            os.fsync(descriptor)
+        except BlockingIOError as error:
+            os.close(descriptor)
+            raise RuntimeError(f"another Loom process owns data root {self.path.parent}") from error
+        except BaseException:
+            os.close(descriptor)
+            raise
+        self._descriptor = descriptor
+
+    def release(self) -> None:
+        descriptor, self._descriptor = self._descriptor, None
+        if descriptor is None:
+            return
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
 
 
 def ensure_cli_token(path: Path) -> str:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     if path.exists():
-        mode = path.stat().st_mode & 0o777
-        if mode != 0o600:
-            raise PermissionError(f"Loom operator token must be mode 0600, found {mode:o}")
-        token = path.read_text(encoding="utf-8").strip()
+        try:
+            descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        except OSError as error:
+            raise PermissionError("Loom operator token must be a non-symlink regular file") from error
+        try:
+            metadata = os.fstat(descriptor)
+            mode = stat.S_IMODE(metadata.st_mode)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise PermissionError("Loom operator token must be a regular file")
+            if mode != 0o600:
+                raise PermissionError(f"Loom operator token must be mode 0600, found {mode:o}")
+            if metadata.st_size > 4096:
+                raise ValueError("Loom operator token is malformed")
+            raw = os.read(descriptor, metadata.st_size + 1)
+        finally:
+            os.close(descriptor)
+        try:
+            token = raw.decode("utf-8", errors="strict").strip()
+        except UnicodeDecodeError as error:
+            raise ValueError("Loom operator token is malformed") from error
         if len(token) < 32:
             raise ValueError("Loom operator token is malformed")
         return token
     token = secrets.token_urlsafe(48)
-    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
         os.write(descriptor, (token + "\n").encode("utf-8"))
         os.fsync(descriptor)
@@ -36,20 +101,36 @@ def ensure_cli_token(path: Path) -> str:
 
 
 class OperatorSessions:
-    def __init__(self) -> None:
-        self._sessions: dict[str, str] = {}
+    def __init__(self, *, ttl_seconds: int = 86_400, max_sessions: int = 128, clock: Callable[[], float] = time.monotonic) -> None:
+        if ttl_seconds < 1 or max_sessions < 1:
+            raise ValueError("operator session bounds must be positive")
+        self.ttl_seconds = ttl_seconds
+        self.max_sessions = max_sessions
+        self.clock = clock
+        self._sessions: OrderedDict[str, tuple[str, float]] = OrderedDict()
+
+    def _prune(self, now: float) -> None:
+        expired = [session for session, (_csrf, expires_at) in self._sessions.items() if expires_at <= now]
+        for session in expired:
+            self._sessions.pop(session, None)
 
     def issue(self) -> tuple[str, str]:
+        now = self.clock()
+        self._prune(now)
         session = secrets.token_urlsafe(48)
         csrf = secrets.token_urlsafe(32)
-        self._sessions[session] = csrf
+        self._sessions[session] = (csrf, now + self.ttl_seconds)
+        while len(self._sessions) > self.max_sessions:
+            self._sessions.popitem(last=False)
         return session, csrf
 
     def valid(self, session: str | None, csrf: str | None) -> bool:
         if not session or not csrf:
             return False
-        expected = self._sessions.get(session)
-        return expected is not None and hmac.compare_digest(expected, csrf)
+        now = self.clock()
+        self._prune(now)
+        value = self._sessions.get(session)
+        return value is not None and hmac.compare_digest(value[0], csrf)
 
 
 class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
@@ -59,14 +140,19 @@ class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
         self.sessions = sessions
         self.allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", "testserver"}
         self.allowed_origins = {f"http://127.0.0.1:{port}", f"http://localhost:{port}", "http://testserver"}
-        configured_dev = os.environ.get("LOOM_DEV_ORIGIN")
+        configured_dev = configured_development_origin()
         if configured_dev:
-            self.allowed_origins.add(configured_dev.rstrip("/"))
+            self.allowed_origins.add(configured_dev)
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         host = request.headers.get("host", "")
         if host not in self.allowed_hosts:
             return Response("unrecognized Loom host", status_code=421)
+        if request.url.path == "/api/session":
+            fetch_site = request.headers.get("sec-fetch-site")
+            origin = request.headers.get("origin")
+            if fetch_site not in {None, "none", "same-origin"} or (origin is not None and origin.rstrip("/") not in self.allowed_origins):
+                return Response("cross-site operator session bootstrap rejected", status_code=403)
         if request.method not in SAFE_METHODS and request.url.path.startswith("/api/"):
             origin = request.headers.get("origin")
             if origin is not None and origin.rstrip("/") not in self.allowed_origins:
@@ -80,5 +166,5 @@ class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self' http://127.0.0.1:9000 http://localhost:9000"
         return response

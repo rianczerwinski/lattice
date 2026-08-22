@@ -39,6 +39,8 @@ async def test_concurrency_idempotent_execution_produces_one_attempt(monkeypatch
     result = loom_env["store"].get_invocation(invocation["invocation_id"])
 
     assert first["attempt_id"] == second["attempt_id"]
+    assert first["event_cursor"] > 0
+    assert any(event["event_type"] == "attempt.chunk" and event["subject_id"] == first["attempt_id"] for event in loom_env["store"].events_after(loom_env["project"]["project_id"], first["event_cursor"]))
     assert len(result["attempts"]) == 1
     assert result["state"] == "succeeded"
     assert result["output_block"]["content"] == "finished"
