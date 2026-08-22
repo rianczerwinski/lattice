@@ -1,8 +1,8 @@
 # Loom — Surface
 
-surface-id: surface:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1 · source-revision: bc4133e10cac48816159c542fb0c1f1e9924e454 · generated: 20260821T223000
-view-artifact: artifact:f79f9277-04de-5cc1-8e7e-0fea6eaef7f3 · role: derived-view · parent-artifact: artifact:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1
-source-surface: SURFACE.json · parent-sha256: d50e9f51aa28d31168f7371653e3c2a35c07f1a72ccf05ff96a36a1e6b6dec3d · renderer: surface-renderer/2.0.1
+surface-id: surface:6c9bfc2f-2441-5b98-aacd-80a68b887762 · source-revision: 0a3e830f2d021707f84cf4a9a905536aece6a17e · generated: 20260821T223800
+view-artifact: artifact:6bf970d3-b0ba-54b7-8d3f-dfaa4b414045 · role: derived-view · parent-artifact: artifact:6c9bfc2f-2441-5b98-aacd-80a68b887762
+source-surface: SURFACE.json · parent-sha256: 43ba6b648c389880be1948ab0de123fdd821c300adc513aada20c6d3f901e001 · renderer: surface-renderer/2.0.1
 
 ## 1 · Durable lattice kernel — Versioned contracts, append-only events, content-addressed context, graph operations, and independent manifest reconstruction. [1✓]
 - ✓ **shipped** — Loom durably stores a hash-chained append-only lattice, seals immutable context manifests with compare-and-swap, reconstructs locally observable context independently, and exposes bounded replay, diff, slice, and neighborhood operations. _(sources: loom/store.py)_
@@ -17,7 +17,7 @@ source-surface: SURFACE.json · parent-sha256: d50e9f51aa28d31168f7371653e3c2a35
 - ✓ **shipped** — The same-origin cockpit supports manual one-edge routing, fork and join trailheads, exact preflight and manifest views, governed live views, reusable path discovery, and explicit partial, empty, unavailable, and failure states. _(sources: web/src/App.svelte)_
 
 ## 5 · Packaging and assurance — Install metadata, dependency locks, and truth-typed regression, property, contract, and oracle tests. [1✓]
-- ✓ **partial** — The installable wheel includes the cockpit and workflow packs, and the full local assurance suites pass; a fresh immutable post-remediation audit is still being issued. _(sources: tests/test_kernel.py)_
+- ✓ **shipped** — The installable wheel includes the cockpit and workflow packs; all local suites and rendered acceptance pass; the immutable post-remediation audit verifies all 39 findings with zero active S0–S2 findings and explicit provider proof limits. _(sources: tests/test_kernel.py, audit/20260821T223204-pagani-remediation/audit.validation.json)_
 
 ## Derived views
 
@@ -26,7 +26,7 @@ source-surface: SURFACE.json · parent-sha256: d50e9f51aa28d31168f7371653e3c2a35
 - 2 Execution and authority boundary — **shipped**: Qualified subscription CLIs execute through leased, restart-safe attempts with bounded journaled I/O, authority-bound manifests, typed failures, and explicit provider-owned opacity.
 - 3 Evidence and workflow integrations — **partial**: Octopus exact-source import, declarative governed workflows, quaternary and Platform Foundry live projections, Slate slices, and Axial projection execute; complete authenticated German native-role acceptance remains unproven.
 - 4 Response-first cockpit — **shipped**: The same-origin cockpit supports manual one-edge routing, fork and join trailheads, exact preflight and manifest views, governed live views, reusable path discovery, and explicit partial, empty, unavailable, and failure states.
-- 5 Packaging and assurance — **partial**: The installable wheel includes the cockpit and workflow packs, and the full local assurance suites pass; a fresh immutable post-remediation audit is still being issued.
+- 5 Packaging and assurance — **shipped**: The installable wheel includes the cockpit and workflow packs; all local suites and rendered acceptance pass; the immutable post-remediation audit verifies all 39 findings with zero active S0–S2 findings and explicit provider proof limits.
 
 ### doing
 - None.

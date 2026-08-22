@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
+  "surface_id": "surface:6c9bfc2f-2441-5b98-aacd-80a68b887762",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
-    "generated_at": "20260821T223000",
+    "artifact_id": "artifact:6c9bfc2f-2441-5b98-aacd-80a68b887762",
+    "generated_at": "20260821T223800",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "bc4133e10cac48816159c542fb0c1f1e9924e454",
+        "revision": "0a3e830f2d021707f84cf4a9a905536aece6a17e",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:a13913a0-618e-59d4-a800-81458d10aecd"
+    "parent_artifact_id": "artifact:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1"
   },
   "workframe": {
     "name": "Loom",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260821T223000",
-    "source_revision": "bc4133e10cac48816159c542fb0c1f1e9924e454",
+    "at": "20260821T223800",
+    "source_revision": "0a3e830f2d021707f84cf4a9a905536aece6a17e",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "bc4133e10cac48816159c542fb0c1f1e9924e454",
+    "revision": "0a3e830f2d021707f84cf4a9a905536aece6a17e",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -105,9 +105,39 @@
         "object_id": "0becc0fa2339393af8cafa6e9fd6e33a88487b39"
       },
       {
+        "path": "audit/20260821T223204-pagani-remediation/AUDIT.json",
+        "mode": "100644",
+        "object_id": "f80dca707a6e0369ce5ad6783434903c23f9922e"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/AUDIT.md",
+        "mode": "100644",
+        "object_id": "e08db1af7e29b4dbb960a2e03cd1693c94d99f41"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/README.md",
+        "mode": "100644",
+        "object_id": "89ff97539a2f6816341a65c6afdb9c532f9ba743"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "mode": "100644",
+        "object_id": "475640df029370a58dfad47ea43fc45ac9bdbe5a"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+        "mode": "100644",
+        "object_id": "611e32892071cff290c688cb524bc0076dd8c012"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
+        "mode": "100644",
+        "object_id": "99c7ab44251c34b9e614686424f25746b6fae294"
+      },
+      {
         "path": "audit/README.md",
         "mode": "100644",
-        "object_id": "c9399011e3302df6878a08a6fbcfd2509e834b53"
+        "object_id": "a97875af0a325d53b9ade2503db0eb25b9529bf8"
       },
       {
         "path": "loom/__init__.py",
@@ -360,7 +390,7 @@
         "object_id": "f5fd0a3bc04f8128afdb7588aeb0e30153886278"
       }
     ],
-    "entries_sha256": "41149d7ea2b3a045996722fccf8325055b1ba318dbc2e8629f681d7fdaee8811",
+    "entries_sha256": "f0bf05d07cd05ef9e5cdadaf1a3399ba2e362b25205b5e0885b2ad774e0ef90c",
     "mappings": [
       {
         "path": ".gitignore",
@@ -493,6 +523,72 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/AUDIT.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:972325fa-8da3-50d3-89d4-1a1741f5b2e1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/AUDIT.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:668be020-fd9c-5e80-8b8b-f73f8f4063a6"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f9a36ca8-4bd2-5fd8-a7e0-11f3a9229952"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:9b287b3d-ac8f-5b30-8829-84ee28069983"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:93b40191-c3b1-50f9-8373-970f59218ed1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
       },
       {
         "path": "audit/README.md",
@@ -1058,9 +1154,18 @@
     ]
   },
   "evidence_census": {
-    "method": "none-applicable",
-    "scope": "This Surface generation makes tracked-source claims; authenticated acceptance remains audit evidence rather than a Surface input.",
-    "entries": []
+    "method": "declared-inputs",
+    "scope": "The independently derived post-remediation audit attestation is the sole materialized assurance input beyond the tracked-file census.",
+    "entries": [
+      {
+        "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "kind": "materialized_state",
+        "state_token": "78e11f89f86c81ea07fd102edbb526ace18c1b9352fe395e4ecaf2f36915f72b",
+        "disposition": "included",
+        "source_id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
+        "reason": "The attestation independently establishes the current audit closure state cited by the assurance claim."
+      }
+    ]
   },
   "evidence_sources": [
     {
@@ -1132,11 +1237,21 @@
         "is"
       ],
       "observation": "Workflow tests exercise authoritative reads, exact state receipts, rejected mutation authority, query freezing, idempotency, restart ambiguity, bounded inputs, and Platform Foundry reuse."
+    },
+    {
+      "id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
+      "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The independent Audit Planes validator derives closed-audited assurance over all 39 inherited and newly discriminated findings, with zero active S0-S2 findings and explicit provider proof limits."
     }
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
+    "artifact_id": "carve:6c9bfc2f-2441-5b98-aacd-80a68b887762",
     "subject": "Loom conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -1276,6 +1391,72 @@
         "evidence": [
           {
             "ref": "audit/20260820T121500-closure-system/evidence/verification.txt",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:972325fa-8da3-50d3-89d4-1a1741f5b2e1",
+        "label": "audit/20260821T223204-pagani-remediation/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/AUDIT.json",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:668be020-fd9c-5e80-8b8b-f73f8f4063a6",
+        "label": "audit/20260821T223204-pagani-remediation/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/AUDIT.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f9a36ca8-4bd2-5fd8-a7e0-11f3a9229952",
+        "label": "audit/20260821T223204-pagani-remediation/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/README.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:9b287b3d-ac8f-5b30-8829-84ee28069983",
+        "label": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:93b40191-c3b1-50f9-8373-970f59218ed1",
+        "label": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1",
+        "label": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
@@ -1884,9 +2065,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:a13913a0-618e-59d4-a800-81458d10aecd",
+      "parent_artifact_id": "carve:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
       "reconciliation_scope": "local",
-      "decision": "The five capability owners remain the strongest positive-kind cut; remediation strengthens their contracts and adds interface artifacts without moving semantic ownership.",
+      "decision": "The audit is new assurance evidence inside the existing packaging owner; it changes developmental confidence without changing the five-part semantic cut.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -2008,6 +2189,12 @@
             "item:e8fde914-0db9-5dc1-9127-7c646d985ef8",
             "item:dd8e8128-19d5-5a0d-a873-f7686bbc108c",
             "item:dd702fca-a046-5b55-aa07-d48bc0cea0c1",
+            "item:972325fa-8da3-50d3-89d4-1a1741f5b2e1",
+            "item:668be020-fd9c-5e80-8b8b-f73f8f4063a6",
+            "item:f9a36ca8-4bd2-5fd8-a7e0-11f3a9229952",
+            "item:9b287b3d-ac8f-5b30-8829-84ee28069983",
+            "item:93b40191-c3b1-50f9-8373-970f59218ed1",
+            "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1",
             "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
             "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
             "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
@@ -2068,12 +2255,10 @@
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "Provider-first, UI-first, and workflow-first challengers still multiply crossings among temporal truth, execution authority, integrations, cockpit, and assurance; the incumbent capability cut keeps each state owner singular.",
+          "claim": "Treating the audit as a sixth peer subsystem would confuse proof with the mechanism it verifies; packaging and assurance remains its positive-kind home while all operational owners retain singular state responsibility.",
           "evidence": [
-            "loom/store.py",
-            "loom/supervisor.py",
-            "loom/workflows.py",
-            "web/src/App.svelte",
+            "audit/20260821T223204-pagani-remediation/AUDIT.json",
+            "audit/20260821T223204-pagani-remediation/audit.validation.json",
             "tests/test_kernel.py"
           ]
         }
@@ -2210,11 +2395,12 @@
         {
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
-          "state": "partial",
-          "summary": "The installable wheel includes the cockpit and workflow packs, and the full local assurance suites pass; a fresh immutable post-remediation audit is still being issued.",
+          "state": "shipped",
+          "summary": "The installable wheel includes the cockpit and workflow packs; all local suites and rendered acceptance pass; the immutable post-remediation audit verifies all 39 findings with zero active S0–S2 findings and explicit provider proof limits.",
           "detail": null,
           "source_ids": [
-            "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+            "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+            "source:f333a39f-3890-565c-82cb-93805cfab6c6"
           ],
           "origin": null,
           "owner_confirmed": null,
@@ -2225,7 +2411,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:a13913a0-618e-59d4-a800-81458d10aecd",
+    "parent_surface_id": "surface:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
     "preserved_claim_ids": [
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
       "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
@@ -2244,7 +2430,9 @@
       "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
       "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8"
     ],
-    "added_source_ids": [],
+    "added_source_ids": [
+      "source:f333a39f-3890-565c-82cb-93805cfab6c6"
+    ],
     "retired_source_ids": []
   },
   "surface_residuals": {
