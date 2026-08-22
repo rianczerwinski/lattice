@@ -7,16 +7,16 @@
       "name": "surface-validation",
       "version": 2
     },
-    "artifact_id": "artifact:f5335869-e96a-4103-98cf-4bc1b5838672",
-    "generated_at": "20260821T161130",
+    "artifact_id": "artifact:a8a8e8a4-ef0c-488e-8682-f28a35452a80",
+    "generated_at": "20260821T223012",
     "producer": {
       "name": "surface-validator",
       "version": "2.0.1"
     },
-    "subject": "artifact:a13913a0-618e-59d4-a800-81458d10aecd",
+    "subject": "artifact:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
     "binding": {
-      "artifact_id": "artifact:a13913a0-618e-59d4-a800-81458d10aecd",
-      "sha256": "046ac286fff0b002691853ddf1f1c555191e9c82572766be371db4d7dbf5866b"
+      "artifact_id": "artifact:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
+      "sha256": "d50e9f51aa28d31168f7371653e3c2a35c07f1a72ccf05ff96a36a1e6b6dec3d"
     },
     "validator": {
       "name": "surface-validator",
@@ -27,14 +27,14 @@
   "receipt_schema_version": 2,
   "validator_version": "2.0.1",
   "surface_schema_version": 2,
-  "surface_id": "surface:a13913a0-618e-59d4-a800-81458d10aecd",
+  "surface_id": "surface:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
   "artifact_path": "/Users/rian/AXISVI/axis/chariots/loom/SURFACE.json",
-  "artifact_sha256": "046ac286fff0b002691853ddf1f1c555191e9c82572766be371db4d7dbf5866b",
-  "source_revision": "b7c1af32042bae234f1eb56332d658feaca0741c",
+  "artifact_sha256": "d50e9f51aa28d31168f7371653e3c2a35c07f1a72ccf05ff96a36a1e6b6dec3d",
+  "source_revision": "bc4133e10cac48816159c542fb0c1f1e9924e454",
   "external_census_matched": true,
   "evidence_census_accounted": true,
   "valid": true,
-  "parent_surface_id": "surface:ef90bc7b-bbf0-53c8-b06e-ce38eb137ef5",
-  "parent_artifact_path": "/Users/rian/AXISVI/sui/flux/ephemera/20260821T160714-loom-pagani-redteam/SURFACE.parent.json",
-  "parent_artifact_sha256": "a13b327b2ddce05ad89869eff28094a9019ecc5da60639b481177c456061f9b4"
+  "parent_surface_id": "surface:a13913a0-618e-59d4-a800-81458d10aecd",
+  "parent_artifact_path": "/Users/rian/AXISVI/sui/flux/ephemera/20260821T160714-loom-pagani-redteam/SURFACE.pre-audit.parent.json",
+  "parent_artifact_sha256": "046ac286fff0b002691853ddf1f1c555191e9c82572766be371db4d7dbf5866b"
 }

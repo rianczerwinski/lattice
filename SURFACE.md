@@ -1,32 +1,32 @@
 # Loom — Surface
 
-surface-id: surface:a13913a0-618e-59d4-a800-81458d10aecd · source-revision: b7c1af32042bae234f1eb56332d658feaca0741c · generated: 20260821T160714
-view-artifact: artifact:bb125555-a377-5322-836f-76f8c1961416 · role: derived-view · parent-artifact: artifact:a13913a0-618e-59d4-a800-81458d10aecd
-source-surface: SURFACE.json · parent-sha256: 046ac286fff0b002691853ddf1f1c555191e9c82572766be371db4d7dbf5866b · renderer: surface-renderer/2.0.1
+surface-id: surface:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1 · source-revision: bc4133e10cac48816159c542fb0c1f1e9924e454 · generated: 20260821T223000
+view-artifact: artifact:f79f9277-04de-5cc1-8e7e-0fea6eaef7f3 · role: derived-view · parent-artifact: artifact:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1
+source-surface: SURFACE.json · parent-sha256: d50e9f51aa28d31168f7371653e3c2a35c07f1a72ccf05ff96a36a1e6b6dec3d · renderer: surface-renderer/2.0.1
 
 ## 1 · Durable lattice kernel — Versioned contracts, append-only events, content-addressed context, graph operations, and independent manifest reconstruction. [1✓]
-- ✓ **partial** — Loom persists an append-only invocation lattice, but cross-project topic slices, replay fidelity, semantic diffing, and extracted-artifact durability are presently partial. _(sources: loom/store.py)_
+- ✓ **shipped** — Loom durably stores a hash-chained append-only lattice, seals immutable context manifests with compare-and-swap, reconstructs locally observable context independently, and exposes bounded replay, diff, slice, and neighborhood operations. _(sources: loom/store.py)_
 
 ## 2 · Execution and authority boundary — Loopback API authority and leased subscription-CLI execution with durable failure state. [1✓]
-- ✓ **partial** — Claude and Codex invocations are leased and journaled, but the observable execution contract is partial because declared session, workspace, tool, permission, and network policies are not yet executed faithfully. _(sources: loom/supervisor.py)_
+- ✓ **shipped** — Qualified subscription CLIs execute through leased, restart-safe attempts with bounded journaled I/O, authority-bound manifests, typed failures, and explicit provider-owned opacity. _(sources: loom/supervisor.py)_
 
 ## 3 · Evidence and workflow integrations — Octopus exact-source import, governed context modules, workflow packs, and the quaternary boundary. [1✓]
-- ✓ **partial** — Octopus import, governed workflow packs, Slate/Axial projection, and Platform Foundry inspection exist; import idempotency and the complete German quaternary workflow remain partial. _(sources: loom/octopus_import.py, tests/test_workflows.py)_
+- ✓ **partial** — Octopus exact-source import, declarative governed workflows, quaternary and Platform Foundry live projections, Slate slices, and Axial projection execute; complete authenticated German native-role acceptance remains unproven. _(sources: loom/octopus_import.py, tests/test_workflows.py)_
 
 ## 4 · Response-first cockpit — The Svelte conversational surface and its compiled same-origin assets. [1✓]
-- ✓ **partial** — The cockpit supports manual Claude/Codex forks, joins, routing, and inspection, while governed workflow operation and runtime-policy truth remain partial. _(sources: web/src/App.svelte)_
+- ✓ **shipped** — The same-origin cockpit supports manual one-edge routing, fork and join trailheads, exact preflight and manifest views, governed live views, reusable path discovery, and explicit partial, empty, unavailable, and failure states. _(sources: web/src/App.svelte)_
 
 ## 5 · Packaging and assurance — Install metadata, dependency locks, and truth-typed regression, property, contract, and oracle tests. [1✓]
-- ✓ **partial** — Build and test machinery exists, but the prior closure audit is not independent evidence of completion and material redteam findings remain active. _(sources: tests/test_kernel.py)_
+- ✓ **partial** — The installable wheel includes the cockpit and workflow packs, and the full local assurance suites pass; a fresh immutable post-remediation audit is still being issued. _(sources: tests/test_kernel.py)_
 
 ## Derived views
 
 ### is
-- 1 Durable lattice kernel — **partial**: Loom persists an append-only invocation lattice, but cross-project topic slices, replay fidelity, semantic diffing, and extracted-artifact durability are presently partial.
-- 2 Execution and authority boundary — **partial**: Claude and Codex invocations are leased and journaled, but the observable execution contract is partial because declared session, workspace, tool, permission, and network policies are not yet executed faithfully.
-- 3 Evidence and workflow integrations — **partial**: Octopus import, governed workflow packs, Slate/Axial projection, and Platform Foundry inspection exist; import idempotency and the complete German quaternary workflow remain partial.
-- 4 Response-first cockpit — **partial**: The cockpit supports manual Claude/Codex forks, joins, routing, and inspection, while governed workflow operation and runtime-policy truth remain partial.
-- 5 Packaging and assurance — **partial**: Build and test machinery exists, but the prior closure audit is not independent evidence of completion and material redteam findings remain active.
+- 1 Durable lattice kernel — **shipped**: Loom durably stores a hash-chained append-only lattice, seals immutable context manifests with compare-and-swap, reconstructs locally observable context independently, and exposes bounded replay, diff, slice, and neighborhood operations.
+- 2 Execution and authority boundary — **shipped**: Qualified subscription CLIs execute through leased, restart-safe attempts with bounded journaled I/O, authority-bound manifests, typed failures, and explicit provider-owned opacity.
+- 3 Evidence and workflow integrations — **partial**: Octopus exact-source import, declarative governed workflows, quaternary and Platform Foundry live projections, Slate slices, and Axial projection execute; complete authenticated German native-role acceptance remains unproven.
+- 4 Response-first cockpit — **shipped**: The same-origin cockpit supports manual one-edge routing, fork and join trailheads, exact preflight and manifest views, governed live views, reusable path discovery, and explicit partial, empty, unavailable, and failure states.
+- 5 Packaging and assurance — **partial**: The installable wheel includes the cockpit and workflow packs, and the full local assurance suites pass; a fresh immutable post-remediation audit is still being issued.
 
 ### doing
 - None.
