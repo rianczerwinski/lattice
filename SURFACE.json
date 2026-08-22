@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:6c9bfc2f-2441-5b98-aacd-80a68b887762",
+  "surface_id": "surface:655e2f46-8de9-5768-bc8c-858c0015ce37",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:6c9bfc2f-2441-5b98-aacd-80a68b887762",
-    "generated_at": "20260821T223800",
+    "artifact_id": "artifact:655e2f46-8de9-5768-bc8c-858c0015ce37",
+    "generated_at": "20260821T225026",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "0a3e830f2d021707f84cf4a9a905536aece6a17e",
+        "revision": "474e18e28daf53d57dfc0f938a7c4f20d200cbed",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1"
+    "parent_artifact_id": "artifact:6c9bfc2f-2441-5b98-aacd-80a68b887762"
   },
   "workframe": {
     "name": "Loom",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260821T223800",
-    "source_revision": "0a3e830f2d021707f84cf4a9a905536aece6a17e",
+    "at": "20260821T225026",
+    "source_revision": "474e18e28daf53d57dfc0f938a7c4f20d200cbed",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "0a3e830f2d021707f84cf4a9a905536aece6a17e",
+    "revision": "474e18e28daf53d57dfc0f938a7c4f20d200cbed",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -127,7 +127,12 @@
       {
         "path": "audit/20260821T223204-pagani-remediation/evidence/README.md",
         "mode": "100644",
-        "object_id": "611e32892071cff290c688cb524bc0076dd8c012"
+        "object_id": "a68fe29dcf7dcbfb006c5e5ae6d9f3d5df5d86ef"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+        "mode": "100644",
+        "object_id": "df427ee0d35b5a73013773d787fb9137c8d2e17b"
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
@@ -390,7 +395,7 @@
         "object_id": "f5fd0a3bc04f8128afdb7588aeb0e30153886278"
       }
     ],
-    "entries_sha256": "f0bf05d07cd05ef9e5cdadaf1a3399ba2e362b25205b5e0885b2ad774e0ef90c",
+    "entries_sha256": "917ea075b70823cc2454af4e0ba3c6178a559c6fbd32b63c8a60ebfcfc6214ec",
     "mappings": [
       {
         "path": ".gitignore",
@@ -578,6 +583,17 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b6318a80-64c4-55c9-8bb8-80752984b0bb"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable immediate-parent generation makes the final Surface attestation independently resolvable."
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
@@ -1251,7 +1267,7 @@
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:6c9bfc2f-2441-5b98-aacd-80a68b887762",
+    "artifact_id": "carve:655e2f46-8de9-5768-bc8c-858c0015ce37",
     "subject": "Loom conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -1446,6 +1462,17 @@
         "evidence": [
           {
             "ref": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+            "note": "Tracked source entry in the frozen Loom workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b6318a80-64c4-55c9-8bb8-80752984b0bb",
+        "label": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
             "note": "Tracked source entry in the frozen Loom workframe census."
           }
         ]
@@ -2065,9 +2092,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
+      "parent_artifact_id": "carve:6c9bfc2f-2441-5b98-aacd-80a68b887762",
       "reconciliation_scope": "local",
-      "decision": "The audit is new assurance evidence inside the existing packaging owner; it changes developmental confidence without changing the five-part semantic cut.",
+      "decision": "The durable parent snapshot is assurance evidence inside the existing packaging owner and does not alter the capability decomposition.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -2194,6 +2221,7 @@
             "item:f9a36ca8-4bd2-5fd8-a7e0-11f3a9229952",
             "item:9b287b3d-ac8f-5b30-8829-84ee28069983",
             "item:93b40191-c3b1-50f9-8373-970f59218ed1",
+            "item:b6318a80-64c4-55c9-8bb8-80752984b0bb",
             "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1",
             "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
             "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
@@ -2255,9 +2283,9 @@
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "Treating the audit as a sixth peer subsystem would confuse proof with the mechanism it verifies; packaging and assurance remains its positive-kind home while all operational owners retain singular state responsibility.",
+          "claim": "Parent-generation preservation belongs to the proof boundary rather than a peer product subsystem; the five operational owners remain semantically stable.",
           "evidence": [
-            "audit/20260821T223204-pagani-remediation/AUDIT.json",
+            "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
             "audit/20260821T223204-pagani-remediation/audit.validation.json",
             "tests/test_kernel.py"
           ]
@@ -2411,7 +2439,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
+    "parent_surface_id": "surface:6c9bfc2f-2441-5b98-aacd-80a68b887762",
     "preserved_claim_ids": [
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
       "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
@@ -2428,11 +2456,10 @@
       "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
       "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
       "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
-      "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8"
-    ],
-    "added_source_ids": [
+      "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
       "source:f333a39f-3890-565c-82cb-93805cfab6c6"
     ],
+    "added_source_ids": [],
     "retired_source_ids": []
   },
   "surface_residuals": {

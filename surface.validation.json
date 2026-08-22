@@ -7,16 +7,16 @@
       "name": "surface-validation",
       "version": 2
     },
-    "artifact_id": "artifact:1001b254-53e4-4289-a34a-5ddc96ac3286",
-    "generated_at": "20260821T224207",
+    "artifact_id": "artifact:3cf97ef5-b25b-471d-a4d6-046eb797e321",
+    "generated_at": "20260821T225125",
     "producer": {
       "name": "surface-validator",
       "version": "2.0.1"
     },
-    "subject": "artifact:6c9bfc2f-2441-5b98-aacd-80a68b887762",
+    "subject": "artifact:655e2f46-8de9-5768-bc8c-858c0015ce37",
     "binding": {
-      "artifact_id": "artifact:6c9bfc2f-2441-5b98-aacd-80a68b887762",
-      "sha256": "43ba6b648c389880be1948ab0de123fdd821c300adc513aada20c6d3f901e001"
+      "artifact_id": "artifact:655e2f46-8de9-5768-bc8c-858c0015ce37",
+      "sha256": "7beb8d79863e0f95564958ea413858b9756e156928ecc52300e0b5eb4d202e27"
     },
     "validator": {
       "name": "surface-validator",
@@ -27,14 +27,14 @@
   "receipt_schema_version": 2,
   "validator_version": "2.0.1",
   "surface_schema_version": 2,
-  "surface_id": "surface:6c9bfc2f-2441-5b98-aacd-80a68b887762",
+  "surface_id": "surface:655e2f46-8de9-5768-bc8c-858c0015ce37",
   "artifact_path": "/Users/rian/AXISVI/axis/chariots/loom/SURFACE.json",
-  "artifact_sha256": "43ba6b648c389880be1948ab0de123fdd821c300adc513aada20c6d3f901e001",
-  "source_revision": "0a3e830f2d021707f84cf4a9a905536aece6a17e",
+  "artifact_sha256": "7beb8d79863e0f95564958ea413858b9756e156928ecc52300e0b5eb4d202e27",
+  "source_revision": "474e18e28daf53d57dfc0f938a7c4f20d200cbed",
   "external_census_matched": true,
   "evidence_census_accounted": true,
   "valid": true,
-  "parent_surface_id": "surface:7060869c-9dc2-5a54-bdc3-7d21ffe7f7f1",
-  "parent_artifact_path": "/Users/rian/AXISVI/sui/flux/ephemera/20260821T160714-loom-pagani-redteam/SURFACE.post-audit.parent.json",
-  "parent_artifact_sha256": "d50e9f51aa28d31168f7371653e3c2a35c07f1a72ccf05ff96a36a1e6b6dec3d"
+  "parent_surface_id": "surface:6c9bfc2f-2441-5b98-aacd-80a68b887762",
+  "parent_artifact_path": "/Users/rian/AXISVI/axis/chariots/loom/audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+  "parent_artifact_sha256": "43ba6b648c389880be1948ab0de123fdd821c300adc513aada20c6d3f901e001"
 }

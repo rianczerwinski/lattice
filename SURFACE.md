@@ -1,8 +1,8 @@
 # Loom — Surface
 
-surface-id: surface:6c9bfc2f-2441-5b98-aacd-80a68b887762 · source-revision: 0a3e830f2d021707f84cf4a9a905536aece6a17e · generated: 20260821T223800
-view-artifact: artifact:6bf970d3-b0ba-54b7-8d3f-dfaa4b414045 · role: derived-view · parent-artifact: artifact:6c9bfc2f-2441-5b98-aacd-80a68b887762
-source-surface: SURFACE.json · parent-sha256: 43ba6b648c389880be1948ab0de123fdd821c300adc513aada20c6d3f901e001 · renderer: surface-renderer/2.0.1
+surface-id: surface:655e2f46-8de9-5768-bc8c-858c0015ce37 · source-revision: 474e18e28daf53d57dfc0f938a7c4f20d200cbed · generated: 20260821T225026
+view-artifact: artifact:0540a59e-6698-5df8-8570-4495df84fe27 · role: derived-view · parent-artifact: artifact:655e2f46-8de9-5768-bc8c-858c0015ce37
+source-surface: SURFACE.json · parent-sha256: 7beb8d79863e0f95564958ea413858b9756e156928ecc52300e0b5eb4d202e27 · renderer: surface-renderer/2.0.1
 
 ## 1 · Durable lattice kernel — Versioned contracts, append-only events, content-addressed context, graph operations, and independent manifest reconstruction. [1✓]
 - ✓ **shipped** — Loom durably stores a hash-chained append-only lattice, seals immutable context manifests with compare-and-swap, reconstructs locally observable context independently, and exposes bounded replay, diff, slice, and neighborhood operations. _(sources: loom/store.py)_
