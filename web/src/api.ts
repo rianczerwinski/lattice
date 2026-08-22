@@ -16,7 +16,14 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     try { detail = (await response.json()).detail ?? detail; } catch (error: unknown) { console.warn('Loom error response was not JSON:', error); }
     throw new Error(detail);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
 export const post = <T>(path: string, value: unknown) => api<T>(path, { method: 'POST', body: JSON.stringify(value) });
+
+export const extractWorkflow = <T>(projectId: string, invocationIds: string[], title: string) => post<T>('/api/v1/workflows/extract', {
+  project_id: projectId,
+  invocation_ids: invocationIds,
+  title,
+});

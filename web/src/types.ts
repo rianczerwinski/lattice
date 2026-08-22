@@ -5,18 +5,34 @@ export type Project = {
   sessions?: RoleSession[];
   roles?: Role[];
   invocations?: InvocationSummary[];
+  invocation_page?: InvocationPage;
   trailheads?: InvocationSummary[];
+  workflow_templates?: WorkflowTemplateSummary[];
+  workflow_templates_partial?: boolean;
   workflow_pack?: string;
   workflow?: WorkflowInstance | null;
 };
 
 export type WorkflowTrigger = { trigger_id: string; trigger_name: string; required_action: string; state: string; result_ref?: string; error_text?: string };
-export type WorkflowInstance = { pack_id: string; state: string; revision: number; updated_at: string; automatic_grants: string[]; triggers: WorkflowTrigger[]; blackboard?: { block_id: string; content: string; source_ref?: string; content_sha256: string } };
+export type WorkflowCommandArgument = { key: string; label: string; value_type: 'string' | 'integer' | 'json' | 'file'; required: boolean; default?: unknown; minimum?: number; maximum?: number; max_bytes?: number };
+export type WorkflowCommand = { operation: string; label: string; description: string; authority: 'read' | 'write' | 'provider_transmission'; arguments: WorkflowCommandArgument[] };
+export type WorkflowSelectorField = { key: string; label: string; value_type: 'string' | 'integer'; required: boolean; default?: string | number };
+export type WorkflowAction = { type: 'freeze_payload_field'; field: string } | { type: 'invoke_role'; role_id: string; prompt: string; exclude_payload_block_field?: string };
+export type WorkflowTriggerDefinition = { trigger: string; required_action: string; automatic: boolean; action: WorkflowAction };
+export type WorkflowEvidenceRequirement = { semantic_type?: string; authority?: string; evidence_level?: string; status?: string; provenance?: 'current_workflow_blackboard'; minimum_count: number; after_current_state_entry: boolean };
+export type WorkflowTerminalOutputRequirement = { workflow_role_key: string; invocation_states: ('succeeded' | 'imported')[]; minimum_count: number; after_current_state_entry: boolean };
+export type WorkflowTransition = { from: string; to: string; trigger?: string; requires_completed_trigger?: string; minimum_evidence_blocks: number; minimum_terminal_invocation_outputs: number; terminal_outputs_after_current_state_entry: boolean; terminal_output_requirements: WorkflowTerminalOutputRequirement[]; evidence_requirements: WorkflowEvidenceRequirement[] };
+export type WorkflowAutomationGrant = { trigger: string; pack_canonical_sha256: string; action_sha256: string };
+export type WorkflowPack = { definition: { pack_id: string; title: string; project_selector: WorkflowSelectorField[]; commands: WorkflowCommand[]; triggers: WorkflowTriggerDefinition[]; allowed_transitions: WorkflowTransition[] }; source_sha256: string; canonical_sha256: string; available: boolean };
+export type WorkflowInstance = { pack_id: string; pack_canonical_sha256?: string; current_blackboard_block_id?: string; state_entry_seq: number; state: string; revision: number; updated_at: string; automatic_grants: WorkflowAutomationGrant[]; selector: Record<string, unknown>; triggers: WorkflowTrigger[]; blackboard?: { block_id: string; byte_count: number; source_ref?: string; content_sha256: string } };
 export type RoleRoutePolicy = { kind: 'operator-selectable' | 'model' | 'non-model'; provider?: string; harness?: string; allowed_models?: string[] };
 export type Role = { role_id: string; name: string; instructions_block_id: string; workflow_role_key?: string; authority_limits: string[]; route_policy: RoleRoutePolicy };
 export type RoleSession = { role_session_id: string; role_id: string; label: string };
 export type Route = { provider_code: string; model_code: string; official_cli: string; installed: boolean; qualified: boolean; qualification_blocker?: string; proof_limits: string[] };
 export type InvocationSummary = { invocation_id: string; state: string; role_session_id: string; output_block_id?: string; created_at: string };
+export type InvocationPage = { has_older: boolean; next_before: { created_at: string; invocation_id: string } | null };
+export type WorkflowTemplateSummary = { artifact_id: string; artifact_kind: 'workflow-template'; content_sha256: string; created_at: string };
+export type WorkflowTemplate = { generated_object: { artifact_id: string }; contract_version: 'LoomWorkflowTemplate/2.0'; title: string; steps: Array<{ step_id: string }> };
 export type ManifestSegment = { block_id: string; plane: string; label: string; disposition: string; sha256: string; status: string; semantic_type: string };
 export type Manifest = {
   invocation_id: string;
@@ -24,9 +40,12 @@ export type Manifest = {
   segments: ManifestSegment[];
   omitted: ManifestSegment[];
   execution: Record<string, unknown>;
+  response_contract: Record<string, unknown>;
   capabilities: Record<string, unknown>;
   provider_boundary: { proof_limits: string[] };
   compilation: { byte_count: number; compiled_prompt_sha256: string };
 };
+export type ContextPreflight = Omit<Manifest, 'manifest_sha256'> & { preflight_sha256: string };
+export type ContextDelta = { invocation_id: string; manifest_sha256: string; added: ManifestSegment[]; removed: ManifestSegment[]; unchanged_count: number };
 export type InvocationArtifact = { artifact_id: string; content_sha256: string; generated_json: string; artifact_kind: string };
 export type Invocation = InvocationSummary & { manifest: Manifest; manifest_verification: { valid: boolean }; compiled_prompt: string; output_block?: { content: string }; attempts: Array<Record<string, unknown>>; artifacts: InvocationArtifact[]; edges: Array<Record<string, unknown>> };
