@@ -4,7 +4,7 @@ Loom is a local-first conversational lattice harness: a user progressively autho
 
 The graph is not primarily a workflow drawn in advance. It is the durable, inspectable record of thought and action as it develops. A successful path may later be extracted into a reusable workflow, but automation is downstream of understanding the path.
 
-This document is the canonical product and architecture contract for Loom. The implementation lives beside it: a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, subscription-authenticated Claude and Codex routes, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
+This document is the canonical product and architecture contract for Loom. Loom is an independent repository developed in place inside AXISVI; AXISVI supplies its personal integrations without owning or pinning Loom's source revision. The current repository name is provisional until the product rename is settled. The implementation is a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, subscription-authenticated Claude and Codex routes, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
 
 ## Run it
 
