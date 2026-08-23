@@ -7,16 +7,16 @@
       "name": "surface-validation",
       "version": 2
     },
-    "artifact_id": "artifact:3cf97ef5-b25b-471d-a4d6-046eb797e321",
-    "generated_at": "20260821T225125",
+    "artifact_id": "artifact:32673f92-30b3-410d-b680-988e626f1cc0",
+    "generated_at": "20260823T173408",
     "producer": {
       "name": "surface-validator",
       "version": "2.0.1"
     },
-    "subject": "artifact:655e2f46-8de9-5768-bc8c-858c0015ce37",
+    "subject": "artifact:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
     "binding": {
-      "artifact_id": "artifact:655e2f46-8de9-5768-bc8c-858c0015ce37",
-      "sha256": "7beb8d79863e0f95564958ea413858b9756e156928ecc52300e0b5eb4d202e27"
+      "artifact_id": "artifact:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
+      "sha256": "798f35ecf4b8ad551440f4ef10b1a58b25e30773be23dad2916acc3e2dcb50f9"
     },
     "validator": {
       "name": "surface-validator",
@@ -27,14 +27,14 @@
   "receipt_schema_version": 2,
   "validator_version": "2.0.1",
   "surface_schema_version": 2,
-  "surface_id": "surface:655e2f46-8de9-5768-bc8c-858c0015ce37",
-  "artifact_path": "/Users/rian/AXISVI/axis/chariots/loom/SURFACE.json",
-  "artifact_sha256": "7beb8d79863e0f95564958ea413858b9756e156928ecc52300e0b5eb4d202e27",
-  "source_revision": "474e18e28daf53d57dfc0f938a7c4f20d200cbed",
+  "surface_id": "surface:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
+  "artifact_path": "/Users/rian/AXISVI/axis/chariots/lattice/SURFACE.json",
+  "artifact_sha256": "798f35ecf4b8ad551440f4ef10b1a58b25e30773be23dad2916acc3e2dcb50f9",
+  "source_revision": "736506e91b5e16ebe8f7572a46cfad736405a192",
   "external_census_matched": true,
   "evidence_census_accounted": true,
   "valid": true,
-  "parent_surface_id": "surface:6c9bfc2f-2441-5b98-aacd-80a68b887762",
-  "parent_artifact_path": "/Users/rian/AXISVI/axis/chariots/loom/audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
-  "parent_artifact_sha256": "43ba6b648c389880be1948ab0de123fdd821c300adc513aada20c6d3f901e001"
+  "parent_surface_id": "surface:655e2f46-8de9-5768-bc8c-858c0015ce37",
+  "parent_artifact_path": "/Users/rian/AXISVI/axis/chariots/lattice/surface-history/20260821T225026.json",
+  "parent_artifact_sha256": "7beb8d79863e0f95564958ea413858b9756e156928ecc52300e0b5eb4d202e27"
 }
