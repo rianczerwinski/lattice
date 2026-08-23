@@ -172,7 +172,7 @@ class QuaternaryAdapter:
             }
             state_sha256 = sha256_bytes(canonical_bytes(state))
             conn.commit()
-        return {"kind": "quaternary-state-receipt", "source_ref": f"sqlite:{self.database}#loom-quaternary-state-v3", "query_contract": "loom-quaternary-state-v3", "sqlite_schema_version": schema_version, "state_sha256": state_sha256, **state, "observed_at": stamp()}
+        return {"kind": "quaternary-state-receipt", "source_ref": f"sqlite:{self.database}#lattice-quaternary-state-v3", "query_contract": "lattice-quaternary-state-v3", "sqlite_schema_version": schema_version, "state_sha256": state_sha256, **state, "observed_at": stamp()}
 
     def command(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if operation not in self.READ_OPERATIONS | self.WRITE_OPERATIONS:
@@ -189,10 +189,11 @@ class QuaternaryAdapter:
             if path_key not in resolved_arguments:
                 continue
             value = str(resolved_arguments[path_key])
-            if value.startswith("loom:blob/"):
-                digest = value.removeprefix("loom:blob/")
+            if value.startswith(("lattice:blob/", "loom:blob/")):
+                prefix = "lattice:blob/" if value.startswith("lattice:blob/") else "loom:blob/"
+                digest = value.removeprefix(prefix)
                 if self.blob_reader is None:
-                    raise QuaternaryBoundaryError(f"quaternary {path_key} has no Loom blob reader")
+                    raise QuaternaryBoundaryError(f"quaternary {path_key} has no Lattice blob reader")
                 try:
                     content = self.blob_reader(digest)
                 except (FileNotFoundError, OSError, ValueError) as error:
@@ -211,7 +212,7 @@ class QuaternaryAdapter:
             input_receipts.append({"argument": path_key, "source_ref": source_ref, "content_sha256": sha256_bytes(content), "byte_count": len(content)})
         try:
             for path_key, content in bound_inputs:
-                descriptor, snapshot_name = tempfile.mkstemp(prefix=f"loom-{path_key}-", suffix=".bound")
+                descriptor, snapshot_name = tempfile.mkstemp(prefix=f"lattice-{path_key}-", suffix=".bound")
                 snapshot = Path(snapshot_name)
                 temporary_inputs.append(snapshot)
                 try:
@@ -245,11 +246,11 @@ class QuaternaryAdapter:
             result = self._run_bounded(command, process_timeout) if self.runner is None else self.runner(command, text=True, capture_output=True, check=False, timeout=process_timeout)
         except subprocess.TimeoutExpired as error:
             driver_after = self._post_dispatch_driver_manifest(operation, driver_before)
-            timeout_receipt = {"kind": "quaternary-command-timeout", "command_contract": "loom-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_before": driver_before, "driver_after_sha256": driver_after["tree_sha256"], "timeout_seconds": process_timeout, "completed_at": stamp()}
+            timeout_receipt = {"kind": "quaternary-command-timeout", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_before": driver_before, "driver_after_sha256": driver_after["tree_sha256"], "timeout_seconds": process_timeout, "completed_at": stamp()}
             raise QuaternaryOutcomeUnknown(json.dumps(timeout_receipt, ensure_ascii=False)) from error
         except _CapturedOutputLimit as error:
             driver_after = self._post_dispatch_driver_manifest(operation, driver_before)
-            limit_receipt = {"kind": "quaternary-command-output-limit", "command_contract": "loom-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_before": driver_before, "driver_after_sha256": driver_after["tree_sha256"], "stdout_sha256": sha256_bytes(error.stdout), "stderr_sha256": sha256_bytes(error.stderr), "capture_limit_bytes": self.MAX_CAPTURE_BYTES, "completed_at": stamp()}
+            limit_receipt = {"kind": "quaternary-command-output-limit", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_before": driver_before, "driver_after_sha256": driver_after["tree_sha256"], "stdout_sha256": sha256_bytes(error.stdout), "stderr_sha256": sha256_bytes(error.stderr), "capture_limit_bytes": self.MAX_CAPTURE_BYTES, "completed_at": stamp()}
             failure = QuaternaryBoundaryError if operation in self.READ_OPERATIONS else QuaternaryOutcomeUnknown
             raise failure(json.dumps(limit_receipt, ensure_ascii=False)) from error
         finally:
@@ -257,9 +258,9 @@ class QuaternaryAdapter:
                 snapshot.unlink(missing_ok=True)
         driver_after = self._post_dispatch_driver_manifest(operation, driver_before)
         if driver_after["tree_sha256"] != driver_before["tree_sha256"]:
-            drift_receipt = {"kind": "quaternary-command-driver-drift", "command_contract": "loom-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "driver_before": driver_before, "driver_after": driver_after, "exit_code": result.returncode, "stdout_sha256": sha256_bytes(result.stdout.encode()), "stderr_sha256": sha256_bytes(result.stderr.encode()), "completed_at": stamp()}
+            drift_receipt = {"kind": "quaternary-command-driver-drift", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "driver_before": driver_before, "driver_after": driver_after, "exit_code": result.returncode, "stdout_sha256": sha256_bytes(result.stdout.encode()), "stderr_sha256": sha256_bytes(result.stderr.encode()), "completed_at": stamp()}
             raise QuaternaryOutcomeUnknown(json.dumps(drift_receipt, ensure_ascii=False))
-        receipt = {"kind": "quaternary-command-receipt", "command_contract": "loom-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_manifest": driver_before, "interpreter": {"executable": sys.executable, "version": sys.version}, "exit_code": result.returncode, "stdout_sha256": sha256_bytes(result.stdout.encode()), "stderr_sha256": sha256_bytes(result.stderr.encode()), "completed_at": stamp()}
+        receipt = {"kind": "quaternary-command-receipt", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_manifest": driver_before, "interpreter": {"executable": sys.executable, "version": sys.version}, "exit_code": result.returncode, "stdout_sha256": sha256_bytes(result.stdout.encode()), "stderr_sha256": sha256_bytes(result.stderr.encode()), "completed_at": stamp()}
         if result.returncode != 0:
             failure = QuaternaryBoundaryError if operation in self.READ_OPERATIONS else QuaternaryOutcomeUnknown
             raise failure(json.dumps({**receipt, "stderr": result.stderr[-4000:]}, ensure_ascii=False))
@@ -279,7 +280,7 @@ class QuaternaryAdapter:
         except BaseException as error:
             receipt = {
                 "kind": "quaternary-command-postflight-unavailable",
-                "command_contract": "loom-quaternary-command-v2",
+                "command_contract": "lattice-quaternary-command-v2",
                 "operation": operation,
                 "driver_before": driver_before,
                 "attestation_error": f"{type(error).__name__}: {error}",
@@ -361,8 +362,8 @@ class QuaternaryAdapter:
             source, content = read_bounded_local_file(str(path), allowed_roots=(self.gatherctl.parent.parent,), max_bytes=8 * 1024 * 1024)
             digest = sha256_bytes(content)
             if self.blob_writer is not None and self.blob_writer(content) != digest:
-                raise QuaternaryBoundaryError("quaternary driver source changed while entering the Loom blob store")
-            entries.append({"path": str(source.relative_to(self.gatherctl.parent.parent)), "content_sha256": digest, "byte_count": len(content), "source_ref": f"loom:blob/{digest}" if self.blob_writer is not None else f"file:{source}"})
+                raise QuaternaryBoundaryError("quaternary driver source changed while entering the Lattice blob store")
+            entries.append({"path": str(source.relative_to(self.gatherctl.parent.parent)), "content_sha256": digest, "byte_count": len(content), "source_ref": f"lattice:blob/{digest}" if self.blob_writer is not None else f"file:{source}"})
         identity = {"kind": "quaternary-driver-manifest-v1", "entries": entries}
         return {**identity, "tree_sha256": sha256_bytes(canonical_bytes(identity))}
 

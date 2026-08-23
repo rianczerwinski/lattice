@@ -1,35 +1,35 @@
-# Loom
+# Lattice
 
-Loom is a local-first conversational lattice harness: a user progressively authors a graph of model invocations, one consequential edge at a time, while retaining exact control over what each invocation receives, which model performs it, what tools it may use, and how its output becomes available to later work.
+Lattice is a local-first conversational lattice harness: a user progressively authors a graph of model invocations, one consequential edge at a time, while retaining exact control over what each invocation receives, which model performs it, what tools it may use, and how its output becomes available to later work.
 
 The graph is not primarily a workflow drawn in advance. It is the durable, inspectable record of thought and action as it develops. A successful path may later be extracted into a reusable workflow, but automation is downstream of understanding the path.
 
-This document is the canonical product and architecture contract for Loom. Loom is an independent repository developed in place inside AXISVI; AXISVI supplies its personal integrations without owning or pinning Loom's source revision. The current repository name is provisional until the product rename is settled. The implementation is a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, subscription-authenticated Claude and Codex routes, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
+This document is the canonical product and architecture contract for Lattice. The current software version is `0.1.0`; publishing the repository does not imply a 1.0 stability claim. Lattice is an independent repository developed in place inside AXISVI, which supplies personal integrations without owning or pinning Lattice's source revision. The implementation is a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, subscription-authenticated Claude and Codex routes, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
 
 ## Run it
 
 ```bash
-portctl start loom
+portctl start lattice
 ```
 
-Loom opens at `http://127.0.0.1:9010` and appears in Panels. The service stores private runtime state under `axis/psyche/recollection/loom/data/`; that directory is local and ignored by Git. The source layout is:
+Lattice opens at `http://127.0.0.1:9010` and appears in Panels. The service stores private runtime state under `axis/psyche/recollection/lattice/data/`; that directory is local and ignored by Git. The source layout is:
 
 ```text
-loom/                  backend contracts, ledger, compositor, execution, imports, workflow adapters
-tests/                 truth-typed kernel, API, supervisor, workflow, and mutation checks
-web/                   response-first Svelte cockpit and production build
-workflow_packs/        versioned declarative first-party workflow definitions
+lattice/          backend contracts, ledger, compositor, execution, imports, workflow adapters
+tests/            truth-typed kernel, API, supervisor, workflow, and mutation checks
+web/              response-first Svelte cockpit and production build
+workflow_packs/   versioned declarative first-party workflow definitions
 ```
 
-The manual Loom acceptance path has been exercised through authenticated Claude and Codex subscriptions: independent prompts, a common-parent fork to both providers, reciprocal cross-feed, a two-parent join, exact manifest reconstruction, provider failure receipt, restart, and continuation. The governed German workflow machinery is implemented, but its authenticated native Gemini lane remains unavailable: the installed official CLI rejects the consumer tier and cannot presently meet Loom's exact-context isolation contract. Loom therefore does not claim the complete German acceptance path.
+The manual Lattice acceptance path has been exercised through authenticated Claude and Codex subscriptions: independent prompts, a common-parent fork to both providers, reciprocal cross-feed, a two-parent join, exact manifest reconstruction, provider failure receipt, restart, and continuation. The governed German workflow machinery is implemented, but its authenticated native Gemini lane remains unavailable: the installed official CLI rejects the consumer tier and cannot presently meet Lattice's exact-context isolation contract. Lattice therefore does not claim the complete German acceptance path.
 
 ## Telos
 
-Loom should make the following interaction ordinary:
+Lattice should make the following interaction ordinary:
 
 > Send this intent to the coverage orchestrator. Give its proposed search region and the relevant German evidence to the native-language partner. Execute the exact strings the native partner returns. Feed the results back to both roles through different, inspectable views. Fork a challenger when the orchestrator begins considering closure. Preserve the whole path, then expose it as the German quaternary slice of Canon.
 
-The user experiences a live conversation with routing powers, not a workflow IDE. The system underneath may be an orchestrator, but the foreground interaction is a friendly, slow-motion macro-Loom in which the next edge is visible and steerable.
+The user experiences a live conversation with routing powers, not a workflow IDE. The system underneath may be an orchestrator, but the foreground interaction is a friendly, slow-motion macro-Lattice in which the next edge is visible and steerable.
 
 The essential promise is not merely that a response can be traced to a prior response. It is that an invocation can be answered in full:
 
@@ -40,20 +40,20 @@ The essential promise is not merely that a response can be traced to a prior res
 - Which evidence and actions did it produce?
 - Which later invocations consumed which parts of that output?
 
-Where a provider or harness injects context that Loom cannot observe, the answer must explicitly name that proof limit. Loom must never claim omniscience about hidden provider state.
+Where a provider or harness injects context that Lattice cannot observe, the answer must explicitly name that proof limit. Lattice must never claim omniscience about hidden provider state.
 
 ## Product identity
 
-Loom occupies a different center of gravity from both chat applications and workflow runners.
+Lattice occupies a different center of gravity from both chat applications and workflow runners.
 
 | System shape | Primary object | Human role | Graph behavior |
 |---|---|---|---|
 | Ordinary chat | One linear transcript | Supplies the next message | Branching is absent or copies a thread opaquely |
 | Visual prompt workflow | A graph specified before execution | Programs the graph | Nodes execute a substantially predefined plan |
 | Durable agent runner | A job and its recoverable task graph | Launches or supervises work | The graph exists to control execution |
-| Loom | An evolving conversational lattice | Authors and routes the next invocation | The graph is progressively discovered, then may become a workflow |
+| Lattice | An evolving conversational lattice | Authors and routes the next invocation | The graph is progressively discovered, then may become a workflow |
 
-Loom is therefore not reducible to “multi-model chat,” “agent orchestration,” “a graph viewer,” or “prompt chaining.” Its distinctive combination is:
+Lattice is therefore not reducible to “multi-model chat,” “agent orchestration,” “a graph viewer,” or “prompt chaining.” Its distinctive combination is:
 
 - conversational graph authorship one edge at a time;
 - arbitrary provider and model selection at each invocation;
@@ -66,20 +66,20 @@ Loom is therefore not reducible to “multi-model chat,” “agent orchestratio
 
 ## Architectural boundaries
 
-Loom owns the canonical conversational graph, context-manifest contract, routing semantics, role sessions, workflow packs, and operator experience. It composes existing AXISVI systems without collapsing their truth conditions.
+Lattice owns the canonical conversational graph, context-manifest contract, routing semantics, role sessions, workflow packs, and operator experience. It composes existing AXISVI systems without collapsing their truth conditions.
 
-| Neighbor | What it owns | Loom relation |
+| Neighbor | What it owns | Lattice relation |
 |---|---|---|
-| [`model-runner`](../../tools/model-runner/README.md) | Durable provider-neutral invocation, raw journals, checkpoints, resumability, provider session identity, and subscription-authenticated CLI adapters | Direct invocation kernel beneath Loom; it does not own topology or prompts |
-| [Smithers ontology](../../../sui/flux/intake/smithers-ontology/README.md) and upstream clone | Durable job-scale workflows, scheduling, attempts, recovery, approvals, rewind, fork, and replay | Prior art and optional adapter for compound jobs; a Smithers task imports as an expandable execution subgraph rather than defining Loom’s canonical node scale |
-| [Octopus](../../soma/octopus/README.md) | Captured source events, raw provenance, retrieval, and cross-platform sensory continuity | Supplies and receives evidence-bearing artifacts and interaction events |
-| [Axial](../../../sui/console/axial/README.md) | Enduring semantic entities such as projects, people, concepts, and tasks | Supplies world-model context and receives simplified analytical projections; it is not the authoritative temporal execution ledger |
-| [Slate](../../../sui/console/slate/README.md) | Frictionless capture and browsable topic/project surfaces | Exposes tagged slices through Loom’s lattice without copying conversations |
-| [Surface](../../soma/habits/surface/README.md) | Evidence-bound statements of what a workframe is, is doing, could become, and cannot presently do | Supplies project state as a versioned context module and receives provenance for material changes |
-| [Panels](../../panel/README.md) | Persistent host for project-specific control surfaces | Natural home for the Loom cockpit and project-grown interfaces |
-| [Quaternary exhaustion](../../../sui/mission/projects/canon/dev/quaternary-exhaustion/README.md) | Domain protocol, source/search ledgers, corpus evidence, and closure claims | First workflow pack and end-to-end qualification case |
+| [`model-runner`](https://github.com/rianczerwinski/AXISVI/tree/main/axis/tools/model-runner) | Durable provider-neutral invocation, raw journals, checkpoints, resumability, provider session identity, and subscription-authenticated CLI adapters | Direct invocation kernel beneath Lattice; it does not own topology or prompts |
+| Smithers ontology and upstream clone | Durable job-scale workflows, scheduling, attempts, recovery, approvals, rewind, fork, and replay | Prior art and optional adapter for compound jobs; a Smithers task imports as an expandable execution subgraph rather than defining Lattice’s canonical node scale |
+| [Octopus](https://github.com/rianczerwinski/AXISVI/tree/main/axis/soma/octopus) | Captured source events, raw provenance, retrieval, and cross-platform sensory continuity | Supplies and receives evidence-bearing artifacts and interaction events |
+| [Axial](https://github.com/rianczerwinski/AXISVI/tree/main/sui/console/axial) | Enduring semantic entities such as projects, people, concepts, and tasks | Supplies world-model context and receives simplified analytical projections; it is not the authoritative temporal execution ledger |
+| [Slate](https://github.com/rianczerwinski/AXISVI/tree/main/sui/console/slate) | Frictionless capture and browsable topic/project surfaces | Exposes tagged slices through Lattice’s lattice without copying conversations |
+| [Surface](https://github.com/rianczerwinski/AXISVI/tree/main/axis/soma/habits/surface) | Evidence-bound statements of what a workframe is, is doing, could become, and cannot presently do | Supplies project state as a versioned context module and receives provenance for material changes |
+| [Panels](https://github.com/rianczerwinski/AXISVI/tree/main/axis/panel) | Persistent host for project-specific control surfaces | Natural home for the Lattice cockpit and project-grown interfaces |
+| [Quaternary exhaustion](https://github.com/rianczerwinski/AXISVI/tree/main/sui/mission/projects/canon/dev/quaternary-exhaustion) | Domain protocol, source/search ledgers, corpus evidence, and closure claims | First workflow pack and end-to-end qualification case |
 
-Loom does not fork Smithers by default, does not absorb the quaternary database, and does not make model-runner responsible for routing. These are seams, not unfinished mergers.
+Lattice does not fork Smithers by default, does not absorb the quaternary database, and does not make model-runner responsible for routing. These are seams, not unfinished mergers.
 
 ## Canonical ontology
 
@@ -149,7 +149,7 @@ A summary is never allowed to erase its source. It is a smaller context block wi
 
 ### Context manifest
 
-The context manifest is the load-bearing artifact of Loom. It is an immutable, ordered account of the observable inputs to one invocation.
+The context manifest is the load-bearing artifact of Lattice. It is an immutable, ordered account of the observable inputs to one invocation.
 
 At minimum it records:
 
@@ -162,7 +162,7 @@ At minimum it records:
 | Capabilities | Tool definitions, MCP surfaces, skills, permissions, workspace, network policy, and side-effect authority |
 | Execution | Provider, model, harness, effort, sampling parameters where exposed, response contract, and expected artifacts |
 | Compilation | Ordered normalized messages or CLI input, transformations, omissions, token estimates, truncation, and compaction |
-| Provider boundary | Observable final payload or command, plus any provider- or harness-owned context Loom cannot inspect |
+| Provider boundary | Observable final payload or command, plus any provider- or harness-owned context Lattice cannot inspect |
 | Result | Raw journal locators, output hash, tool trace, artifacts, failure classification, and attempt lineage |
 
 The manifest must distinguish “not selected,” “selected but summarized,” “excluded because superseded,” “unavailable,” and “silently unknown.” These states are not interchangeable. An agent given a polished but distorted slice of history can produce a coherent answer to the wrong world; preventing that is a correctness requirement, not merely a transparency feature.
@@ -181,7 +181,7 @@ A slice is a saved query over the lattice, not a copy of its contents. A Slate t
 
 ### Workflow pack
 
-A workflow pack supplies domain semantics without changing the Loom engine. It declares roles, view projections, artifact schemas, allowed transitions, evidence triggers, tool adapters, assurance rules, and closure language. The quaternary workflow is one pack; Platform Foundry and field-survey research should later become others.
+A workflow pack supplies domain semantics without changing the Lattice engine. It declares roles, view projections, artifact schemas, allowed transitions, evidence triggers, tool adapters, assurance rules, and closure language. The quaternary workflow is one pack; Platform Foundry and field-survey research should later become others.
 
 ## Execution grammar
 
@@ -203,10 +203,10 @@ extract(path_or_subgraph) -> workflow_template
 The ordinary interaction is:
 
 1. The user or a trigger proposes the next invocation.
-2. Loom compiles a context manifest from the role view, selected ancestry, project state, and explicit modules.
+2. Lattice compiles a context manifest from the role view, selected ancestry, project state, and explicit modules.
 3. The user may inspect the exact compiled context and its per-parent consequential delta before execution.
 4. The selected runtime executes through a leased, journaled action.
-5. Loom persists the response, trace, artifacts, and edges before projecting the new state.
+5. Lattice persists the response, trace, artifacts, and edges before projecting the new state.
 6. The next frontier is derived from the updated state.
 
 Automation may execute several already-authorized edges, but it must remain possible to see the currently executing action, its context delta, and why it became eligible.
@@ -242,7 +242,7 @@ The blackboard is the continuity mechanism. Persistent model conversations are u
 
 ## Context and KV-cache economics
 
-A naïve conversational lattice would be economically pathological: every node would receive the entire graph, branch joins would repeatedly reprocess huge histories, and each role would accumulate irrelevant context. Loom instead uses semantic locality: every invocation sees the smallest faithful world required for its function.
+A naïve conversational lattice would be economically pathological: every node would receive the entire graph, branch joins would repeatedly reprocess huge histories, and each role would accumulate irrelevant context. Lattice instead uses semantic locality: every invocation sees the smallest faithful world required for its function.
 
 The normal topology is a small number of persistent, cache-friendly role spines connected by compact delta packets:
 
@@ -266,7 +266,7 @@ This changes the economics in five ways:
 - Branches are created only when evidence or the human demands a genuinely different context or incentive structure.
 - Joins compile the minimum necessary contributions from each branch instead of inheriting every branch wholesale.
 
-KV caches still cannot be merged. Once token prefixes diverge, later states are not composable; providers cannot share cache state; consumer subscription CLIs may not expose caching at all. Loom therefore treats cache reuse as an opportunistic performance benefit, never a correctness dependency.
+KV caches still cannot be merged. Once token prefixes diverge, later states are not composable; providers cannot share cache state; consumer subscription CLIs may not expose caching at all. Lattice therefore treats cache reuse as an opportunistic performance benefit, never a correctness dependency.
 
 Node identity is valuable precisely because it does not require KV merging. It makes complete-history inheritance unnecessary. A node can name a prior artifact, decision, or evidence block without replaying the entire path that produced it, while a user can still expand that lineage when needed.
 
@@ -274,7 +274,7 @@ Context order should normally be:
 
 ```text
 stable provider/harness prefix
-stable Loom and workflow-pack rules
+stable Lattice and workflow-pack rules
 stable role contract and tool schemas
 versioned project state
 selected shared ancestry
@@ -286,7 +286,7 @@ Changing an early prefix has a broad performance cost and must create a visible 
 
 ## The multilingual quaternary workflow
 
-The quaternary workflow is the first real proof that Loom can conduct adaptive research without either freezing inquiry in advance or wandering invisibly.
+The quaternary workflow is the first real proof that Lattice can conduct adaptive research without either freezing inquiry in advance or wandering invisibly.
 
 Its epistemic structure has three layers:
 
@@ -411,7 +411,7 @@ The shared blackboard should generate these views rather than hand-maintain them
 | Peephole | Last runner/native exchange, accepted or rejected contribution, current action, and broader-action link |
 | Human status | What phase is actually complete, current counts by evidence level, active blocker if any, and the explicit proof limit |
 
-The current `gatherctl peek` concept is the right scale for the peephole. It should become a Loom projection, not a second operational ledger.
+The current `gatherctl peek` concept is the right scale for the peephole. It should become a Lattice projection, not a second operational ledger.
 
 ## Generic research grammar
 
@@ -435,7 +435,7 @@ bounded, evidence-typed closure
 
 Platform Foundry has the same shape: a platform hypothesis becomes a source-native probe, which produces evidence, which revises the hypothesis, which selects a discriminating probe, which supports a verified specification. Field-survey research likewise routes domain generation through source grounding, cross-model criticism, and promoted outputs.
 
-Loom should therefore generalize the mechanics, not the domain semantics. The engine owns roles, nodes, edges, manifests, artifacts, triggers, routing, provenance, leases, recovery, and views. Workflow packs own what counts as evidence, which roles exist, which actions are permitted, and what closure means.
+Lattice should therefore generalize the mechanics, not the domain semantics. The engine owns roles, nodes, edges, manifests, artifacts, triggers, routing, provenance, leases, recovery, and views. Workflow packs own what counts as evidence, which roles exist, which actions are permitted, and what closure means.
 
 ## Operator experience
 
@@ -480,7 +480,7 @@ The logical architecture should be implemented in five separable layers.
 
 An append-only event ledger stores nodes, typed edges, role sessions, context blocks, manifests, artifacts, attempts, leases, triggers, decisions, and slice relations. Current state is derived. Large immutable bytes may live in a content-addressed blob store so long as the ledger binds their identity and lifecycle.
 
-SQLite plus content-addressed local blobs is the natural first physical implementation because the system is local-first, transactional, and initially single-user. The logical contracts must not depend on SQLite-specific query behavior so that later scale or synchronization work can change the store without changing Loom’s meaning.
+SQLite plus content-addressed local blobs is the natural first physical implementation because the system is local-first, transactional, and initially single-user. The logical contracts must not depend on SQLite-specific query behavior so that later scale or synchronization work can change the store without changing Lattice’s meaning.
 
 ### 2. Context compositor
 
@@ -493,7 +493,7 @@ The compositor is independently testable. Provider adapters may not silently app
 
 ### 3. Execution adapters
 
-Simple invocations use `model-runner` for durable subscription-authenticated execution. Compound agent jobs may delegate to Smithers through an adapter. Deterministic tools such as catalogue search execute through workflow-specific adapters. Every path returns the same Loom-level invocation, trace, and artifact contracts.
+Simple invocations use `model-runner` for durable subscription-authenticated execution. Compound agent jobs may delegate to Smithers through an adapter. Deterministic tools such as catalogue search execute through workflow-specific adapters. Every path returns the same Lattice-level invocation, trace, and artifact contracts.
 
 The runtime must support interruption, typed failures, lease recovery, idempotent request reuse, append-only retries, and restart without provider-specific state becoming canonical.
 
@@ -503,7 +503,7 @@ The routing engine evaluates explicit triggers against canonical state and produ
 
 The routing engine supports both modes:
 
-- manual Loom mode, where the user chooses or edits one proposed edge;
+- manual Lattice mode, where the user chooses or edits one proposed edge;
 - governed workflow mode, where previously authorized actions can advance automatically until a real decision, authority boundary, or blocker occurs.
 
 ### 5. Cockpit and projections
@@ -527,7 +527,7 @@ Closure evidence:
 - A provider-opaque instruction is displayed as unknown rather than synthesized.
 - A deliberately omitted governing constraint is detected by a manifest oracle.
 
-### Phase B — One-edge manual Loom
+### Phase B — One-edge manual Lattice
 
 Connect model-runner, create persistent role sessions, implement `invoke`, `fork`, `join`, `inspect`, `diff`, and `replay`, and expose a minimal conversational surface plus context tray. Use direct provider calls before integrating compound Smithers jobs.
 
@@ -556,7 +556,7 @@ Closure evidence:
 
 ### Phase D — Cockpit, trailheads, and slices
 
-Build the response-first Loom view, local graph neighborhood, claim-to-lineage highlighting, context diff, branch comparison, and two-or-three-trailhead discipline. Bind `Canon > Quaternary > German` as a live Slate slice and expose the project through a Panel.
+Build the response-first Lattice view, local graph neighborhood, claim-to-lineage highlighting, context diff, branch comparison, and two-or-three-trailhead discipline. Bind `Canon > Quaternary > German` as a live Slate slice and expose the project through a Panel.
 
 Closure evidence:
 
@@ -603,21 +603,21 @@ The permanent assurance suite must reject at least these mutations:
 - reissue the full lattice to a role when its declared view is sufficient;
 - let one project or language revision stale an unrelated role session;
 - import a Smithers task as an opaque final answer when a consumed internal artifact needs explicit lineage;
-- copy a Loom conversation into Slate instead of storing a slice relation;
+- copy a Lattice conversation into Slate instead of storing a slice relation;
 - render a generated status that disagrees with the base ledger revision.
 
-## Prior art and what Loom takes from it
+## Prior art and what Lattice takes from it
 
 No single precedent supplies the complete object. The build should compose established mechanisms rather than confuse component novelty with system novelty.
 
-| Prior art | Useful mechanism | Loom extension |
+| Prior art | Useful mechanism | Lattice extension |
 |---|---|---|
 | [gptel](https://gptel.org/manual.html) | Editable conversational branches, per-heading model/system configuration, inspectable requests | Multi-parent lattice, durable manifests, project slices, and governed execution |
 | [Grafychat](https://www.grafychat.com/d/docs/canvas-and-nodes) and Obsidian canvas chat tools | Visual model-selectable conversation nodes | Exact context truth, genuine joins, and external project continuity |
 | [Loom](https://github.com/socketteer/loom) | Branching generation topology | Conversational and agent-invocation ontology rather than alternative story completions |
 | [ChainForge](https://www.chainforge.ai/) and [PromptChainer](https://arxiv.org/abs/2203.06566) | Visual multi-model dataflow and intermediate routing | Progressively authored rather than substantially preprogrammed graphs |
 | [Langfuse](https://langfuse.com/docs) and [Phoenix](https://arize.com/docs/phoenix/tracing/llm-traces) | Prompt, tool, parameter, and trace observability | Context authorship before execution and durable conversational continuation afterward |
-| [Smithers](../../../sui/flux/intake/smithers-ontology/README.md) | Dynamic durable workflows, attempts, scheduling, agent substrate, recovery, rewind, and replay | A live-in conversational center of gravity and finer invocation/context ontology |
+| Smithers | Dynamic durable workflows, attempts, scheduling, agent substrate, recovery, rewind, and replay | A live-in conversational center of gravity and finer invocation/context ontology |
 | [MIRACLE](https://terpconnect.umd.edu/~oard/pdf/talip03he.pdf) | Interactive translingual search with user participation in translation and retrieval | Persistent native-agent co-investigation with exact query and evidence lineage |
 | [Bates’s berrypicking model](https://pages.gseis.ucla.edu/faculty/bates/berrypicking.html) | Search needs and queries evolve as results reveal the territory | Machine-governed adaptive manifests and explicit coverage state |
 | [Session context in cross-language information retrieval](https://aclanthology.org/L16-1064/) | Earlier interaction improves later cross-language query interpretation | Persistent role spines and result-to-native feedback |
@@ -631,7 +631,7 @@ The novelty claim that survives is the integrated object: a local-first, cross-p
 
 ## Settled design decisions
 
-- Loom is a custom harness and product, not a feature hidden inside the quaternary runner.
+- Lattice is a custom harness and product, not a feature hidden inside the quaternary runner.
 - The canonical graph is invocation-scale; tool loops are nested and expandable.
 - The graph is authored conversationally and may later yield workflows.
 - Context manifests are first-class immutable artifacts.
@@ -658,7 +658,7 @@ The natural first implementation is SQLite for transactional metadata plus conte
 
 ### Smithers adapter depth
 
-The minimum adapter may import only job-level inputs, outputs, attempts, and artifacts. A deeper adapter may project internal Smithers task graphs into expandable Loom subgraphs. Choose the deeper route only when a real Loom consumer needs to address an internal artifact or branch; otherwise preserve the clean job boundary.
+The minimum adapter may import only job-level inputs, outputs, attempts, and artifacts. A deeper adapter may project internal Smithers task graphs into expandable Lattice subgraphs. Choose the deeper route only when a real Lattice consumer needs to address an internal artifact or branch; otherwise preserve the clean job boundary.
 
 ### Provider-native session reuse
 
@@ -674,7 +674,7 @@ Manual one-edge-at-a-time steering and governed automatic advancement must share
 
 ## Definition of the first complete system
 
-Loom’s first complete system is not “a graph renders” and not “several models exchanged messages.” It is the following observable end state:
+Lattice’s first complete system is not “a graph renders” and not “several models exchanged messages.” It is the following observable end state:
 
 1. A user opens the German quaternary project and sees its actual current state, live trailheads, recent model exchange, coverage gaps, and proof limits.
 2. The user or orchestrator proposes a semantic search region; the native role returns exact German query alternatives; the accepted query is visibly validated and frozen.
@@ -687,12 +687,10 @@ Loom’s first complete system is not “a graph renders” and not “several m
 9. The proven path can be extracted into the next-language workflow while preserving room for native evidence to alter its search space.
 10. Independent mutation tests demonstrate that omitted context, dropped results, unvalidated language, query alteration, stale state, and self-certified closure cannot pass as success.
 
-At that point Loom is no longer a diagrammatic idea. It is the reusable cognition-and-action substrate that the quaternary program, Platform Foundry, field surveys, and later project-specific Panels can inhabit.
+At that point Lattice is no longer a diagrammatic idea. It is the reusable cognition-and-action substrate that the quaternary program, Platform Foundry, field surveys, and later project-specific Panels can inhabit.
 
 ## Design sources
 
-- [Macro-Loom and Smithers design conversation](../../../sui/flux/ephemera/20260818T085452-recall-view/rollout-2026-08-11T04-31-28-019feff2-b592-7882-a815-905d6fa907ac.md)
-- [Quaternary corpus protocol](../../../sui/mission/projects/canon/dev/quaternary-exhaustion/PROTOCOL.md)
-- [`model-runner` execution contract](../../tools/model-runner/README.md)
-- [Smithers ontology](../../../sui/flux/intake/smithers-ontology/README.md)
-- [Octopus evidence-bound Platform Foundry decision](../../soma/octopus/decisions/061-evidence-bound-platform-foundry.md)
+- [Quaternary corpus protocol](https://github.com/rianczerwinski/AXISVI/blob/main/sui/mission/projects/canon/dev/quaternary-exhaustion/PROTOCOL.md)
+- [`model-runner` execution contract](https://github.com/rianczerwinski/AXISVI/blob/main/axis/tools/model-runner/README.md)
+- [Octopus evidence-bound Platform Foundry decision](https://github.com/rianczerwinski/AXISVI/blob/main/axis/soma/octopus/decisions/061-evidence-bound-platform-foundry.md)

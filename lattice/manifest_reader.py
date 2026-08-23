@@ -8,7 +8,7 @@ from typing import Any
 from axis_model_runner import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_execution_policy
 
 from .canonical import canonical_bytes, sha256_bytes, sha256_json
-from .store import LoomStore
+from .store import LatticeStore
 
 
 class ManifestVerificationError(ValueError):
@@ -21,22 +21,34 @@ SEMVER = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
-def _verify_generated_object(manifest: dict[str, Any]) -> None:
+def _manifest_namespace(manifest: dict[str, Any]) -> tuple[str, str, str]:
+    contract = manifest.get("contract_version")
+    if isinstance(contract, str) and contract.startswith("LatticeContextManifest/"):
+        return "lattice", "Lattice", "lattice"
+    # Context manifests are immutable evidence. The pre-rename namespace remains
+    # a readable legacy input so existing sealed invocations do not become lies.
+    if isinstance(contract, str) and contract.startswith("LoomContextManifest/"):
+        return "loom", "Loom", "axis-loom"
+    raise ManifestVerificationError("manifest contract namespace is unsupported")
+
+
+def _verify_generated_object(manifest: dict[str, Any]) -> tuple[str, str]:
+    slug, title, producer_name = _manifest_namespace(manifest)
     envelope = manifest.get("generated_object")
     required = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
     if not isinstance(envelope, dict) or set(envelope) != required:
         raise ManifestVerificationError("manifest generated-object envelope is incomplete or carries undeclared fields")
-    if envelope["contract_version"] != 1 or envelope["role"] != "canonical" or envelope["kind"] != "loom-context-manifest":
+    if envelope["contract_version"] != 1 or envelope["role"] != "canonical" or envelope["kind"] != f"{slug}-context-manifest":
         raise ManifestVerificationError("manifest generated-object identity is invalid")
     schema = envelope["schema"]
-    if not isinstance(schema, dict) or set(schema) != {"name", "version"} or schema["name"] != "loom-context-manifest" or not isinstance(schema["version"], int) or isinstance(schema["version"], bool) or schema["version"] < 1:
+    if not isinstance(schema, dict) or set(schema) != {"name", "version"} or schema["name"] != f"{slug}-context-manifest" or not isinstance(schema["version"], int) or isinstance(schema["version"], bool) or schema["version"] < 1:
         raise ManifestVerificationError("manifest generated-object schema is invalid")
     producer = envelope["producer"]
-    if not isinstance(producer, dict) or set(producer) != {"name", "version"} or producer["name"] != "axis-loom" or not isinstance(producer["version"], str) or SEMVER.fullmatch(producer["version"]) is None:
+    if not isinstance(producer, dict) or set(producer) != {"name", "version"} or producer["name"] != producer_name or not isinstance(producer["version"], str) or SEMVER.fullmatch(producer["version"]) is None:
         raise ManifestVerificationError("manifest generated-object producer is invalid")
     if not isinstance(envelope["artifact_id"], str) or ARTIFACT_ID.fullmatch(envelope["artifact_id"]) is None or not isinstance(envelope["generated_at"], str) or TRACKING_TIMESTAMP.fullmatch(envelope["generated_at"]) is None:
         raise ManifestVerificationError("manifest generated-object generation identity is invalid")
-    if envelope["subject"] != f"loom-invocation:{manifest.get('invocation_id')}":
+    if envelope["subject"] != f"{slug}-invocation:{manifest.get('invocation_id')}":
         raise ManifestVerificationError("manifest generated-object subject does not match its invocation")
     sources = envelope["sources"]
     if not isinstance(sources, list) or not sources:
@@ -51,20 +63,22 @@ def _verify_generated_object(manifest: dict[str, Any]) -> None:
             raise ManifestVerificationError("manifest generated-object source digest is malformed")
         if revision is None and digest is None:
             raise ManifestVerificationError("manifest generated-object source lacks immutable state")
+    return slug, title
 
 
 def _independent_segment_bytes(segment: dict[str, Any], content: bytes, compilation_format: str) -> bytes:
-    if compilation_format == "loom-segment-stream-v1":
-        prefix = "<<<LOOM {plane} {label} {block_id} {sha256}>>>\n".format(**segment).encode("utf-8")
+    slug = compilation_format.split("-", 1)[0]
+    if compilation_format == f"{slug}-segment-stream-v1" and slug in {"lattice", "loom"}:
+        prefix = f"<<<{slug.upper()} {{plane}} {{label}} {{block_id}} {{sha256}}>>>\n".format(**segment).encode("utf-8")
         return prefix + content + b"\n<<<END>>>\n"
-    if compilation_format not in {"loom-context-jsonl-v2", "loom-context-jsonl-v3"}:
+    if compilation_format not in {f"{slug}-context-jsonl-v2", f"{slug}-context-jsonl-v3"} or slug not in {"lattice", "loom"}:
         raise ManifestVerificationError(f"unsupported compiled context format: {compilation_format}")
     try:
         decoded = content.decode("utf-8", errors="strict")
     except UnicodeDecodeError as error:
         raise ManifestVerificationError("context segment is not exact UTF-8") from error
     record = {
-        "kind": "loom-context-segment-v3" if compilation_format == "loom-context-jsonl-v3" else "loom-context-segment-v2",
+        "kind": f"{slug}-context-segment-v3" if compilation_format == f"{slug}-context-jsonl-v3" else f"{slug}-context-segment-v2",
         "ordinal": segment["ordinal"],
         "plane": segment["plane"],
         "label": segment["label"],
@@ -77,7 +91,7 @@ def _independent_segment_bytes(segment: dict[str, Any], content: bytes, compilat
         "reason": segment.get("reason"),
         "content": decoded,
     }
-    if compilation_format == "loom-context-jsonl-v3":
+    if compilation_format == f"{slug}-context-jsonl-v3":
         record = {
             **{key: value for key, value in record.items() if key not in {"disposition", "derived_from_block_ids", "reason", "content"}},
             "authority": segment["authority"],
@@ -95,15 +109,15 @@ def _independent_segment_bytes(segment: dict[str, Any], content: bytes, compilat
     return canonical_bytes(record) + b"\n"
 
 
-def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
-    _verify_generated_object(manifest)
+def verify_and_reconstruct(store: LatticeStore, manifest: dict[str, Any]) -> bytes:
+    slug, title = _verify_generated_object(manifest)
     claimed_manifest_sha = manifest.get("manifest_sha256")
     actual_manifest_sha = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})
     if claimed_manifest_sha != actual_manifest_sha:
         raise ManifestVerificationError("manifest bytes do not match its declared identity")
     generated_source_values = manifest["generated_object"]["sources"]
     compilation_format = manifest["compilation"].get("format")
-    if compilation_format == "loom-context-jsonl-v3":
+    if compilation_format == f"{slug}-context-jsonl-v3":
         if manifest.get("source_bindings") != generated_source_values:
             raise ManifestVerificationError("manifest preflight source bindings disagree with its canonical source envelope")
         preflight_keys = {
@@ -123,7 +137,7 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
             "compilation",
             "provider_boundary",
         }
-        preflight_material = {"contract_version": "LoomContextPreflight/1.0", **{key: manifest[key] for key in preflight_keys}}
+        preflight_material = {"contract_version": f"{title}ContextPreflight/1.0", **{key: manifest[key] for key in preflight_keys}}
         if manifest.get("preflight_sha256") != sha256_json(preflight_material):
             raise ManifestVerificationError("manifest does not preserve the exact inspected preflight context")
     generated_sources = {item["ref"]: item for item in generated_source_values}
@@ -134,7 +148,8 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
         raise ManifestVerificationError("manifest role session belongs to another project")
     draft = store.get_draft(manifest["draft_id"])
     ancestry_ids = [item["invocation_id"] for item in manifest["ancestry"]]
-    if draft["project_id"] != manifest["project_id"] or draft["role_session_id"] != manifest["role_session_id"] or draft["revision"] != manifest["draft_revision"] or draft["context_mode"] != manifest["context_mode"] or draft["parents"] != ancestry_ids:
+    manifest_context_mode = manifest.get("context_mode", "standard")
+    if draft["project_id"] != manifest["project_id"] or draft["role_session_id"] != manifest["role_session_id"] or draft["revision"] != manifest["draft_revision"] or draft["context_mode"] != manifest_context_mode or draft["parents"] != ancestry_ids:
         raise ManifestVerificationError("manifest does not match its sealed draft identity and ancestry")
     route = manifest["execution"]
     if route != draft["route"]:
@@ -142,17 +157,24 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
     adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
     if adapter is None:
         raise ManifestVerificationError("manifest execution route is not qualified")
-    try:
-        effective_policy = validate_execution_policy(
-            adapter,
-            session_policy=route["session_policy"],
-            tools=route["tools"],
-            permissions=route["permissions"],
-            workspace=route["workspace"],
-            network_policy=route["network_policy"],
-        )
-    except SubscriptionRouteUnavailable as error:
-        raise ManifestVerificationError(f"manifest execution policy is not enforceable: {error}") from error
+    schema_version = manifest["generated_object"]["schema"]["version"]
+    if schema_version == 1:
+        # Version 1 sealed only the operator-requested capability surface. Later
+        # model-runner releases added derived enforcement and session fields;
+        # applying that newer shape retroactively would make valid history fail.
+        effective_policy = {key: route[key] for key in ("network_policy", "permissions", "tools", "workspace")}
+    else:
+        try:
+            effective_policy = validate_execution_policy(
+                adapter,
+                session_policy=route["session_policy"],
+                tools=route["tools"],
+                permissions=route["permissions"],
+                workspace=route["workspace"],
+                network_policy=route["network_policy"],
+            )
+        except SubscriptionRouteUnavailable as error:
+            raise ManifestVerificationError(f"manifest execution policy is not enforceable: {error}") from error
     if manifest["capabilities"] != effective_policy:
         raise ManifestVerificationError("manifest capabilities do not match the enforced provider policy")
     for parent in manifest["ancestry"]:
@@ -160,10 +182,10 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
         if invocation["project_id"] != manifest["project_id"] or invocation["manifest_sha256"] != parent["manifest_sha256"]:
             raise ManifestVerificationError(f"manifest ancestry does not resolve exactly: {parent['invocation_id']}")
     output: list[bytes] = []
-    expected_contract = {"loom-segment-stream-v1": ("LoomContextManifest/1.0", 1), "loom-context-jsonl-v2": ("LoomContextManifest/2.0", 2), "loom-context-jsonl-v3": ("LoomContextManifest/3.0", 3)}.get(compilation_format)
-    if expected_contract is None or manifest.get("contract_version") != expected_contract[0] or manifest["generated_object"]["schema"].get("version") != expected_contract[1]:
+    expected_contract = {f"{slug}-segment-stream-v1": (f"{title}ContextManifest/1.0", 1), f"{slug}-context-jsonl-v2": (f"{title}ContextManifest/2.0", 2), f"{slug}-context-jsonl-v3": (f"{title}ContextManifest/3.0", 3)}.get(compilation_format)
+    if expected_contract is None or manifest.get("contract_version") != expected_contract[0] or schema_version != expected_contract[1]:
         raise ManifestVerificationError("context format, manifest contract, and generated-object schema disagree")
-    if compilation_format in {"loom-context-jsonl-v2", "loom-context-jsonl-v3"} and manifest.get("response_contract") != draft["response_schema"]:
+    if compilation_format in {f"{slug}-context-jsonl-v2", f"{slug}-context-jsonl-v3"} and manifest.get("response_contract") != draft["response_schema"]:
         raise ManifestVerificationError("manifest response contract does not match its sealed draft")
     all_entries = manifest["segments"] + manifest["omitted"]
     ordinals = [entry["ordinal"] for entry in all_entries]
@@ -177,7 +199,7 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
             raise ManifestVerificationError(f"context block belongs to another project: {segment['block_id']}")
         if block["semantic_type"] != segment["semantic_type"]:
             raise ManifestVerificationError(f"context semantic type is not ledger-bound: {segment['block_id']}")
-        if compilation_format == "loom-context-jsonl-v3":
+        if compilation_format == f"{slug}-context-jsonl-v3":
             transformation = __import__("json").loads(block["transformation_json"]) if block["transformation_json"] else None
             provenance = {"authority": block["authority"], "evidence_level": block["evidence_level"], "sensitivity": block["sensitivity"], "source_ref": block["source_ref"], "source_sha256": block["source_sha256"], "producing_invocation_id": block["producing_invocation_id"], "transformation": transformation}
             if any(segment.get(key) != value for key, value in provenance.items()):
@@ -190,7 +212,7 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
             raise ManifestVerificationError(f"context status is not ledger-bound: {segment['block_id']}")
         if sha256_bytes(content) != segment["sha256"] or block["content_sha256"] != segment["sha256"]:
             raise ManifestVerificationError(f"context block changed: {segment['block_id']}")
-        source = generated_sources.get(f"loom:block/{segment['block_id']}")
+        source = generated_sources.get(f"{slug}:block/{segment['block_id']}")
         if not source or source["sha256"] != segment["sha256"] or source["revision"] != str(segment["status_revision"]):
             raise ManifestVerificationError(f"context source is not exactly bound: {segment['block_id']}")
         expected_source_refs.add(source["ref"])
@@ -199,7 +221,7 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
             source_block = store.get_block(source_block_id, include_content=False)
             if source_block["project_id"] != manifest["project_id"]:
                 raise ManifestVerificationError(f"derived context source belongs to another project: {source_block_id}")
-            derived_source = generated_sources.get(f"loom:block/{source_block_id}")
+            derived_source = generated_sources.get(f"{slug}:block/{source_block_id}")
             if not derived_source or derived_source["sha256"] != source_block["content_sha256"] or not str(derived_source["revision"]).isdigit():
                 raise ManifestVerificationError(f"derived context source is not exactly bound: {source_block_id}")
             expected_source_refs.add(derived_source["ref"])
@@ -220,6 +242,7 @@ def verify_and_reconstruct(store: LoomStore, manifest: dict[str, Any]) -> bytes:
     if sha256_bytes(reconstructed) != manifest["compilation"]["compiled_prompt_sha256"]:
         raise ManifestVerificationError("compiled prompt does not reconstruct from declared context")
     prompt_ref = manifest["compilation"]["compiled_prompt_ref"]
-    if not prompt_ref.startswith("loom:blob/") or store.blobs.get(prompt_ref.removeprefix("loom:blob/")) != reconstructed:
+    blob_prefix = f"{slug}:blob/"
+    if not prompt_ref.startswith(blob_prefix) or store.blobs.get(prompt_ref.removeprefix(blob_prefix)) != reconstructed:
         raise ManifestVerificationError("compiled prompt artifact does not resolve to reconstructed bytes")
     return reconstructed

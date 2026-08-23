@@ -23,7 +23,7 @@
   "triggers": [],
   "closure_contract": {
     "authoritative_system": "octopus-platform-foundry",
-    "loom_is_read_only": true,
+    "lattice_is_read_only": true,
     "promotion_requires_octopus_receipt": true,
     "caller_asserted_shadow_forbidden": true
   }

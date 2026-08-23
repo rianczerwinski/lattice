@@ -1,4 +1,4 @@
-"""Filesystem and service configuration for the local Loom instance."""
+"""Filesystem and service configuration for the local Lattice instance."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-LOOM_ROOT = Path(__file__).resolve().parents[1]
+LATTICE_ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_ROOT = Path(__file__).resolve().parent
-WEB_DIST = PACKAGE_ROOT / "web_dist" if (PACKAGE_ROOT / "web_dist").is_dir() else LOOM_ROOT / "web" / "dist"
-WORKFLOW_PACK_ROOT = PACKAGE_ROOT / "workflow_packs" if (PACKAGE_ROOT / "workflow_packs").is_dir() else LOOM_ROOT / "workflow_packs"
+WEB_DIST = PACKAGE_ROOT / "web_dist" if (PACKAGE_ROOT / "web_dist").is_dir() else LATTICE_ROOT / "web" / "dist"
+WORKFLOW_PACK_ROOT = PACKAGE_ROOT / "workflow_packs" if (PACKAGE_ROOT / "workflow_packs").is_dir() else LATTICE_ROOT / "workflow_packs"
 
 
 def discover_axisvi_root(start: Path = PACKAGE_ROOT, environ: Mapping[str, str] = os.environ) -> Path | None:
@@ -30,17 +30,17 @@ def discover_axisvi_root(start: Path = PACKAGE_ROOT, environ: Mapping[str, str] 
 
 def user_data_root(environ: Mapping[str, str] = os.environ) -> Path:
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "AXISVI" / "Loom"
+        return Path.home() / "Library" / "Application Support" / "AXISVI" / "Lattice"
     base = Path(environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")).expanduser()
-    return base / "axisvi" / "loom"
+    return base / "axisvi" / "lattice"
 
 
 AXIS_ROOT = discover_axisvi_root()
-DEFAULT_DATA_ROOT = AXIS_ROOT / "axis" / "psyche" / "recollection" / "loom" / "data" if AXIS_ROOT else user_data_root()
+DEFAULT_DATA_ROOT = AXIS_ROOT / "axis" / "psyche" / "recollection" / "lattice" / "data" if AXIS_ROOT else user_data_root()
 
 
 @dataclass(frozen=True)
-class LoomConfig:
+class LatticeConfig:
     data_root: Path
     host: str = "127.0.0.1"
     port: int = 9010
@@ -50,21 +50,21 @@ class LoomConfig:
     quaternary_root_override: Path | None = None
 
     @classmethod
-    def from_environment(cls) -> "LoomConfig":
+    def from_environment(cls) -> "LatticeConfig":
         axisvi_root = discover_axisvi_root()
-        default_data = axisvi_root / "axis" / "psyche" / "recollection" / "loom" / "data" if axisvi_root else user_data_root()
+        default_data = axisvi_root / "axis" / "psyche" / "recollection" / "lattice" / "data" if axisvi_root else user_data_root()
         return cls(
-            data_root=Path(os.environ.get("LOOM_DATA_DIR", default_data)).expanduser(),
-            host=os.environ.get("LOOM_HOST", "127.0.0.1"),
-            port=int(os.environ.get("LOOM_PORT", "9010")),
-            octopus_base_url=os.environ.get("LOOM_OCTOPUS_URL", "http://127.0.0.1:8000"),
+            data_root=Path(os.environ.get("LATTICE_DATA_DIR", default_data)).expanduser(),
+            host=os.environ.get("LATTICE_HOST", "127.0.0.1"),
+            port=int(os.environ.get("LATTICE_PORT", "9010")),
+            octopus_base_url=os.environ.get("LATTICE_OCTOPUS_URL", "http://127.0.0.1:8000"),
             axisvi_root=axisvi_root,
-            quaternary_root_override=Path(os.environ["LOOM_QUATERNARY_ROOT"]).expanduser().resolve() if os.environ.get("LOOM_QUATERNARY_ROOT") else None,
+            quaternary_root_override=Path(os.environ["LATTICE_QUATERNARY_ROOT"]).expanduser().resolve() if os.environ.get("LATTICE_QUATERNARY_ROOT") else None,
         )
 
     @property
     def database(self) -> Path:
-        return self.data_root / "loom.sqlite3"
+        return self.data_root / "lattice.sqlite3"
 
     @property
     def blobs(self) -> Path:

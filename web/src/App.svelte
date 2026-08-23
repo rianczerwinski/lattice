@@ -169,7 +169,7 @@
         liveProgress = `${liveProgress}${liveProgress ? '\n' : ''}${line}`.slice(-100_000);
         liveProgressState = 'Receiving provider journal';
       } catch (cause: unknown) {
-        console.warn('Loom progress event was malformed:', cause);
+        console.warn('Lattice progress event was malformed:', cause);
         liveProgressState = 'Live journal event was unreadable; terminal status polling continues';
       }
     });
@@ -409,7 +409,7 @@
     try {
       const outcome = await post<{ command: { state: string; error_text?: string }; blackboard_state: string; blackboard_error?: string }>(`/api/v1/workflow-packs/${project.workflow.pack_id}/commands`, { project_id: project.project_id, expected_revision: project.workflow.revision, operation: command.operation, arguments: argumentsValue, idempotency_key: idempotencyKey, review_sha256: commandReviews[command.operation]?.review_sha256 ?? null });
       if (outcome.command.state !== 'completed') {
-        error = `Command is ${outcome.command.state}: ${outcome.command.error_text ?? 'no terminal success receipt exists'}. Loom will not retry this idempotency key.`;
+        error = `Command is ${outcome.command.state}: ${outcome.command.error_text ?? 'no terminal success receipt exists'}. Lattice will not retry this idempotency key.`;
         return;
       }
       armedCommand = '';
@@ -460,7 +460,7 @@
   boot();
 </script>
 
-<svelte:head><meta name="description" content="Loom conversational lattice" /></svelte:head>
+<svelte:head><meta name="description" content="Lattice conversational lattice" /></svelte:head>
 
 {#if loading}
   <main class="center-state"><div class="pulse"></div><p>Opening the lattice…</p></main>
@@ -468,7 +468,7 @@
   <div class="shell">
     <header>
       <div class="mark">L</div>
-      <div><h1>Loom</h1><p>One consequential edge at a time</p></div>
+      <div><h1>Lattice</h1><p>One consequential edge at a time</p></div>
       <div class="route-status">{activeRoute ? `${activeRoute.official_cli} · ${activeRoute.model_code}` : 'No qualified route'}</div>
     </header>
 
@@ -581,7 +581,7 @@
               {#if activeAttemptId}<div class="live-progress"><div><strong>{liveProgressState}</strong><button class="quiet" on:click={cancelActiveAttempt}>Cancel invocation</button></div><pre>{liveProgress || 'Waiting for the first observable provider bytes…'}</pre></div>{/if}
               {#if selected.output_block}<article>{@html responseHtml}</article>{:else if ['failed', 'interrupted'].includes(selected.state)}<p class="terminal-failure">Invocation ended {selected.state}: {terminalFailure(selected)}</p>{:else}<p class="muted">This invocation has not reached a terminal response.</p>{/if}
             {:else}
-              <div class="empty-call"><span>Begin here</span><h3>Say what should happen next.</h3><p>Loom will show the exact context before anything is sent.</p></div>
+              <div class="empty-call"><span>Begin here</span><h3>Say what should happen next.</h3><p>Lattice will show the exact context before anything is sent.</p></div>
             {/if}
           </section>
 
@@ -644,7 +644,7 @@
 
         {#if comparison}<div class="comparison"><h3>Branch delta</h3><pre>{JSON.stringify(comparison, null, 2)}</pre></div>{/if}
         {#if project?.workflow_templates?.length}
-          <div class="template-list"><h3>Reusable paths</h3>{#if project.workflow_templates_partial}<p class="muted">Showing the newest 100 templates; the complete artifact ledger remains available through Loom.</p>{/if}{#each project.workflow_templates as template}<details open={template.artifact_id === extractedTemplateId} on:toggle={(event) => event.currentTarget.open && loadArtifact(template.artifact_id)}><summary>{template.artifact_id === extractedTemplateId ? 'Just extracted · ' : ''}{template.artifact_id.slice(-12)}</summary><small>{template.created_at} · {template.content_sha256.slice(0, 12)}</small><pre>{artifactContents[template.artifact_id] ?? 'Open to inspect exact template bytes…'}</pre></details>{/each}</div>
+          <div class="template-list"><h3>Reusable paths</h3>{#if project.workflow_templates_partial}<p class="muted">Showing the newest 100 templates; the complete artifact ledger remains available through Lattice.</p>{/if}{#each project.workflow_templates as template}<details open={template.artifact_id === extractedTemplateId} on:toggle={(event) => event.currentTarget.open && loadArtifact(template.artifact_id)}><summary>{template.artifact_id === extractedTemplateId ? 'Just extracted · ' : ''}{template.artifact_id.slice(-12)}</summary><small>{template.created_at} · {template.content_sha256.slice(0, 12)}</small><pre>{artifactContents[template.artifact_id] ?? 'Open to inspect exact template bytes…'}</pre></details>{/each}</div>
         {/if}
       </aside>
     </div>

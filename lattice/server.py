@@ -1,4 +1,4 @@
-"""Single-origin Loom API and response-first cockpit host."""
+"""Single-origin Lattice API and response-first cockpit host."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
-from .config import WEB_DIST, WORKFLOW_PACK_ROOT, LoomConfig
+from .config import WEB_DIST, WORKFLOW_PACK_ROOT, LatticeConfig
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, strict_json_loads
 from .contracts import (
     ContextBlockCreate,
@@ -36,11 +36,11 @@ from .contracts import (
 )
 from .octopus_import import OctopusImporter
 from .context_modules import ContextModuleError, ContextModuleRunner, read_bounded_local_file
-from .operations import Loom
+from .operations import Lattice
 from .quaternary import QuaternaryAdapter, QuaternaryBoundaryError, QuaternaryOutcomeUnknown
 from .platform_foundry import PlatformFoundryAdapter
 from .security import OperatorBoundaryMiddleware, OperatorSessions, ServiceInstanceLock, configured_development_origin, ensure_cli_token
-from .store import LoomConflict, LoomNotFound, LoomStore
+from .store import LatticeConflict, LatticeNotFound, LatticeStore
 from .supervisor import ExecutionSupervisor
 from .workflows import WorkflowRegistry
 
@@ -88,7 +88,7 @@ class BootstrapProjectRequest(StrictRequest):
     title: str = Field(min_length=1, max_length=300)
     purpose: str = ""
     role_name: str = "Operator"
-    role_instructions: str = "Answer the current request using only the context Loom explicitly supplies. Name material uncertainty and do not invent hidden state."
+    role_instructions: str = "Answer the current request using only the context Lattice explicitly supplies. Name material uncertainty and do not invent hidden state."
 
 
 class ManualProjectRequest(StrictRequest):
@@ -128,17 +128,17 @@ class ResolveContextModuleRequest(StrictRequest):
     definition: ContextModuleDefinition
 
 
-def _initialize_runtime(config: LoomConfig):
+def _initialize_runtime(config: LatticeConfig):
     """Acquire canonical ownership before opening or migrating any durable state."""
     cli_token = ensure_cli_token(config.operator_token)
     service_lock = ServiceInstanceLock(config.data_root / "service.lock")
     service_lock.acquire()
     try:
-        store = LoomStore(config)
-        loom = Loom(store)
+        store = LatticeStore(config)
+        lattice = Lattice(store)
         supervisor = ExecutionSupervisor(store)
         sessions = OperatorSessions()
-        importer = OctopusImporter(store, loom, config.octopus_base_url)
+        importer = OctopusImporter(store, lattice, config.octopus_base_url)
         context_modules = ContextModuleRunner(allowed_file_roots=config.allowed_file_roots, octopus_base_url=config.octopus_base_url)
         workflows = WorkflowRegistry(WORKFLOW_PACK_ROOT)
         if config.quaternary_root and (config.quaternary_root / "quaternary.sqlite3").is_file() and (config.quaternary_root / "tools" / "gatherctl.py").is_file():
@@ -148,13 +148,13 @@ def _initialize_runtime(config: LoomConfig):
     except BaseException:
         service_lock.release()
         raise
-    return store, loom, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, service_lock
+    return store, lattice, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, service_lock
 
 
-def create_app(config: LoomConfig | None = None) -> FastAPI:
-    config = config or LoomConfig.from_environment()
+def create_app(config: LatticeConfig | None = None) -> FastAPI:
+    config = config or LatticeConfig.from_environment()
     configured_development_origin()
-    store, loom, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, service_lock = _initialize_runtime(config)
+    store, lattice, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, service_lock = _initialize_runtime(config)
 
     async def refresh_workflow_state(pack_id: str, project_id: str) -> dict[str, Any]:
         instance, _loaded = require_current_workflow_instance(pack_id, project_id)
@@ -166,35 +166,35 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     def require_current_workflow_instance(pack_id: str, project_id: str, loaded: dict[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
         instance = store.get_workflow_instance(project_id)
         if instance["pack_id"] != pack_id:
-            raise LoomConflict("project is not governed by this workflow pack")
+            raise LatticeConflict("project is not governed by this workflow pack")
         loaded = loaded or workflows.load(pack_id)
         if instance.get("pack_canonical_sha256") != loaded["canonical_sha256"]:
-            raise LoomConflict("workflow pack generation changed; preserve this history and open a current-generation workflow project")
+            raise LatticeConflict("workflow pack generation changed; preserve this history and open a current-generation workflow project")
         return instance, loaded
 
     def prepare_workflow_command(pack_id: str, project_id: str, expected_revision: int, operation: str, arguments: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], list[tuple[str, bytes]]]:
         instance, loaded = require_current_workflow_instance(pack_id, project_id)
         if instance["revision"] != expected_revision:
-            raise LoomConflict("workflow state changed before command review")
+            raise LatticeConflict("workflow state changed before command review")
         resolved = workflows.resolve_command(pack_id, operation, arguments)
         command_definition = next(item for item in loaded["definition"]["commands"] if item["operation"] == operation)
         state_basis = None
         if command_definition["authority"] != "read":
             blackboard_id = instance.get("current_blackboard_block_id")
             if not blackboard_id:
-                raise LoomConflict("workflow command lacks an authoritative state snapshot")
+                raise LatticeConflict("workflow command lacks an authoritative state snapshot")
             blackboard = store.get_block(blackboard_id)
             try:
                 recorded_state = strict_json_loads(blackboard["content"])
             except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
-                raise LoomConflict("workflow authoritative state snapshot is not exact JSON") from error
+                raise LatticeConflict("workflow authoritative state snapshot is not exact JSON") from error
             fresh_state = workflows.inspect(pack_id, instance["selector"])
             recorded_revision = recorded_state.get("state_sha256") if isinstance(recorded_state, dict) else None
             fresh_revision = fresh_state.get("state_sha256") if isinstance(fresh_state, dict) else None
             if not isinstance(recorded_revision, str) or not isinstance(fresh_revision, str):
-                raise LoomConflict("workflow adapter does not expose a stable state revision for controlled commands")
+                raise LatticeConflict("workflow adapter does not expose a stable state revision for controlled commands")
             if recorded_revision != fresh_revision:
-                raise LoomConflict("authoritative workflow state changed; refresh it before reviewing this command")
+                raise LatticeConflict("authoritative workflow state changed; refresh it before reviewing this command")
             state_basis = {"blackboard_block_id": blackboard_id, "blackboard_sha256": blackboard["content_sha256"], "adapter_state_sha256": fresh_revision}
         prepared = dict(resolved)
         file_receipts = []
@@ -204,10 +204,10 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
                 continue
             source, content = read_bounded_local_file(str(resolved[argument["key"]]), allowed_roots=config.allowed_file_roots, max_bytes=argument["max_bytes"] or 64 * 1024 * 1024)
             digest = sha256_bytes(content)
-            prepared[argument["key"]] = f"loom:blob/{digest}"
+            prepared[argument["key"]] = f"lattice:blob/{digest}"
             file_receipts.append({"argument": argument["key"], "source_ref": f"file:{source}", "content_sha256": digest, "byte_count": len(content)})
             file_blobs.append((digest, content))
-        review = {"kind": "loom-workflow-command-review-v1", "project_id": project_id, "workflow_revision": expected_revision, "pack_id": pack_id, "pack_canonical_sha256": loaded["canonical_sha256"], "operation": operation, "authority": command_definition["authority"], "state_basis": state_basis, "requested_arguments_sha256": sha256_bytes(canonical_bytes(resolved)), "prepared_arguments_sha256": sha256_bytes(canonical_bytes(prepared)), "file_receipts": file_receipts}
+        review = {"kind": "lattice-workflow-command-review-v1", "project_id": project_id, "workflow_revision": expected_revision, "pack_id": pack_id, "pack_canonical_sha256": loaded["canonical_sha256"], "operation": operation, "authority": command_definition["authority"], "state_basis": state_basis, "requested_arguments_sha256": sha256_bytes(canonical_bytes(resolved)), "prepared_arguments_sha256": sha256_bytes(canonical_bytes(prepared)), "file_receipts": file_receipts}
         review["review_sha256"] = sha256_bytes(canonical_bytes(review))
         return prepared, review, command_definition, file_blobs
 
@@ -225,20 +225,20 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
         finally:
             service_lock.release()
 
-    app = FastAPI(title="Loom", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Lattice", version="0.1.0", lifespan=lifespan)
     app.state.config = config
     app.state.store = store
-    app.state.loom = loom
+    app.state.lattice = lattice
     app.state.supervisor = supervisor
     app.state.workflows = workflows
     app.add_middleware(OperatorBoundaryMiddleware, cli_token=cli_token, sessions=sessions, port=config.port)
 
-    @app.exception_handler(LoomNotFound)
-    async def missing(_request: Request, error: LoomNotFound):
+    @app.exception_handler(LatticeNotFound)
+    async def missing(_request: Request, error: LatticeNotFound):
         return Response(json.dumps({"detail": f"not found: {error.args[0]}"}), status_code=404, media_type="application/json")
 
-    @app.exception_handler(LoomConflict)
-    async def conflict(_request: Request, error: LoomConflict):
+    @app.exception_handler(LatticeConflict)
+    async def conflict(_request: Request, error: LatticeConflict):
         return Response(json.dumps({"detail": str(error)}), status_code=409, media_type="application/json")
 
     @app.exception_handler(QuaternaryBoundaryError)
@@ -247,12 +247,12 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
-        return {"status": "ok", "service": "loom", "boot_id": supervisor.boot_id}
+        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id}
 
     @app.get("/api/session")
     async def create_session(response: Response) -> dict[str, str]:
         session, csrf = sessions.issue()
-        response.set_cookie("loom_operator", session, httponly=True, samesite="strict", secure=False, path="/", max_age=sessions.ttl_seconds)
+        response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=False, path="/", max_age=sessions.ttl_seconds)
         return {"csrf": csrf}
 
     @app.get("/api/v1/routes")
@@ -264,23 +264,23 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
         project = store.get_project(project_id)
         role = next((item for item in project["roles"] if item["workflow_role_key"] == action["role_id"]), None)
         if role is None:
-            raise LoomConflict(f"workflow trigger role is unavailable: {action['role_id']}")
+            raise LatticeConflict(f"workflow trigger role is unavailable: {action['role_id']}")
         session = next(item for item in project["sessions"] if item["role_id"] == role["role_id"])
         policy = role["route_policy"]
         if policy["kind"] != "model":
-            raise LoomConflict("automatic invocation trigger requires a model-bound role")
+            raise LatticeConflict("automatic invocation trigger requires a model-bound role")
         from axis_model_runner import installed_adapter_status
         statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=False)
         route_status = next((item for item in statuses if item["qualified"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
         if route_status is None:
-            raise LoomConflict(f"qualified {policy['provider']} trigger route is unavailable")
+            raise LatticeConflict(f"qualified {policy['provider']} trigger route is unavailable")
         return session, policy, route_status
 
     def materialize_trigger_invocation(*, project_id: str, trigger: dict[str, Any], action: dict[str, Any], evidence_block_ids: list[str], trigger_plan: tuple[dict[str, Any], dict[str, Any], dict[str, Any]]) -> dict[str, Any]:
         session, policy, route_status = trigger_plan
         selections = [ContextSelection(block_id=block_id, plane="knowledge", label=f"independent-evidence:{index}") for index, block_id in enumerate(evidence_block_ids)]
         draft = store.create_draft(DraftCreate(project_id=project_id, role_session_id=session["role_session_id"], prompt=action["prompt"], route=ProviderRoute(provider=policy["provider"], model=route_status["model_code"], harness=policy["harness"], effort="high"), selections=selections, relation=EdgeRelation.triggered_by))
-        return loom.seal(draft["draft_id"], trigger_id=trigger["trigger_id"])
+        return lattice.seal(draft["draft_id"], trigger_id=trigger["trigger_id"])
 
     async def dispatch_trigger_invocation(invocation_id: str, trigger_id: str, *, retry: bool = False) -> dict[str, Any]:
         idempotency_key = opaque_id("trigger_retry") if retry else f"workflow-trigger:{trigger_id}"
@@ -340,7 +340,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
 
     @app.post("/api/v1/drafts")
     async def create_draft(value: DraftCreate):
-        return loom.invoke(value)
+        return lattice.invoke(value)
 
     @app.get("/api/v1/drafts/{draft_id}")
     async def get_draft(draft_id: str):
@@ -349,11 +349,11 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     @app.get("/api/v1/drafts/{draft_id}/preview")
     async def preview_draft(draft_id: str):
         draft = store.get_draft(draft_id)
-        preflight, prompt = loom.compositor.compile(draft, preview=True)
+        preflight, prompt = lattice.compositor.compile(draft, preview=True)
         parent_deltas = []
         for parent_id in draft["parents"]:
             parent = store.get_invocation(parent_id)
-            parent_deltas.append({"invocation_id": parent_id, "manifest_sha256": parent["manifest_sha256"], **loom.context_delta(parent["manifest"], preflight)})
+            parent_deltas.append({"invocation_id": parent_id, "manifest_sha256": parent["manifest_sha256"], **lattice.context_delta(parent["manifest"], preflight)})
         return {"draft_id": draft_id, "revision": draft["revision"], "preflight": preflight, "parent_deltas": parent_deltas, "compiled_prompt_preview": prompt.decode("utf-8")}
 
     @app.patch("/api/v1/drafts/{draft_id}")
@@ -362,19 +362,19 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
 
     @app.post("/api/v1/drafts/{draft_id}/seal")
     async def seal_draft(draft_id: str, value: SealDraftRequest):
-        return loom.seal(draft_id, expected_revision=value.expected_revision, expected_preflight_sha256=value.expected_preflight_sha256)
+        return lattice.seal(draft_id, expected_revision=value.expected_revision, expected_preflight_sha256=value.expected_preflight_sha256)
 
     @app.post("/api/v1/invocations/{invocation_id}/forks")
     async def fork(invocation_id: str, value: ForkRequest):
-        return loom.fork(invocation_id, role_session_id=value.role_session_id, prompt=value.prompt, route=value.route)
+        return lattice.fork(invocation_id, role_session_id=value.role_session_id, prompt=value.prompt, route=value.route)
 
     @app.post("/api/v1/joins")
     async def join(value: JoinRequest):
-        return loom.join(value.invocation_ids, role_session_id=value.role_session_id, prompt=value.prompt, route=value.route)
+        return lattice.join(value.invocation_ids, role_session_id=value.role_session_id, prompt=value.prompt, route=value.route)
 
     @app.post("/api/v1/invocations/{invocation_id}/replays")
     async def replay(invocation_id: str, value: ReplayRequest):
-        return loom.replay(invocation_id, prompt=value.prompt, route=value.route)
+        return lattice.replay(invocation_id, prompt=value.prompt, route=value.route)
 
     @app.post("/api/v1/invocations/{invocation_id}/execute", status_code=202)
     async def execute(invocation_id: str, value: ExecuteRequest):
@@ -386,7 +386,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
 
     @app.get("/api/v1/invocations/{invocation_id}")
     async def inspect(invocation_id: str):
-        return loom.inspect(invocation_id)
+        return lattice.inspect(invocation_id)
 
     @app.get("/api/v1/artifacts/{artifact_id}")
     async def inspect_artifact(artifact_id: str):
@@ -396,18 +396,18 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     async def neighborhood(
         invocation_id: str,
         depth: int = Query(default=2, ge=0, le=5),
-        max_nodes: int = Query(default=LoomStore.NEIGHBORHOOD_DEFAULT_MAX_NODES, ge=1, le=LoomStore.NEIGHBORHOOD_MAX_NODES),
-        max_edges: int = Query(default=LoomStore.NEIGHBORHOOD_DEFAULT_MAX_EDGES, ge=1, le=LoomStore.NEIGHBORHOOD_MAX_EDGES),
+        max_nodes: int = Query(default=LatticeStore.NEIGHBORHOOD_DEFAULT_MAX_NODES, ge=1, le=LatticeStore.NEIGHBORHOOD_MAX_NODES),
+        max_edges: int = Query(default=LatticeStore.NEIGHBORHOOD_DEFAULT_MAX_EDGES, ge=1, le=LatticeStore.NEIGHBORHOOD_MAX_EDGES),
     ):
         return store.graph_neighborhood(invocation_id, depth, max_nodes=max_nodes, max_edges=max_edges)
 
     @app.get("/api/v1/diff")
     async def diff(left: str, right: str):
-        return loom.diff(left, right)
+        return lattice.diff(left, right)
 
     @app.post("/api/v1/invocations/{invocation_id}/tags")
     async def tag(invocation_id: str, value: TagRequest):
-        return loom.tag(invocation_id, value)
+        return lattice.tag(invocation_id, value)
 
     @app.post("/api/v1/slices")
     async def create_slice(value: SliceCreate):
@@ -416,7 +416,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     @app.get("/api/v1/slices/{slice_id}")
     async def get_slice(
         slice_id: str,
-        limit: int = Query(default=LoomStore.SLICE_DEFAULT_LIMIT, ge=1, le=LoomStore.SLICE_MAX_LIMIT),
+        limit: int = Query(default=LatticeStore.SLICE_DEFAULT_LIMIT, ge=1, le=LatticeStore.SLICE_MAX_LIMIT),
         after_created_at: str | None = Query(default=None, min_length=1, max_length=100),
         after_object_type: str | None = Query(default=None, min_length=1, max_length=30),
         after_object_id: str | None = Query(default=None, min_length=1, max_length=200),
@@ -434,7 +434,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     @app.get("/api/v1/slices/by-external-ref/{external_ref:path}")
     async def slice_by_external_ref(
         external_ref: str,
-        limit: int = Query(default=LoomStore.SLICE_DEFAULT_LIMIT, ge=1, le=LoomStore.SLICE_MAX_LIMIT),
+        limit: int = Query(default=LatticeStore.SLICE_DEFAULT_LIMIT, ge=1, le=LatticeStore.SLICE_MAX_LIMIT),
         after_created_at: str | None = Query(default=None, min_length=1, max_length=100),
         after_object_type: str | None = Query(default=None, min_length=1, max_length=30),
         after_object_id: str | None = Query(default=None, min_length=1, max_length=200),
@@ -454,11 +454,11 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
 
     @app.post("/api/v1/workflows/extract")
     async def extract(value: ExtractRequest):
-        return loom.extract(value.project_id, value.invocation_ids, value.title)
+        return lattice.extract(value.project_id, value.invocation_ids, value.title)
 
     @app.post("/api/v1/workflow-templates/{artifact_id}/steps/{step_id}/drafts")
     async def materialize_template_step(artifact_id: str, step_id: str, value: MaterializeTemplateStepRequest):
-        return loom.materialize_template_step(artifact_id, step_id, expected_template_sha256=value.expected_template_sha256, project_id=value.project_id, role_session_id=value.role_session_id, context_bindings=value.context_bindings, invocation_bindings=value.invocation_bindings, route=value.route)
+        return lattice.materialize_template_step(artifact_id, step_id, expected_template_sha256=value.expected_template_sha256, project_id=value.project_id, role_session_id=value.role_session_id, context_bindings=value.context_bindings, invocation_bindings=value.invocation_bindings, route=value.route)
 
     @app.get("/api/v1/workflow-packs/{pack_id}")
     async def workflow_pack(pack_id: str):
@@ -517,14 +517,14 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
                 raise HTTPException(422, str(error)) from error
             expected_request_sha = sha256_bytes(canonical_bytes(retried_arguments))
             if prior["project_id"] != value.project_id or prior["pack_id"] != pack_id or prior["operation"] != value.operation or prior["expected_workflow_revision"] != value.expected_revision or prior["review"].get("requested_arguments_sha256") != expected_request_sha or (value.review_sha256 is not None and prior["review_sha256"] != value.review_sha256):
-                raise LoomConflict("workflow idempotency key was reused for another command")
+                raise LatticeConflict("workflow idempotency key was reused for another command")
             return {"command": store.get_workflow_command(prior["command_id"], include_result=True), "blackboard_state": "not-refreshed-idempotent-replay"}
         try:
             prepared_arguments, review, command_definition, file_blobs = await asyncio.to_thread(prepare_workflow_command, pack_id, value.project_id, value.expected_revision, value.operation, value.arguments)
         except (ValueError, ContextModuleError) as error:
             raise HTTPException(422, str(error)) from error
         if command_definition["authority"] != "read" and value.review_sha256 != review["review_sha256"]:
-            raise LoomConflict("workflow command bytes or authority changed after review")
+            raise LatticeConflict("workflow command bytes or authority changed after review")
         for digest, content in file_blobs:
             if store.blobs.put(content) != digest:
                 raise OSError("workflow command file identity changed during binding")
@@ -634,7 +634,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
         loaded = workflows.load(pack_id)
         require_current_workflow_instance(pack_id, project_id, loaded)
         if value.pack_canonical_sha256 != loaded["canonical_sha256"]:
-            raise LoomConflict("workflow pack changed before automation consent")
+            raise LatticeConflict("workflow pack changed before automation consent")
         trigger = next((item for item in loaded["definition"]["triggers"] if item["trigger"] == trigger_name and item["automatic"]), None)
         if trigger is None:
             raise HTTPException(422, "workflow trigger is not declared automatic")
@@ -647,13 +647,13 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
     async def retry_workflow_trigger(trigger_id: str):
         trigger = store.get_workflow_trigger(trigger_id)
         if trigger["action"] is None or trigger["action"]["type"] != "invoke_role":
-            raise LoomConflict("workflow trigger has no retryable invocation")
+            raise LatticeConflict("workflow trigger has no retryable invocation")
         current_pack = workflows.load(trigger["pack_id"])
         instance = store.get_workflow_instance(trigger["project_id"])
         if trigger["pack_canonical_sha256"] != current_pack["canonical_sha256"] or instance["pack_canonical_sha256"] != trigger["pack_canonical_sha256"]:
-            raise LoomConflict("workflow pack changed after this trigger was created; remodel the transition instead of reinterpreting it")
+            raise LatticeConflict("workflow pack changed after this trigger was created; remodel the transition instead of reinterpreting it")
         if instance["state"] != trigger["to_state"]:
-            raise LoomConflict("workflow has moved beyond this trigger's causal state; remodel instead of dispatching stale work")
+            raise LatticeConflict("workflow has moved beyond this trigger's causal state; remodel instead of dispatching stale work")
         if trigger["state"] == "pending":
             try:
                 trigger_plan = await resolve_trigger_route(trigger["project_id"], trigger["action"])
@@ -665,7 +665,7 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
         elif trigger["state"] in {"planned", "execution_failed"} and trigger.get("result_ref"):
             invocation = store.get_invocation(trigger["result_ref"])
         else:
-            raise LoomConflict("workflow trigger is not retryable")
+            raise LatticeConflict("workflow trigger is not retryable")
         try:
             attempt = await dispatch_trigger_invocation(invocation["invocation_id"], trigger_id, retry=True)
             return {"trigger": store.get_workflow_trigger(trigger_id), "challenger_invocation": invocation, "challenger_attempt": attempt}
@@ -722,6 +722,6 @@ def create_app(config: LoomConfig | None = None) -> FastAPI:
         index = dist / "index.html"
         if index.is_file():
             return FileResponse(index)
-        return HTMLResponse("<main><h1>Loom API is running</h1><p>Build <code>web/</code> to install the cockpit.</p></main>")
+        return HTMLResponse("<main><h1>Lattice API is running</h1><p>Build <code>web/</code> to install the cockpit.</p></main>")
 
     return app

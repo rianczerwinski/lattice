@@ -1,4 +1,4 @@
-"""Append-only Loom ledger and its transactionally derived current views."""
+"""Append-only Lattice ledger and its transactionally derived current views."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from axis_model_runner import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, va
 
 from .blob_store import BlobStore
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, stamp
-from .config import LoomConfig
+from .config import LatticeConfig
 from .contracts import (
     AttemptState,
     BlockDisposition,
@@ -41,6 +41,8 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
+CURRENT_BLOB_PREFIX = "lattice:blob/"
+LEGACY_BLOB_PREFIX = "loom:blob/"
 
 
 DDL = """
@@ -52,9 +54,9 @@ CREATE TABLE IF NOT EXISTS schema_migrations(
 ) STRICT;
 
 CREATE TRIGGER IF NOT EXISTS schema_migrations_no_update BEFORE UPDATE ON schema_migrations
-BEGIN SELECT RAISE(ABORT, 'Loom schema migration history is append-only'); END;
+BEGIN SELECT RAISE(ABORT, 'Lattice schema migration history is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS schema_migrations_no_delete BEFORE DELETE ON schema_migrations
-BEGIN SELECT RAISE(ABORT, 'Loom schema migration history is append-only'); END;
+BEGIN SELECT RAISE(ABORT, 'Lattice schema migration history is append-only'); END;
 
 CREATE TABLE IF NOT EXISTS events(
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,9 +71,9 @@ CREATE TABLE IF NOT EXISTS events(
 ) STRICT;
 
 CREATE TRIGGER IF NOT EXISTS events_no_update BEFORE UPDATE ON events
-BEGIN SELECT RAISE(ABORT, 'Loom events are append-only'); END;
+BEGIN SELECT RAISE(ABORT, 'Lattice events are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events
-BEGIN SELECT RAISE(ABORT, 'Loom events are append-only'); END;
+BEGIN SELECT RAISE(ABORT, 'Lattice events are append-only'); END;
 
 CREATE TABLE IF NOT EXISTS ledger_changes(
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,9 +86,9 @@ CREATE TABLE IF NOT EXISTS ledger_changes(
 ) STRICT;
 
 CREATE TRIGGER IF NOT EXISTS ledger_changes_no_update BEFORE UPDATE ON ledger_changes
-BEGIN SELECT RAISE(ABORT, 'Loom change ledger is append-only'); END;
+BEGIN SELECT RAISE(ABORT, 'Lattice change ledger is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS ledger_changes_no_delete BEFORE DELETE ON ledger_changes
-BEGIN SELECT RAISE(ABORT, 'Loom change ledger is append-only'); END;
+BEGIN SELECT RAISE(ABORT, 'Lattice change ledger is append-only'); END;
 
 CREATE TABLE IF NOT EXISTS append_integrity(
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,31 +101,31 @@ CREATE TABLE IF NOT EXISTS append_integrity(
 ) STRICT;
 
 CREATE TRIGGER IF NOT EXISTS append_integrity_no_update BEFORE UPDATE ON append_integrity
-BEGIN SELECT RAISE(ABORT, 'Loom integrity chain is append-only'); END;
+BEGIN SELECT RAISE(ABORT, 'Lattice integrity chain is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS append_integrity_no_delete BEFORE DELETE ON append_integrity
-BEGIN SELECT RAISE(ABORT, 'Loom integrity chain is append-only'); END;
+BEGIN SELECT RAISE(ABORT, 'Lattice integrity chain is append-only'); END;
 
-CREATE TRIGGER IF NOT EXISTS events_append_integrity AFTER INSERT ON events WHEN loom_replaying()=0
+CREATE TRIGGER IF NOT EXISTS events_append_integrity AFTER INSERT ON events WHEN lattice_replaying()=0
 BEGIN
     INSERT INTO append_integrity(stream,source_seq,prev_sha256,entry_sha256,created_at)
     VALUES(
         'event',
         NEW.seq,
         COALESCE((SELECT entry_sha256 FROM append_integrity ORDER BY seq DESC LIMIT 1),'0000000000000000000000000000000000000000000000000000000000000000'),
-        loom_integrity_hash('event',COALESCE((SELECT entry_sha256 FROM append_integrity ORDER BY seq DESC LIMIT 1),'0000000000000000000000000000000000000000000000000000000000000000'),NEW.seq,NEW.event_id,NEW.project_id,NEW.event_type,NEW.subject_type,NEW.subject_id,NEW.payload_json,NEW.payload_sha256,NEW.occurred_at),
-        loom_stamp()
+        lattice_integrity_hash('event',COALESCE((SELECT entry_sha256 FROM append_integrity ORDER BY seq DESC LIMIT 1),'0000000000000000000000000000000000000000000000000000000000000000'),NEW.seq,NEW.event_id,NEW.project_id,NEW.event_type,NEW.subject_type,NEW.subject_id,NEW.payload_json,NEW.payload_sha256,NEW.occurred_at),
+        lattice_stamp()
     );
 END;
 
-CREATE TRIGGER IF NOT EXISTS ledger_changes_append_integrity AFTER INSERT ON ledger_changes WHEN loom_replaying()=0
+CREATE TRIGGER IF NOT EXISTS ledger_changes_append_integrity AFTER INSERT ON ledger_changes WHEN lattice_replaying()=0
 BEGIN
     INSERT INTO append_integrity(stream,source_seq,prev_sha256,entry_sha256,created_at)
     VALUES(
         'ledger-change',
         NEW.seq,
         COALESCE((SELECT entry_sha256 FROM append_integrity ORDER BY seq DESC LIMIT 1),'0000000000000000000000000000000000000000000000000000000000000000'),
-        loom_integrity_hash('ledger-change',COALESCE((SELECT entry_sha256 FROM append_integrity ORDER BY seq DESC LIMIT 1),'0000000000000000000000000000000000000000000000000000000000000000'),NEW.seq,NEW.change_id,NEW.table_name,NEW.operation,NEW.primary_key_json,NEW.row_json,NEW.occurred_at),
-        loom_stamp()
+        lattice_integrity_hash('ledger-change',COALESCE((SELECT entry_sha256 FROM append_integrity ORDER BY seq DESC LIMIT 1),'0000000000000000000000000000000000000000000000000000000000000000'),NEW.seq,NEW.change_id,NEW.table_name,NEW.operation,NEW.primary_key_json,NEW.row_json,NEW.occurred_at),
+        lattice_stamp()
     );
 END;
 
@@ -410,15 +412,15 @@ CHANGE_TABLES = (
 )
 
 
-class LoomConflict(RuntimeError):
+class LatticeConflict(RuntimeError):
     pass
 
 
-class LoomNotFound(KeyError):
+class LatticeNotFound(KeyError):
     pass
 
 
-class LoomStore:
+class LatticeStore:
     SLICE_DEFAULT_LIMIT = 200
     SLICE_MAX_LIMIT = 500
     SLICE_INLINE_RESPONSE_BYTES = 8 * 1024 * 1024
@@ -427,7 +429,7 @@ class LoomStore:
     NEIGHBORHOOD_MAX_NODES = 5000
     NEIGHBORHOOD_MAX_EDGES = 10000
 
-    def __init__(self, config: LoomConfig) -> None:
+    def __init__(self, config: LatticeConfig) -> None:
         self.config = config
         self.config.data_root.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.config.data_root, 0o700)
@@ -557,6 +559,12 @@ class LoomStore:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=FULL")
         conn.execute("PRAGMA busy_timeout=30000")
+        conn.create_function("lattice_stamp", 0, stamp)
+        conn.create_function("lattice_replaying", 0, lambda: 0)
+        conn.create_function("lattice_integrity_hash", -1, self._integrity_hash, deterministic=True)
+        # Pre-rename databases carry these function names inside immutable SQLite
+        # trigger definitions. Registering aliases keeps that historical state
+        # executable without rewriting its evidence-bearing bytes.
         conn.create_function("loom_stamp", 0, stamp)
         conn.create_function("loom_replaying", 0, lambda: 0)
         conn.create_function("loom_integrity_hash", -1, self._integrity_hash, deterministic=True)
@@ -583,9 +591,9 @@ class LoomStore:
                 pk_args = ",".join(f"'{name}',{ref}.\"{name}\"" for name in primary)
                 row_expr = "NULL" if operation == "delete" else "json_object(" + ",".join(f"'{name}',{ref}.\"{name}\"" for name in columns) + ")"
                 conn.execute(f'DROP TRIGGER IF EXISTS "ledger_{table}_{operation}"')
-                conn.execute(f'''CREATE TRIGGER "ledger_{table}_{operation}" AFTER {operation.upper()} ON "{table}" WHEN loom_replaying()=0 BEGIN
+                conn.execute(f'''CREATE TRIGGER "ledger_{table}_{operation}" AFTER {operation.upper()} ON "{table}" WHEN lattice_replaying()=0 BEGIN
                     INSERT INTO ledger_changes(change_id,table_name,operation,primary_key_json,row_json,occurred_at)
-                    VALUES(lower(hex(randomblob(16))),'{table}','{operation}',json_object({pk_args}),{row_expr},loom_stamp());
+                    VALUES(lower(hex(randomblob(16))),'{table}','{operation}',json_object({pk_args}),{row_expr},lattice_stamp());
                 END''')
 
     @classmethod
@@ -643,7 +651,7 @@ class LoomStore:
                ORDER BY a.stream,a.source_seq LIMIT 5"""
         )]
         if missing or dangling:
-            raise OSError(f"Loom append history failed source coverage: missing={missing}, dangling={dangling}")
+            raise OSError(f"Lattice append history failed source coverage: missing={missing}, dangling={dangling}")
         previous = "0" * 64
         chain_rows = conn.execute(
             """SELECT a.*,
@@ -657,14 +665,14 @@ class LoomStore:
         for source_row in chain_rows:
             chain = dict(source_row)
             if chain["prev_sha256"] != previous:
-                raise OSError(f"Loom append history chain is broken at integrity row {chain['seq']}")
+                raise OSError(f"Lattice append history chain is broken at integrity row {chain['seq']}")
             if chain["stream"] == "event":
                 source = tuple(chain[key] for key in ("event_seq", "event_id", "event_project_id", "event_type", "subject_type", "subject_id", "payload_json", "payload_sha256", "event_occurred_at"))
             else:
                 source = tuple(chain[key] for key in ("change_seq", "change_id", "table_name", "operation", "primary_key_json", "row_json", "change_occurred_at"))
             expected_hash = cls._integrity_hash(chain["stream"], previous, *source)
             if chain["entry_sha256"] != expected_hash:
-                raise OSError(f"Loom append history content hash is invalid at integrity row {chain['seq']}")
+                raise OSError(f"Lattice append history content hash is invalid at integrity row {chain['seq']}")
             previous = chain["entry_sha256"]
 
     @classmethod
@@ -672,7 +680,7 @@ class LoomStore:
         contracts = {table: cls._table_contract(conn, table) for table in CHANGE_TABLES}
         unsupported = conn.execute("SELECT DISTINCT table_name FROM ledger_changes WHERE table_name NOT IN ({})".format(",".join("?" for _ in CHANGE_TABLES)), CHANGE_TABLES).fetchone()
         if unsupported is not None:
-            raise OSError(f"Loom change ledger names unsupported table: {unsupported[0]}")
+            raise OSError(f"Lattice change ledger names unsupported table: {unsupported[0]}")
         for table in CHANGE_TABLES:
             _columns, primary_columns = contracts[table]
             expected_count = 0
@@ -686,27 +694,27 @@ class LoomStore:
             for change in changes:
                 primary = json.loads(change["primary_key_json"])
                 if not isinstance(primary, dict) or len(primary) != len(primary_columns) or set(primary) != set(primary_columns):
-                    raise OSError(f"Loom change ledger has an invalid primary identity for {table}")
+                    raise OSError(f"Lattice change ledger has an invalid primary identity for {table}")
                 predicate = " AND ".join(f'"{key}"=?' for key in primary_columns)
                 parameters = tuple(primary[key] for key in primary_columns)
                 actual = conn.execute(f'SELECT * FROM "{table}" WHERE {predicate}', parameters).fetchone()
                 if change["operation"] == "delete":
                     if change["row_json"] is not None:
-                        raise OSError(f"Loom delete ledger row unexpectedly carries state for {table}")
+                        raise OSError(f"Lattice delete ledger row unexpectedly carries state for {table}")
                     if actual is not None:
-                        raise OSError(f"Loom current view diverges from its append-only change ledger: {table}")
+                        raise OSError(f"Lattice current view diverges from its append-only change ledger: {table}")
                     continue
                 if change["row_json"] is None:
-                    raise OSError(f"Loom change ledger row lacks state for {table}")
+                    raise OSError(f"Lattice change ledger row lacks state for {table}")
                 row = json.loads(change["row_json"])
                 if not isinstance(row, dict) or any(row.get(key) != primary[key] for key in primary_columns):
-                    raise OSError(f"Loom change ledger row disagrees with its primary identity for {table}")
+                    raise OSError(f"Lattice change ledger row disagrees with its primary identity for {table}")
                 expected_count += 1
                 if actual is None or dict(actual) != row:
-                    raise OSError(f"Loom current view diverges from its append-only change ledger: {table}")
+                    raise OSError(f"Lattice current view diverges from its append-only change ledger: {table}")
             actual_count = conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
             if expected_count != actual_count:
-                raise OSError(f"Loom current view diverges from its append-only change ledger: {table}")
+                raise OSError(f"Lattice current view diverges from its append-only change ledger: {table}")
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
@@ -742,7 +750,7 @@ class LoomStore:
     @staticmethod
     def _row(row: sqlite3.Row | None, label: str) -> dict[str, Any]:
         if row is None:
-            raise LoomNotFound(label)
+            raise LatticeNotFound(label)
         return dict(row)
 
     @staticmethod
@@ -754,7 +762,7 @@ class LoomStore:
 
     @staticmethod
     def _role_contract_bytes(*, name: str, instructions: str, incentives: list[str], authority_limits: list[str]) -> bytes:
-        return canonical_bytes({"kind": "loom-role-contract-v1", "name": name, "instructions": instructions, "incentives": incentives, "authority_limits": authority_limits})
+        return canonical_bytes({"kind": "lattice-role-contract-v1", "name": name, "instructions": instructions, "incentives": incentives, "authority_limits": authority_limits})
 
     def _migrate_role_contracts(self, conn: sqlite3.Connection) -> None:
         """Move legacy instruction-only roles to complete future-facing role contracts without rewriting old manifests."""
@@ -766,14 +774,14 @@ class LoomStore:
             try:
                 decoded = old_bytes.decode("utf-8", errors="strict")
             except UnicodeDecodeError as error:
-                raise LoomConflict(f"legacy role instruction is not exact UTF-8: {row['role_id']}") from error
+                raise LatticeConflict(f"legacy role instruction is not exact UTF-8: {row['role_id']}") from error
             incentives = json.loads(row["incentives_json"])
             authority_limits = json.loads(row["authority_limits_json"])
             try:
                 existing_contract = json.loads(decoded)
             except json.JSONDecodeError:
                 existing_contract = None
-            if isinstance(existing_contract, dict) and existing_contract.get("kind") == "loom-role-contract-v1" and isinstance(existing_contract.get("instructions"), str):
+            if isinstance(existing_contract, dict) and existing_contract.get("kind") == "lattice-role-contract-v1" and isinstance(existing_contract.get("instructions"), str):
                 instructions = existing_contract["instructions"]
             else:
                 instructions = decoded
@@ -785,7 +793,7 @@ class LoomStore:
             now = stamp()
             transformation = {"kind": "role-contract-upgrade-v1", "source_block_ids": [row["instructions_block_id"]]}
             conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,authority,evidence_level,sensitivity,transformation_json,created_at)
-                          VALUES(?,?,?,?,?,'active','loom-migration','governing-instruction','private',?,?)""", (block_id, row["project_id"], "role-instruction", digest, len(expected), canonical_bytes(transformation).decode(), now))
+                          VALUES(?,?,?,?,?,'active','lattice-migration','governing-instruction','private',?,?)""", (block_id, row["project_id"], "role-instruction", digest, len(expected), canonical_bytes(transformation).decode(), now))
             event_id = self._event(conn, project_id=row["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": digest, "semantic_type": "role-instruction", "status": "active", "migration": "role-contract-v1"})
             conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, event_id))
             self._insert_edge(conn, project_id=row["project_id"], relation=EdgeRelation.derived_from, source_type="context-block", source_id=block_id, source_revision=digest, target_type="context-block", target_id=row["instructions_block_id"], target_revision=row["content_sha256"], metadata={"migration": "role-contract-v1"})
@@ -808,15 +816,15 @@ class LoomStore:
         role = self.get_role(session["role_id"])
         policy = role["route_policy"]
         if policy["kind"] == "non-model":
-            raise LoomConflict(f"{role['name']} is not a model-execution role")
+            raise LatticeConflict(f"{role['name']} is not a model-execution role")
         if policy["kind"] == "model":
             if route["provider"] != policy["provider"] or route["harness"] != policy["harness"]:
-                raise LoomConflict(f"{role['name']} is bound to {policy['provider']} through {policy['harness']}")
+                raise LatticeConflict(f"{role['name']} is bound to {policy['provider']} through {policy['harness']}")
             if policy["allowed_models"] and route["model"] not in policy["allowed_models"]:
-                raise LoomConflict(f"{role['name']} does not authorize model {route['model']}")
+                raise LatticeConflict(f"{role['name']} does not authorize model {route['model']}")
         adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
         if adapter is None:
-            raise LoomConflict("provider and official CLI route are not qualified together")
+            raise LatticeConflict("provider and official CLI route are not qualified together")
         try:
             validate_execution_policy(
                 adapter,
@@ -827,7 +835,7 @@ class LoomStore:
                 network_policy=route["network_policy"],
             )
         except SubscriptionRouteUnavailable as error:
-            raise LoomConflict(str(error)) from error
+            raise LatticeConflict(str(error)) from error
 
     def create_project(self, value: ProjectCreate) -> dict[str, Any]:
         project_id = opaque_id("project")
@@ -876,7 +884,7 @@ class LoomStore:
         return project
 
     def project_enduring_graph(self, project_id: str) -> dict[str, Any]:
-        """Return the bounded enduring identities Axial may mirror from Loom."""
+        """Return the bounded enduring identities Axial may mirror from Lattice."""
 
         with self._connect() as conn:
             project = self._row(conn.execute("SELECT project_id,title,purpose,workflow_pack,created_at FROM projects WHERE project_id=?", (project_id,)).fetchone(), project_id)
@@ -888,7 +896,7 @@ class LoomStore:
                 (project_id, MAX_AXIAL_SOURCE_CLAIMS + 1),
             )]
         if len(rows) > MAX_AXIAL_SOURCE_CLAIMS:
-            raise LoomConflict(f"Axial projection exceeds its {MAX_AXIAL_SOURCE_CLAIMS}-claim limit")
+            raise LatticeConflict(f"Axial projection exceeds its {MAX_AXIAL_SOURCE_CLAIMS}-claim limit")
         grouped: dict[str, dict[str, Any]] = {}
         claims: list[dict[str, str]] = []
         for row in rows:
@@ -899,14 +907,14 @@ class LoomStore:
             fallback = ref.split(":", 1)[-1].replace("-", " ")
             value = grouped.setdefault(ref, {"external_ref": ref, "label": row["slice_name"] or metadata.get("label") or fallback, "kind": kind})
             if len(grouped) > MAX_AXIAL_CONCERNS:
-                raise LoomConflict(f"Axial projection exceeds its {MAX_AXIAL_CONCERNS}-concern limit")
+                raise LatticeConflict(f"Axial projection exceeds its {MAX_AXIAL_CONCERNS}-concern limit")
             if row["slice_name"]:
                 value["label"] = row["slice_name"]
             claims.append({key: str(row[key]) for key in ("edge_id", "source_type", "source_id", "source_revision", "target_id", "target_revision")})
-        material = {"contract_version": "LoomAxialProjection/1.0", "project": project, "concerns": [grouped[key] for key in sorted(grouped)], "source_claims": claims}
+        material = {"contract_version": "LatticeAxialProjection/1.0", "project": project, "concerns": [grouped[key] for key in sorted(grouped)], "source_claims": claims}
         encoded = canonical_bytes(material)
         if len(encoded) > MAX_AXIAL_PROJECTION_BYTES:
-            raise LoomConflict(f"Axial projection exceeds its {MAX_AXIAL_PROJECTION_BYTES}-byte limit")
+            raise LatticeConflict(f"Axial projection exceeds its {MAX_AXIAL_PROJECTION_BYTES}-byte limit")
         return {**material, "projection_sha256": sha256_bytes(encoded)}
 
     def list_projects(self) -> list[dict[str, Any]]:
@@ -996,9 +1004,9 @@ class LoomStore:
             conn.execute("INSERT INTO projects(project_id,title,purpose,workflow_pack,created_at) VALUES(?,?,?,?,?)", (project_id, title, purpose, workflow_pack, now))
             self._event(conn, project_id=project_id, event_type="project.created", subject_type="project", subject_id=project_id, payload={"title": title, "purpose": purpose, "workflow_pack": workflow_pack})
             if pack_definition_sha256 is not None and pack_definition_sha256 != pack_canonical_sha256:
-                raise LoomConflict("workflow pack definition bytes do not match its canonical identity")
+                raise LatticeConflict("workflow pack definition bytes do not match its canonical identity")
             conn.execute("INSERT INTO workflow_instances(project_id,pack_id,state,revision,automatic_grants_json,selector_json,pack_canonical_sha256,pack_definition_sha256,updated_at) VALUES(?,?,?,1,'[]',?,?,?,?)", (project_id, workflow_pack, initial_state, canonical_bytes(selector or {}).decode(), pack_canonical_sha256, pack_definition_sha256, now))
-            entry_event = self._event(conn, project_id=project_id, event_type="workflow.instance-created", subject_type="workflow-instance", subject_id=project_id, payload={"pack_id": workflow_pack, "pack_canonical_sha256": pack_canonical_sha256, "pack_definition_ref": f"loom:blob/{pack_definition_sha256}" if pack_definition_sha256 else None, "state": initial_state, "revision": 1, "automatic_grants": []})
+            entry_event = self._event(conn, project_id=project_id, event_type="workflow.instance-created", subject_type="workflow-instance", subject_id=project_id, payload={"pack_id": workflow_pack, "pack_canonical_sha256": pack_canonical_sha256, "pack_definition_ref": f"lattice:blob/{pack_definition_sha256}" if pack_definition_sha256 else None, "state": initial_state, "revision": 1, "automatic_grants": []})
             entry_seq = conn.execute("SELECT seq FROM events WHERE event_id=?", (entry_event,)).fetchone()[0]
             conn.execute("UPDATE workflow_instances SET state_entry_seq=? WHERE project_id=?", (entry_seq, project_id))
             for spec, role_id, session_id, instruction_id, instruction_sha, instructions in prepared_roles:
@@ -1041,7 +1049,7 @@ class LoomStore:
         with self.transaction() as conn:
             row = self._row(conn.execute("SELECT r.project_id,d.mode,d.active FROM role_context_defaults d JOIN roles r USING(role_id) WHERE d.role_id=? AND d.block_id=?", (role_id, block_id)).fetchone(), block_id)
             if row["mode"] != "role_default":
-                raise LoomConflict("workflow-required context cannot be removed")
+                raise LatticeConflict("workflow-required context cannot be removed")
             if not row["active"]:
                 return
             conn.execute("UPDATE role_context_defaults SET active=0 WHERE role_id=? AND block_id=?", (role_id, block_id))
@@ -1051,7 +1059,7 @@ class LoomStore:
         if value.producing_invocation_id is not None:
             producer = self._row(conn.execute("SELECT project_id FROM invocations WHERE invocation_id=?", (value.producing_invocation_id,)).fetchone(), value.producing_invocation_id)
             if producer["project_id"] != value.project_id:
-                raise LoomConflict("context block producer belongs to another project")
+                raise LatticeConflict("context block producer belongs to another project")
         conn.execute(
             """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
                producing_invocation_id,source_ref,source_sha256,authority,evidence_level,sensitivity,transformation_json,created_at)
@@ -1071,7 +1079,7 @@ class LoomStore:
         now = stamp()
         with self.transaction() as conn:
             if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (value.project_id,)).fetchone() is None:
-                raise LoomNotFound(value.project_id)
+                raise LatticeNotFound(value.project_id)
             self._insert_context_block(conn, value, block_id=block_id, content=content, digest=digest, now=now)
         return self.get_block(block_id, include_content=False)
 
@@ -1086,7 +1094,7 @@ class LoomStore:
 
     def get_block_status_revision(self, block_id: str, revision: int) -> str:
         if revision < 1:
-            raise LoomNotFound(f"{block_id}@{revision}")
+            raise LatticeNotFound(f"{block_id}@{revision}")
         with self._connect() as conn:
             rows = conn.execute("""SELECT event_type,payload_json FROM events
                                    WHERE subject_type='context-block' AND subject_id=?
@@ -1100,7 +1108,7 @@ class LoomStore:
                 if not isinstance(status, str):
                     break
                 return status
-        raise LoomNotFound(f"{block_id}@{revision}")
+        raise LatticeNotFound(f"{block_id}@{revision}")
 
     def set_block_status(self, block_id: str, status: BlockStatus) -> dict[str, Any]:
         with self.transaction() as conn:
@@ -1118,7 +1126,7 @@ class LoomStore:
         now = stamp()
         with self.transaction() as conn:
             if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (project_id,)).fetchone() is None:
-                raise LoomNotFound(project_id)
+                raise LatticeNotFound(project_id)
             conn.execute(
                 """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
                    authority,evidence_level,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-or-operator','governing-instruction','private',?)""",
@@ -1147,7 +1155,7 @@ class LoomStore:
         with self.transaction() as conn:
             role = self._row(conn.execute("SELECT project_id FROM roles WHERE role_id=?", (value.role_id,)).fetchone(), value.role_id)
             if role["project_id"] != value.project_id:
-                raise LoomConflict("role does not belong to project")
+                raise LatticeConflict("role does not belong to project")
             conn.execute("INSERT INTO role_sessions(role_session_id,project_id,role_id,label,created_at) VALUES(?,?,?,?,?)", (session_id, value.project_id, value.role_id, value.label, stamp()))
             self._event(conn, project_id=value.project_id, event_type="role-session.created", subject_type="role-session", subject_id=session_id, payload=value.model_dump(mode="json"))
         return self.get_role_session(session_id)
@@ -1159,12 +1167,12 @@ class LoomStore:
     def create_draft(self, value: DraftCreate, *, prompt_block_id: str | None = None, import_turn: tuple[str, int] | None = None, retarget_current_prompt_selections: bool = False, source_artifact: tuple[str, str, str] | None = None) -> dict[str, Any]:
         session = self.get_role_session(value.role_session_id)
         if session["project_id"] != value.project_id:
-            raise LoomConflict("role session does not belong to project")
+            raise LatticeConflict("role session does not belong to project")
         self._assert_route_authorized(value.role_session_id, value.route.model_dump(mode="json"))
         for parent_id in value.parent_invocation_ids:
             parent = self.get_invocation(parent_id)
             if parent["project_id"] != value.project_id:
-                raise LoomConflict("parent invocation does not belong to project")
+                raise LatticeConflict("parent invocation does not belong to project")
         prompt_value = None
         prompt_content = value.prompt.encode("utf-8")
         if prompt_block_id is None:
@@ -1174,7 +1182,7 @@ class LoomStore:
         else:
             prompt_block = self.get_block(prompt_block_id)
             if prompt_block["project_id"] != value.project_id or prompt_block["content"] != value.prompt:
-                raise LoomConflict("reused prompt block does not match the draft project and bytes")
+                raise LatticeConflict("reused prompt block does not match the draft project and bytes")
         selections = [item.model_dump(mode="json") for item in value.selections]
         if retarget_current_prompt_selections:
             selections = [{**item, "block_id": prompt_block_id} if item["plane"] == "current_prompt" else item for item in selections]
@@ -1196,13 +1204,13 @@ class LoomStore:
                 artifact_id, artifact_sha256, step_id = source_artifact
                 artifact = self._row(conn.execute("SELECT project_id,content_sha256 FROM artifacts WHERE artifact_id=?", (artifact_id,)).fetchone(), artifact_id)
                 if artifact["content_sha256"] != artifact_sha256:
-                    raise LoomConflict("workflow template changed during draft materialization")
+                    raise LatticeConflict("workflow template changed during draft materialization")
                 self._insert_edge(conn, project_id=value.project_id, relation=EdgeRelation.derived_from, source_type="draft", source_id=draft_id, source_revision="1", target_type="artifact", target_id=artifact_id, target_revision=artifact_sha256, metadata={"template_step_id": step_id, "template_source_project_id": artifact["project_id"]})
             if import_turn is not None:
                 import_id, ordinal = import_turn
                 changed = conn.execute("UPDATE conversation_import_turns SET draft_id=?,state='draft_created',updated_at=? WHERE import_id=? AND ordinal=? AND state='pending' AND draft_id IS NULL", (draft_id, now, import_id, ordinal)).rowcount
                 if changed != 1:
-                    raise LoomConflict("conversation import turn changed before draft creation")
+                    raise LatticeConflict("conversation import turn changed before draft creation")
         return self.get_draft(draft_id)
 
     def get_draft(self, draft_id: str) -> dict[str, Any]:
@@ -1215,9 +1223,9 @@ class LoomStore:
     def patch_draft(self, draft_id: str, patch: DraftPatch) -> dict[str, Any]:
         current = self.get_draft(draft_id)
         if current["state"] != DraftState.editable.value:
-            raise LoomConflict("sealed or abandoned drafts are immutable")
+            raise LatticeConflict("sealed or abandoned drafts are immutable")
         if current["revision"] != patch.expected_revision:
-            raise LoomConflict("draft revision changed")
+            raise LatticeConflict("draft revision changed")
         prompt_block_id = current["prompt_block_id"]
         prompt_value = None
         if patch.prompt is not None:
@@ -1232,13 +1240,13 @@ class LoomStore:
         for parent_id in parents:
             parent = self.get_invocation(parent_id)
             if parent["project_id"] != current["project_id"]:
-                raise LoomConflict("parent invocation does not belong to project")
+                raise LatticeConflict("parent invocation does not belong to project")
         if patch.prompt is not None:
             selections = [{**item, "block_id": prompt_block_id} if item["plane"] == "current_prompt" else item for item in selections]
         if current["context_mode"] == "explicit":
             prompt_selections = [item for item in selections if item["plane"] == "current_prompt"]
             if len(prompt_selections) != 1 or prompt_selections[0]["disposition"] != BlockDisposition.selected.value:
-                raise LoomConflict("explicit context requires exactly one directly selected current-prompt block")
+                raise LatticeConflict("explicit context requires exactly one directly selected current-prompt block")
         revision = current["revision"] + 1
         with self.transaction() as conn:
             if prompt_value is not None:
@@ -1249,7 +1257,7 @@ class LoomStore:
                 (prompt_block_id, canonical_bytes(route).decode(), canonical_bytes(selections).decode(), canonical_bytes(parents).decode(), revision, stamp(), draft_id, patch.expected_revision),
             ).rowcount
             if changed != 1:
-                raise LoomConflict("draft changed during update")
+                raise LatticeConflict("draft changed during update")
             self._event(conn, project_id=current["project_id"], event_type="draft.revised", subject_type="draft", subject_id=draft_id, payload={"revision": revision})
         return self.get_draft(draft_id)
 
@@ -1260,7 +1268,7 @@ class LoomStore:
         with self.transaction() as conn:
             current = self._row(conn.execute("SELECT state,revision FROM drafts WHERE draft_id=?", (draft["draft_id"],)).fetchone(), draft["draft_id"])
             if current["state"] != DraftState.editable.value or current["revision"] != draft["revision"]:
-                raise LoomConflict("draft changed before sealing")
+                raise LatticeConflict("draft changed before sealing")
             conn.execute(
                 """INSERT INTO invocations(invocation_id,project_id,role_session_id,draft_id,manifest_artifact_id,manifest_sha256,manifest_json,compiled_prompt_sha256,route_json,response_schema_json,state,created_at)
                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -1274,9 +1282,9 @@ class LoomStore:
             if trigger_id is not None:
                 trigger = self._row(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone(), trigger_id)
                 if trigger["state"] != "pending":
-                    raise LoomConflict("workflow trigger is not pending")
+                    raise LatticeConflict("workflow trigger is not pending")
                 if trigger["project_id"] != draft["project_id"]:
-                    raise LoomConflict("workflow trigger belongs to another project")
+                    raise LatticeConflict("workflow trigger belongs to another project")
                 self._assert_trigger_invocation_role(conn, trigger, draft["role_session_id"])
                 conn.execute("UPDATE workflow_triggers SET state='planned',result_ref=?,error_text=NULL WHERE trigger_id=?", (invocation_id, trigger_id))
                 self._insert_edge(conn, project_id=draft["project_id"], relation=EdgeRelation.triggered_by, source_type="invocation", source_id=invocation_id, source_revision=manifest_sha, target_type="workflow-trigger", target_id=trigger_id, target_revision=trigger["source_transition_id"], metadata={"blinded": True})
@@ -1285,19 +1293,19 @@ class LoomStore:
                 import_id, ordinal = import_turn
                 changed = conn.execute("UPDATE conversation_import_turns SET invocation_id=?,state='invocation_sealed',updated_at=? WHERE import_id=? AND ordinal=? AND state='draft_created' AND draft_id=? AND invocation_id IS NULL", (invocation_id, now, import_id, ordinal, draft["draft_id"])).rowcount
                 if changed != 1:
-                    raise LoomConflict("conversation import turn changed before invocation sealing")
+                    raise LatticeConflict("conversation import turn changed before invocation sealing")
         return self.get_invocation(invocation_id)
 
     @staticmethod
     def _invocation_revision(conn: sqlite3.Connection, invocation_id: str) -> str:
         row = conn.execute("SELECT manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
         if row is None:
-            raise LoomNotFound(invocation_id)
+            raise LatticeNotFound(invocation_id)
         return str(row[0])
 
     def _insert_edge(self, conn: sqlite3.Connection, *, project_id: str, relation: EdgeRelation, source_type: str, source_id: str, source_revision: str, target_type: str, target_id: str, target_revision: str, metadata: dict[str, Any]) -> str:
         if target_type == "external-concern" and target_revision != sha256_bytes(target_id.encode("utf-8")):
-            raise LoomConflict("external concern edge revision must bind its exact stable identity")
+            raise LatticeConflict("external concern edge revision must bind its exact stable identity")
         edge_id = opaque_id("edge")
         conn.execute(
             """INSERT INTO edges(edge_id,project_id,relation,source_type,source_id,source_revision,target_type,target_id,target_revision,metadata_json,created_at)
@@ -1325,9 +1333,9 @@ class LoomStore:
         row["route"] = json.loads(row.pop("route_json"))
         row["response_schema"] = json.loads(row.pop("response_schema_json"))
         if row["manifest"].get("invocation_id") != row["invocation_id"] or row["manifest"].get("manifest_sha256") != row["manifest_sha256"] or row["manifest"].get("generated_object", {}).get("artifact_id") != row["manifest_artifact_id"] or row["manifest"].get("compilation", {}).get("compiled_prompt_sha256") != row["compiled_prompt_sha256"] or row["manifest"].get("execution") != row["route"]:
-            raise LoomConflict("stored invocation columns disagree with its immutable manifest")
-        if row["manifest"].get("contract_version") in {"LoomContextManifest/2.0", "LoomContextManifest/3.0"} and row["manifest"].get("response_contract") != row["response_schema"]:
-            raise LoomConflict("stored invocation response contract disagrees with its immutable manifest")
+            raise LatticeConflict("stored invocation columns disagree with its immutable manifest")
+        if row["manifest"].get("contract_version") in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} and row["manifest"].get("response_contract") != row["response_schema"]:
+            raise LatticeConflict("stored invocation response contract disagrees with its immutable manifest")
         for attempt in row["attempts"]:
             attempt["runtime_receipt"] = json.loads(attempt.pop("runtime_receipt_json")) if attempt.get("runtime_receipt_json") else None
         if row["output_block_id"]:
@@ -1345,7 +1353,7 @@ class LoomStore:
         with self.transaction() as conn:
             attempt = self._row(conn.execute("SELECT a.*,i.project_id,i.manifest_sha256 FROM attempts a JOIN invocations i USING(invocation_id) WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             if attempt["state"] not in {AttemptState.leased.value, AttemptState.running.value}:
-                raise LoomConflict("terminal attempts are immutable")
+                raise LatticeConflict("terminal attempts are immutable")
             now = stamp()
             block_id = opaque_id("block")
             conn.execute(
@@ -1386,7 +1394,7 @@ class LoomStore:
         """Return a stable recent window without making the project read path unbounded."""
 
         if (before_created_at is None) != (before_invocation_id is None):
-            raise LoomConflict("invocation history cursor requires both creation time and invocation identity")
+            raise LatticeConflict("invocation history cursor requires both creation time and invocation identity")
         predicates = ["project_id=?"]
         parameters: list[Any] = [project_id]
         if before_created_at is not None and before_invocation_id is not None:
@@ -1422,14 +1430,14 @@ class LoomStore:
             prior = conn.execute("SELECT * FROM attempts WHERE idempotency_key=?", (idempotency_key,)).fetchone()
             if prior is not None:
                 if prior["invocation_id"] != invocation_id:
-                    raise LoomConflict("idempotency key belongs to another invocation")
+                    raise LatticeConflict("idempotency key belongs to another invocation")
                 return dict(prior)
             invocation = self._row(conn.execute("SELECT project_id,state FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
             if invocation["state"] not in {InvocationState.sealed.value, InvocationState.failed.value, InvocationState.interrupted.value}:
-                raise LoomConflict(f"invocation cannot execute from {invocation['state']}")
+                raise LatticeConflict(f"invocation cannot execute from {invocation['state']}")
             active = conn.execute("SELECT 1 FROM leases WHERE invocation_id=? AND state='active'", (invocation_id,)).fetchone()
             if active:
-                raise LoomConflict("invocation already has an active lease")
+                raise LatticeConflict("invocation already has an active lease")
             number = conn.execute("SELECT COALESCE(MAX(attempt_number),0)+1 FROM attempts WHERE invocation_id=?", (invocation_id,)).fetchone()[0]
             attempt_id = opaque_id("attempt")
             lease_id = opaque_id("lease")
@@ -1444,7 +1452,7 @@ class LoomStore:
         with self.transaction() as conn:
             attempt = self._row(conn.execute("SELECT a.*,i.project_id FROM attempts a JOIN invocations i USING(invocation_id) WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             if attempt["state"] != AttemptState.leased.value:
-                raise LoomConflict("attempt is not leased")
+                raise LatticeConflict("attempt is not leased")
             conn.execute("UPDATE attempts SET state='running',journal_path=?,heartbeat_at=? WHERE attempt_id=?", (journal_path, stamp(), attempt_id))
             conn.execute("UPDATE invocations SET state='running' WHERE invocation_id=?", (attempt["invocation_id"],))
             self._event(conn, project_id=attempt["project_id"], event_type="attempt.running", subject_type="attempt", subject_id=attempt_id, payload={"journal_path": journal_path})
@@ -1461,7 +1469,7 @@ class LoomStore:
         with self.transaction() as conn:
             attempt = self._row(conn.execute("SELECT a.*,i.project_id FROM attempts a JOIN invocations i USING(invocation_id) WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             if attempt["state"] not in {AttemptState.leased.value, AttemptState.running.value}:
-                raise LoomConflict("terminal attempts are immutable")
+                raise LatticeConflict("terminal attempts are immutable")
             now = stamp()
             conn.execute("UPDATE attempts SET state=?,journal_path=COALESCE(?,journal_path),output_sha256=?,failure_kind=?,error_text=?,runtime_receipt_json=?,completed_at=? WHERE attempt_id=?", (state.value, journal_path, output_sha256, failure_kind, error_text, canonical_bytes(runtime_receipt).decode() if runtime_receipt else None, now, attempt_id))
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
@@ -1478,9 +1486,9 @@ class LoomStore:
         with self.transaction() as conn:
             invocation = self._row(conn.execute("SELECT project_id,state,manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
             if invocation["state"] != InvocationState.sealed.value:
-                raise LoomConflict("only newly sealed invocations can become imported history")
+                raise LatticeConflict("only newly sealed invocations can become imported history")
             if invocation["project_id"] != block["project_id"]:
-                raise LoomConflict("imported output belongs to another project")
+                raise LatticeConflict("imported output belongs to another project")
             conn.execute("UPDATE invocations SET state='imported',output_block_id=?,terminal_kind='historical-import',completed_at=? WHERE invocation_id=?", (output_block_id, stamp(), invocation_id))
             self._insert_edge(conn, project_id=invocation["project_id"], relation=EdgeRelation.produced, source_type="invocation", source_id=invocation_id, source_revision=invocation["manifest_sha256"], target_type="context-block", target_id=output_block_id, target_revision=block["content_sha256"], metadata={"historical_import": True})
             self._event(conn, project_id=invocation["project_id"], event_type="invocation.imported", subject_type="invocation", subject_id=invocation_id, payload={"output_block_id": output_block_id})
@@ -1490,7 +1498,7 @@ class LoomStore:
         with self._connect() as conn:
             rows = [dict(row) for row in conn.execute("SELECT attempt_id FROM attempts WHERE state IN ('leased','running') AND COALESCE(owner_boot_id,'')<>?", (boot_id,))]
         for row in rows:
-            self.finish_attempt(row["attempt_id"], state=AttemptState.orphaned, failure_kind="process_restart", error_text="Loom restarted before the attempt reached a terminal receipt")
+            self.finish_attempt(row["attempt_id"], state=AttemptState.orphaned, failure_kind="process_restart", error_text="Lattice restarted before the attempt reached a terminal receipt")
         return len(rows)
 
     def create_slice(self, value: SliceCreate) -> dict[str, Any]:
@@ -1498,9 +1506,9 @@ class LoomStore:
         now = stamp()
         with self.transaction() as conn:
             if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (value.project_id,)).fetchone() is None:
-                raise LoomNotFound(value.project_id)
+                raise LatticeNotFound(value.project_id)
             if value.external_ref is not None and conn.execute("SELECT 1 FROM slices WHERE external_ref=?", (value.external_ref,)).fetchone() is not None:
-                raise LoomConflict("external Loom slice identity already exists")
+                raise LatticeConflict("external Lattice slice identity already exists")
             conn.execute("INSERT INTO slices(slice_id,project_id,scope,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)", (slice_id, value.project_id, value.scope, value.name, canonical_bytes(value.query.model_dump(mode="json")).decode(), value.external_ref, now, now))
             self._event(conn, project_id=value.project_id, event_type="slice.created", subject_type="slice", subject_id=slice_id, payload=value.model_dump(mode="json"))
         return self.get_slice(slice_id)
@@ -1520,7 +1528,7 @@ class LoomStore:
             else:
                 slice_id = slice_row["slice_id"]
                 if slice_row["name"] != value.label:
-                    raise LoomConflict("external concern label disagrees with its existing stable identity")
+                    raise LatticeConflict("external concern label disagrees with its existing stable identity")
             existing = conn.execute(
                 """SELECT edge_id FROM edges WHERE relation='concerns' AND source_type='invocation' AND source_id=? AND source_revision=?
                    AND target_type='external-concern' AND target_id=? AND target_revision=?""",
@@ -1540,9 +1548,9 @@ class LoomStore:
         if all(value is None for value in values):
             return None
         if any(value is None for value in values):
-            raise LoomConflict("slice continuation requires created_at, object_type, and object_id together")
+            raise LatticeConflict("slice continuation requires created_at, object_type, and object_id together")
         if after_object_type not in {"context-block", "invocation"}:
-            raise LoomConflict("slice continuation has an unsupported object type")
+            raise LatticeConflict("slice continuation has an unsupported object type")
         return after_created_at, after_object_type, after_object_id
 
     def get_slice(
@@ -1556,16 +1564,16 @@ class LoomStore:
         snapshot_event_seq: int | None = None,
     ) -> dict[str, Any]:
         if not 1 <= limit <= self.SLICE_MAX_LIMIT:
-            raise LoomConflict(f"slice limit must be between 1 and {self.SLICE_MAX_LIMIT}")
+            raise LatticeConflict(f"slice limit must be between 1 and {self.SLICE_MAX_LIMIT}")
         cursor = self._slice_cursor(
             after_created_at=after_created_at,
             after_object_type=after_object_type,
             after_object_id=after_object_id,
         )
         if cursor is not None and snapshot_event_seq is None:
-            raise LoomConflict("slice continuation requires its enumeration snapshot event sequence")
+            raise LatticeConflict("slice continuation requires its enumeration snapshot event sequence")
         if snapshot_event_seq is not None and snapshot_event_seq < 1:
-            raise LoomConflict("slice enumeration snapshot event sequence must be positive")
+            raise LatticeConflict("slice enumeration snapshot event sequence must be positive")
         with self._connect() as conn:
             row = self._row(conn.execute("SELECT * FROM slices WHERE slice_id=?", (slice_id,)).fetchone(), slice_id)
         row["query"] = json.loads(row.pop("query_json"))
@@ -1606,7 +1614,7 @@ class LoomStore:
         try:
             query = SliceQuery.model_validate(slice_row.get("query") or json.loads(slice_row["query_json"]))
         except ValueError as error:
-            raise LoomConflict("stored slice query is not executable by this Loom generation") from error
+            raise LatticeConflict("stored slice query is not executable by this Lattice generation") from error
         concern = query.concern_ref
         object_types = set(query.object_types)
         global_scope = slice_row.get("scope", "project") == "global"
@@ -1731,7 +1739,7 @@ class LoomStore:
             digest.update(len(encoded).to_bytes(8, "big"))
             digest.update(encoded)
 
-        bind({"kind": "LoomStateDigest", "version": 2})
+        bind({"kind": "LatticeStateDigest", "version": 2})
         with self._connect() as conn:
             self._verify_integrity_chain(conn)
             for table in CHANGE_TABLES:
@@ -1752,25 +1760,26 @@ class LoomStore:
 
     @staticmethod
     def _collect_blob_refs(value: Any, refs: set[str]) -> None:
-        if isinstance(value, str) and value.startswith("loom:blob/"):
-            digest = value.removeprefix("loom:blob/")
+        if isinstance(value, str) and value.startswith((CURRENT_BLOB_PREFIX, LEGACY_BLOB_PREFIX)):
+            prefix = CURRENT_BLOB_PREFIX if value.startswith(CURRENT_BLOB_PREFIX) else LEGACY_BLOB_PREFIX
+            digest = value.removeprefix(prefix)
             if len(digest) == 64 and all(character in "0123456789abcdef" for character in digest):
                 refs.add(digest)
         elif isinstance(value, dict):
             for child in value.values():
-                LoomStore._collect_blob_refs(child, refs)
+                LatticeStore._collect_blob_refs(child, refs)
         elif isinstance(value, list):
             for child in value:
-                LoomStore._collect_blob_refs(child, refs)
+                LatticeStore._collect_blob_refs(child, refs)
 
     def _required_blob_bytes(self, digest: str) -> bytes:
         try:
             return self.blobs.get(digest)
         except FileNotFoundError as error:
-            raise OSError(f"missing blob required by Loom state: {digest}") from error
+            raise OSError(f"missing blob required by Lattice state: {digest}") from error
 
     def referenced_blob_digests(self) -> set[str]:
-        """Return every CAS object needed to reconstruct current and historical Loom truth."""
+        """Return every CAS object needed to reconstruct current and historical Lattice truth."""
         refs: set[str] = set()
         structured_blobs: set[str] = set()
         with self._connect() as conn:
@@ -1799,18 +1808,18 @@ class LoomStore:
             ):
                 for row in conn.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL'):
                     self._collect_blob_refs(json.loads(row[0]), refs)
-            for row in conn.execute("SELECT result_ref FROM workflow_triggers WHERE result_ref LIKE 'loom:blob/%'"):
+            for row in conn.execute("SELECT result_ref FROM workflow_triggers WHERE result_ref LIKE 'lattice:blob/%' OR result_ref LIKE 'loom:blob/%'"):
                 self._collect_blob_refs(row[0], refs)
         for digest in sorted(structured_blobs):
             try:
                 value = json.loads(self._required_blob_bytes(digest))
             except json.JSONDecodeError as error:
-                raise OSError(f"structured Loom blob is not valid JSON: {digest}") from error
+                raise OSError(f"structured Lattice blob is not valid JSON: {digest}") from error
             self._collect_blob_refs(value, refs)
         return refs
 
     def rebuild_database(self, destination: Path) -> str:
-        """Reconstruct a complete Loom data root off-path, then publish it atomically."""
+        """Reconstruct a complete Lattice data root off-path, then publish it atomically."""
         with self._write_lock, self._connect() as guard:
             guard.execute("BEGIN IMMEDIATE")
             active_work = {
@@ -1820,7 +1829,7 @@ class LoomStore:
                 "leases": guard.execute("SELECT COUNT(*) FROM leases WHERE state='active'").fetchone()[0],
             }
             if any(active_work.values()):
-                raise LoomConflict(f"cannot rebuild while durable work is active: {active_work}")
+                raise LatticeConflict(f"cannot rebuild while durable work is active: {active_work}")
             self._verify_integrity_chain(guard)
             expected_state_digest = self.state_digest()
             return self._rebuild_database_locked(destination, expected_state_digest=expected_state_digest)
@@ -1828,8 +1837,8 @@ class LoomStore:
     def _rebuild_database_locked(self, destination: Path, *, expected_state_digest: str) -> str:
         """Rebuild while the caller holds both the process lock and SQLite writer lock."""
         destination = destination.resolve()
-        if destination.name != "loom.sqlite3":
-            raise ValueError("rebuild destination must be named loom.sqlite3")
+        if destination.name != "lattice.sqlite3":
+            raise ValueError("rebuild destination must be named lattice.sqlite3")
         data_root = destination.parent
         if data_root.exists():
             raise FileExistsError(data_root)
@@ -1838,12 +1847,12 @@ class LoomStore:
             self.blobs.verify_file(digest)
         data_root.parent.mkdir(parents=True, exist_ok=True)
         staging_root = Path(tempfile.mkdtemp(prefix=f".{data_root.name}.rebuild-", dir=data_root.parent))
-        staging_destination = staging_root / "loom.sqlite3"
+        staging_destination = staging_root / "lattice.sqlite3"
         target = sqlite3.connect(staging_destination, isolation_level=None)
         target.row_factory = sqlite3.Row
-        target.create_function("loom_stamp", 0, stamp)
-        target.create_function("loom_replaying", 0, lambda: 1)
-        target.create_function("loom_integrity_hash", -1, self._integrity_hash, deterministic=True)
+        target.create_function("lattice_stamp", 0, stamp)
+        target.create_function("lattice_replaying", 0, lambda: 1)
+        target.create_function("lattice_integrity_hash", -1, self._integrity_hash, deterministic=True)
         try:
             target.executescript(DDL)
             target.execute("PRAGMA foreign_keys=ON")
@@ -1891,17 +1900,17 @@ class LoomStore:
                     target.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(?,?)", tuple(row))
             target.commit()
             target.close()
-            staging_config = LoomConfig(data_root=staging_root, host=self.config.host, port=self.config.port, octopus_base_url=self.config.octopus_base_url, lease_seconds=self.config.lease_seconds)
+            staging_config = LatticeConfig(data_root=staging_root, host=self.config.host, port=self.config.port, octopus_base_url=self.config.octopus_base_url, lease_seconds=self.config.lease_seconds)
             staging_blobs = BlobStore(staging_config.blobs)
             for digest in required_blobs:
                 source, byte_count = self.blobs.verify_file(digest)
                 copied_digest, copied_bytes = staging_blobs.put_file(source)
                 if copied_digest != digest or copied_bytes != byte_count:
                     raise OSError(f"blob identity changed during rebuild: {digest}")
-            rebuilt = LoomStore(staging_config)
+            rebuilt = LatticeStore(staging_config)
             rebuilt_digest = rebuilt.state_digest()
             if rebuilt_digest != expected_state_digest:
-                raise OSError(f"rebuilt Loom state does not match its source: expected {expected_state_digest}, got {rebuilt_digest}")
+                raise OSError(f"rebuilt Lattice state does not match its source: expected {expected_state_digest}, got {rebuilt_digest}")
             os.replace(staging_root, data_root)
             parent_descriptor = os.open(data_root.parent, os.O_RDONLY)
             try:
@@ -1929,7 +1938,7 @@ class LoomStore:
 
     def ensure_conversation_import_setup(self, import_id: str, *, role_name: str, session_label: str, proof_limit: str, provenance: dict[str, Any]) -> dict[str, Any]:
         """Create the import session and its explicit context limit exactly once."""
-        instructions = "Historical provider session. Loom did not observe its original instruction stack; never infer missing context."
+        instructions = "Historical provider session. Lattice did not observe its original instruction stack; never infer missing context."
         instruction_bytes = instructions.encode("utf-8")
         instruction_sha = self.blobs.put(instruction_bytes)
         proof_bytes = proof_limit.encode("utf-8")
@@ -1938,7 +1947,7 @@ class LoomStore:
         with self.transaction() as conn:
             import_row = self._row(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (import_id,)).fetchone(), import_id)
             if import_row["state"] != "running":
-                raise LoomConflict("conversation import is not running")
+                raise LatticeConflict("conversation import is not running")
             if import_row["role_session_id"] and import_row["proof_limit_block_id"]:
                 return {"role_session_id": import_row["role_session_id"], "proof_limit_block_id": import_row["proof_limit_block_id"]}
             role = conn.execute("SELECT role_id FROM roles WHERE project_id=? AND name=?", (import_row["project_id"], role_name)).fetchone()
@@ -1958,7 +1967,7 @@ class LoomStore:
             self._event(conn, project_id=import_row["project_id"], event_type="role-session.created", subject_type="role-session", subject_id=session_id, payload={"project_id": import_row["project_id"], "role_id": role_id, "label": session_label})
             proof_id = opaque_id("block")
             conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,sensitivity,transformation_json,created_at)
-                          VALUES(?,?,?,?,?,'unknown',?,?,?,'explicit-proof-limit','private',?,?)""", (proof_id, import_row["project_id"], "provider-proof-limit", proof_sha, len(proof_bytes), f"loom:blob/{proof_sha}", proof_sha, "octopus-projection", canonical_bytes(provenance).decode(), now))
+                          VALUES(?,?,?,?,?,'unknown',?,?,?,'explicit-proof-limit','private',?,?)""", (proof_id, import_row["project_id"], "provider-proof-limit", proof_sha, len(proof_bytes), f"lattice:blob/{proof_sha}", proof_sha, "octopus-projection", canonical_bytes(provenance).decode(), now))
             proof_event = self._event(conn, project_id=import_row["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=proof_id, payload={"sha256": proof_sha, "semantic_type": "provider-proof-limit", "status": "unknown"})
             conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'unknown',1,?)", (proof_id, proof_event))
             conn.execute("UPDATE conversation_imports SET role_session_id=?,proof_limit_block_id=? WHERE import_id=? AND role_session_id IS NULL AND proof_limit_block_id IS NULL", (session_id, proof_id, import_id))
@@ -1971,12 +1980,12 @@ class LoomStore:
         with self.transaction() as conn:
             import_row = self._row(conn.execute("SELECT project_id,state FROM conversation_imports WHERE import_id=?", (import_id,)).fetchone(), import_id)
             if import_row["state"] != "running":
-                raise LoomConflict("conversation import is not running")
+                raise LatticeConflict("conversation import is not running")
             existing = conn.execute("SELECT * FROM conversation_import_turns WHERE import_id=? AND ordinal=?", (import_id, ordinal)).fetchone()
             if existing is not None:
                 value = dict(existing)
                 if value["prompt_sha256"] != prompt_sha256 or value["response_sha256"] != response_sha256 or value["response_state"] != response_state:
-                    raise LoomConflict("conversation import turn bytes changed during resume")
+                    raise LatticeConflict("conversation import turn bytes changed during resume")
                 return value
             now = stamp()
             conn.execute("INSERT INTO conversation_import_turns(import_id,ordinal,prompt_sha256,response_sha256,response_state,state,updated_at) VALUES(?,?,?,?,?,'pending',?)", (import_id, ordinal, prompt_sha256, response_sha256, response_state, now))
@@ -1995,20 +2004,20 @@ class LoomStore:
         with self.transaction() as conn:
             turn = self._row(conn.execute("SELECT * FROM conversation_import_turns WHERE import_id=? AND ordinal=?", (import_id, ordinal)).fetchone(), f"{import_id}:{ordinal}")
             if turn["response_state"] != "present":
-                raise LoomConflict("an unanswered imported prompt cannot acquire a historical response")
+                raise LatticeConflict("an unanswered imported prompt cannot acquire a historical response")
             invocation_id = turn["invocation_id"]
             if turn["state"] == "completed":
                 pass
             elif turn["state"] != "invocation_sealed" or not invocation_id:
-                raise LoomConflict("conversation import turn has no sealed invocation")
+                raise LatticeConflict("conversation import turn has no sealed invocation")
             elif turn["response_sha256"] != response_sha:
-                raise LoomConflict("conversation import response changed before attachment")
+                raise LatticeConflict("conversation import response changed before attachment")
             else:
                 invocation = self._row(conn.execute("SELECT project_id,state,manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
                 if invocation["state"] != InvocationState.sealed.value:
-                    raise LoomConflict("only newly sealed invocations can become imported history")
+                    raise LatticeConflict("only newly sealed invocations can become imported history")
                 conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,producing_invocation_id,source_ref,source_sha256,authority,evidence_level,sensitivity,transformation_json,created_at)
-                          VALUES(?,?,?,?,?,'active',?,?,?,'octopus-projection','captured-provider-output','private',?,?)""", (block_id, invocation["project_id"], "imported-model-response", response_sha, len(response_bytes), turn["invocation_id"], f"loom:blob/{response_sha}", response_sha, canonical_bytes(provenance).decode(), now))
+                          VALUES(?,?,?,?,?,'active',?,?,?,'octopus-projection','captured-provider-output','private',?,?)""", (block_id, invocation["project_id"], "imported-model-response", response_sha, len(response_bytes), turn["invocation_id"], f"lattice:blob/{response_sha}", response_sha, canonical_bytes(provenance).decode(), now))
                 block_event = self._event(conn, project_id=invocation["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": response_sha, "semantic_type": "imported-model-response", "status": "active"})
                 conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, block_event))
                 conn.execute("UPDATE invocations SET state='imported',output_block_id=?,terminal_kind='historical-import',completed_at=? WHERE invocation_id=?", (block_id, now, invocation_id))
@@ -2016,7 +2025,7 @@ class LoomStore:
                 if previous_invocation_id is not None:
                     previous = self._row(conn.execute("SELECT project_id,manifest_sha256,state FROM invocations WHERE invocation_id=?", (previous_invocation_id,)).fetchone(), previous_invocation_id)
                     if previous["project_id"] != invocation["project_id"] or previous["state"] != InvocationState.imported.value:
-                        raise LoomConflict("previous imported turn is not a completed project-local invocation")
+                        raise LatticeConflict("previous imported turn is not a completed project-local invocation")
                     self._insert_edge(conn, project_id=invocation["project_id"], relation=EdgeRelation.responds_to, source_type="invocation", source_id=invocation_id, source_revision=invocation["manifest_sha256"], target_type="invocation", target_id=previous_invocation_id, target_revision=previous["manifest_sha256"], metadata={"historical_visible_order": True, "context_inheritance_unproven": True})
                 conn.execute("UPDATE conversation_import_turns SET output_block_id=?,state='completed',updated_at=? WHERE import_id=? AND ordinal=?", (block_id, now, import_id, ordinal))
                 self._event(conn, project_id=invocation["project_id"], event_type="conversation-import.turn-completed", subject_type="conversation-import", subject_id=import_id, payload={"ordinal": ordinal, "invocation_id": invocation_id, "output_block_id": block_id})
@@ -2025,7 +2034,7 @@ class LoomStore:
     def claim_conversation_import(self, *, project_id: str, conversation_id: str, provider: str, transcript_sha256: str, refs_sha256: str, boot_id: str) -> dict[str, Any]:
         with self.transaction() as conn:
             if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (project_id,)).fetchone() is None:
-                raise LoomNotFound(project_id)
+                raise LatticeNotFound(project_id)
             prior = conn.execute("""SELECT * FROM conversation_imports
                                     WHERE project_id=? AND conversation_id=? AND provider=? AND transcript_sha256=? AND refs_sha256=?""", (project_id, conversation_id, provider, transcript_sha256, refs_sha256)).fetchone()
             if prior is not None:
@@ -2034,7 +2043,7 @@ class LoomStore:
                     value["claimed"] = False
                     return value
                 if value["state"] == "running":
-                    raise LoomConflict("exact conversation import is already running")
+                    raise LatticeConflict("exact conversation import is already running")
                 conn.execute("UPDATE conversation_imports SET state='running',owner_boot_id=?,error_text=NULL,started_at=?,completed_at=NULL WHERE import_id=?", (boot_id, stamp(), value["import_id"]))
                 self._event(conn, project_id=project_id, event_type="conversation-import.restarted", subject_type="conversation-import", subject_id=value["import_id"], payload={"conversation_id": conversation_id, "provider": provider})
                 value = dict(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (value["import_id"],)).fetchone())
@@ -2055,10 +2064,10 @@ class LoomStore:
         with self.transaction() as conn:
             row = self._row(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (import_id,)).fetchone(), import_id)
             if row["state"] != "running":
-                raise LoomConflict("conversation import is not running")
+                raise LatticeConflict("conversation import is not running")
             unfinished = [dict(turn) for turn in conn.execute("SELECT ordinal,response_state,state FROM conversation_import_turns WHERE import_id=? AND NOT ((response_state='present' AND state='completed') OR (response_state='absent' AND state='draft_created')) ORDER BY ordinal", (import_id,))]
             if unfinished:
-                raise LoomConflict(f"conversation import has unfinished turns: {[turn['ordinal'] for turn in unfinished]}")
+                raise LatticeConflict(f"conversation import has unfinished turns: {[turn['ordinal'] for turn in unfinished]}")
             now = stamp()
             conn.execute("UPDATE conversation_imports SET state='completed',result_sha256=?,completed_at=? WHERE import_id=?", (result_sha, now, import_id))
             self._event(conn, project_id=row["project_id"], event_type="conversation-import.completed", subject_type="conversation-import", subject_id=import_id, payload={"result_sha256": result_sha})
@@ -2068,7 +2077,7 @@ class LoomStore:
         with self.transaction() as conn:
             row = self._row(conn.execute("SELECT * FROM conversation_imports WHERE import_id=?", (import_id,)).fetchone(), import_id)
             if row["state"] != "running":
-                raise LoomConflict("conversation import is not running")
+                raise LatticeConflict("conversation import is not running")
             conn.execute("UPDATE conversation_imports SET state='failed',error_text=?,completed_at=? WHERE import_id=?", (error_text, stamp(), import_id))
             self._event(conn, project_id=row["project_id"], event_type="conversation-import.failed", subject_type="conversation-import", subject_id=import_id, payload={"error_text": error_text})
         return self.get_conversation_import(import_id)
@@ -2085,7 +2094,7 @@ class LoomStore:
         with self.transaction() as conn:
             rows = [dict(row) for row in conn.execute("SELECT import_id,project_id FROM conversation_imports WHERE state='running' AND owner_boot_id<>?", (boot_id,))]
             for row in rows:
-                conn.execute("UPDATE conversation_imports SET state='interrupted',error_text='Loom restarted before the import receipt became durable',completed_at=? WHERE import_id=?", (stamp(), row["import_id"]))
+                conn.execute("UPDATE conversation_imports SET state='interrupted',error_text='Lattice restarted before the import receipt became durable',completed_at=? WHERE import_id=?", (stamp(), row["import_id"]))
                 self._event(conn, project_id=row["project_id"], event_type="conversation-import.interrupted", subject_type="conversation-import", subject_id=row["import_id"], payload={"reason": "process_restart"})
         return len(rows)
 
@@ -2106,22 +2115,22 @@ class LoomStore:
             prior = conn.execute("SELECT * FROM workflow_commands WHERE idempotency_key=?", (idempotency_key,)).fetchone()
             if prior is not None:
                 if prior["project_id"] != project_id or prior["pack_id"] != pack_id or prior["operation"] != operation or prior["arguments_json"] != arguments_json or prior["expected_workflow_revision"] != expected_workflow_revision or prior["pack_canonical_sha256"] != pack_canonical_sha256 or prior["review_sha256"] != review_sha256 or prior["review_json"] != review_json:
-                    raise LoomConflict("workflow idempotency key was reused for another command")
+                    raise LatticeConflict("workflow idempotency key was reused for another command")
                 return dict(prior)
             instance = self._row(conn.execute("SELECT p.workflow_pack,w.pack_id,w.revision,w.pack_canonical_sha256,w.current_blackboard_block_id FROM projects p JOIN workflow_instances w USING(project_id) WHERE p.project_id=?", (project_id,)).fetchone(), project_id)
             if instance["workflow_pack"] != pack_id or instance["pack_id"] != pack_id:
-                raise LoomConflict("project is not governed by this workflow pack")
+                raise LatticeConflict("project is not governed by this workflow pack")
             if instance["revision"] != expected_workflow_revision:
-                raise LoomConflict("workflow state changed after command review")
+                raise LatticeConflict("workflow state changed after command review")
             if instance["pack_canonical_sha256"] != pack_canonical_sha256:
-                raise LoomConflict("workflow pack changed after command review")
+                raise LatticeConflict("workflow pack changed after command review")
             state_basis = review.get("state_basis")
             if state_basis is not None:
                 if not isinstance(state_basis, dict) or set(state_basis) != {"blackboard_block_id", "blackboard_sha256", "adapter_state_sha256"}:
-                    raise LoomConflict("workflow command state basis is malformed")
+                    raise LatticeConflict("workflow command state basis is malformed")
                 blackboard = conn.execute("SELECT content_sha256 FROM context_blocks WHERE block_id=? AND project_id=?", (state_basis["blackboard_block_id"], project_id)).fetchone()
                 if instance["current_blackboard_block_id"] != state_basis["blackboard_block_id"] or blackboard is None or blackboard["content_sha256"] != state_basis["blackboard_sha256"]:
-                    raise LoomConflict("workflow authoritative state changed after command review")
+                    raise LatticeConflict("workflow authoritative state changed after command review")
             command_id = opaque_id("workflow_command")
             now = stamp()
             conn.execute("INSERT INTO workflow_commands(command_id,project_id,pack_id,operation,arguments_json,idempotency_key,expected_workflow_revision,pack_canonical_sha256,review_sha256,review_json,state,owner_boot_id,started_at) VALUES(?,?,?,?,?,?,?,?,?,?, 'running',?,?)", (command_id, project_id, pack_id, operation, arguments_json, idempotency_key, expected_workflow_revision, pack_canonical_sha256, review_sha256, review_json, boot_id, now))
@@ -2134,7 +2143,7 @@ class LoomStore:
         with self.transaction() as conn:
             command = self._row(conn.execute("SELECT * FROM workflow_commands WHERE command_id=?", (command_id,)).fetchone(), command_id)
             if command["state"] != "running":
-                raise LoomConflict("workflow command is already terminal")
+                raise LatticeConflict("workflow command is already terminal")
             now = stamp()
             receipt = result.get("receipt", {})
             conn.execute("UPDATE workflow_commands SET state='completed',result_sha256=?,receipt_json=?,completed_at=? WHERE command_id=?", (result_sha, canonical_bytes(receipt).decode(), now, command_id))
@@ -2145,7 +2154,7 @@ class LoomStore:
         with self.transaction() as conn:
             command = self._row(conn.execute("SELECT * FROM workflow_commands WHERE command_id=?", (command_id,)).fetchone(), command_id)
             if command["state"] != "running":
-                raise LoomConflict("workflow command is already terminal")
+                raise LatticeConflict("workflow command is already terminal")
             state = "outcome_unknown" if outcome_unknown else "failed"
             now = stamp()
             conn.execute("UPDATE workflow_commands SET state=?,error_text=?,completed_at=? WHERE command_id=?", (state, error_text, now, command_id))
@@ -2171,14 +2180,14 @@ class LoomStore:
         with self._connect() as conn:
             command_ids = [row[0] for row in conn.execute("SELECT command_id FROM workflow_commands WHERE state='running' AND owner_boot_id<>?", (boot_id,))]
         for command_id in command_ids:
-            self.fail_workflow_command(command_id, error_text="Loom restarted after dispatch; authoritative external outcome must be inspected before retry", outcome_unknown=True)
+            self.fail_workflow_command(command_id, error_text="Lattice restarted after dispatch; authoritative external outcome must be inspected before retry", outcome_unknown=True)
         return len(command_ids)
 
     def advance_workflow(self, *, project_id: str, pack_id: str, expected_revision: int, from_state: str, to_state: str, evidence_block_ids: list[str], payload: dict[str, Any], trigger: dict[str, Any] | None, requires_completed_trigger: str | None = None, trigger_pack_sha256: str | None = None, minimum_evidence_blocks: int = 0, minimum_terminal_invocation_outputs: int = 0, terminal_outputs_after_current_state_entry: bool = False, terminal_output_requirements: list[dict[str, Any]] | None = None, evidence_requirements: list[dict[str, Any]] | None = None, expected_pack_canonical_sha256: str | None = None) -> dict[str, Any]:
         if len(evidence_block_ids) != len(set(evidence_block_ids)):
-            raise LoomConflict("workflow evidence block IDs must be unique")
+            raise LatticeConflict("workflow evidence block IDs must be unique")
         if len(evidence_block_ids) < minimum_evidence_blocks:
-            raise LoomConflict(f"workflow transition requires at least {minimum_evidence_blocks} evidence block(s)")
+            raise LatticeConflict(f"workflow transition requires at least {minimum_evidence_blocks} evidence block(s)")
         payload_bytes = canonical_bytes(payload)
         trigger_exact_bytes = None
         trigger_completed = False
@@ -2186,17 +2195,17 @@ class LoomStore:
             field = trigger["action"]["field"]
             exact_value = payload.get(field)
             if not isinstance(exact_value, str) or not exact_value:
-                raise LoomConflict(f"trigger {trigger['trigger']} requires exact string payload field {field}")
+                raise LatticeConflict(f"trigger {trigger['trigger']} requires exact string payload field {field}")
             trigger_exact_bytes = exact_value.encode("utf-8")
             trigger_completed = True
         with self.transaction() as conn:
             instance = self._row(conn.execute("SELECT * FROM workflow_instances WHERE project_id=?", (project_id,)).fetchone(), project_id)
             if instance["pack_id"] != pack_id or instance["state"] != from_state or instance["revision"] != expected_revision:
-                raise LoomConflict("workflow state changed before transition")
+                raise LatticeConflict("workflow state changed before transition")
             if expected_pack_canonical_sha256 is not None and instance["pack_canonical_sha256"] != expected_pack_canonical_sha256:
-                raise LoomConflict("workflow pack changed before transition")
+                raise LatticeConflict("workflow pack changed before transition")
             if trigger and trigger_pack_sha256 != instance["pack_canonical_sha256"]:
-                raise LoomConflict("workflow trigger does not bind the transition pack generation")
+                raise LatticeConflict("workflow trigger does not bind the transition pack generation")
             state_entry_seq = int(instance["state_entry_seq"])
             terminal_invocation_outputs = 0
             evidence: list[dict[str, Any]] = []
@@ -2206,7 +2215,7 @@ class LoomStore:
                                                   JOIN events e ON e.subject_type='context-block' AND e.subject_id=b.block_id AND e.event_type='context-block.created'
                                                   WHERE b.block_id=?""", (block_id,)).fetchone(), block_id)
                 if block["project_id"] != project_id:
-                    raise LoomConflict("workflow evidence belongs to another project")
+                    raise LatticeConflict("workflow evidence belongs to another project")
                 block["invocation_state"] = None
                 block["workflow_role_key"] = None
                 block["is_terminal_output"] = False
@@ -2229,15 +2238,15 @@ class LoomStore:
                         block["is_terminal_output"] = invocation["output_block_id"] == block_id and invocation["state"] in {InvocationState.succeeded.value, InvocationState.imported.value}
                         block["invocation_fresh_after_state_entry"] = invocation_fresh
             if terminal_invocation_outputs < minimum_terminal_invocation_outputs:
-                raise LoomConflict(f"workflow transition requires {minimum_terminal_invocation_outputs} exact terminal invocation output(s)")
+                raise LatticeConflict(f"workflow transition requires {minimum_terminal_invocation_outputs} exact terminal invocation output(s)")
             for requirement in terminal_output_requirements or []:
                 matching = [block for block in evidence if block["is_terminal_output"] and block["workflow_role_key"] == requirement["workflow_role_key"] and block["invocation_state"] in requirement["invocation_states"] and (not requirement.get("after_current_state_entry") or block["invocation_fresh_after_state_entry"])]
                 if len(matching) < requirement["minimum_count"]:
-                    raise LoomConflict(f"workflow transition lacks role-bound terminal output requirement: {requirement}")
+                    raise LatticeConflict(f"workflow transition lacks role-bound terminal output requirement: {requirement}")
             for requirement in evidence_requirements or []:
                 matching = [block for block in evidence if (requirement.get("semantic_type") is None or block["semantic_type"] == requirement["semantic_type"]) and (requirement.get("authority") is None or block["authority"] == requirement["authority"]) and (requirement.get("evidence_level") is None or block["evidence_level"] == requirement["evidence_level"]) and (requirement.get("status") is None or block["status"] == requirement["status"]) and (requirement.get("provenance") != "current_workflow_blackboard" or block["block_id"] == instance["current_blackboard_block_id"]) and (not requirement.get("after_current_state_entry") or int(block["created_seq"]) > state_entry_seq)]
                 if len(matching) < requirement["minimum_count"]:
-                    raise LoomConflict(f"workflow transition lacks typed evidence requirement: {requirement}")
+                    raise LatticeConflict(f"workflow transition lacks typed evidence requirement: {requirement}")
             if requires_completed_trigger:
                 completed = conn.execute(
                     """SELECT t.result_ref,t.action_json,t.pack_canonical_sha256
@@ -2250,7 +2259,7 @@ class LoomStore:
                     (project_id, requires_completed_trigger, from_state, state_entry_seq, instance["pack_canonical_sha256"]),
                 ).fetchone()
                 if completed is None:
-                    raise LoomConflict(f"workflow cannot advance before the current state entry's trigger {requires_completed_trigger} completes")
+                    raise LatticeConflict(f"workflow cannot advance before the current state entry's trigger {requires_completed_trigger} completes")
                 action = json.loads(completed["action_json"])
                 if action.get("type") == "invoke_role":
                     invocation = conn.execute(
@@ -2260,15 +2269,15 @@ class LoomStore:
                         (completed["result_ref"],),
                     ).fetchone()
                     if invocation is None or invocation["state"] != InvocationState.succeeded.value or invocation["workflow_role_key"] != action["role_id"]:
-                        raise LoomConflict(f"trigger {requires_completed_trigger} has not produced a successful result from its declared role")
+                        raise LatticeConflict(f"trigger {requires_completed_trigger} has not produced a successful result from its declared role")
                 elif action.get("type") == "freeze_payload_field":
-                    if not isinstance(completed["result_ref"], str) or not completed["result_ref"].startswith("loom:blob/"):
-                        raise LoomConflict(f"trigger {requires_completed_trigger} has no frozen-byte result")
-                    self.blobs.get(completed["result_ref"].removeprefix("loom:blob/"))
+                    if not isinstance(completed["result_ref"], str) or not completed["result_ref"].startswith("lattice:blob/"):
+                        raise LatticeConflict(f"trigger {requires_completed_trigger} has no frozen-byte result")
+                    self.blobs.get(completed["result_ref"].removeprefix("lattice:blob/"))
                 else:
-                    raise LoomConflict(f"trigger {requires_completed_trigger} has an unsupported action")
+                    raise LatticeConflict(f"trigger {requires_completed_trigger} has an unsupported action")
             payload_sha = self.blobs.put(payload_bytes)
-            trigger_result_ref = f"loom:blob/{self.blobs.put(trigger_exact_bytes)}" if trigger_exact_bytes is not None else None
+            trigger_result_ref = f"lattice:blob/{self.blobs.put(trigger_exact_bytes)}" if trigger_exact_bytes is not None else None
             revision = expected_revision + 1
             transition_id = opaque_id("workflow_transition")
             now = stamp()
@@ -2306,7 +2315,7 @@ class LoomStore:
         with self.transaction() as conn:
             instance = self._row(conn.execute("SELECT * FROM workflow_instances WHERE project_id=?", (project_id,)).fetchone(), project_id)
             if instance["revision"] != expected_revision:
-                raise LoomConflict("workflow state changed before automation consent")
+                raise LatticeConflict("workflow state changed before automation consent")
             grants = [item for item in json.loads(instance["automatic_grants_json"]) if isinstance(item, dict) and item.get("trigger") != trigger_name]
             if grant is not None:
                 grants.append(grant)
@@ -2359,10 +2368,10 @@ class LoomStore:
         with self.transaction() as conn:
             trigger = self._row(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone(), trigger_id)
             if trigger["state"] != "pending":
-                raise LoomConflict("workflow trigger is not pending")
+                raise LatticeConflict("workflow trigger is not pending")
             invocation = self._row(conn.execute("SELECT project_id,manifest_sha256,role_session_id FROM invocations WHERE invocation_id=?", (result_ref,)).fetchone(), result_ref)
             if invocation["project_id"] != trigger["project_id"]:
-                raise LoomConflict("workflow trigger result belongs to another project")
+                raise LatticeConflict("workflow trigger result belongs to another project")
             self._assert_trigger_invocation_role(conn, trigger, invocation["role_session_id"])
             conn.execute("UPDATE workflow_triggers SET state='planned',result_ref=?,error_text=NULL WHERE trigger_id=?", (result_ref, trigger_id))
             self._insert_edge(conn, project_id=trigger["project_id"], relation=EdgeRelation.triggered_by, source_type="invocation", source_id=result_ref, source_revision=invocation["manifest_sha256"], target_type="workflow-trigger", target_id=trigger_id, target_revision=trigger["source_transition_id"], metadata={"blinded": True})
@@ -2373,7 +2382,7 @@ class LoomStore:
         with self.transaction() as conn:
             trigger = self._row(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone(), trigger_id)
             if trigger["state"] != "pending":
-                raise LoomConflict("workflow trigger is not pending")
+                raise LatticeConflict("workflow trigger is not pending")
             conn.execute("UPDATE workflow_triggers SET error_text=? WHERE trigger_id=?", (error_text, trigger_id))
             self._event(conn, project_id=trigger["project_id"], event_type="workflow.trigger-planning-failed", subject_type="workflow-trigger", subject_id=trigger_id, payload={"error_text": error_text})
         return self.get_workflow_trigger(trigger_id)
@@ -2382,20 +2391,20 @@ class LoomStore:
     def _assert_trigger_invocation_role(conn: sqlite3.Connection, trigger: dict[str, Any], role_session_id: str) -> None:
         action = json.loads(trigger["action_json"]) if trigger.get("action_json") else None
         if not isinstance(action, dict) or action.get("type") != "invoke_role":
-            raise LoomConflict("workflow trigger does not admit an invocation result")
+            raise LatticeConflict("workflow trigger does not admit an invocation result")
         role = conn.execute(
             """SELECT r.workflow_role_key FROM role_sessions s JOIN roles r USING(role_id)
                WHERE s.role_session_id=? AND s.project_id=?""",
             (role_session_id, trigger["project_id"]),
         ).fetchone()
         if role is None or role["workflow_role_key"] != action.get("role_id"):
-            raise LoomConflict(f"workflow trigger requires role {action.get('role_id')}")
+            raise LatticeConflict(f"workflow trigger requires role {action.get('role_id')}")
 
     def record_workflow_trigger_dispatch_failure(self, trigger_id: str, *, error_text: str) -> dict[str, Any]:
         with self.transaction() as conn:
             trigger = self._row(conn.execute("SELECT * FROM workflow_triggers WHERE trigger_id=?", (trigger_id,)).fetchone(), trigger_id)
             if trigger["state"] not in {"planned", "execution_failed"}:
-                raise LoomConflict("workflow trigger has no dispatchable invocation")
+                raise LatticeConflict("workflow trigger has no dispatchable invocation")
             conn.execute("UPDATE workflow_triggers SET state='execution_failed',error_text=?,completed_at=NULL WHERE trigger_id=?", (error_text, trigger_id))
             self._event(conn, project_id=trigger["project_id"], event_type="workflow.trigger-dispatch-failed", subject_type="workflow-trigger", subject_id=trigger_id, payload={"error_text": error_text, "result_ref": trigger["result_ref"]})
         return self.get_workflow_trigger(trigger_id)

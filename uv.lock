@@ -42,7 +42,7 @@ wheels = [
 ]
 
 [[package]]
-name = "axis-loom"
+name = "lattice"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

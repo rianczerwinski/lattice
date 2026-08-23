@@ -1,4 +1,4 @@
-"""Durable leased execution of sealed Loom invocations through model-runner."""
+"""Durable leased execution of sealed Lattice invocations through model-runner."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from axis_model_runner import (
 
 from .contracts import AttemptState, ExecuteRequest
 from .manifest_reader import verify_and_reconstruct
-from .store import LoomConflict, LoomStore
+from .store import LatticeConflict, LatticeStore
 
 
 MAX_RUNTIME_CONTROL_BYTES = 1024 * 1024
@@ -43,7 +43,7 @@ def _runtime_receipt(journal: Any, blob_store) -> dict[str, Any]:
         if not path.is_file() or path.is_symlink():
             continue
         digest, byte_count = blob_store.put_file(path)
-        files[path.name] = {"ref": f"loom:blob/{digest}", "sha256": digest, "byte_count": byte_count}
+        files[path.name] = {"ref": f"lattice:blob/{digest}", "sha256": digest, "byte_count": byte_count}
         if path.name in {"request.json", "checkpoint.json", "terminal.json"}:
             raw_files[path.name] = _read_runtime_control(path)
     if "request.json" not in raw_files or "checkpoint.json" not in raw_files:
@@ -52,7 +52,7 @@ def _runtime_receipt(journal: Any, blob_store) -> dict[str, Any]:
     checkpoint = json.loads(raw_files["checkpoint.json"].decode("utf-8", errors="strict"))
     terminal = json.loads(raw_files["terminal.json"].decode("utf-8", errors="strict")) if "terminal.json" in raw_files else None
     return {
-        "kind": "loom-model-runtime-receipt",
+        "kind": "lattice-model-runtime-receipt",
         "journal_path": str(root),
         "request_sha256": files["request.json"]["sha256"],
         "checkpoint_sha256": files["checkpoint.json"]["sha256"],
@@ -70,7 +70,7 @@ def _runtime_receipt(journal: Any, blob_store) -> dict[str, Any]:
 
 
 class ExecutionSupervisor:
-    def __init__(self, store: LoomStore) -> None:
+    def __init__(self, store: LatticeStore) -> None:
         self.store = store
         self.boot_id = f"boot_{uuid.uuid4().hex}"
         self._tasks: dict[str, asyncio.Task[None]] = {}
@@ -102,7 +102,7 @@ class ExecutionSupervisor:
         if attempt["state"] == AttemptState.leased.value and attempt["attempt_id"] not in self._tasks:
             cancel = threading.Event()
             self._cancellations[attempt["attempt_id"]] = cancel
-            task = asyncio.create_task(self._run(attempt["attempt_id"], cancel), name=f"loom-{attempt['attempt_id']}")
+            task = asyncio.create_task(self._run(attempt["attempt_id"], cancel), name=f"lattice-{attempt['attempt_id']}")
             self._tasks[attempt["attempt_id"]] = task
             task.add_done_callback(lambda _task, attempt_id=attempt["attempt_id"]: self._complete_task(attempt_id))
         result = self.store.get_attempt(attempt["attempt_id"])
@@ -119,7 +119,7 @@ class ExecutionSupervisor:
         if cancel is None:
             if attempt["state"] in {AttemptState.succeeded.value, AttemptState.failed.value, AttemptState.interrupted.value, AttemptState.orphaned.value}:
                 return attempt
-            raise LoomConflict("attempt is not owned by this Loom process")
+            raise LatticeConflict("attempt is not owned by this Lattice process")
         cancel.set()
         return attempt
 
@@ -129,14 +129,14 @@ class ExecutionSupervisor:
         project_id = invocation["project_id"]
         try:
             self.store.mark_attempt_running(attempt_id)
-            if invocation["manifest"].get("contract_version") not in {"LoomContextManifest/2.0", "LoomContextManifest/3.0"} or invocation["manifest"].get("response_contract") != invocation["response_schema"]:
-                raise LoomConflict("invocation response contract is not execution-bound by an executable context manifest")
+            if invocation["manifest"].get("contract_version") not in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} or invocation["manifest"].get("response_contract") != invocation["response_schema"]:
+                raise LatticeConflict("invocation response contract is not execution-bound by an executable context manifest")
             prompt = verify_and_reconstruct(self.store, invocation["manifest"]).decode("utf-8")
             adapter = self._adapter(invocation["route"])
 
             def on_chunk(channel: str, chunk: bytes) -> None:
                 digest = self.store.blobs.put(chunk)
-                self.store.record_event(project_id=project_id, event_type="attempt.chunk", subject_type="attempt", subject_id=attempt_id, payload={"channel": channel, "content_ref": f"loom:blob/{digest}", "sha256": digest, "byte_count": len(chunk), "preview": chunk.decode("utf-8", errors="replace")[:1000]})
+                self.store.record_event(project_id=project_id, event_type="attempt.chunk", subject_type="attempt", subject_id=attempt_id, payload={"channel": channel, "content_ref": f"lattice:blob/{digest}", "sha256": digest, "byte_count": len(chunk), "preview": chunk.decode("utf-8", errors="replace")[:1000]})
                 self.store.heartbeat_attempt(attempt_id, int(time.time()) + self.store.config.lease_seconds)
 
             payload, journal = await asyncio.to_thread(

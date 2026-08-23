@@ -90,7 +90,7 @@ def generated_object(
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     if not sources:
-        raise ValueError("canonical Loom artifacts require exact sources")
+        raise ValueError("canonical Lattice artifacts require exact sources")
     envelope: dict[str, Any] = {
         "contract_version": 1,
         "role": "canonical",
@@ -98,7 +98,7 @@ def generated_object(
         "schema": {"name": schema_name, "version": schema_version},
         "artifact_id": artifact_id or f"artifact:{uuid.uuid4()}",
         "generated_at": generated_at or stamp(),
-        "producer": {"name": "axis-loom", "version": "0.1.0"},
+        "producer": {"name": "lattice", "version": "0.1.0"},
         "subject": subject,
         "sources": sources,
     }

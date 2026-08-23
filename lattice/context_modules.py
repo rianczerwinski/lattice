@@ -151,7 +151,7 @@ class ContextModuleRunner:
         except UnicodeDecodeError as error:
             raise ContextModuleError("context modules must resolve to exact UTF-8 text") from error
         receipt = {
-            "kind": "loom-context-module-receipt",
+            "kind": "lattice-context-module-receipt",
             "module_id": definition.module_id,
             "module_version": definition.version,
             "definition": definition.model_dump(mode="json"),

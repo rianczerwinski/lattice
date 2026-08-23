@@ -9,12 +9,12 @@ from pathlib import Path
 import pytest
 import httpx
 
-from loom.context_modules import ContextModuleError, ContextModuleRunner
-from loom.canonical import canonical_bytes, sha256_bytes
-from loom.contracts import AttemptState, ContextBlockCreate, ContextModuleDefinition, ContextModuleMode, DraftCreate, DraftPatch, ProjectCreate, ProviderRoute, RoleCreate, RoleSessionCreate, WorkflowPackDefinition
-from loom.quaternary import QuaternaryAdapter, QuaternaryBoundaryError, QuaternaryOutcomeUnknown
-from loom.platform_foundry import PlatformFoundryAdapter
-from loom.workflows import WorkflowRegistry
+from lattice.context_modules import ContextModuleError, ContextModuleRunner
+from lattice.canonical import canonical_bytes, sha256_bytes
+from lattice.contracts import AttemptState, ContextBlockCreate, ContextModuleDefinition, ContextModuleMode, DraftCreate, DraftPatch, ProjectCreate, ProviderRoute, RoleCreate, RoleSessionCreate, WorkflowPackDefinition
+from lattice.quaternary import QuaternaryAdapter, QuaternaryBoundaryError, QuaternaryOutcomeUnknown
+from lattice.platform_foundry import PlatformFoundryAdapter
+from lattice.workflows import WorkflowRegistry
 
 
 def _command_project(store):
@@ -24,7 +24,7 @@ def _command_project(store):
 
 
 def _command_review(project_id: str, pack_sha: str, operation: str, arguments: dict):
-    body = {"kind": "loom-workflow-command-review-v1", "project_id": project_id, "workflow_revision": 1, "pack_id": "quaternary", "pack_canonical_sha256": pack_sha, "operation": operation, "authority": "fixture", "requested_arguments_sha256": sha256_bytes(canonical_bytes(arguments)), "prepared_arguments_sha256": sha256_bytes(canonical_bytes(arguments)), "file_receipts": []}
+    body = {"kind": "lattice-workflow-command-review-v1", "project_id": project_id, "workflow_revision": 1, "pack_id": "quaternary", "pack_canonical_sha256": pack_sha, "operation": operation, "authority": "fixture", "requested_arguments_sha256": sha256_bytes(canonical_bytes(arguments)), "prepared_arguments_sha256": sha256_bytes(canonical_bytes(arguments)), "file_receipts": []}
     return {**body, "review_sha256": sha256_bytes(canonical_bytes(body))}
 
 
@@ -120,7 +120,7 @@ def test_quaternary_boundary_rejects_arbitrary_commands_and_arguments(tmp_path: 
 
     adapter = QuaternaryAdapter(tmp_path / "db", gatherctl, runner=planted_runner, blob_reader=private_blob_reader)
     with pytest.raises(QuaternaryBoundaryError, match="undeclared argument"):
-        adapter.command("record-language-authority", {"body_path": f"loom:blob/{private_digest}", "shell": "rm"})
+        adapter.command("record-language-authority", {"body_path": f"lattice:blob/{private_digest}", "shell": "rm"})
     assert private_input_reads == 0
 
     outside = tmp_path / "outside.json"
@@ -221,7 +221,7 @@ def test_quaternary_adapter_materializes_exact_bound_blob_only_for_subprocess_li
         return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"ok": True}), stderr="")
 
     adapter = QuaternaryAdapter(tmp_path / "db", gatherctl, runner=runner, blob_reader=lambda requested: content if requested == digest else b"")
-    result = adapter.command("freeze-language-profile", {"preparation_id": "qep_fixture", "input": f"loom:blob/{digest}"})
+    result = adapter.command("freeze-language-profile", {"preparation_id": "qep_fixture", "input": f"lattice:blob/{digest}"})
 
     assert observed["content"] == content
     assert not observed["path"].exists()
@@ -243,11 +243,11 @@ def test_quaternary_adapter_removes_bound_input_when_driver_attestation_fails(mo
         return descriptor, name
 
     adapter = QuaternaryAdapter(tmp_path / "db", gatherctl, blob_reader=lambda _digest: content)
-    monkeypatch.setattr("loom.quaternary.tempfile.mkstemp", recording_mkstemp)
+    monkeypatch.setattr("lattice.quaternary.tempfile.mkstemp", recording_mkstemp)
     monkeypatch.setattr(adapter, "_driver_manifest", lambda: (_ for _ in ()).throw(QuaternaryBoundaryError("planted attestation failure")))
 
     with pytest.raises(QuaternaryBoundaryError, match="planted attestation failure"):
-        adapter.command("freeze-language-profile", {"preparation_id": "qep_fixture", "input": f"loom:blob/{digest}"})
+        adapter.command("freeze-language-profile", {"preparation_id": "qep_fixture", "input": f"lattice:blob/{digest}"})
 
     assert created_snapshots
     assert all(not path.exists() for path in created_snapshots)
@@ -369,8 +369,8 @@ def test_http_context_module_enforces_exact_origin_bounded_utf8_and_declared_cap
 
 
 @pytest.mark.regression
-def test_workflow_project_bootstrap_is_atomic(loom_env):
-    store = loom_env["store"]
+def test_workflow_project_bootstrap_is_atomic(lattice_env):
+    store = lattice_env["store"]
     before = len(store.list_projects())
     duplicated_roles = [
         {"name": "same", "authority": "proposal", "instructions": "one"},
@@ -382,8 +382,8 @@ def test_workflow_project_bootstrap_is_atomic(loom_env):
 
 
 @pytest.mark.contract
-def test_workflow_command_is_idempotent_and_preserves_exact_result(loom_env):
-    store = loom_env["store"]
+def test_workflow_command_is_idempotent_and_preserves_exact_result(lattice_env):
+    store = lattice_env["store"]
     project, pack_sha = _command_project(store)
     arguments = {"language": "de"}
     review = _command_review(project["project_id"], pack_sha, "language-status", arguments)
@@ -398,8 +398,8 @@ def test_workflow_command_is_idempotent_and_preserves_exact_result(loom_env):
 
 
 @pytest.mark.concurrency
-def test_negative_control_workflow_command_cannot_cross_reviewed_revision(loom_env):
-    store = loom_env["store"]
+def test_negative_control_workflow_command_cannot_cross_reviewed_revision(lattice_env):
+    store = lattice_env["store"]
     project, pack_sha = _command_project(store)
     store.advance_workflow(project_id=project["project_id"], pack_id="quaternary", expected_revision=1, from_state="semantic-intent", to_state="native-query-proposal", evidence_block_ids=[], payload={}, trigger=None)
     arguments = {"language": "de"}
@@ -409,8 +409,8 @@ def test_negative_control_workflow_command_cannot_cross_reviewed_revision(loom_e
 
 
 @pytest.mark.oracle
-def test_workflow_command_event_binds_private_arguments_without_copying_them(loom_env):
-    store = loom_env["store"]
+def test_workflow_command_event_binds_private_arguments_without_copying_them(lattice_env):
+    store = lattice_env["store"]
     project, pack_sha = _command_project(store)
     secret = "PRIVATE_AUTHORITY_EVIDENCE"
     arguments = {"body": secret}
@@ -458,8 +458,8 @@ def test_workflow_command_defaults_are_resolved_before_execution_and_receipting(
 
 
 @pytest.mark.concurrency
-def test_restart_marks_dispatched_workflow_outcome_unknown_instead_of_retrying(loom_env):
-    store = loom_env["store"]
+def test_restart_marks_dispatched_workflow_outcome_unknown_instead_of_retrying(lattice_env):
+    store = lattice_env["store"]
     project, pack_sha = _command_project(store)
     arguments = {"language": "de"}
     command = store.claim_workflow_command(project_id=project["project_id"], pack_id="quaternary", expected_workflow_revision=1, pack_canonical_sha256=pack_sha, operation="prepare-language", arguments=arguments, review=_command_review(project["project_id"], pack_sha, "prepare-language", arguments), idempotency_key="workflow-restart-1", boot_id="dead-boot")
@@ -471,8 +471,8 @@ def test_restart_marks_dispatched_workflow_outcome_unknown_instead_of_retrying(l
 
 
 @pytest.mark.oracle
-def test_query_transition_freezes_exact_bytes_and_rejects_undeclared_jump(loom_env):
-    store = loom_env["store"]
+def test_query_transition_freezes_exact_bytes_and_rejects_undeclared_jump(lattice_env):
+    store = lattice_env["store"]
     registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
     created = store.create_workflow_project_atomic(title="query workflow", purpose="", workflow_pack="quaternary", initial_state="native-query-proposal", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
     project_id = created["project"]["project_id"]
@@ -481,14 +481,14 @@ def test_query_transition_freezes_exact_bytes_and_rejects_undeclared_jump(loom_e
 
     assert receipt["workflow"]["state"] == "frozen-query"
     frozen_ref = receipt["trigger"]["result_ref"]
-    assert store.blobs.get(frozen_ref.removeprefix("loom:blob/")) == "exakte deutsche Anfrage".encode()
+    assert store.blobs.get(frozen_ref.removeprefix("lattice:blob/")) == "exakte deutsche Anfrage".encode()
     with pytest.raises(ValueError, match="not declared"):
         registry.validate_transition("quaternary", "frozen-query", "closure-candidate")
 
 
 @pytest.mark.oracle
-def test_negative_control_workflow_rejects_wrong_or_pre_state_evidence(loom_env):
-    store = loom_env["store"]
+def test_negative_control_workflow_rejects_wrong_or_pre_state_evidence(lattice_env):
+    store = lattice_env["store"]
     created = store.create_workflow_project_atomic(title="causal evidence", purpose="", workflow_pack="quaternary", initial_state="native-query-proposal", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b'{"stage":"before"}', blackboard_source_ref="fixture:before", slice_external_ref=None)
     project_id = created["project"]["project_id"]
     store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="native-query-proposal", to_state="frozen-query", evidence_block_ids=[], payload={"query_bytes": "exact"}, trigger=None)
@@ -506,13 +506,13 @@ def test_negative_control_workflow_rejects_wrong_or_pre_state_evidence(loom_env)
 
 
 @pytest.mark.concurrency
-def test_workflow_consent_revision_cannot_reset_state_entry_freshness(loom_env):
-    store = loom_env["store"]
+def test_workflow_consent_revision_cannot_reset_state_entry_freshness(lattice_env):
+    store = lattice_env["store"]
     created = store.create_workflow_project_atomic(title="freshness", purpose="", workflow_pack="quaternary", initial_state="before", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "authority": "proposal", "instructions": "propose"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
     project = created["project"]
     session = project["sessions"][0]
-    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="old evidence", route=loom_env["route"]))
-    invocation = loom_env["loom"].seal(draft["draft_id"])
+    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="old evidence", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
     attempt = store.create_attempt(invocation["invocation_id"], "pre-state-output", "test-boot", 9_999_999_999)
     old_output = store.finish_successful_attempt(attempt["attempt_id"], response="old", artifacts=[], journal_path="fixture:journal", runtime_receipt={"fixture": True})["output_block"]
     store.advance_workflow(project_id=project["project_id"], pack_id="quaternary", expected_revision=1, from_state="before", to_state="after", evidence_block_ids=[], payload={}, trigger=None)
@@ -523,8 +523,8 @@ def test_workflow_consent_revision_cannot_reset_state_entry_freshness(loom_env):
 
 
 @pytest.mark.property
-def test_context_module_modes_are_executable_and_required_context_is_not_removable(loom_env):
-    store = loom_env["store"]
+def test_context_module_modes_are_executable_and_required_context_is_not_removable(lattice_env):
+    store = lattice_env["store"]
     modules = [
         {"definition": {"module_id": "project.weather", "version": 1, "mode": "role_default", "capabilities": [], "source_kind": "file", "configuration": {}}, "content": b"rain", "receipt": {"source_ref": "fixture:weather", "content_sha256": __import__("hashlib").sha256(b"rain").hexdigest()}},
         {"definition": {"module_id": "project.rules", "version": 1, "mode": "workflow_required", "capabilities": [], "source_kind": "file", "configuration": {}}, "content": b"hard boundary", "receipt": {"source_ref": "fixture:rules", "content_sha256": __import__("hashlib").sha256(b"hard boundary").hexdigest()}},
@@ -534,8 +534,8 @@ def test_context_module_modes_are_executable_and_required_context_is_not_removab
     role = project["roles"][0]
     session = project["sessions"][0]
     defaults = store.list_role_context_defaults(role["role_id"])
-    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="go", route=loom_env["route"]))
-    sealed = loom_env["loom"].seal(draft["draft_id"])
+    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="go", route=lattice_env["route"]))
+    sealed = lattice_env["lattice"].seal(draft["draft_id"])
     labels = {segment["label"] for segment in sealed["manifest"]["segments"]}
     assert {"module:project.weather", "module:project.rules"} <= labels
 
@@ -568,8 +568,8 @@ def test_platform_foundry_pack_reuses_workflow_kernel_without_gaining_octopus_wr
 
 
 @pytest.mark.regression
-def test_legacy_workflow_projects_receive_runtime_state_once_without_rewriting_domain_state(loom_env):
-    store = loom_env["store"]
+def test_legacy_workflow_projects_receive_runtime_state_once_without_rewriting_domain_state(lattice_env):
+    store = lattice_env["store"]
     project = store.create_project(ProjectCreate(title="legacy workflow", workflow_pack="quaternary"))
 
     assert store.reconcile_workflow_instances({"quaternary": "semantic-intent"}) == 1
@@ -580,8 +580,8 @@ def test_legacy_workflow_projects_receive_runtime_state_once_without_rewriting_d
 
 
 @pytest.mark.regression
-def test_legacy_workflow_roles_cannot_gain_model_authority_from_a_name_match(loom_env):
-    store = loom_env["store"]
+def test_legacy_workflow_roles_cannot_gain_model_authority_from_a_name_match(lattice_env):
+    store = lattice_env["store"]
     project = store.create_project(ProjectCreate(title="legacy workflow", workflow_pack="quaternary"))
     role = store.create_role(project["project_id"], RoleCreate(name="Orchestrator", instructions="orchestrate"))
     loaded = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")
@@ -594,12 +594,12 @@ def test_legacy_workflow_roles_cannot_gain_model_authority_from_a_name_match(loo
     assert repaired["workflow_role_key"] is None
     assert repaired["route_policy"] == {"kind": "non-model", "provider": "legacy-unbound"}
     with pytest.raises(Exception, match="not a model-execution role"):
-        store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=store.create_role_session(RoleSessionCreate(project_id=project["project_id"], role_id=role["role_id"], label="legacy"))["role_session_id"], prompt="must not execute", route=loom_env["route"]))
+        store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=store.create_role_session(RoleSessionCreate(project_id=project["project_id"], role_id=role["role_id"], label="legacy"))["role_session_id"], prompt="must not execute", route=lattice_env["route"]))
 
 
 @pytest.mark.regression
-def test_workflow_role_route_is_enforced_instead_of_treated_as_cockpit_decoration(loom_env):
-    store = loom_env["store"]
+def test_workflow_role_route_is_enforced_instead_of_treated_as_cockpit_decoration(lattice_env):
+    store = lattice_env["store"]
     created = store.create_workflow_project_atomic(
         title="route-bound",
         purpose="",
@@ -616,8 +616,8 @@ def test_workflow_role_route_is_enforced_instead_of_treated_as_cockpit_decoratio
 
 
 @pytest.mark.regression
-def test_workflow_role_route_cannot_be_changed_after_draft_creation_or_sealed_from_legacy_state(loom_env):
-    store = loom_env["store"]
+def test_workflow_role_route_cannot_be_changed_after_draft_creation_or_sealed_from_legacy_state(lattice_env):
+    store = lattice_env["store"]
     created = store.create_workflow_project_atomic(
         title="route-bound",
         purpose="",
@@ -639,7 +639,7 @@ def test_workflow_role_route_cannot_be_changed_after_draft_creation_or_sealed_fr
     with store.transaction() as conn:
         conn.execute("UPDATE drafts SET route_json=? WHERE draft_id=?", (json.dumps(forbidden.model_dump(mode="json")), draft["draft_id"]))
     with pytest.raises(Exception, match="bound to openai through codex"):
-        loom_env["loom"].seal(draft["draft_id"])
+        lattice_env["lattice"].seal(draft["draft_id"])
 
 
 @pytest.mark.contract
@@ -664,8 +664,8 @@ def test_workflow_initial_state_and_trigger_binding_survive_transition_reorderin
 
 
 @pytest.mark.regression
-def test_terminal_workflow_output_sealed_before_state_entry_is_not_fresh(loom_env):
-    store = loom_env["store"]
+def test_terminal_workflow_output_sealed_before_state_entry_is_not_fresh(lattice_env):
+    store = lattice_env["store"]
     registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
     pack_sha = registry.load("quaternary")["canonical_sha256"]
     roles = [
@@ -676,10 +676,10 @@ def test_terminal_workflow_output_sealed_before_state_entry_is_not_fresh(loom_en
     project = store.get_project(created["project"]["project_id"])
     sessions = {next(role["workflow_role_key"] for role in project["roles"] if role["role_id"] == session["role_id"]): session for session in project["sessions"]}
 
-    stale_sol_draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=sessions["sol"]["role_session_id"], prompt="prepared before countersearch", route=loom_env["route"]))
-    stale_sol = loom_env["loom"].seal(stale_sol_draft["draft_id"])
-    native_draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=sessions["native-partner"]["role_session_id"], prompt="amend terminology", route=loom_env["route"]))
-    native = loom_env["loom"].seal(native_draft["draft_id"])
+    stale_sol_draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=sessions["sol"]["role_session_id"], prompt="prepared before countersearch", route=lattice_env["route"]))
+    stale_sol = lattice_env["lattice"].seal(stale_sol_draft["draft_id"])
+    native_draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=sessions["native-partner"]["role_session_id"], prompt="amend terminology", route=lattice_env["route"]))
+    native = lattice_env["lattice"].seal(native_draft["draft_id"])
     native_attempt = store.create_attempt(native["invocation_id"], "native-freshness", "test-boot", 9_999_999_999)
     store.mark_attempt_running(native_attempt["attempt_id"])
     native_done = store.finish_successful_attempt(native_attempt["attempt_id"], response="native amendment", artifacts=[], journal_path="fixture:journal", runtime_receipt={"fixture": True})
@@ -696,8 +696,8 @@ def test_terminal_workflow_output_sealed_before_state_entry_is_not_fresh(loom_en
         store.advance_workflow(project_id=project["project_id"], pack_id="quaternary", expected_revision=2, from_state="countersearch", to_state="closure-candidate", evidence_block_ids=[blackboard["block_id"], stale_done["output_block_id"]], payload={"closure_candidate_block_id": stale_done["output_block_id"]}, trigger=second["trigger_definition"], trigger_pack_sha256=pack_sha, minimum_evidence_blocks=second["minimum_evidence_blocks"], minimum_terminal_invocation_outputs=second["minimum_terminal_invocation_outputs"], terminal_outputs_after_current_state_entry=second["terminal_outputs_after_current_state_entry"], terminal_output_requirements=second["terminal_output_requirements"], evidence_requirements=second["evidence_requirements"], expected_pack_canonical_sha256=pack_sha)
 
 
-def _planned_trigger_fixture(loom_env):
-    store = loom_env["store"]
+def _planned_trigger_fixture(lattice_env):
+    store = lattice_env["store"]
     registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
     pack_sha = registry.load("quaternary")["canonical_sha256"]
     created = store.create_workflow_project_atomic(title="trigger fixture", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "verifier", "name": "Verifier", "provider": "openai", "harness": "codex", "authority": "challenge-only", "instructions": "Challenge."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
@@ -705,19 +705,19 @@ def _planned_trigger_fixture(loom_env):
     declared = registry.validate_transition("quaternary", "countersearch", "closure-candidate")
     transition = store.advance_workflow(project_id=project["project_id"], pack_id="quaternary", expected_revision=1, from_state="countersearch", to_state="closure-candidate", evidence_block_ids=[], payload={}, trigger=declared["trigger_definition"], trigger_pack_sha256=pack_sha, expected_pack_canonical_sha256=pack_sha)
     session = project["sessions"][0]
-    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="challenge", route=loom_env["route"]))
-    invocation = loom_env["loom"].seal(draft["draft_id"])
+    draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="challenge", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
     return transition["trigger"], invocation
 
 
 @pytest.mark.regression
-def test_trigger_rejects_invocation_from_wrong_workflow_role(loom_env):
-    store = loom_env["store"]
-    trigger, _unused = _planned_trigger_fixture(loom_env)
+def test_trigger_rejects_invocation_from_wrong_workflow_role(lattice_env):
+    store = lattice_env["store"]
+    trigger, _unused = _planned_trigger_fixture(lattice_env)
     wrong_role = store.create_role(trigger["project_id"], RoleCreate(name="Wrong role", instructions="Do not verify."))
     wrong_session = store.create_role_session(RoleSessionCreate(project_id=trigger["project_id"], role_id=wrong_role["role_id"], label="wrong"))
-    draft = store.create_draft(DraftCreate(project_id=trigger["project_id"], role_session_id=wrong_session["role_session_id"], prompt="claim verification", route=loom_env["route"]))
-    invocation = loom_env["loom"].seal(draft["draft_id"])
+    draft = store.create_draft(DraftCreate(project_id=trigger["project_id"], role_session_id=wrong_session["role_session_id"], prompt="claim verification", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
 
     with pytest.raises(Exception, match="requires role verifier"):
         store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
@@ -725,9 +725,9 @@ def test_trigger_rejects_invocation_from_wrong_workflow_role(loom_env):
 
 
 @pytest.mark.regression
-def test_completed_trigger_is_bound_to_exact_current_state_entry(loom_env):
-    store = loom_env["store"]
-    trigger, invocation = _planned_trigger_fixture(loom_env)
+def test_completed_trigger_is_bound_to_exact_current_state_entry(lattice_env):
+    store = lattice_env["store"]
+    trigger, invocation = _planned_trigger_fixture(lattice_env)
     store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
     attempt = store.create_attempt(invocation["invocation_id"], "trigger-entry-attempt", "test-boot", 9_999_999_999)
     store.mark_attempt_running(attempt["attempt_id"])
@@ -746,9 +746,9 @@ def test_completed_trigger_is_bound_to_exact_current_state_entry(loom_env):
 
 
 @pytest.mark.concurrency
-def test_negative_control_trigger_plan_and_lineage_edge_commit_atomically(monkeypatch, loom_env):
-    store = loom_env["store"]
-    trigger, invocation = _planned_trigger_fixture(loom_env)
+def test_negative_control_trigger_plan_and_lineage_edge_commit_atomically(monkeypatch, lattice_env):
+    store = lattice_env["store"]
+    trigger, invocation = _planned_trigger_fixture(lattice_env)
 
     def fail_edge(*_args, **_kwargs):
         raise OSError("planted lineage failure")
@@ -763,11 +763,11 @@ def test_negative_control_trigger_plan_and_lineage_edge_commit_atomically(monkey
 
 
 @pytest.mark.concurrency
-def test_negative_control_invocation_and_trigger_plan_are_one_transaction(monkeypatch, loom_env):
-    store = loom_env["store"]
-    trigger, _unused = _planned_trigger_fixture(loom_env)
+def test_negative_control_invocation_and_trigger_plan_are_one_transaction(monkeypatch, lattice_env):
+    store = lattice_env["store"]
+    trigger, _unused = _planned_trigger_fixture(lattice_env)
     session = store.get_project(trigger["project_id"])["sessions"][0]
-    draft = store.create_draft(DraftCreate(project_id=trigger["project_id"], role_session_id=session["role_session_id"], prompt="atomic challenge", route=loom_env["route"]))
+    draft = store.create_draft(DraftCreate(project_id=trigger["project_id"], role_session_id=session["role_session_id"], prompt="atomic challenge", route=lattice_env["route"]))
     real_insert = store._insert_edge
 
     def fail_trigger_edge(conn, **kwargs):
@@ -777,7 +777,7 @@ def test_negative_control_invocation_and_trigger_plan_are_one_transaction(monkey
 
     monkeypatch.setattr(store, "_insert_edge", fail_trigger_edge)
     with pytest.raises(OSError, match="planted trigger lineage failure"):
-        loom_env["loom"].seal(draft["draft_id"], trigger_id=trigger["trigger_id"])
+        lattice_env["lattice"].seal(draft["draft_id"], trigger_id=trigger["trigger_id"])
 
     recovered_draft = store.get_draft(draft["draft_id"])
     assert recovered_draft["state"] == "editable"
@@ -786,9 +786,9 @@ def test_negative_control_invocation_and_trigger_plan_are_one_transaction(monkey
 
 
 @pytest.mark.oracle
-def test_oracle_failed_trigger_invocation_can_retry_to_completion(loom_env):
-    store = loom_env["store"]
-    trigger, invocation = _planned_trigger_fixture(loom_env)
+def test_oracle_failed_trigger_invocation_can_retry_to_completion(lattice_env):
+    store = lattice_env["store"]
+    trigger, invocation = _planned_trigger_fixture(lattice_env)
     store.plan_workflow_trigger(trigger["trigger_id"], result_ref=invocation["invocation_id"])
     first = store.create_attempt(invocation["invocation_id"], "trigger-failure-attempt", "test-boot", 9_999_999_999)
     store.mark_attempt_running(first["attempt_id"])

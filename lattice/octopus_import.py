@@ -16,15 +16,15 @@ from .contracts import (
     DraftCreate,
     ProviderRoute,
 )
-from .operations import Loom
-from .store import LoomStore
+from .operations import Lattice
+from .store import LatticeStore
 from .canonical import strict_json_loads
 from .http_boundary import HTTPBoundaryError, bounded_http_get, canonical_origin, require_opaque_segment
 
 
 TURN_RE = re.compile(r"^### ([UA])\n(.*?)(?=^### [UA]\n|\Z)", re.MULTILINE | re.DOTALL)
 REFERENCE_RE = re.compile(r"^[ICHTSPX][1-9][0-9]*(?:\.(?:[1-9][0-9]*|c|r))*$")
-ABSENT_RESPONSE_SHA256 = hashlib.sha256(b"loom:absent-historical-response-v1").hexdigest()
+ABSENT_RESPONSE_SHA256 = hashlib.sha256(b"lattice:absent-historical-response-v1").hexdigest()
 
 
 def _metadata(transcript: str) -> dict[str, str]:
@@ -92,9 +92,9 @@ def verify_reference_catalogue(refs: bytes, expected_map: str) -> dict[str, dict
 class OctopusImporter:
     MAX_PROJECTION_BYTES = 64 * 1024 * 1024
 
-    def __init__(self, store: LoomStore, loom: Loom, base_url: str, *, transport: httpx.BaseTransport | None = None) -> None:
+    def __init__(self, store: LatticeStore, lattice: Lattice, base_url: str, *, transport: httpx.BaseTransport | None = None) -> None:
         self.store = store
-        self.loom = loom
+        self.lattice = lattice
         self.base_url = base_url.rstrip("/")
         try:
             self.origin = canonical_origin(self.base_url, origin_only=True)
@@ -163,8 +163,8 @@ class OctopusImporter:
             return self.store.get_conversation_import(claim["import_id"], include_result=True)["result"]
         try:
             role_name = f"Imported {bound_provider}"
-            import_provenance = {"kind": "octopus-format-3-import-v1", "conversation_id": conversation_id, "declared_archive_source_sha256": source_sha, "archive_source_hash_state": "declared-by-projection-not-recomputed", "transcript_ref": f"loom:blob/{transcript_blob}", "transcript_sha256": transcript_sha, "reference_catalogue_ref": f"loom:blob/{refs_blob}", "reference_catalogue_sha256": refs_sha, "map_sha256": map_sha}
-            setup = self.store.ensure_conversation_import_setup(claim["import_id"], role_name=role_name, session_label=f"{bound_provider}:{conversation_id}", proof_limit=f"The historical provider and harness context for this invocation is unavailable. Visible transcript ancestry does not prove what the model received. The exact transcript is loom:blob/{transcript_blob}; its verified format-3 reference catalogue is loom:blob/{refs_blob}. The archive source hash was declared by that projection and was not independently recomputed by Loom.", provenance={**import_provenance, "kind": "octopus-provider-proof-limit-v1"})
+            import_provenance = {"kind": "octopus-format-3-import-v1", "conversation_id": conversation_id, "declared_archive_source_sha256": source_sha, "archive_source_hash_state": "declared-by-projection-not-recomputed", "transcript_ref": f"lattice:blob/{transcript_blob}", "transcript_sha256": transcript_sha, "reference_catalogue_ref": f"lattice:blob/{refs_blob}", "reference_catalogue_sha256": refs_sha, "map_sha256": map_sha}
+            setup = self.store.ensure_conversation_import_setup(claim["import_id"], role_name=role_name, session_label=f"{bound_provider}:{conversation_id}", proof_limit=f"The historical provider and harness context for this invocation is unavailable. Visible transcript ancestry does not prove what the model received. The exact transcript is lattice:blob/{transcript_blob}; its verified format-3 reference catalogue is lattice:blob/{refs_blob}. The archive source hash was declared by that projection and was not independently recomputed by Lattice.", provenance={**import_provenance, "kind": "octopus-provider-proof-limit-v1"})
             route = ProviderRoute(provider=route_identity[0], model=f"historical-{bound_provider}", harness=route_identity[1], effort="high")
             invocations: list[str] = []
             pending_prompts: list[str] = []
@@ -183,7 +183,7 @@ class OctopusImporter:
                 else:
                     draft = self.store.get_draft(turn["draft_id"])
                 if turn["invocation_id"] is None:
-                    invocation = self.loom.seal(draft["draft_id"], import_turn=(claim["import_id"], ordinal))
+                    invocation = self.lattice.seal(draft["draft_id"], import_turn=(claim["import_id"], ordinal))
                     turn = self.store.get_conversation_import_turn(claim["import_id"], ordinal)
                 else:
                     invocation = self.store.get_invocation(turn["invocation_id"])
@@ -202,7 +202,7 @@ class OctopusImporter:
                 if draft["state"] != "editable":
                     raise ValueError("unanswered imported prompt is no longer an editable draft")
                 pending_drafts.append(draft["draft_id"])
-            result = {"import_id": claim["import_id"], "conversation_id": conversation_id, "provider": bound_provider, "map_sha256": map_sha, "source_sha256": source_sha, "source_sha256_state": "declared-by-projection-not-recomputed", "transcript_sha256": transcript_sha, "transcript_ref": f"loom:blob/{transcript_blob}", "refs_ref": f"loom:blob/{refs_blob}", "role_session_id": setup["role_session_id"], "invocation_ids": invocations, "pending_draft_ids": pending_drafts}
+            result = {"import_id": claim["import_id"], "conversation_id": conversation_id, "provider": bound_provider, "map_sha256": map_sha, "source_sha256": source_sha, "source_sha256_state": "declared-by-projection-not-recomputed", "transcript_sha256": transcript_sha, "transcript_ref": f"lattice:blob/{transcript_blob}", "refs_ref": f"lattice:blob/{refs_blob}", "role_session_id": setup["role_session_id"], "invocation_ids": invocations, "pending_draft_ids": pending_drafts}
             self.store.complete_conversation_import(claim["import_id"], result=result)
             return result
         except BaseException as error:

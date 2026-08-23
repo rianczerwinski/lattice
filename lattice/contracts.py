@@ -1,4 +1,4 @@
-"""Versioned contracts at Loom's operator, storage, and provider boundaries."""
+"""Versioned contracts at Lattice's operator, storage, and provider boundaries."""
 
 from __future__ import annotations
 
@@ -137,7 +137,7 @@ class ContextSelection(StrictModel):
     @classmethod
     def label_is_single_line_and_unambiguous(cls, value: str) -> str:
         if any(ord(char) < 32 or ord(char) == 127 for char in value) or "<<<" in value:
-            raise ValueError("context labels cannot contain controls or Loom framing tokens")
+            raise ValueError("context labels cannot contain controls or Lattice framing tokens")
         return value
 
     @field_validator("derived_from_block_ids")
@@ -206,7 +206,7 @@ class DraftCreate(StrictModel):
     @classmethod
     def response_contract_is_losslessly_supported(cls, value: dict[str, Any]) -> dict[str, Any]:
         if value != standard_response_contract():
-            raise ValueError("Loom currently supports only its lossless response-and-artifacts envelope")
+            raise ValueError("Lattice currently supports only its lossless response-and-artifacts envelope")
         return value
 
 
@@ -256,11 +256,11 @@ class SliceCreate(StrictModel):
     @model_validator(mode="after")
     def external_identities_are_global(self) -> "SliceCreate":
         if self.external_ref is not None and self.scope != "global":
-            raise ValueError("externally addressable Loom slices must be global")
+            raise ValueError("externally addressable Lattice slices must be global")
         if self.external_ref is not None and self.query.concern_ref != self.external_ref:
             raise ValueError("external slice identity must equal its concern query")
         if self.scope == "global" and self.query.concern_ref is None:
-            raise ValueError("global Loom slices require an exact concern query")
+            raise ValueError("global Lattice slices require an exact concern query")
         return self
 
 

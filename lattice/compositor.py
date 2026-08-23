@@ -9,7 +9,7 @@ from axis_model_runner import DEFAULT_ADAPTERS, validate_execution_policy
 
 from .canonical import canonical_bytes, generated_object, sha256_bytes, sha256_json
 from .contracts import BlockDisposition, ContextSelection
-from .store import LoomConflict, LoomStore
+from .store import LatticeConflict, LatticeStore
 
 
 PLANE_ORDER = {"instruction": 0, "knowledge": 1, "state": 2, "ancestry": 3, "current_prompt": 4}
@@ -18,7 +18,7 @@ MAX_COMPILED_CONTEXT_BYTES = 64 * 1024 * 1024
 
 def _segment_bytes(segment: dict[str, Any], content: str) -> bytes:
     record = {
-        "kind": "loom-context-segment-v3",
+        "kind": "lattice-context-segment-v3",
         "ordinal": segment["ordinal"],
         "plane": segment["plane"],
         "label": segment["label"],
@@ -42,7 +42,7 @@ def _segment_bytes(segment: dict[str, Any], content: str) -> bytes:
 
 
 class ContextCompositor:
-    def __init__(self, store: LoomStore) -> None:
+    def __init__(self, store: LatticeStore) -> None:
         self.store = store
 
     def _implicit_selections(self, draft: dict[str, Any]) -> list[ContextSelection]:
@@ -54,7 +54,7 @@ class ContextCompositor:
         for parent_id in draft["parents"]:
             parent = self.store.get_invocation(parent_id)
             if not parent.get("output_block_id"):
-                raise LoomConflict(f"parent {parent_id} has no consumable output")
+                raise LatticeConflict(f"parent {parent_id} has no consumable output")
             selections.append(ContextSelection(block_id=parent["output_block_id"], disposition=BlockDisposition.selected, plane="ancestry", label=f"parent:{parent_id}"))
         selections.append(ContextSelection(block_id=draft["prompt_block_id"], disposition=BlockDisposition.selected, plane="current_prompt", label="user-prompt"))
         return selections
@@ -78,14 +78,14 @@ class ContextCompositor:
             identities.add(identity)
             block = self.store.get_block(selection.block_id)
             if block["project_id"] != draft["project_id"]:
-                raise LoomConflict("context block belongs to another project")
+                raise LatticeConflict("context block belongs to another project")
             derived = [self.store.get_block(block_id, include_content=False) for block_id in selection.derived_from_block_ids]
             if any(parent["project_id"] != draft["project_id"] for parent in derived):
-                raise LoomConflict("derived context source belongs to another project")
+                raise LatticeConflict("derived context source belongs to another project")
             if selection.disposition == BlockDisposition.summarized:
                 transformation = __import__("json").loads(block["transformation_json"] or "null")
                 if not selection.derived_from_block_ids or not isinstance(transformation, dict) or transformation.get("kind") != "summary" or transformation.get("source_block_ids") != selection.derived_from_block_ids:
-                    raise LoomConflict("summarized context requires a summary transformation bound to exact source blocks")
+                    raise LatticeConflict("summarized context requires a summary transformation bound to exact source blocks")
             entries.append((selection, block))
         entries.sort(key=lambda pair: (PLANE_ORDER[pair[0].plane], pair[0].label, pair[0].block_id))
 
@@ -96,14 +96,14 @@ class ContextCompositor:
         sources: list[dict[str, str | None]] = []
         source_identities: set[tuple[str, str, str]] = set()
         for ordinal, (selection, block) in enumerate(entries):
-            source = {"ref": f"loom:block/{block['block_id']}", "revision": str(block["status_revision"]), "sha256": block["content_sha256"]}
+            source = {"ref": f"lattice:block/{block['block_id']}", "revision": str(block["status_revision"]), "sha256": block["content_sha256"]}
             source_identity = (source["ref"], source["revision"], source["sha256"])
             if source_identity not in source_identities:
                 source_identities.add(source_identity)
                 sources.append(source)
             for derived_block_id in selection.derived_from_block_ids:
                 derived = self.store.get_block(derived_block_id, include_content=False)
-                derived_source = {"ref": f"loom:block/{derived_block_id}", "revision": str(derived["status_revision"]), "sha256": derived["content_sha256"]}
+                derived_source = {"ref": f"lattice:block/{derived_block_id}", "revision": str(derived["status_revision"]), "sha256": derived["content_sha256"]}
                 derived_identity = (derived_source["ref"], derived_source["revision"], derived_source["sha256"])
                 if derived_identity not in source_identities:
                     source_identities.add(derived_identity)
@@ -132,7 +132,7 @@ class ContextCompositor:
                 segments.append(item)
                 rendered = _segment_bytes(item, block["content"])
                 if prompt_byte_count + len(rendered) > MAX_COMPILED_CONTEXT_BYTES:
-                    raise LoomConflict(f"compiled context exceeds its {MAX_COMPILED_CONTEXT_BYTES}-byte limit; omit or summarize context before sealing")
+                    raise LatticeConflict(f"compiled context exceeds its {MAX_COMPILED_CONTEXT_BYTES}-byte limit; omit or summarize context before sealing")
                 prompt_parts.append(rendered)
                 prompt_byte_count += len(rendered)
             else:
@@ -153,9 +153,9 @@ class ContextCompositor:
         ) if adapter else None
         invocation_identity = sha256_bytes(f"{draft['draft_id']}:{draft['revision']}".encode("utf-8"))
         invocation_id = f"invocation_{invocation_identity[:32]}"
-        manifest_artifact_id = f"artifact:{uuid.uuid5(uuid.NAMESPACE_URL, f'axis-loom-manifest:{invocation_identity}')}"
+        manifest_artifact_id = f"artifact:{uuid.uuid5(uuid.NAMESPACE_URL, f'lattice-manifest:{invocation_identity}')}"
         preflight: dict[str, Any] = {
-            "contract_version": "LoomContextPreflight/1.0",
+            "contract_version": "LatticeContextPreflight/1.0",
             "invocation_id": invocation_id,
             "project_id": draft["project_id"],
             "role_session_id": draft["role_session_id"],
@@ -172,8 +172,8 @@ class ContextCompositor:
             "execution": route,
             "response_contract": draft["response_schema"],
             "compilation": {
-                "format": "loom-context-jsonl-v3",
-                "compiled_prompt_ref": f"loom:blob/{prompt_sha}",
+                "format": "lattice-context-jsonl-v3",
+                "compiled_prompt_ref": f"lattice:blob/{prompt_sha}",
                 "compiled_prompt_sha256": prompt_sha,
                 "byte_count": len(compiled_prompt),
                 "truncation": None,
@@ -190,9 +190,9 @@ class ContextCompositor:
 
         manifest: dict[str, Any] = {
             **preflight,
-            "generated_object": generated_object(kind="loom-context-manifest", schema_name="loom-context-manifest", schema_version=3, subject=f"loom-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
-            "contract_version": "LoomContextManifest/3.0",
-            "result": {"state": "pending", "attempts_ref": f"loom:invocation/{invocation_id}/attempts"},
+            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=3, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
+            "contract_version": "LatticeContextManifest/3.0",
+            "result": {"state": "pending", "attempts_ref": f"lattice:invocation/{invocation_id}/attempts"},
         }
         manifest["manifest_sha256"] = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})
         return manifest, compiled_prompt

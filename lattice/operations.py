@@ -1,4 +1,4 @@
-"""Conversational graph operations over Loom's storage and context compositor."""
+"""Conversational graph operations over Lattice's storage and context compositor."""
 
 from __future__ import annotations
 
@@ -16,12 +16,12 @@ from .contracts import (
     TagRequest,
 )
 from .manifest_reader import verify_and_reconstruct
-from .store import LoomConflict, LoomStore
+from .store import LatticeConflict, LatticeStore
 from .workflow_template_reader import verify_workflow_template
 
 
-class Loom:
-    def __init__(self, store: LoomStore) -> None:
+class Lattice:
+    def __init__(self, store: LatticeStore) -> None:
         self.store = store
         self.compositor = ContextCompositor(store)
 
@@ -80,10 +80,10 @@ class Loom:
         selections: list[ContextSelection] | None = None,
     ) -> dict[str, Any]:
         if len(invocation_ids) < 2:
-            raise LoomConflict("join requires at least two parent invocations")
+            raise LatticeConflict("join requires at least two parent invocations")
         parents = [self.store.get_invocation(item) for item in invocation_ids]
         if len({parent["project_id"] for parent in parents}) != 1:
-            raise LoomConflict("join parents must belong to one project")
+            raise LatticeConflict("join parents must belong to one project")
         return self.store.create_draft(DraftCreate(project_id=parents[0]["project_id"], role_session_id=role_session_id, prompt=prompt, route=route, selections=selections or [], parent_invocation_ids=invocation_ids, relation=EdgeRelation.inherited_context_from))
 
     def seal(self, draft_id: str, *, trigger_id: str | None = None, import_turn: tuple[str, int] | None = None, expected_revision: int | None = None, expected_preflight_sha256: str | None = None) -> dict[str, Any]:
@@ -91,15 +91,15 @@ class Loom:
             raise ValueError("seal preflight requires both draft revision and preflight identity")
         draft = self.store.get_draft(draft_id)
         if expected_revision is not None and draft["revision"] != expected_revision:
-            raise LoomConflict("draft changed after context inspection")
+            raise LatticeConflict("draft changed after context inspection")
         manifest, compiled_prompt = self.compositor.compile(draft)
         if expected_preflight_sha256 is not None and manifest["preflight_sha256"] != expected_preflight_sha256:
-            raise LoomConflict("invocation context changed after inspection; inspect the exact context again")
+            raise LatticeConflict("invocation context changed after inspection; inspect the exact context again")
         if self.store.blobs.put(compiled_prompt) != manifest["compilation"]["compiled_prompt_sha256"]:
-            raise OSError("compiled context changed while entering the Loom blob store")
+            raise OSError("compiled context changed while entering the Lattice blob store")
         independently_reconstructed = verify_and_reconstruct(self.store, manifest)
         if independently_reconstructed != compiled_prompt:
-            raise LoomConflict("independent manifest reader disagrees with compositor")
+            raise LatticeConflict("independent manifest reader disagrees with compositor")
         manifest_sha = manifest["manifest_sha256"]
         return self.store.insert_invocation(draft, manifest, manifest_sha, manifest["compilation"]["compiled_prompt_sha256"], trigger_id=trigger_id, import_turn=import_turn)
 
@@ -208,12 +208,12 @@ class Loom:
 
     def extract(self, project_id: str, invocation_ids: list[str], title: str) -> dict[str, Any]:
         if len(invocation_ids) != len(set(invocation_ids)):
-            raise LoomConflict("workflow extraction invocation IDs must be unique")
+            raise LatticeConflict("workflow extraction invocation IDs must be unique")
         invocations = [self.store.get_invocation(item) for item in invocation_ids]
         if not invocations or any(item["project_id"] != project_id for item in invocations):
-            raise LoomConflict("workflow extraction requires project-local invocations")
+            raise LatticeConflict("workflow extraction requires project-local invocations")
         if any(item["state"] not in {"succeeded", "imported"} for item in invocations):
-            raise LoomConflict("workflow extraction requires successful or imported source invocations")
+            raise LatticeConflict("workflow extraction requires successful or imported source invocations")
 
         by_id = {item["invocation_id"]: item for item in invocations}
         output_owner = {item["output_block_id"]: item_id for item_id, item in by_id.items() if item.get("output_block_id")}
@@ -232,7 +232,7 @@ class Loom:
         while remaining:
             ready = sorted((item_id for item_id in remaining if not dependencies[item_id] & remaining), key=lambda item_id: (by_id[item_id]["created_at"], item_id))
             if not ready:
-                raise LoomConflict("workflow extraction source graph contains a cycle")
+                raise LatticeConflict("workflow extraction source graph contains a cycle")
             for item_id in ready:
                 ordered.append(by_id[item_id])
                 remaining.remove(item_id)
@@ -317,7 +317,7 @@ class Loom:
                 parents.append({"kind": "step", "step_id": step_by_invocation[parent_id]} if parent_id in step_by_invocation else {"kind": "invocation-parameter", "parameter_id": invocation_parameter(parent_id)})
             prompt_bindings = [binding for binding in bindings if binding["selection"]["plane"] == "current_prompt"]
             if len(prompt_bindings) != 1 or prompt_bindings[0]["binding"]["kind"] != "context-parameter":
-                raise LoomConflict("workflow extraction requires one parameterizable current prompt per invocation")
+                raise LatticeConflict("workflow extraction requires one parameterizable current prompt per invocation")
             steps.append({
                 "step_id": step_by_invocation[item["invocation_id"]],
                 "source_invocation_id": item["invocation_id"],
@@ -329,10 +329,10 @@ class Loom:
                 "context": bindings,
             })
 
-        sources = [{"ref": f"loom:invocation/{item['invocation_id']}", "revision": item["manifest_sha256"], "sha256": item["manifest_sha256"]} for item in ordered]
+        sources = [{"ref": f"lattice:invocation/{item['invocation_id']}", "revision": item["manifest_sha256"], "sha256": item["manifest_sha256"]} for item in ordered]
         artifact = {
-            "generated_object": generated_object(kind="loom-workflow-template", schema_name="loom-workflow-template", schema_version=2, subject=f"loom-workflow:{opaque_id('workflow')}", sources=sources),
-            "contract_version": "LoomWorkflowTemplate/2.0",
+            "generated_object": generated_object(kind="lattice-workflow-template", schema_name="lattice-workflow-template", schema_version=2, subject=f"lattice-workflow:{opaque_id('workflow')}", sources=sources),
+            "contract_version": "LatticeWorkflowTemplate/2.0",
             "title": title,
             "roles": list(role_parameters.values()),
             "parameters": [*context_parameters.values(), *invocation_parameters.values()],
@@ -362,20 +362,20 @@ class Loom:
     ) -> dict[str, Any]:
         stored = self.store.get_artifact(artifact_id)
         if stored["artifact_kind"] != "workflow-template" or stored["content_sha256"] != expected_template_sha256:
-            raise LoomConflict("workflow template identity changed before materialization")
+            raise LatticeConflict("workflow template identity changed before materialization")
         template = verify_workflow_template(self.store, stored)
         step = next((item for item in template.get("steps", []) if item.get("step_id") == step_id), None)
         if step is None:
-            raise LoomConflict("workflow template step does not exist")
+            raise LatticeConflict("workflow template step does not exist")
         parameters = {item["parameter_id"]: item for item in template.get("parameters", [])}
         expected_context = {parameter_id for parameter_id, value in parameters.items() if value["kind"] == "context-block" and any(binding.get("binding", {}).get("parameter_id") == parameter_id or any(derived.get("parameter_id") == parameter_id for derived in binding.get("derived_bindings", [])) for binding in step["context"])}
         expected_invocations = {parent["parameter_id"] for parent in step["parents"] if parent["kind"] == "invocation-parameter"}
         context_steps = {binding["step_id"] for item in step["context"] for binding in [item["binding"], *item["derived_bindings"]] if binding["kind"] == "step-output"}
         if set(context_bindings) != expected_context or set(invocation_bindings) != ({parent["step_id"] for parent in step["parents"] if parent["kind"] == "step"} | context_steps | expected_invocations):
-            raise LoomConflict("workflow template bindings do not exactly match this step")
+            raise LatticeConflict("workflow template bindings do not exactly match this step")
         session = self.store.get_role_session(role_session_id)
         if session["project_id"] != project_id:
-            raise LoomConflict("workflow template role session belongs to another project")
+            raise LatticeConflict("workflow template role session belongs to another project")
         role = self.store.get_role(session["role_id"])
 
         def resolve_block(binding: dict[str, str]) -> str:
@@ -386,21 +386,21 @@ class Loom:
                 block = self.store.get_block(context_bindings[parameter_id], include_content=False)
                 contract = parameters[parameter_id]
                 if block["project_id"] != project_id or any(block[key] != contract[key] for key in ("semantic_type", "status", "authority", "evidence_level", "sensitivity")):
-                    raise LoomConflict(f"workflow context binding violates parameter contract: {parameter_id}")
+                    raise LatticeConflict(f"workflow context binding violates parameter contract: {parameter_id}")
                 return block["block_id"]
             if binding["kind"] == "step-output":
                 invocation = self.store.get_invocation(invocation_bindings[binding["step_id"]])
                 if invocation["project_id"] != project_id or invocation["state"] not in {"succeeded", "imported"} or not invocation.get("output_block_id"):
-                    raise LoomConflict(f"workflow step output is not a successful project-local invocation: {binding['step_id']}")
+                    raise LatticeConflict(f"workflow step output is not a successful project-local invocation: {binding['step_id']}")
                 return invocation["output_block_id"]
-            raise LoomConflict("workflow template contains an unsupported context binding")
+            raise LatticeConflict("workflow template contains an unsupported context binding")
 
         parents: list[str] = []
         for parent in step["parents"]:
             binding_key = parent["step_id"] if parent["kind"] == "step" else parent["parameter_id"]
             invocation = self.store.get_invocation(invocation_bindings[binding_key])
             if invocation["project_id"] != project_id:
-                raise LoomConflict("workflow parent binding belongs to another project")
+                raise LatticeConflict("workflow parent binding belongs to another project")
             parents.append(invocation["invocation_id"])
         selections = []
         for item in step["context"]:

@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "axis-loom"
+name = "lattice"
 version = "0.1.0"
 description = "Local-first conversational lattice harness"
 requires-python = ">=3.13"
@@ -39,8 +39,8 @@ markers = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["loom"]
+packages = ["lattice"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"web/dist" = "loom/web_dist"
-"workflow_packs" = "loom/workflow_packs"
+"web/dist" = "lattice/web_dist"
+"workflow_packs" = "lattice/workflow_packs"

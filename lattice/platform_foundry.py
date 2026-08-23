@@ -11,7 +11,7 @@ from .http_boundary import HTTPBoundaryError, bounded_http_get, canonical_origin
 
 
 class PlatformFoundryAdapter:
-    """Expose Foundry state to Loom without crossing Foundry's mutation authority."""
+    """Expose Foundry state to Lattice without crossing Foundry's mutation authority."""
 
     def __init__(self, base_url: str, *, transport: httpx.BaseTransport | None = None):
         self.base_url = base_url.rstrip("/")

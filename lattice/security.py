@@ -1,4 +1,4 @@
-"""Same-origin operator authority for Loom's locally powerful mutation surface."""
+"""Same-origin operator authority for Lattice's locally powerful mutation surface."""
 
 from __future__ import annotations
 
@@ -23,17 +23,17 @@ SAFE_METHODS = {"GET", "HEAD"}
 
 
 def configured_development_origin() -> str | None:
-    configured = os.environ.get("LOOM_DEV_ORIGIN")
+    configured = os.environ.get("LATTICE_DEV_ORIGIN")
     if not configured:
         return None
     try:
         return canonical_origin(configured, origin_only=True)
     except HTTPBoundaryError as error:
-        raise ValueError(f"LOOM_DEV_ORIGIN is invalid: {error}") from error
+        raise ValueError(f"LATTICE_DEV_ORIGIN is invalid: {error}") from error
 
 
 class ServiceInstanceLock:
-    """Exclusive process-lifetime ownership of one Loom canonical data root."""
+    """Exclusive process-lifetime ownership of one Lattice canonical data root."""
 
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -50,7 +50,7 @@ class ServiceInstanceLock:
             os.fsync(descriptor)
         except BlockingIOError as error:
             os.close(descriptor)
-            raise RuntimeError(f"another Loom process owns data root {self.path.parent}") from error
+            raise RuntimeError(f"another Lattice process owns data root {self.path.parent}") from error
         except BaseException:
             os.close(descriptor)
             raise
@@ -70,25 +70,25 @@ def ensure_cli_token(path: Path) -> str:
         try:
             descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         except OSError as error:
-            raise PermissionError("Loom operator token must be a non-symlink regular file") from error
+            raise PermissionError("Lattice operator token must be a non-symlink regular file") from error
         try:
             metadata = os.fstat(descriptor)
             mode = stat.S_IMODE(metadata.st_mode)
             if not stat.S_ISREG(metadata.st_mode):
-                raise PermissionError("Loom operator token must be a regular file")
+                raise PermissionError("Lattice operator token must be a regular file")
             if mode != 0o600:
-                raise PermissionError(f"Loom operator token must be mode 0600, found {mode:o}")
+                raise PermissionError(f"Lattice operator token must be mode 0600, found {mode:o}")
             if metadata.st_size > 4096:
-                raise ValueError("Loom operator token is malformed")
+                raise ValueError("Lattice operator token is malformed")
             raw = os.read(descriptor, metadata.st_size + 1)
         finally:
             os.close(descriptor)
         try:
             token = raw.decode("utf-8", errors="strict").strip()
         except UnicodeDecodeError as error:
-            raise ValueError("Loom operator token is malformed") from error
+            raise ValueError("Lattice operator token is malformed") from error
         if len(token) < 32:
-            raise ValueError("Loom operator token is malformed")
+            raise ValueError("Lattice operator token is malformed")
         return token
     token = secrets.token_urlsafe(48)
     descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), 0o600)
@@ -147,7 +147,7 @@ class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         host = request.headers.get("host", "")
         if host not in self.allowed_hosts:
-            return Response("unrecognized Loom host", status_code=421)
+            return Response("unrecognized Lattice host", status_code=421)
         if request.url.path == "/api/session":
             fetch_site = request.headers.get("sec-fetch-site")
             origin = request.headers.get("origin")
@@ -156,11 +156,11 @@ class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
         if request.method not in SAFE_METHODS and request.url.path.startswith("/api/"):
             origin = request.headers.get("origin")
             if origin is not None and origin.rstrip("/") not in self.allowed_origins:
-                return Response("unapproved Loom origin", status_code=403)
+                return Response("unapproved Lattice origin", status_code=403)
             authorization = request.headers.get("authorization", "")
             bearer = authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else None
             bearer_ok = bearer is not None and hmac.compare_digest(bearer, self.cli_token)
-            session_ok = self.sessions.valid(request.cookies.get("loom_operator"), request.headers.get("x-loom-csrf"))
+            session_ok = self.sessions.valid(request.cookies.get("lattice_operator"), request.headers.get("x-lattice-csrf"))
             if not bearer_ok and not session_ok:
                 return Response("operator authority required", status_code=403)
         response = await call_next(request)

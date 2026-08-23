@@ -123,7 +123,7 @@
         {"key": "locator", "label": "Source locator", "value_type": "string", "required": true},
         {"key": "body_path", "label": "Authority body file", "value_type": "file", "required": true, "max_bytes": 67108864},
         {"key": "media_type", "label": "Media type", "value_type": "string", "required": false, "default": "text/html"},
-        {"key": "recorder", "label": "Recorder", "value_type": "string", "required": false, "default": "loom-operator"}
+        {"key": "recorder", "label": "Recorder", "value_type": "string", "required": false, "default": "lattice-operator"}
       ]
     },
     {

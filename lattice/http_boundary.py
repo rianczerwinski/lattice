@@ -1,4 +1,4 @@
-"""Shared validation for Loom's explicitly authorized read-only HTTP edges."""
+"""Shared validation for Lattice's explicitly authorized read-only HTTP edges."""
 
 from __future__ import annotations
 
