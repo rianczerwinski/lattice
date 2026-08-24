@@ -325,6 +325,8 @@
         api<InvocationNavigation>(`/api/v1/invocations/${id}/navigation`),
       ]);
       selectedSlateSlice = null;
+      selectedExcerpt = null;
+      selectionProofLimit = '';
       armedTransition = '';
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
   }
@@ -409,7 +411,10 @@
     const selection = window.getSelection();
     const anchor = selection?.anchorNode instanceof Element ? selection.anchorNode : selection?.anchorNode?.parentElement;
     const article = anchor?.closest('article');
-    if (!article?.closest('.response-card') || !selection?.rangeCount) { selectedExcerpt = null; selectionProofLimit = ''; return; }
+    // Keep the exact selection alive while the operator uses its action menu.
+    // Selecting a different response or making another in-response selection
+    // still replaces it deterministically.
+    if (!article?.closest('.response-card') || !selection?.rangeCount) return;
     const range = selection.getRangeAt(0);
     if (!article.contains(range.startContainer) || !article.contains(range.endContainer)) { selectedExcerpt = null; selectionProofLimit = ''; return; }
     const text = selection?.toString() ?? '';
