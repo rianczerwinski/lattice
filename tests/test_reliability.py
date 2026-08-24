@@ -243,6 +243,21 @@ def test_negative_control_runtime_probe_executes_outside_the_source_checkout(mon
     assert locations["lattice"].startswith("/installed/")
 
 
+@pytest.mark.contract
+def test_runtime_manifest_canonicalization_uses_the_candidate_environment(tmp_path) -> None:
+    runtime_python = Path(__import__("sys").executable)
+    first = deployment.canonical_runtime_manifest({"z": "last", "a": [1, "é"]}, runtime_python)
+    second = deployment.canonical_runtime_manifest({"a": [1, "é"], "z": "last"}, runtime_python)
+
+    assert first == second == b'{"a":[1,"\xc3\xa9"],"z":"last"}'
+
+
+@pytest.mark.regression
+def test_negative_control_runtime_manifest_canonicalization_rejects_nonfinite_numbers() -> None:
+    with pytest.raises(ValueError, match="JSON compliant"):
+        deployment.canonical_runtime_manifest({"unsafe": float("nan")}, Path(__import__("sys").executable))
+
+
 @pytest.mark.regression
 def test_negative_control_live_publication_rejects_the_prior_runtime(monkeypatch) -> None:
     service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)

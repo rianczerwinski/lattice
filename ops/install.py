@@ -91,6 +91,23 @@ def write_atomic(path: Path, content: bytes, *, mode: int) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def canonical_runtime_manifest(value: dict, runtime_python: Path) -> bytes:
+    """Canonicalize with the candidate's pinned RFC 8785 implementation."""
+
+    encoded = json.dumps(value, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    result = subprocess.run(
+        [str(runtime_python), "-c", "import json,rfc8785,sys; sys.stdout.buffer.write(rfc8785.dumps(json.load(sys.stdin)))"],
+        input=encoded,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"candidate runtime could not canonicalize its manifest: {detail or f'exit {result.returncode}'}")
+    return result.stdout
+
+
 def replace_symlink(link: Path, target: Path) -> None:
     link.parent.mkdir(parents=True, exist_ok=True)
     temporary = link.parent / f".{link.name}.{uuid.uuid4().hex}.pending"
@@ -341,9 +358,7 @@ def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
             "packages": frozen,
             "module_locations": locations,
         }
-        import_source_modules()
-        from lattice.canonical import canonical_bytes
-        write_atomic(target / "runtime.json", canonical_bytes(manifest), mode=0o600)
+        write_atomic(target / "runtime.json", canonical_runtime_manifest(manifest, target / ".venv" / "bin" / "python"), mode=0o600)
         marker.unlink()
         return target
     except BaseException:
