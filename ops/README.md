@@ -6,8 +6,9 @@ This directory contains the source-checkout deployment boundary for Lattice. [`i
 
 ```text
 ops/
-├── README.md   Operations-boundary map and deployment contract
-└── install.py  Verified installer, upgrade switch, state cutover, and launchd publisher
+├── README.md                    Operations-boundary map and deployment contract
+├── authenticated_acceptance.py Authenticated freestyle graph and recovery acceptance
+└── install.py                   Verified installer, upgrade switch, state cutover, and launchd publisher
 ```
 
 The installed service never imports the development checkout. Runtime state, versioned environments, and backups live under `~/Library/Application Support/Lattice/`; logs live under `~/Library/Logs/Lattice/`. `~/.local/bin/lattice` is a stable executable shim that binds this personal deployment to AXISVI and follows the atomically selected runtime, so it works from any shell directory.
