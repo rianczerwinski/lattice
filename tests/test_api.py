@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from lattice.server import create_app
-from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, DraftCreate, TagRequest
+from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, DraftCreate, ProviderRoute, TagRequest
 from lattice.security import OperatorSessions, ensure_cli_token
 from lattice.store import LatticeConflict
 from lattice.workflows import WorkflowRegistry
@@ -586,3 +586,34 @@ def test_project_history_is_windowed_and_reusable_paths_remain_discoverable(latt
         "created_at": project["workflow_templates"][0]["created_at"],
     }]
     assert "generated_json" not in project["workflow_templates"][0] and "content" not in project["workflow_templates"][0]
+
+
+@pytest.mark.contract
+def test_blank_project_batch_api_fans_out_without_role_bootstrap(lattice_env, monkeypatch) -> None:
+    async def fake_execute(_self, invocation_id, request):
+        return {"attempt_id": f"attempt_{invocation_id[-8:]}", "invocation_id": invocation_id, "idempotency_key": request.idempotency_key, "event_cursor": 1}
+
+    monkeypatch.setattr("lattice.server.ExecutionSupervisor.execute", fake_execute)
+    app = create_app(lattice_env["config"])
+    with TestClient(app) as client:
+        csrf = client.get("/api/session").json()["csrf"]
+        headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
+        project_response = client.post("/api/v1/projects", headers=headers, json={"title": "Blank conversation"})
+        project = project_response.json()
+        assembly = {"project_id": project["project_id"], "actor_binding": {"kind": "direct"}, "prompt": "Ask both", "parent_invocation_ids": []}
+        request = {
+            "batch_id": "batch_0123456789abcdef0123456789abcdef",
+            "specifications": [
+                {"spec_id": "codex", "assembly": assembly, "route": lattice_env["route"].model_dump(mode="json")},
+                {"spec_id": "claude", "assembly": assembly, "route": ProviderRoute(provider="anthropic", model="claude-sonnet-4-6", harness="claude").model_dump(mode="json")},
+            ],
+        }
+        preview = client.post("/api/v1/invocation-batches/preview", headers=headers, json=request)
+        created = client.post("/api/v1/invocation-batches", headers=headers, json={**request, "idempotency_key": "browser-fanout-0001", "expected_preview_sha256": preview.json()["preview_sha256"], "confirmed_reason_sha256s": []})
+
+    assert project_response.status_code == 200
+    assert project["roles"] == [] and project["sessions"] == []
+    assert preview.status_code == 200
+    assert created.status_code == 202, created.text
+    assert len(created.json()["invocation_ids"]) == 2
+    assert {item["preflight"]["execution"]["provider"] for item in preview.json()["members"]} == {"openai", "anthropic"}

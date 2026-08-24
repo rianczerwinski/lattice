@@ -62,7 +62,7 @@
       "statement": "The remediation could duplicate already-working context delta, Slate slices, route selection, and trailhead machinery instead of exposing it coherently.",
       "route": [4, 5],
       "status": "open",
-      "implementation_receipts": [],
+      "implementation_receipts": ["web/src/App.svelte:loadOlderInvocations", "web/src/App.svelte:Context truth", "lattice/store.py:page_invocations", "lattice/store.py:get_slice"],
       "independent_oracle": "The cockpit and Slate acceptance paths resolve through the existing ledger identities and endpoints without copied transcript state or a second projection authority.",
       "false_mutation": "Replace a saved Slate query with copied transcript bytes or make an older trailhead unreachable and require acceptance to fail."
     },
@@ -82,7 +82,7 @@
       "statement": "Ordinary use must open into response and composer; roles, workflows, and raw graph configuration are secondary tools rather than prerequisites.",
       "route": [1, 4, 7],
       "status": "open",
-      "implementation_receipts": [],
+      "implementation_receipts": ["web/src/App.svelte:createProject", "web/src/App.svelte:route-chips", "web/src/App.svelte:role-binding", "tests/test_api.py:test_blank_project_batch_api_fans_out_without_role_bootstrap"],
       "independent_oracle": "Browser acceptance completes the freestyle path from a blank project without opening a role, workflow, graph, or manifest panel.",
       "false_mutation": "Require role creation before first send and require browser acceptance to fail."
     },
@@ -92,7 +92,7 @@
       "statement": "Side quests, fan-out, fan-in, cross-feed, and return must be available one edge at a time without preplotting the graph.",
       "route": [2, 4, 5],
       "status": "open",
-      "implementation_receipts": [],
+      "implementation_receipts": ["web/src/App.svelte:beginSideQuest", "web/src/App.svelte:graftSelectedExcerpt", "web/src/App.svelte:route-chips", "lattice/operations.py:create_invocation_batch"],
       "independent_oracle": "A browser operator authors the complete freestyle lattice conversationally and resumes any dormant trailhead after restart.",
       "false_mutation": "Hide a dormant branch after pagination or require a predefined workflow for a side quest and require acceptance to fail."
     },
@@ -102,7 +102,7 @@
       "statement": "Exact observable context and its delta must remain continuously inspectable without turning every ordinary send into a mandatory preflight ceremony.",
       "route": [2, 3, 4],
       "status": "open",
-      "implementation_receipts": ["lattice/contracts.py:DerivedTextBlockCreate", "lattice/store.py:create_derived_text_block", "lattice/manifest_reader.py:verify_and_reconstruct", "tests/test_invocation_batches.py"],
+      "implementation_receipts": ["lattice/contracts.py:DerivedTextBlockCreate", "lattice/store.py:create_derived_text_block", "lattice/manifest_reader.py:verify_and_reconstruct", "web/src/App.svelte:Context truth", "tests/test_invocation_batches.py"],
       "independent_oracle": "Independent reconstruction matches provider bytes and the tray distinguishes added, removed, transformed, omitted, unchanged, and provider-opaque material.",
       "false_mutation": "Relabel a summary as verbatim or hide an omission and require the independent reader or browser oracle to fail."
     },

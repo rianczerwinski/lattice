@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api, beginSession, extractWorkflow, post } from './api';
   import { renderMarkdown } from './renderMarkdown';
-  import type { ContextDelta, ContextPreflight, Invocation, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
+  import type { BatchPreview, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
 
   let projects: Project[] = [];
@@ -9,12 +9,16 @@
   let routes: Route[] = [];
   let workflowPacks: WorkflowPack[] = [];
   let selectedRoute = '';
+  let routeMode: 'anthropic' | 'openai' | 'both' = 'anthropic';
   let selectedSession = '';
   let prompt = '';
   let title = '';
   let purpose = '';
   let selectedParents = new Set<string>();
-  let preview: { draft_id: string; revision: number; preflight: ContextPreflight; parent_deltas: ContextDelta[]; compiled_prompt_preview: string } | null = null;
+  let preview: BatchPreview | null = null;
+  let pendingBatchRequest: Record<string, unknown> | null = null;
+  let explicitSelections: Array<Record<string, unknown>> = [];
+  let selectedExcerpt: { text: string; startByte: number; endByte: number } | null = null;
   let selected: Invocation | null = null;
   let comparison: Record<string, unknown> | null = null;
   let neighborhood: { nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } } | null = null;
@@ -32,7 +36,7 @@
   let workflowSelectorValues: Record<string, Record<string, string>> = {};
   let blackboardContents: Record<string, string> = {};
   let blackboardLoading = '';
-  let activeAttemptId = '';
+  let activeAttemptIds: string[] = [];
   let liveProgress = '';
   let liveProgressState = '';
   let extractedTemplateId = '';
@@ -42,6 +46,9 @@
   $: if (installedRoutes.length && !installedRoutes.some((route) => `${route.provider_code}:${route.model_code}` === selectedRoute)) selectedRoute = `${installedRoutes[0].provider_code}:${installedRoutes[0].model_code}`;
   $: if (!installedRoutes.length && selectedRole) selectedRoute = '';
   $: activeRoute = installedRoutes.find((route) => `${route.provider_code}:${route.model_code}` === selectedRoute);
+  $: routeChoices = routeMode === 'both'
+    ? ['anthropic', 'openai'].map((provider) => installedRoutes.find((route) => route.provider_code === provider)).filter((route): route is Route => Boolean(route))
+    : [installedRoutes.find((route) => route.provider_code === routeMode)].filter((route): route is Route => Boolean(route));
   $: responseHtml = selected?.output_block?.content ? renderMarkdown(selected.output_block.content) : '';
   $: trailheads = project?.trailheads ?? [];
   $: activeWorkflowPack = workflowPacks.find((pack) => pack.definition.pack_id === project?.workflow?.pack_id);
@@ -55,7 +62,10 @@
       await beginSession();
       [projects, routes, workflowPacks] = await Promise.all([api<Project[]>('/api/v1/projects'), api<Route[]>('/api/v1/routes'), api<WorkflowPack[]>('/api/v1/workflow-packs')]);
       const firstRoute = routes.find((route) => route.qualified && route.provider_code === 'anthropic') ?? routes.find((route) => route.qualified && route.provider_code === 'openai');
-      if (firstRoute) selectedRoute = `${firstRoute.provider_code}:${firstRoute.model_code}`;
+      if (firstRoute) {
+        selectedRoute = `${firstRoute.provider_code}:${firstRoute.model_code}`;
+        routeMode = firstRoute.provider_code as 'anthropic' | 'openai';
+      }
       if (projects[0]) await openProject(projects[0].project_id);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -69,12 +79,11 @@
     working = true;
     error = '';
     try {
-      const result = await post<{ project: Project; session: { role_session_id: string } }>('/api/v1/projects/bootstrap', { title, purpose });
+      const result = await post<Project>('/api/v1/projects', { title, purpose });
       title = '';
       purpose = '';
       projects = await api<Project[]>('/api/v1/projects');
-      await openProject(result.project.project_id);
-      selectedSession = result.session.role_session_id;
+      await openProject(result.project_id);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally { working = false; }
@@ -85,6 +94,9 @@
     selectedSession = project.sessions?.[0]?.role_session_id ?? '';
     selectedParents = new Set();
     preview = null;
+    pendingBatchRequest = null;
+    explicitSelections = [];
+    selectedExcerpt = null;
     comparison = null;
     armedCommand = '';
     commandIdempotency = {};
@@ -96,12 +108,11 @@
     else selected = null;
   }
 
-  function routePayload() {
-    if (!activeRoute) throw new Error(selectedRole?.route_policy.kind === 'non-model' ? `${selectedRole.name} is a deterministic or human role, not a model route.` : 'Choose an installed route authorized for this role.');
+  function routePayload(route: Route) {
     return {
-      provider: activeRoute.provider_code,
-      model: activeRoute.model_code,
-      harness: activeRoute.official_cli,
+      provider: route.provider_code,
+      model: route.model_code,
+      harness: route.official_cli,
       effort: 'high',
       session_policy: 'fresh',
       tools: [],
@@ -116,56 +127,78 @@
     return last?.error_text ?? last?.failure_kind ?? 'No successful terminal receipt exists.';
   }
 
-  async function prepare() {
-    if (!project || !selectedSession || !prompt.trim()) return;
+  function resetPreview() {
+    preview = null;
+    pendingBatchRequest = null;
+  }
+
+  function makeBatchRequest() {
+    if (!project || !prompt.trim() || !routeChoices.length) throw new Error('Write a prompt and choose an available route.');
+    const batchId = `batch_${crypto.randomUUID().replaceAll('-', '')}`;
+    const assembly = {
+      project_id: project.project_id,
+      actor_binding: selectedSession ? { kind: 'role-session', role_session_id: selectedSession } : { kind: 'direct' },
+      prompt,
+      selections: explicitSelections,
+      parent_invocation_ids: [...selectedParents],
+      relation: selectedParents.size ? 'inherited_context_from' : 'responds_to',
+      context_mode: 'standard',
+    };
+    return {
+      batch_id: batchId,
+      specifications: routeChoices.map((route) => ({ spec_id: route.provider_code, assembly, route: routePayload(route) })),
+    };
+  }
+
+  async function prepare(executeWhenClear = false) {
+    if (!project || !prompt.trim()) return;
     working = true;
     error = '';
     try {
-      const draft = await post<{ draft_id: string }>('/api/v1/drafts', {
-        project_id: project.project_id,
-        role_session_id: selectedSession,
-        prompt,
-        route: routePayload(),
-        selections: [],
-        parent_invocation_ids: [...selectedParents],
-        relation: selectedParents.size ? 'inherited_context_from' : 'responds_to',
+      pendingBatchRequest = makeBatchRequest();
+      preview = await post<BatchPreview>('/api/v1/invocation-batches/preview', pendingBatchRequest);
+      if (executeWhenClear && preview.confirmation_reasons.length === 0) await executePreparedBatch([]);
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : String(cause);
+    } finally { working = false; }
+  }
+
+  async function executePreparedBatch(confirmedReasonSha256s: string[]) {
+    if (!preview || !pendingBatchRequest || !project) return;
+    working = true;
+    error = '';
+    try {
+      const batch = await post<InvocationBatch>('/api/v1/invocation-batches', {
+        ...pendingBatchRequest,
+        idempotency_key: crypto.randomUUID(),
+        expected_preview_sha256: preview.preview_sha256,
+        confirmed_reason_sha256s: confirmedReasonSha256s,
       });
-      preview = await api(`/api/v1/drafts/${draft.draft_id}/preview`);
-    } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
-    } finally { working = false; }
-  }
-
-  async function send() {
-    if (!preview || !project) return;
-    working = true;
-    error = '';
-    try {
-      const invocation = await post<Invocation>(`/api/v1/drafts/${preview.draft_id}/seal`, { expected_revision: preview.revision, expected_preflight_sha256: preview.preflight.preflight_sha256 });
-      const attempt = await post<{ attempt_id: string; event_cursor: number }>(`/api/v1/invocations/${invocation.invocation_id}/execute`, { idempotency_key: crypto.randomUUID() });
-      activeAttemptId = attempt.attempt_id;
+      activeAttemptIds = batch.execution_attempts.map((attempt) => attempt.attempt_id);
       liveProgress = '';
-      liveProgressState = 'Live journal connected';
-      const closeProgress = followAttemptProgress(project.project_id, attempt.attempt_id, attempt.event_cursor);
+      liveProgressState = `${batch.execution_attempts.length} provider journal${batch.execution_attempts.length === 1 ? '' : 's'} connected`;
+      const closeProgress = batch.execution_attempts.map((attempt) => followAttemptProgress(project.project_id, attempt.attempt_id, attempt.event_cursor, batch.members.find((member) => member.invocation_id === attempt.invocation_id)?.spec_id ?? 'route'));
       preview = null;
+      pendingBatchRequest = null;
       prompt = '';
+      explicitSelections = [];
       selectedParents = new Set();
-      try { await pollInvocation(invocation.invocation_id); }
-      finally { closeProgress(); activeAttemptId = ''; }
+      try { await Promise.all(batch.invocation_ids.map((invocationId) => pollInvocation(invocationId))); }
+      finally { closeProgress.forEach((close) => close()); activeAttemptIds = []; }
       await openProject(project.project_id);
-      await inspect(invocation.invocation_id);
+      await inspect(batch.invocation_ids[batch.invocation_ids.length - 1]);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally { working = false; }
   }
 
-  function followAttemptProgress(projectId: string, attemptId: string, after: number): () => void {
+  function followAttemptProgress(projectId: string, attemptId: string, after: number, label: string): () => void {
     const stream = new EventSource(`/api/v1/projects/${encodeURIComponent(projectId)}/events/stream?after=${after}`);
     stream.addEventListener('attempt.chunk', (event) => {
       try {
         const item = JSON.parse(event.data) as { subject_id?: string; payload?: { channel?: string; preview?: string } };
         if (item.subject_id !== attemptId || typeof item.payload?.preview !== 'string') return;
-        const line = `${item.payload.channel ?? 'output'} · ${item.payload.preview}`;
+        const line = `${label} · ${item.payload.channel ?? 'output'} · ${item.payload.preview}`;
         liveProgress = `${liveProgress}${liveProgress ? '\n' : ''}${line}`.slice(-100_000);
         liveProgressState = 'Receiving provider journal';
       } catch (cause: unknown) {
@@ -177,11 +210,11 @@
     return () => stream.close();
   }
 
-  async function cancelActiveAttempt() {
-    if (!activeAttemptId) return;
+  async function cancelActiveAttempts() {
+    if (!activeAttemptIds.length) return;
     error = '';
     try {
-      await post(`/api/v1/attempts/${activeAttemptId}/cancel`, {});
+      await Promise.all(activeAttemptIds.map((attemptId) => post(`/api/v1/attempts/${attemptId}/cancel`, {})));
       liveProgressState = 'Cancellation requested; waiting for the terminal receipt';
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
   }
@@ -210,8 +243,63 @@
     const next = new Set(selectedParents);
     next.has(id) ? next.delete(id) : next.add(id);
     selectedParents = next;
-    preview = null;
+    resetPreview();
     armedTransition = '';
+  }
+
+  function chooseRoute(mode: 'anthropic' | 'openai' | 'both') {
+    routeMode = mode;
+    selectedSession = '';
+    resetPreview();
+  }
+
+  function beginSideQuest(mode: 'anthropic' | 'openai' | 'both' = routeMode) {
+    if (!selected) return;
+    routeMode = mode;
+    selectedSession = '';
+    selectedParents = new Set([selected.invocation_id]);
+    prompt = '';
+    explicitSelections = [];
+    selectedExcerpt = null;
+    resetPreview();
+    document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+  }
+
+  function captureResponseSelection() {
+    const selection = window.getSelection();
+    const anchor = selection?.anchorNode instanceof Element ? selection.anchorNode : selection?.anchorNode?.parentElement;
+    if (!anchor?.closest('article')) { selectedExcerpt = null; return; }
+    const text = selection?.toString() ?? '';
+    const source = selected?.output_block?.content ?? '';
+    if (!text.trim() || !source) { selectedExcerpt = null; return; }
+    const start = source.indexOf(text);
+    if (start < 0 || source.indexOf(text, start + 1) >= 0) { selectedExcerpt = null; return; }
+    const encoder = new TextEncoder();
+    selectedExcerpt = {
+      text,
+      startByte: encoder.encode(source.slice(0, start)).byteLength,
+      endByte: encoder.encode(source.slice(0, start + text.length)).byteLength,
+    };
+  }
+
+  async function graftSelectedExcerpt(sideQuest: boolean) {
+    if (!project || !selected?.output_block_id || !selectedExcerpt) return;
+    working = true;
+    error = '';
+    try {
+      const block = await post<{ block_id: string }>('/api/v1/context-blocks/excerpts', {
+        project_id: project.project_id,
+        source_block_id: selected.output_block_id,
+        start_byte: selectedExcerpt.startByte,
+        end_byte: selectedExcerpt.endByte,
+      });
+      explicitSelections = [...explicitSelections, { block_id: block.block_id, plane: 'knowledge', label: `graft:${block.block_id.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [selected.output_block_id] }];
+      if (sideQuest) selectedParents = new Set([selected.invocation_id]);
+      selectedExcerpt = null;
+      resetPreview();
+      document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    finally { working = false; }
   }
 
   async function compareSelected() {
@@ -461,6 +549,7 @@
 </script>
 
 <svelte:head><meta name="description" content="Lattice conversational lattice" /></svelte:head>
+<svelte:window on:mouseup={captureResponseSelection} />
 
 {#if loading}
   <main class="center-state"><div class="pulse"></div><p>Opening the lattice…</p></main>
@@ -487,16 +576,18 @@
           <textarea bind:value={purpose} rows="2" placeholder="What is this for?"></textarea>
           <button class="quiet" disabled={working || !title.trim()} on:click={createProject}>Create</button>
         </div>
-        <div class="section-label">Governed workflows</div>
-        {#each workflowPacks.filter((pack) => pack.available) as pack}
-          <div class="workflow-launch">
-            <strong>{pack.definition.title}</strong>
-            {#each pack.definition.project_selector as field}
-              <label>{field.label}<input type={field.value_type === 'integer' ? 'number' : 'text'} value={selectorValue(pack, field, workflowSelectorValues)} on:input={(event) => setWorkflowSelectorValue(pack.definition.pack_id, field.key, event.currentTarget.value)} /></label>
-            {/each}
-            <button class="quiet" disabled={working || !selectorReady(pack, workflowSelectorValues)} on:click={() => createWorkflowProject(pack)}>Open authoritative live view</button>
-          </div>
-        {/each}
+        <details class="secondary-control workflow-catalog">
+          <summary>Governed workflows</summary>
+          {#each workflowPacks.filter((pack) => pack.available) as pack}
+            <div class="workflow-launch">
+              <strong>{pack.definition.title}</strong>
+              {#each pack.definition.project_selector as field}
+                <label>{field.label}<input type={field.value_type === 'integer' ? 'number' : 'text'} value={selectorValue(pack, field, workflowSelectorValues)} on:input={(event) => setWorkflowSelectorValue(pack.definition.pack_id, field.key, event.currentTarget.value)} /></label>
+              {/each}
+              <button class="quiet" disabled={working || !selectorReady(pack, workflowSelectorValues)} on:click={() => createWorkflowProject(pack)}>Open authoritative live view</button>
+            </div>
+          {/each}
+        </details>
       </aside>
 
       <main class="conversation">
@@ -511,7 +602,9 @@
           </div>
 
           {#if project.workflow}
-            <section class="workflow-strip">
+            <details class="workflow-control">
+              <summary>Workflow control · {project.workflow.pack_id} · {project.workflow.state}</summary>
+              <section class="workflow-strip">
               <div>
                 <span>{project.workflow.pack_id}</span>
                 <strong>{project.workflow.state}</strong>
@@ -572,14 +665,22 @@
                   {/each}
                 {/if}
               </details>
-            </section>
+              </section>
+            </details>
           {/if}
 
-          <section class="response-card" class:empty={!selected?.output_block && !activeAttemptId}>
+          <section class="response-card" class:empty={!selected?.output_block && !activeAttemptIds.length}>
             {#if selected}
               <div class="response-meta"><span>{selected.state}</span><code>{selected.invocation_id.slice(-8)}</code></div>
-              {#if activeAttemptId}<div class="live-progress"><div><strong>{liveProgressState}</strong><button class="quiet" on:click={cancelActiveAttempt}>Cancel invocation</button></div><pre>{liveProgress || 'Waiting for the first observable provider bytes…'}</pre></div>{/if}
+              {#if activeAttemptIds.length}<div class="live-progress"><div><strong>{liveProgressState}</strong><button class="quiet" on:click={cancelActiveAttempts}>Cancel running routes</button></div><pre>{liveProgress || 'Waiting for the first observable provider bytes…'}</pre></div>{/if}
               {#if selected.output_block}<article>{@html responseHtml}</article>{:else if ['failed', 'interrupted'].includes(selected.state)}<p class="terminal-failure">Invocation ended {selected.state}: {terminalFailure(selected)}</p>{:else}<p class="muted">This invocation has not reached a terminal response.</p>{/if}
+              <div class="response-actions">
+                <button class="quiet" on:click={() => beginSideQuest()}>Side quest</button>
+                <button class="quiet" on:click={() => beginSideQuest('anthropic')}>Ask Claude</button>
+                <button class="quiet" on:click={() => beginSideQuest('openai')}>Ask Codex</button>
+                <button class="quiet" on:click={() => beginSideQuest('both')}>Ask both</button>
+                {#if selectedExcerpt}<button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(true)}>Side quest on “{selectedExcerpt.text.slice(0, 36)}{selectedExcerpt.text.length > 36 ? '…' : ''}”</button><button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(false)}>Bring selection here</button>{/if}
+              </div>
             {:else}
               <div class="empty-call"><span>Begin here</span><h3>Say what should happen next.</h3><p>Lattice will show the exact context before anything is sent.</p></div>
             {/if}
@@ -598,16 +699,21 @@
 
           <section class="composer">
             <div class="composer-top">
-              <select bind:value={selectedSession} aria-label="Role session">{#each project.sessions ?? [] as session}<option value={session.role_session_id}>{session.label}</option>{/each}</select>
-              <select bind:value={selectedRoute} aria-label="Model route">{#each installedRoutes as route}<option value={`${route.provider_code}:${route.model_code}`}>{route.official_cli} · {route.model_code}</option>{/each}</select>
+              <div class="route-chips" aria-label="Model route">
+                <button class:active={routeMode === 'anthropic'} disabled={!installedRoutes.some((route) => route.provider_code === 'anthropic')} on:click={() => chooseRoute('anthropic')}>Claude</button>
+                <button class:active={routeMode === 'openai'} disabled={!installedRoutes.some((route) => route.provider_code === 'openai')} on:click={() => chooseRoute('openai')}>Codex</button>
+                <button class:active={routeMode === 'both'} disabled={!['anthropic', 'openai'].every((provider) => installedRoutes.some((route) => route.provider_code === provider))} on:click={() => chooseRoute('both')}>both</button>
+              </div>
               <span class="parent-count">{selectedParents.size ? `${selectedParents.size} parent${selectedParents.size === 1 ? '' : 's'}` : 'fresh edge'}</span>
             </div>
-            <textarea bind:value={prompt} rows="5" placeholder="Route the next thought…" on:input={() => preview = null}></textarea>
+            <textarea bind:value={prompt} rows="5" placeholder={selectedParents.size > 1 ? 'Bring these branches together…' : selectedParents.size === 1 ? 'Continue here or take a side quest…' : 'Say what should happen next…'} on:input={resetPreview}></textarea>
+            {#if explicitSelections.length}<div class="graft-strip">{explicitSelections.length} exact graft{explicitSelections.length === 1 ? '' : 's'} selected</div>{/if}
             <div class="composer-actions">
               {#if selectedParents.size === 2}<button class="quiet" on:click={compareSelected}>Compare branches</button>{/if}
               {#if selectedParents.size}<button class="quiet" disabled={working} on:click={extractSelectedPath}>Extract reusable path</button>{/if}
-              <button class="quiet" disabled={working || !prompt.trim()} on:click={prepare}>Inspect context</button>
-              <button class="send" disabled={working || !preview} on:click={send}>{working ? 'Working…' : 'Send edge'}</button>
+              <details class="role-binding"><summary>{selectedSession ? 'Role-bound' : 'Direct'}</summary><select bind:value={selectedSession} on:change={resetPreview} aria-label="Optional role session"><option value="">Direct conversation</option>{#each project.sessions ?? [] as session}<option value={session.role_session_id}>{session.label}</option>{/each}</select></details>
+              <button class="quiet" disabled={working || !prompt.trim()} on:click={() => prepare(false)}>Inspect context</button>
+              {#if preview?.confirmation_reasons.length}<button class="send confirm" disabled={working} on:click={() => executePreparedBatch(preview?.confirmation_reasons.map((item) => item.reason_sha256) ?? [])}>{working ? 'Working…' : 'Confirm & send'}</button>{:else if preview}<button class="send" disabled={working} on:click={() => executePreparedBatch([])}>{working ? 'Working…' : `Send to ${routeMode}`}</button>{:else}<button class="send" disabled={working || !prompt.trim() || !routeChoices.length} on:click={() => prepare(true)}>{working ? 'Working…' : `Send to ${routeMode}`}</button>{/if}
             </div>
           </section>
         {:else}
@@ -618,15 +724,17 @@
       <aside class="inspector">
         <div class="section-label">Context truth</div>
         {#if preview}
-          <div class="truth-status valid">Ready to seal · {preview.preflight.compilation.byte_count} bytes</div>
+          {@const primaryPreview = preview.members[0]}
+          <div class="truth-status" class:valid={!preview.confirmation_reasons.length}>{preview.confirmation_reasons.length ? 'Confirmation required' : 'Ready for one-action send'} · {primaryPreview.preflight.compilation.byte_count} bytes</div>
+          {#if preview.confirmation_reasons.length}<h3>Why execution paused</h3>{#each preview.confirmation_reasons as reason}<div class="confirmation-reason"><strong>{reason.code}</strong><pre>{JSON.stringify(reason.detail, null, 2)}</pre></div>{/each}{/if}
           <h3>Next invocation receives</h3>
           <div class="segments">
-            {#each preview.preflight.segments as segment}<div class="segment"><i class={`plane ${segment.plane}`}></i><div><strong>{segment.label}</strong><small>{segment.plane} · {segment.status}</small><code>{segment.sha256.slice(0, 12)}</code></div></div>{/each}
+            {#each primaryPreview.preflight.segments as segment}<div class="segment"><i class={`plane ${segment.plane}`}></i><div><strong>{segment.label}</strong><small>{segment.plane} · {segment.status}</small><code>{segment.sha256.slice(0, 12)}</code></div></div>{/each}
           </div>
-          {#if preview.preflight.omitted.length}<h3>Explicitly absent</h3>{#each preview.preflight.omitted as segment}<div class="omitted">{segment.label} · {segment.disposition}</div>{/each}{/if}
-          {#if preview.parent_deltas.length}<h3>Delta from selected trail</h3>{#each preview.parent_deltas as delta}<details><summary>{delta.invocation_id.slice(-8)} · +{delta.added.length} / −{delta.removed.length} · {delta.unchanged_count} unchanged</summary>{#each delta.added as segment}<div class="segment delta-added"><i class={`plane ${segment.plane}`}></i><div><strong>+ {segment.label}</strong><small>{segment.plane} · {segment.disposition}</small></div></div>{/each}{#each delta.removed as segment}<div class="omitted">− {segment.label} · {segment.disposition}</div>{/each}</details>{/each}{/if}
-          <details><summary>Exact compiled context</summary><pre>{preview.compiled_prompt_preview}</pre></details>
-          <details><summary>Provider boundary</summary>{#each preview.preflight.provider_boundary.proof_limits as limit}<p>{limit}</p>{/each}</details>
+          {#if primaryPreview.preflight.omitted.length}<h3>Explicitly absent</h3>{#each primaryPreview.preflight.omitted as segment}<div class="omitted">{segment.label} · {segment.disposition}</div>{/each}{/if}
+          {#if primaryPreview.parent_deltas.length}<h3>Delta from selected trail</h3>{#each primaryPreview.parent_deltas as delta}<details><summary>{delta.invocation_id.slice(-8)} · +{delta.added.length} / −{delta.removed.length} · {delta.unchanged_count} unchanged</summary>{#each delta.added as segment}<div class="segment delta-added"><i class={`plane ${segment.plane}`}></i><div><strong>+ {segment.label}</strong><small>{segment.plane} · {segment.disposition}</small></div></div>{/each}{#each delta.removed as segment}<div class="omitted">− {segment.label} · {segment.disposition}</div>{/each}</details>{/each}{/if}
+          <details><summary>Exact compiled context</summary><pre>{primaryPreview.compiled_prompt_preview}</pre></details>
+          {#each preview.members as member}<details><summary>{member.preflight.execution.provider} route, tools & proof limits</summary><pre>{JSON.stringify(member.preflight.capabilities, null, 2)}</pre>{#each member.preflight.provider_boundary.proof_limits as limit}<p>{limit}</p>{/each}</details>{/each}
         {:else if selected}
           <div class="truth-status" class:valid={selected.manifest_verification?.valid}>{selected.manifest_verification?.valid ? 'Manifest reconstructed' : 'Manifest unavailable'}</div>
           <h3>What this invocation saw</h3>

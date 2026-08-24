@@ -11,6 +11,7 @@ export type Project = {
   workflow_templates_partial?: boolean;
   workflow_pack?: string;
   workflow?: WorkflowInstance | null;
+  context_defaults?: Array<{ block_id: string; module_id: string; mode: string }>;
 };
 
 export type WorkflowTrigger = { trigger_id: string; trigger_name: string; required_action: string; state: string; result_ref?: string; error_text?: string };
@@ -29,7 +30,7 @@ export type RoleRoutePolicy = { kind: 'operator-selectable' | 'model' | 'non-mod
 export type Role = { role_id: string; name: string; instructions_block_id: string; workflow_role_key?: string; authority_limits: string[]; route_policy: RoleRoutePolicy };
 export type RoleSession = { role_session_id: string; role_id: string; label: string };
 export type Route = { provider_code: string; model_code: string; official_cli: string; installed: boolean; qualified: boolean; qualification_blocker?: string; proof_limits: string[] };
-export type InvocationSummary = { invocation_id: string; state: string; role_session_id: string; output_block_id?: string; created_at: string };
+export type InvocationSummary = { invocation_id: string; state: string; actor_kind: 'direct' | 'role-session'; role_session_id: string | null; output_block_id?: string; created_at: string };
 export type InvocationPage = { has_older: boolean; next_before: { created_at: string; invocation_id: string } | null };
 export type WorkflowTemplateSummary = { artifact_id: string; artifact_kind: 'workflow-template'; content_sha256: string; created_at: string };
 export type WorkflowTemplate = { generated_object: { artifact_id: string }; contract_version: 'LatticeWorkflowTemplate/2.0'; title: string; steps: Array<{ step_id: string }> };
@@ -47,5 +48,9 @@ export type Manifest = {
 };
 export type ContextPreflight = Omit<Manifest, 'manifest_sha256'> & { preflight_sha256: string };
 export type ContextDelta = { invocation_id: string; manifest_sha256: string; added: ManifestSegment[]; removed: ManifestSegment[]; unchanged_count: number };
+export type ConfirmationReason = { code: string; detail: Record<string, unknown>; reason_sha256: string };
+export type BatchMemberPreview = { spec_id: string; assembly_sha256: string; preflight: ContextPreflight; parent_deltas: ContextDelta[]; compiled_prompt_preview: string };
+export type BatchPreview = { contract_version: 'InvocationBatchPreviewV1'; batch_id: string; project_id: string; request_sha256: string; preview_sha256: string; members: BatchMemberPreview[]; confirmation_reasons: ConfirmationReason[] };
+export type InvocationBatch = { batch_id: string; project_id: string; receipt_sha256: string; invocation_ids: string[]; members: Array<{ spec_id: string; invocation_id: string; state: string; attempts: Array<Record<string, unknown>> }>; execution_attempts: Array<{ attempt_id: string; invocation_id: string; event_cursor: number }> };
 export type InvocationArtifact = { artifact_id: string; content_sha256: string; generated_json: string; artifact_kind: string };
 export type Invocation = InvocationSummary & { manifest: Manifest; manifest_verification: { valid: boolean }; compiled_prompt: string; output_block?: { content: string }; attempts: Array<Record<string, unknown>>; artifacts: InvocationArtifact[]; edges: Array<Record<string, unknown>> };
