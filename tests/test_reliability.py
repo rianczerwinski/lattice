@@ -145,7 +145,7 @@ def test_negative_control_doctor_rejects_running_port_that_disagrees_with_outpor
     monkeypatch.setattr(cli, "_service", lambda _config: service)
     monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9011, "data_root": str(tmp_path)})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
-    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
@@ -163,9 +163,9 @@ def test_negative_control_doctor_rejects_running_port_that_disagrees_with_outpor
 def test_negative_control_doctor_rejects_stale_schema_generation(monkeypatch, tmp_path, capsys) -> None:
     service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
     monkeypatch.setattr(cli, "_service", lambda _config: service)
-    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path)})
+    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime"})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
-    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"schema_version": 8, "expected_schema_version": 9})
@@ -180,10 +180,31 @@ def test_negative_control_doctor_rejects_stale_schema_generation(monkeypatch, tm
     assert "schema generation is 8, expected 9" in check["detail"]
 
 
+@pytest.mark.regression
+def test_negative_control_doctor_rejects_service_from_unselected_runtime(monkeypatch, tmp_path, capsys) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    monkeypatch.setattr(cli, "_service", lambda _config: service)
+    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "prior-runtime"})
+    monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "candidate-runtime"})
+    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None: {"anthropic": {}, "openai": {}})
+    monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
+
+    status = cli.command_doctor(argparse.Namespace(json=True))
+    output = json.loads(capsys.readouterr().out)
+
+    assert status == 1
+    check = next(item for item in output["checks"] if item["name"] == "service")
+    assert check["state"] == "fail"
+    assert "prior-runtime" in check["detail"] and "candidate-runtime" in check["detail"]
+
+
 @pytest.mark.contract
 def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -> None:
-    service = deployment.plist_payload(deployment.SERVICE_LABEL, backup=False)
-    backup = deployment.plist_payload(deployment.BACKUP_LABEL, backup=True)
+    service = deployment.plist_payload(deployment.SERVICE_LABEL, backup=False, runtime_id="test-runtime")
+    backup = deployment.plist_payload(deployment.BACKUP_LABEL, backup=True, runtime_id="test-runtime")
     shim = deployment.shim_payload().decode("utf-8")
 
     assert service["ProgramArguments"] == [str(deployment.CURRENT_LINK / ".venv" / "bin" / "lattice"), "serve"]
@@ -191,6 +212,7 @@ def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -
     assert backup["ProgramArguments"][-2:] == ["--reason", "scheduled-daily"]
     assert backup["StartCalendarInterval"] == {"Hour": 3, "Minute": 0}
     assert service["EnvironmentVariables"]["OUTPORT_BIN"] == str(deployment.required_binary("outport"))
+    assert service["EnvironmentVariables"]["LATTICE_RUNTIME_ID"] == "test-runtime"
     assert str(deployment.required_binary("claude").parent) in service["EnvironmentVariables"]["PATH"].split(":")
     assert str(deployment.required_binary("codex").parent) in service["EnvironmentVariables"]["PATH"].split(":")
     assert f"export AXISVI_ROOT={deployment.AXISVI_ROOT}" in shim
@@ -219,6 +241,30 @@ def test_negative_control_runtime_probe_executes_outside_the_source_checkout(mon
     assert observed["cwd"] == tmp_path
     assert observed["capture"] is True
     assert locations["lattice"].startswith("/installed/")
+
+
+@pytest.mark.regression
+def test_negative_control_live_publication_rejects_the_prior_runtime(monkeypatch) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    monkeypatch.setattr("lattice.outport.resolve_lattice_service", lambda _root: service)
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return json.dumps({"status": "ok", "port": 9010, "data_root": str(deployment.DEFAULT_DATA_ROOT), "runtime_id": "prior-runtime"}).encode()
+
+    monkeypatch.setattr(deployment.urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr(deployment.time, "sleep", lambda _seconds: None)
+    ticks = iter((0.0, 0.5, 1.0))
+    monkeypatch.setattr(deployment.time, "monotonic", lambda: next(ticks))
+
+    with pytest.raises(RuntimeError, match="prior-runtime"):
+        deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
 
 
 @pytest.mark.regression

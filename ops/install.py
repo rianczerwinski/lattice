@@ -274,14 +274,36 @@ def probe_runtime(target: Path) -> dict[str, str]:
     return value
 
 
+def verify_runtime_target(target: Path, *, runtime_id: str, lattice_revision: str, runner_revision: str) -> None:
+    marker = target / ".pending"
+    manifest_path = target / "runtime.json"
+    executable = target / ".venv" / "bin" / "lattice"
+    if marker.exists() or not manifest_path.is_file() or not executable.is_file():
+        raise RuntimeError(f"runtime target is incomplete: {target}")
+    try:
+        manifest = json.loads(manifest_path.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"runtime manifest is unreadable: {manifest_path}") from error
+    sources = manifest.get("generated_object", {}).get("sources", [])
+    expected_sources = {
+        f"git:{SOURCE_ROOT}": lattice_revision,
+        f"git:{MODEL_RUNNER_ROOT}": runner_revision,
+    }
+    actual_sources = {item.get("ref"): item.get("revision") for item in sources if isinstance(item, dict) and "revision" in item}
+    if manifest.get("runtime_id") != runtime_id or any(actual_sources.get(ref) != revision for ref, revision in expected_sources.items()):
+        raise RuntimeError(f"runtime target provenance disagrees with its version identity: {target}")
+    locations = probe_runtime(target)
+    if any(str(SOURCE_ROOT) in location or str(MODEL_RUNNER_ROOT) in location for location in locations.values()):
+        raise RuntimeError(f"installed runtime still imports a development checkout: {locations}")
+
+
 def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
     version = "0.1.0"
     runtime_id = f"{version}-{lattice_revision[:12]}-{runner_revision[:12]}"
     target = VERSIONS_ROOT / runtime_id
     marker = target / ".pending"
     if target.exists():
-        if marker.exists() or not (target / "runtime.json").is_file() or not (target / ".venv" / "bin" / "lattice").is_file():
-            raise RuntimeError(f"runtime target is incomplete: {target}")
+        verify_runtime_target(target, runtime_id=runtime_id, lattice_revision=lattice_revision, runner_revision=runner_revision)
         return target
     VERSIONS_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     target.mkdir(mode=0o700)
@@ -370,13 +392,14 @@ def managed_shim(content: bytes) -> bool:
         return False
 
 
-def plist_payload(label: str, *, backup: bool) -> dict:
+def plist_payload(label: str, *, backup: bool, runtime_id: str | None = None) -> dict:
     executable = str(CURRENT_LINK / ".venv" / "bin" / "lattice")
+    selected_runtime = runtime_id or (CURRENT_LINK.resolve().name if CURRENT_LINK.is_symlink() and CURRENT_LINK.exists() else "unpublished")
     payload = {
         "Label": label,
         "ProgramArguments": [executable, "backup", "--reason", "scheduled-daily"] if backup else [executable, "serve"],
         "WorkingDirectory": str(AXISVI_ROOT),
-        "EnvironmentVariables": {"AXISVI_ROOT": str(AXISVI_ROOT), "LATTICE_DATA_DIR": str(DEFAULT_DATA_ROOT), "OUTPORT_BIN": str(required_binary("outport")), "PATH": runtime_path()},
+        "EnvironmentVariables": {"AXISVI_ROOT": str(AXISVI_ROOT), "LATTICE_DATA_DIR": str(DEFAULT_DATA_ROOT), "LATTICE_RUNTIME_ID": selected_runtime, "OUTPORT_BIN": str(required_binary("outport")), "PATH": runtime_path()},
         "ProcessType": "Background",
         "ThrottleInterval": 10,
         "StandardOutPath": str(LOG_ROOT / ("backup.stdout.log" if backup else "service.stdout.log")),
@@ -412,20 +435,20 @@ def reload_job(label: str, path: Path) -> None:
         time.sleep(0.1)
 
 
-def install_launchd() -> None:
+def install_launchd(target: Path) -> None:
     if sys.platform != "darwin":
         raise RuntimeError("the current supervised Lattice deployment supports macOS launchd")
     LOG_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     LAUNCH_AGENTS.mkdir(parents=True, exist_ok=True)
     service_path = LAUNCH_AGENTS / f"{SERVICE_LABEL}.plist"
     backup_path = LAUNCH_AGENTS / f"{BACKUP_LABEL}.plist"
-    write_atomic(service_path, plistlib.dumps(plist_payload(SERVICE_LABEL, backup=False), sort_keys=True), mode=0o644)
-    write_atomic(backup_path, plistlib.dumps(plist_payload(BACKUP_LABEL, backup=True), sort_keys=True), mode=0o644)
+    write_atomic(service_path, plistlib.dumps(plist_payload(SERVICE_LABEL, backup=False, runtime_id=target.name), sort_keys=True), mode=0o644)
+    write_atomic(backup_path, plistlib.dumps(plist_payload(BACKUP_LABEL, backup=True, runtime_id=target.name), sort_keys=True), mode=0o644)
     reload_job(BACKUP_LABEL, backup_path)
     reload_job(SERVICE_LABEL, service_path)
 
 
-def verify_live_service(timeout_seconds: int = 30) -> None:
+def verify_live_service(expected_runtime_id: str, timeout_seconds: int = 90) -> None:
     import_source_modules()
     from lattice.outport import resolve_lattice_service
 
@@ -436,7 +459,7 @@ def verify_live_service(timeout_seconds: int = 30) -> None:
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{service.port}/api/health", timeout=2) as response:
                 payload = json.loads(response.read())
-            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve():
+            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id:
                 return
             last_error = RuntimeError(f"health identity mismatch: {payload}")
         except BaseException as error:
@@ -459,13 +482,17 @@ def main() -> None:
     target = install_runtime(lattice_revision, runner_revision)
     old = install_links(target)
     try:
-        install_launchd()
-        verify_live_service()
-    except BaseException:
+        install_launchd(target)
+        verify_live_service(target.name)
+    except BaseException as upgrade_error:
         if old is not None:
             replace_symlink(CURRENT_LINK, old)
-            install_launchd()
-        raise
+            try:
+                install_launchd(old)
+                verify_live_service(old.name)
+            except BaseException as rollback_error:
+                raise BaseExceptionGroup("Lattice upgrade and automatic rollback both failed", [upgrade_error, rollback_error])
+        raise upgrade_error
     print(f"Installed Lattice runtime {target.name}")
     print(f"CLI: {SHIM}")
     print(f"State: {DEFAULT_DATA_ROOT}")

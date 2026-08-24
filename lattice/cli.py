@@ -118,7 +118,10 @@ def _runtime_status() -> dict[str, Any]:
         raise RuntimeError(f"Lattice is running from an editable/source checkout: {module}")
     if "axis/chariots/loom" in str(executable) or "axis/chariots/loom" in str(module):
         raise RuntimeError("installed runtime still references the retired loom checkout")
-    return {"version": _version(), "executable": str(executable), "module": str(module), "editable": False}
+    runtime_root = next((parent for parent in module.parents if parent.parent.name == "versions"), None)
+    if runtime_root is None:
+        raise RuntimeError(f"installed Lattice module is not inside a versioned runtime: {module}")
+    return {"version": _version(), "runtime_id": runtime_root.name, "executable": str(executable), "module": str(module), "editable": False}
 
 
 def _adapter_status(service: OutportService | None = None) -> dict[str, Any]:
@@ -239,6 +242,9 @@ def command_doctor(args: argparse.Namespace) -> int:
             raise RuntimeError(f"running Lattice reports :{health.get('port')} but Outport owns :{service.port}")
         if Path(str(health.get("data_root", ""))).resolve() != config.data_root.resolve():
             raise RuntimeError("running Lattice uses a different canonical data root")
+        expected_runtime = _runtime_status()["runtime_id"]
+        if health.get("runtime_id") != expected_runtime:
+            raise RuntimeError(f"running Lattice uses runtime {health.get('runtime_id')!r} but the selected runtime is {expected_runtime!r}")
         return health
 
     checks = [

@@ -51,6 +51,7 @@ class LatticeConfig:
     workflow_pack_roots_extra: tuple[Path, ...] = ()
     public_url: str | None = None
     frame_origins: tuple[str, ...] = ()
+    runtime_id: str = "source"
 
     @classmethod
     def from_environment(cls) -> "LatticeConfig":
@@ -67,6 +68,7 @@ class LatticeConfig:
             workflow_pack_roots_extra=extra_pack_roots,
             public_url=os.environ.get("LATTICE_PUBLIC_URL"),
             frame_origins=tuple(value.rstrip("/") for value in os.environ.get("LATTICE_FRAME_ORIGINS", "").split(",") if value),
+            runtime_id=os.environ.get("LATTICE_RUNTIME_ID", "source"),
         )
 
     @property

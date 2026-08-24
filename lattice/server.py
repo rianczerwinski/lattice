@@ -263,7 +263,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             version = importlib.metadata.version("lattice")
         except importlib.metadata.PackageNotFoundError:
             version = "0.1.0+source"
-        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": version}
+        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": version, "runtime_id": config.runtime_id}
 
     @app.get("/api/session")
     async def create_session(response: Response) -> dict[str, str]:
