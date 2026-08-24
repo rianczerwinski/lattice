@@ -1,0 +1,49 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "canonical",
+    "kind": "lattice-remediation-baseline",
+    "schema": {"name": "lattice-remediation-baseline", "version": 1},
+    "artifact_id": "artifact:04744179-4ce9-5b5d-8d35-f3a2115e5224",
+    "generated_at": "20260824T041410",
+    "producer": {"name": "lattice-remediation", "version": "1.0.0"},
+    "subject": "lattice:conversation-first-remediation-baseline",
+    "sources": [
+      {"ref": "git:/Users/rian/AXISVI/axis/chariots/lattice", "revision": "92af11b5b8f17c6fa2b4871ca9d76c7d1bdc0df8", "sha256": null},
+      {"ref": "git:/Users/rian/AXISVI", "revision": "eab403835e374ce08c28a1739978f4f0cfd0cc0d", "sha256": null},
+      {"ref": "file:/Users/rian/AXISVI/axis/chariots/lattice/CONVERSATION-FIRST-REMEDIATION-PLAN.md", "revision": null, "sha256": "b37e608c107a478e327d55fdc9a022e88d198f26f7a0be7cd3e14e049c6b9217"},
+      {"ref": "file:/Users/rian/AXISVI/outport.yml", "revision": null, "sha256": "85d24666c89a837ee2a32dc4f550cdf8e3e94b450dfeeb8bf47e1cf5855eb3b5"}
+    ],
+    "commitment": {
+      "fields": ["revisions", "portable_source_hashes", "runtime_versions", "initial_checks"],
+      "sealed_at": "20260824T041410",
+      "supersedes": null,
+      "change_reason": null
+    }
+  },
+  "contract_version": "LatticeRemediationBaseline/1.0",
+  "revisions": {
+    "lattice_pre_implementation": "92af11b5b8f17c6fa2b4871ca9d76c7d1bdc0df8",
+    "lattice_plan_commit": "7e4ce2096b206ea25a5a3ef1ec8091637dbb4bb7",
+    "axisvi": "eab403835e374ce08c28a1739978f4f0cfd0cc0d",
+    "model_runner": "eab403835e374ce08c28a1739978f4f0cfd0cc0d"
+  },
+  "portable_source_hashes": {
+    "quaternary_workflow_pack": "1363b9288ed0c9e20bc3981bca0400aa19496960f0a2c0728de1b61378b0db03",
+    "platform_foundry_workflow_pack": "0880622eabc72d4f3d50fb5450c75f0181483d18b2b534612de0422fcbcf4726",
+    "outport_declaration": "85d24666c89a837ee2a32dc4f550cdf8e3e94b450dfeeb8bf47e1cf5855eb3b5",
+    "axisvi_outport_bridge": "2d6638ebf3765419a141d586537d1382bf941a85dc5651dfa948e72eba503642"
+  },
+  "runtime_versions": {
+    "outport": "0.43.1",
+    "claude_code": "2.1.181",
+    "codex_cli": "0.149.0-alpha.4",
+    "lattice_python": "3.14.4"
+  },
+  "initial_checks": {
+    "runtime_database": {"bytes": 1089536, "schema_generation": 7, "events": 187, "invocations": 10, "sqlite_quick_check": "ok", "foreign_key_errors": 0},
+    "web_suite": {"truth_kind": "contract-smoke", "passed": 7, "failed": 0},
+    "python_runtime": {"state": "degraded", "reason": "The generated pytest launcher retains the removed axis/chariots/loom interpreter path; module execution through .venv/bin/python remains operational."},
+    "root_git_status": {"state": "unavailable", "reason": "Git LFS could not create its clean-filter temporary file under .git/lfs/tmp."}
+  }
+}

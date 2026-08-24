@@ -21,6 +21,7 @@ lattice/          backend contracts, ledger, compositor, execution, imports, wor
 tests/            truth-typed kernel, API, supervisor, workflow, and mutation checks
 web/              response-first Svelte cockpit and production build
 workflow_packs/   bundled definitions owned by Lattice itself; project packs load from explicit external roots
+assurance/        frozen remediation baseline and permanent finding-to-proof ledger
 ```
 
 Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additional pack roots in a standalone installation. Inside AXISVI, the existing Canon adapter adds `sui/mission/projects/canon/dev/quaternary-exhaustion/workflows/` automatically. A duplicate `pack_id` across roots is a startup error, so an external project can never be silently shadowed by a bundled definition.

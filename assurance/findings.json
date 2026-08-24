@@ -1,0 +1,160 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "canonical",
+    "kind": "lattice-remediation-findings",
+    "schema": {"name": "lattice-remediation-findings", "version": 1},
+    "artifact_id": "artifact:e086d197-4fae-5ff9-adf6-8795bf94fffd",
+    "generated_at": "20260824T041410",
+    "producer": {"name": "lattice-remediation", "version": "1.0.0"},
+    "subject": "lattice:conversation-first-remediation-findings",
+    "sources": [
+      {"ref": "file:/Users/rian/AXISVI/axis/chariots/lattice/CONVERSATION-FIRST-REMEDIATION-PLAN.md", "revision": null, "sha256": "b37e608c107a478e327d55fdc9a022e88d198f26f7a0be7cd3e14e049c6b9217"}
+    ]
+  },
+  "contract_version": "LatticeRemediationFindings/1.0",
+  "status_vocabulary": ["open", "implemented-pending-verification", "closed"],
+  "proof_limit": "The local canonical conversation query timed out while resolving the advisory-panel transcript. Panel obligations are therefore bound to their settled expressions in the approved plan; the six redteam IDs and descriptions are retained from the active task transcript but lack a separate archive artifact binding.",
+  "findings": [
+    {
+      "finding_id": "41abd11e-7163-421a-8efb-8f6dbe0dc623",
+      "severity": "S1",
+      "statement": "A Lattice-owned port allocator or resurrected portctl CLI would contradict Outport's sole service-authority contract.",
+      "route": [8],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Outport JSON resolution, launchd process ownership, and the bound listener agree on one Lattice identity and port.",
+      "false_mutation": "Run Lattice on a port different from Outport's lattice allocation and require doctor plus acceptance to fail."
+    },
+    {
+      "finding_id": "c8a20b55-6ead-45b5-9328-29d6e9a92ffd",
+      "severity": "S1",
+      "statement": "Native continuation was specified while model-runner rejected every session policy except fresh execution.",
+      "route": [6],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Authenticated provider acceptance proves a session ID, a qualified resume or fork command, and rejection across model, workspace, or authority changes.",
+      "false_mutation": "Reuse a native session after changing workspace or permissions and require eligibility to fail."
+    },
+    {
+      "finding_id": "dedd3baf-d4cb-49fa-9ebd-54e4ff0c7298",
+      "severity": "S1",
+      "statement": "Making roles optional without a typed actor contract and restartable migration would corrupt existing role-bound drafts and invocations.",
+      "route": [1, 7],
+      "status": "implemented-pending-verification",
+      "implementation_receipts": ["lattice/contracts.py:ActorBindingV1", "lattice/store.py:_migrate_actor_bindings", "lattice/compositor.py:ContextCompositor._implicit_selections", "lattice/manifest_reader.py:verify_and_reconstruct", "tests/test_conversation_kernel.py"],
+      "independent_oracle": "A hand-authored direct context contains no role bytes; an exact copy of the schema-7 runtime database migrates with identical manifest bytes, row counts, append chain, and foreign keys.",
+      "false_mutation": "Attach a role session to a direct actor or mutate a direct v4 manifest into a role-bound invocation and require both storage and the independent reader to reject it."
+    },
+    {
+      "finding_id": "aef79414-8fd8-480c-8cf2-eb227d10f2e4",
+      "severity": "S2",
+      "statement": "Freestyle UI verbs would become divergent kernel state machines, and fan-out cannot truthfully share one route-specific manifest.",
+      "route": [2, 4],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Every gesture compiles to one generic batch contract while each child retains its own capability and compiled-request manifest.",
+      "false_mutation": "Remove one fan-out child's capability record or give siblings different semantic assemblies and require the batch oracle to fail."
+    },
+    {
+      "finding_id": "c74c32e7-911e-4118-854c-1687a58de468",
+      "severity": "S2",
+      "statement": "The remediation could duplicate already-working context delta, Slate slices, route selection, and trailhead machinery instead of exposing it coherently.",
+      "route": [4, 5],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "The cockpit and Slate acceptance paths resolve through the existing ledger identities and endpoints without copied transcript state or a second projection authority.",
+      "false_mutation": "Replace a saved Slate query with copied transcript bytes or make an older trailhead unreachable and require acceptance to fail."
+    },
+    {
+      "finding_id": "c2bda17f-c612-4bc6-ac61-5f73aa55c376",
+      "severity": "S2",
+      "statement": "Generic contradiction or provider-opacity warnings are not deterministic execution boundaries and would produce arbitrary interruption ceremony.",
+      "route": [3, 4],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Confirmation reasons derive only from exact authority expansion, operator-uninitiated loss or transformation, or a weakened qualified isolation profile.",
+      "false_mutation": "Plant a hidden omission or new write authority and require one-action execution to stop while an explicitly selected provider route proceeds without redundant confirmation."
+    },
+    {
+      "finding_id": "panel-conversation-foreground",
+      "severity": "product",
+      "statement": "Ordinary use must open into response and composer; roles, workflows, and raw graph configuration are secondary tools rather than prerequisites.",
+      "route": [1, 4, 7],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Browser acceptance completes the freestyle path from a blank project without opening a role, workflow, graph, or manifest panel.",
+      "false_mutation": "Require role creation before first send and require browser acceptance to fail."
+    },
+    {
+      "finding_id": "panel-progressive-lattice",
+      "severity": "product",
+      "statement": "Side quests, fan-out, fan-in, cross-feed, and return must be available one edge at a time without preplotting the graph.",
+      "route": [2, 4, 5],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "A browser operator authors the complete freestyle lattice conversationally and resumes any dormant trailhead after restart.",
+      "false_mutation": "Hide a dormant branch after pagination or require a predefined workflow for a side quest and require acceptance to fail."
+    },
+    {
+      "finding_id": "panel-context-truth",
+      "severity": "product",
+      "statement": "Exact observable context and its delta must remain continuously inspectable without turning every ordinary send into a mandatory preflight ceremony.",
+      "route": [2, 3, 4],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Independent reconstruction matches provider bytes and the tray distinguishes added, removed, transformed, omitted, unchanged, and provider-opaque material.",
+      "false_mutation": "Relabel a summary as verbatim or hide an omission and require the independent reader or browser oracle to fail."
+    },
+    {
+      "finding_id": "panel-overlapping-episodes",
+      "severity": "product",
+      "statement": "Side-quest episodes and Slate topics are overlapping concern-backed slices, never exclusive containers or copied conversations.",
+      "route": [5],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "One invocation participates in several episodes and a live Slate slice updates through concern edges while every claim resolves to its canonical object.",
+      "false_mutation": "Make an episode own an invocation exclusively or persist transcript bytes in Slate and require the slice oracle to fail."
+    },
+    {
+      "finding_id": "panel-independent-repositories",
+      "severity": "architecture",
+      "statement": "Lattice and AXISVI remain independent nested repositories without gitmodule or parent-pointer bookkeeping.",
+      "route": [8],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Git topology reports an ignored ordinary nested repository and no Lattice gitlink or .gitmodules entry in AXISVI.",
+      "false_mutation": "Add a Lattice gitlink or submodule declaration and require the topology contract to fail."
+    },
+    {
+      "finding_id": "panel-bios-reliability",
+      "severity": "product",
+      "statement": "Lattice must remain recoverable when Panels, the browser UI, a provider, or a development checkout fails.",
+      "route": [8],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Outport resolution, launchd restart, pinned runtime upgrade rollback, database and blob diagnosis, snapshot restore, and post-restore continuation all pass independently.",
+      "false_mutation": "Remove a referenced blob from a snapshot or break the active runtime symlink and require doctor or restore to report failure rather than success."
+    },
+    {
+      "finding_id": "op-python-runtime-drift",
+      "severity": "S2",
+      "statement": "The generated pytest launcher still points at the removed loom checkout, and uv can panic before test admission on the current machine.",
+      "route": [8],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "A clean pinned installation runs the CLI, unit suite, and browser suite without editable paths or pre-rename shebangs.",
+      "false_mutation": "Embed the removed axis/chariots/loom path in an installed launcher and require doctor plus installation acceptance to fail."
+    },
+    {
+      "finding_id": "op-root-lfs-filter",
+      "severity": "S2",
+      "statement": "AXISVI root status cannot currently complete because the Git LFS clean filter cannot create its temporary file.",
+      "route": [0, 8],
+      "status": "open",
+      "implementation_receipts": [],
+      "independent_oracle": "Root git status and an LFS clean-filter round trip succeed without changing tracked bytes.",
+      "false_mutation": "Deny writes to the LFS temporary directory and require the operational check to report degraded rather than clean."
+    }
+  ]
+}
