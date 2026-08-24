@@ -3,13 +3,14 @@
   import { batchIdempotencyKey, reciprocalCrossFeedParents } from './invocationBatch';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
-  import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
+  import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
 
   let projects: Project[] = [];
   let project: Project | null = null;
   let routes: Route[] = [];
   let workflowPacks: WorkflowPack[] = [];
+  let workflowPackFailures: Array<{ pack_id: string; detail: string }> = [];
   let selectedRoute = '';
   let routeMode: 'anthropic' | 'openai' | 'both' = 'anthropic';
   let executionProfile: 'compiled-fresh' | 'workspace-agent' | 'native-continuation' = 'compiled-fresh';
@@ -82,7 +83,11 @@
     error = '';
     try {
       await beginSession();
-      [projects, routes, workflowPacks] = await Promise.all([api<Project[]>('/api/v1/projects'), api<Route[]>('/api/v1/routes'), api<WorkflowPack[]>('/api/v1/workflow-packs')]);
+      const [loadedProjects, loadedRoutes, workflowCatalogue] = await Promise.all([api<Project[]>('/api/v1/projects'), api<Route[]>('/api/v1/routes'), api<WorkflowPackCatalogue>('/api/v1/workflow-packs')]);
+      projects = loadedProjects;
+      routes = loadedRoutes;
+      workflowPacks = workflowCatalogue.packs;
+      workflowPackFailures = workflowCatalogue.failures;
       modelOverrides = Object.fromEntries(routes.map((route) => [route.provider_code, route.model_code]));
       const firstRoute = routes.find((route) => route.qualified && route.provider_code === 'anthropic') ?? routes.find((route) => route.qualified && route.provider_code === 'openai');
       if (firstRoute) {
@@ -750,6 +755,9 @@
               {/each}
               <button class="quiet" disabled={working || !selectorReady(pack, workflowSelectorValues)} on:click={() => createWorkflowProject(pack)}>Open authoritative live view</button>
             </div>
+          {/each}
+          {#each workflowPackFailures as failure}
+            <div class="workflow-launch workflow-unavailable"><strong>{failure.pack_id}</strong><small>Unavailable · {failure.detail}</small></div>
           {/each}
         </details>
       </aside>

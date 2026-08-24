@@ -9,6 +9,7 @@ from dataclasses import replace
 import pytest
 from fastapi.testclient import TestClient
 
+from lattice.config import LatticeConfig
 from lattice.server import create_app
 from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, ContextSelection, DraftCreate, ProviderRoute, TagRequest
 from lattice.operations import Lattice
@@ -151,6 +152,32 @@ def test_smoke_health_and_cockpit_have_distinct_responses(lattice_env) -> None:
     assert health.json()["status"] == "ok"
     assert cockpit.status_code == 200
     assert '<div id="app"></div>' in cockpit.text
+
+
+@pytest.mark.regression
+def test_invalid_optional_workflow_pack_does_not_take_down_manual_conversation(tmp_path) -> None:
+    broken_root = tmp_path / "broken-workflows"
+    broken_pack = broken_root / "platform-foundry"
+    broken_pack.mkdir(parents=True)
+    broken_pack.joinpath("pack.json").write_text('{"pack_id":"platform-foundry","version":1}', encoding="utf-8")
+    config = LatticeConfig(data_root=tmp_path / "isolated-data", port=9010, axisvi_root=None, workflow_pack_roots_extra=(broken_root,))
+    app = create_app(config)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        catalogue = client.get("/api/v1/workflow-packs")
+        session = client.get("/api/session")
+        headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
+        created = client.post("/api/v1/projects", headers=headers, json={"title": "Conversation survives", "purpose": "No workflow required"})
+        rejected = client.post("/api/v1/workflow-packs/platform-foundry/projects", headers=headers, json={"title": "Must fail", "selector": {"platform_id": "pinterest-com"}})
+        health = client.get("/api/health")
+
+    assert catalogue.status_code == 200
+    assert catalogue.json()["failures"][0]["pack_id"] == "platform-foundry"
+    assert created.status_code == 200
+    assert created.json()["roles"] == []
+    assert rejected.status_code == 422
+    assert "workflow pack is unavailable" in rejected.json()["detail"]
+    assert health.json()["status"] == "ok"
+    assert health.json()["workflow_pack_failures"][0]["pack_id"] == "platform-foundry"
 
 
 @pytest.mark.regression

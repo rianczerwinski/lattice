@@ -47,6 +47,19 @@ class WorkflowRegistry:
             packs.append({**loaded, "available": pack_id in self.adapters})
         return packs
 
+    def catalogue(self) -> dict[str, list[dict[str, Any]]]:
+        """Describe every pack without letting one optional pack brick conversation."""
+        packs: list[dict[str, Any]] = []
+        failures: list[dict[str, str]] = []
+        for pack_id in sorted(self._pack_candidates()):
+            try:
+                loaded = self.load(pack_id)
+            except (FileNotFoundError, OSError, ValueError) as error:
+                failures.append({"pack_id": pack_id, "detail": str(error)})
+                continue
+            packs.append({**loaded, "available": pack_id in self.adapters})
+        return {"packs": packs, "failures": failures}
+
     def load(self, pack_id: str) -> dict[str, Any]:
         path = self._pack_path(pack_id)
         with path.open("rb") as handle:
@@ -68,14 +81,18 @@ class WorkflowRegistry:
         return {"definition": value, "source_sha256": sha256_bytes(raw), "canonical_sha256": sha256_bytes(canonical_bytes(value))}
 
     def _pack_ids(self) -> list[str]:
-        identities: dict[str, list[Path]] = {}
-        for root in self.pack_roots:
-            for path in sorted(root.glob("*/pack.json")):
-                identities.setdefault(path.parent.name, []).append(path.resolve())
+        identities = self._pack_candidates()
         duplicate = next((pack_id for pack_id, paths in sorted(identities.items()) if len(set(paths)) > 1), None)
         if duplicate is not None:
             raise ValueError(f"workflow pack identity is declared by more than one root: {duplicate}")
         return sorted(identities)
+
+    def _pack_candidates(self) -> dict[str, list[Path]]:
+        identities: dict[str, list[Path]] = {}
+        for root in self.pack_roots:
+            for path in sorted(root.glob("*/pack.json")):
+                identities.setdefault(path.parent.name, []).append(path.resolve())
+        return identities
 
     def _pack_path(self, pack_id: str) -> Path:
         if not self.PACK_ID.fullmatch(pack_id):

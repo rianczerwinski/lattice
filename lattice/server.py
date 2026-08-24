@@ -155,17 +155,30 @@ def _initialize_runtime(config: LatticeConfig):
         if config.quaternary_root and (config.quaternary_root / "quaternary.sqlite3").is_file() and (config.quaternary_root / "tools" / "gatherctl.py").is_file():
             workflows.register("quaternary", QuaternaryAdapter(config.quaternary_root / "quaternary.sqlite3", config.quaternary_root / "tools" / "gatherctl.py", allowed_input_roots=config.allowed_file_roots, blob_reader=store.blobs.get, blob_writer=store.blobs.put))
         workflows.register("platform-foundry", PlatformFoundryAdapter(config.octopus_base_url))
-        loaded_packs = {pack_id: workflows.load(pack_id) for pack_id in workflows.adapters}
+        loaded_packs: dict[str, dict[str, Any]] = {}
+        workflow_pack_failures = workflows.catalogue()["failures"]
+        for pack_id in workflows.adapters:
+            try:
+                loaded_packs[pack_id] = workflows.load(pack_id)
+            except (FileNotFoundError, OSError, ValueError) as error:
+                if not any(failure["pack_id"] == pack_id for failure in workflow_pack_failures):
+                    workflow_pack_failures.append({"pack_id": pack_id, "detail": str(error)})
     except BaseException:
         service_lock.release()
         raise
-    return store, lattice, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, service_lock
+    return store, lattice, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, workflow_pack_failures, service_lock
 
 
 def create_app(config: LatticeConfig | None = None) -> FastAPI:
     config = config or LatticeConfig.from_environment()
     configured_development_origin()
-    store, lattice, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, service_lock = _initialize_runtime(config)
+    store, lattice, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, workflow_pack_failures, service_lock = _initialize_runtime(config)
+
+    def load_workflow_pack(pack_id: str) -> dict[str, Any]:
+        try:
+            return workflows.load(pack_id)
+        except (FileNotFoundError, OSError, ValueError) as error:
+            raise HTTPException(422, f"workflow pack is unavailable: {error}") from error
 
     async def refresh_workflow_state(pack_id: str, project_id: str) -> dict[str, Any]:
         instance, _loaded = require_current_workflow_instance(pack_id, project_id)
@@ -178,7 +191,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         instance = store.get_workflow_instance(project_id)
         if instance["pack_id"] != pack_id:
             raise LatticeConflict("project is not governed by this workflow pack")
-        loaded = loaded or workflows.load(pack_id)
+        loaded = loaded or load_workflow_pack(pack_id)
         if instance.get("pack_canonical_sha256") != loaded["canonical_sha256"]:
             raise LatticeConflict("workflow pack generation changed; preserve this history and open a current-generation workflow project")
         return instance, loaded
@@ -263,7 +276,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             version = importlib.metadata.version("lattice")
         except importlib.metadata.PackageNotFoundError:
             version = "0.1.0+source"
-        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": version, "runtime_id": config.runtime_id, "startup_recovery_failures": supervisor.startup_recovery_failures}
+        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": version, "runtime_id": config.runtime_id, "startup_recovery_failures": supervisor.startup_recovery_failures, "workflow_pack_failures": workflow_pack_failures}
 
     @app.get("/api/session")
     async def create_session(response: Response) -> dict[str, str]:
@@ -533,15 +546,15 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/v1/workflow-packs/{pack_id}")
     async def workflow_pack(pack_id: str):
-        return workflows.load(pack_id)
+        return load_workflow_pack(pack_id)
 
     @app.get("/api/v1/workflow-packs")
     async def workflow_packs():
-        return workflows.list()
+        return workflows.catalogue()
 
     @app.post("/api/v1/workflow-packs/{pack_id}/projects")
     async def create_workflow_project(pack_id: str, value: WorkflowProjectRequest):
-        loaded = workflows.load(pack_id)
+        loaded = load_workflow_pack(pack_id)
         definition = loaded["definition"]
         try:
             selector = workflows.resolve_selector(pack_id, value.selector)
@@ -647,7 +660,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.post("/api/v1/workflow-packs/{pack_id}/transitions")
     async def transition_workflow(pack_id: str, value: WorkflowTransitionRequest):
         try:
-            loaded = workflows.load(pack_id)
+            loaded = load_workflow_pack(pack_id)
             require_current_workflow_instance(pack_id, value.project_id, loaded)
             declared = workflows.validate_transition(pack_id, value.from_state, value.to_state)
         except ValueError as error:
@@ -704,7 +717,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.put("/api/v1/workflow-packs/{pack_id}/projects/{project_id}/automatic-grants/{trigger_name}")
     async def set_automatic_grant(pack_id: str, project_id: str, trigger_name: str, value: WorkflowAutomationGrantRequest):
-        loaded = workflows.load(pack_id)
+        loaded = load_workflow_pack(pack_id)
         require_current_workflow_instance(pack_id, project_id, loaded)
         if value.pack_canonical_sha256 != loaded["canonical_sha256"]:
             raise LatticeConflict("workflow pack changed before automation consent")
@@ -721,7 +734,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         trigger = store.get_workflow_trigger(trigger_id)
         if trigger["action"] is None or trigger["action"]["type"] != "invoke_role":
             raise LatticeConflict("workflow trigger has no retryable invocation")
-        current_pack = workflows.load(trigger["pack_id"])
+        current_pack = load_workflow_pack(trigger["pack_id"])
         instance = store.get_workflow_instance(trigger["project_id"])
         if trigger["pack_canonical_sha256"] != current_pack["canonical_sha256"] or instance["pack_canonical_sha256"] != trigger["pack_canonical_sha256"]:
             raise LatticeConflict("workflow pack changed after this trigger was created; remodel the transition instead of reinterpreting it")

@@ -363,6 +363,10 @@ def test_registry_composes_project_owned_pack_roots_without_shadow_precedence(tm
     with pytest.raises(ValueError, match="more than one root: quaternary"):
         duplicated.list()
 
+    catalogue = duplicated.catalogue()
+    assert {item["definition"]["pack_id"] for item in catalogue["packs"]} == {"platform-foundry"}
+    assert catalogue["failures"] == [{"pack_id": "quaternary", "detail": "workflow pack identity is declared by more than one root: quaternary"}]
+
 
 @pytest.mark.regression
 def test_negative_control_workflow_pack_rejects_duplicate_json_keys(tmp_path: Path):
@@ -374,6 +378,11 @@ def test_negative_control_workflow_pack_rejects_duplicate_json_keys(tmp_path: Pa
 
     with pytest.raises(ValueError, match="duplicate JSON object key"):
         WorkflowRegistry(pack_root).load("quaternary")
+
+    catalogue = WorkflowRegistry(pack_root).catalogue()
+    assert catalogue["packs"] == []
+    assert catalogue["failures"][0]["pack_id"] == "quaternary"
+    assert "duplicate JSON object key" in catalogue["failures"][0]["detail"]
 
 
 @pytest.mark.regression
