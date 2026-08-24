@@ -185,6 +185,7 @@
 
   async function executePreparedBatch(confirmedReasonSha256s: string[]) {
     if (!preview || !pendingBatchRequest || !project) return;
+    const projectId = project.project_id;
     working = true;
     error = '';
     try {
@@ -197,7 +198,7 @@
       activeAttemptIds = batch.execution_attempts.map((attempt) => attempt.attempt_id);
       liveProgress = '';
       liveProgressState = `${batch.execution_attempts.length} provider journal${batch.execution_attempts.length === 1 ? '' : 's'} connected`;
-      const closeProgress = batch.execution_attempts.map((attempt) => followAttemptProgress(project.project_id, attempt.attempt_id, attempt.event_cursor, batch.members.find((member) => member.invocation_id === attempt.invocation_id)?.spec_id ?? 'route'));
+      const closeProgress = batch.execution_attempts.map((attempt) => followAttemptProgress(projectId, attempt.attempt_id, attempt.event_cursor, batch.members.find((member) => member.invocation_id === attempt.invocation_id)?.spec_id ?? 'route'));
       preview = null;
       pendingBatchRequest = null;
       prompt = '';
@@ -205,7 +206,7 @@
       selectedParents = new Set();
       try { await Promise.all(batch.invocation_ids.map((invocationId) => pollInvocation(invocationId))); }
       finally { closeProgress.forEach((close) => close()); activeAttemptIds = []; }
-      await openProject(project.project_id);
+      await openProject(projectId);
       await inspect(batch.invocation_ids[batch.invocation_ids.length - 1]);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
