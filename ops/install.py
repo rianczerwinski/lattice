@@ -84,6 +84,30 @@ def release_version() -> str:
     return match.group(1).decode("ascii")
 
 
+def source_tree_inventories() -> dict[str, list[dict[str, str | int]]]:
+    from lattice.runtime_attestation import mapped_inventory
+
+    return {
+        "lattice": mapped_inventory(((SOURCE_ROOT / "lattice", ""), (SOURCE_ROOT / "web" / "dist", "web_dist"), (SOURCE_ROOT / "workflow_packs", "workflow_packs"))),
+        "model_runner": mapped_inventory(((MODEL_RUNNER_ROOT / "axis_model_runner", ""),)),
+    }
+
+
+def installed_tree_inventories(locations: dict[str, str]) -> dict[str, list[dict[str, str | int]]]:
+    from lattice.runtime_attestation import tree_inventory
+
+    return {
+        "lattice": tree_inventory(Path(locations["lattice"]).resolve(strict=True).parent),
+        "model_runner": tree_inventory(Path(locations["model_runner"]).resolve(strict=True).parent),
+    }
+
+
+def runtime_sync_arguments() -> list[str]:
+    """Force local packages to rebuild even when their public version is unchanged."""
+
+    return ["uv", "sync", "--project", str(SOURCE_ROOT), "--active", "--frozen", "--no-dev", "--no-editable", "--reinstall-package", "lattice", "--reinstall-package", "axis-model-runner"]
+
+
 def git_revision(root: Path, *, pathspec: str | None = None) -> str:
     status_command = ["git", "status", "--porcelain=v1"]
     if pathspec is not None:
@@ -371,13 +395,13 @@ def _valid_artifact_id(value: object) -> bool:
 
 
 def _validate_runtime_manifest(manifest: object, *, target: Path, runtime_id: str, lattice_revision: str, runner_revision: str) -> dict:
-    if not isinstance(manifest, dict) or set(manifest) != {"generated_object", "contract_version", "runtime_id", "python", "packages", "module_locations"}:
+    if not isinstance(manifest, dict) or set(manifest) != {"generated_object", "contract_version", "runtime_id", "python", "packages", "module_locations", "source_trees"}:
         raise RuntimeError("runtime manifest body is malformed")
     envelope = manifest.get("generated_object")
     required = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
     if not isinstance(envelope, dict) or set(envelope) != required:
         raise RuntimeError("runtime generated-object envelope is malformed")
-    if envelope.get("contract_version") != 1 or envelope.get("role") != "canonical" or envelope.get("kind") != "lattice-installed-runtime" or envelope.get("schema") != {"name": "lattice-installed-runtime", "version": 1} or envelope.get("producer") != {"name": "lattice-installer", "version": "1.0.0"}:
+    if envelope.get("contract_version") != 1 or envelope.get("role") != "canonical" or envelope.get("kind") != "lattice-installed-runtime" or envelope.get("schema") != {"name": "lattice-installed-runtime", "version": 2} or envelope.get("producer") != {"name": "lattice-installer", "version": "2.0.0"}:
         raise RuntimeError("runtime generated-object contract identity is invalid")
     if not _valid_artifact_id(envelope.get("artifact_id")) or envelope.get("subject") != f"lattice:installed-runtime:{runtime_id}":
         raise RuntimeError("runtime generated-object durable identity is invalid")
@@ -389,41 +413,50 @@ def _validate_runtime_manifest(manifest: object, *, target: Path, runtime_id: st
         _generated_object_source(f"git:{SOURCE_ROOT}", revision=lattice_revision, sha256=None),
         _generated_object_source(f"git:{MODEL_RUNNER_ROOT}", revision=runner_revision, sha256=None),
         _generated_object_source(f"file:{SOURCE_ROOT / 'uv.lock'}", revision=None, sha256=exact_sha256(SOURCE_ROOT / "uv.lock")),
+        _generated_object_source(f"file:{MODEL_RUNNER_ROOT / 'uv.lock'}", revision=None, sha256=exact_sha256(MODEL_RUNNER_ROOT / "uv.lock")),
     ]
     if envelope.get("sources") != expected_sources:
         raise RuntimeError("runtime target provenance disagrees with its version identity or lockfile")
     expected_python = str((target / ".venv" / "bin" / "python").resolve(strict=True))
-    if manifest.get("contract_version") != "LatticeInstalledRuntime/1.0" or manifest.get("runtime_id") != runtime_id or manifest.get("python") != expected_python:
+    if manifest.get("contract_version") != "LatticeInstalledRuntime/2.0" or manifest.get("runtime_id") != runtime_id or manifest.get("python") != expected_python:
         raise RuntimeError("runtime manifest identity or Python executable is invalid")
     packages = manifest.get("packages")
     locations = manifest.get("module_locations")
     if not isinstance(packages, list) or any(not isinstance(item, str) or not item for item in packages) or not isinstance(locations, dict) or set(locations) != {"lattice", "model_runner"} or any(not isinstance(item, str) or not item for item in locations.values()):
         raise RuntimeError("runtime manifest package or module inventory is malformed")
+    try:
+        from lattice.runtime_attestation import validate_tree_set
+
+        validate_tree_set(manifest.get("source_trees"))
+    except ValueError as error:
+        raise RuntimeError("runtime manifest source-tree attestation is malformed") from error
     return manifest
 
 
-def build_runtime_manifest(*, target: Path, runtime_id: str, lattice_revision: str, runner_revision: str, packages: list[str], module_locations: dict[str, str]) -> dict:
+def build_runtime_manifest(*, target: Path, runtime_id: str, lattice_revision: str, runner_revision: str, packages: list[str], module_locations: dict[str, str], source_trees: dict[str, list[dict[str, str | int]]]) -> dict:
     return {
         "generated_object": {
             "contract_version": 1,
             "role": "canonical",
             "kind": "lattice-installed-runtime",
-            "schema": {"name": "lattice-installed-runtime", "version": 1},
+            "schema": {"name": "lattice-installed-runtime", "version": 2},
             "artifact_id": f"artifact:{uuid.uuid4()}",
             "generated_at": time.strftime("%Y%m%dT%H%M%S"),
-            "producer": {"name": "lattice-installer", "version": "1.0.0"},
+            "producer": {"name": "lattice-installer", "version": "2.0.0"},
             "subject": f"lattice:installed-runtime:{runtime_id}",
             "sources": [
                 _generated_object_source(f"git:{SOURCE_ROOT}", revision=lattice_revision, sha256=None),
                 _generated_object_source(f"git:{MODEL_RUNNER_ROOT}", revision=runner_revision, sha256=None),
                 _generated_object_source(f"file:{SOURCE_ROOT / 'uv.lock'}", revision=None, sha256=exact_sha256(SOURCE_ROOT / "uv.lock")),
+                _generated_object_source(f"file:{MODEL_RUNNER_ROOT / 'uv.lock'}", revision=None, sha256=exact_sha256(MODEL_RUNNER_ROOT / "uv.lock")),
             ],
         },
-        "contract_version": "LatticeInstalledRuntime/1.0",
+        "contract_version": "LatticeInstalledRuntime/2.0",
         "runtime_id": runtime_id,
         "python": str((target / ".venv" / "bin" / "python").resolve(strict=True)),
         "packages": packages,
         "module_locations": module_locations,
+        "source_trees": source_trees,
     }
 
 
@@ -446,6 +479,12 @@ def verify_runtime_target(target: Path, *, runtime_id: str, lattice_revision: st
         raise RuntimeError(f"runtime module locations changed after installation: recorded={manifest['module_locations']}, actual={locations}")
     if any(str(SOURCE_ROOT) in location or str(MODEL_RUNNER_ROOT) in location for location in locations.values()):
         raise RuntimeError(f"installed runtime still imports a development checkout: {locations}")
+    expected_trees = source_tree_inventories()
+    if manifest["source_trees"] != expected_trees:
+        raise RuntimeError("runtime manifest source-tree attestation disagrees with the immutable source revision")
+    actual_trees = installed_tree_inventories(locations)
+    if actual_trees != manifest["source_trees"]:
+        raise RuntimeError("installed runtime application bytes disagree with the attested source trees")
 
 
 def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
@@ -462,13 +501,16 @@ def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
         run(["uv", "venv", str(target / ".venv"), "--python", str(source_python())])
         environment = dict(os.environ)
         environment["VIRTUAL_ENV"] = str(target / ".venv")
-        run(["uv", "sync", "--project", str(SOURCE_ROOT), "--active", "--frozen", "--no-dev", "--no-editable"], env=environment)
+        run(runtime_sync_arguments(), env=environment)
         locations = probe_runtime(target)
         if any(str(SOURCE_ROOT) in location or str(MODEL_RUNNER_ROOT) in location for location in locations.values()):
             raise RuntimeError(f"installed runtime still imports a development checkout: {locations}")
+        source_trees = source_tree_inventories()
+        if installed_tree_inventories(locations) != source_trees:
+            raise RuntimeError("freshly installed application bytes disagree with the immutable source trees")
         run([str(target / ".venv" / "bin" / "lattice"), "--help"])
         frozen = run(["uv", "pip", "freeze", "--python", str(target / ".venv" / "bin" / "python")], capture=True).stdout.decode().splitlines()
-        manifest = build_runtime_manifest(target=target, runtime_id=runtime_id, lattice_revision=lattice_revision, runner_revision=runner_revision, packages=frozen, module_locations=locations)
+        manifest = build_runtime_manifest(target=target, runtime_id=runtime_id, lattice_revision=lattice_revision, runner_revision=runner_revision, packages=frozen, module_locations=locations, source_trees=source_trees)
         write_atomic(target / "runtime.json", canonical_runtime_manifest(manifest, target / ".venv" / "bin" / "python"), mode=0o600)
         sync_tree(target)
         marker.unlink()

@@ -20,6 +20,7 @@ from lattice.config import LatticeConfig, user_data_root
 from lattice.contracts import DraftCreate, ProjectCreate
 from lattice.diagnostics import assess_backup, assess_data_root
 from lattice.outport import OutportService, outport_executable, resolve_lattice_service
+from lattice.runtime_attestation import mapped_inventory, tree_inventory
 from lattice.server import create_app
 from lattice import snapshot as snapshot_runtime
 from lattice.snapshot import create_snapshot, restore_snapshot, verify_snapshot
@@ -570,6 +571,31 @@ def test_installer_verification_includes_static_cockpit_diagnostics(monkeypatch)
     assert (["npm", "run", "check"], deployment.SOURCE_ROOT / "web", None, False) in calls
 
 
+@pytest.mark.contract
+def test_runtime_sync_forces_both_local_packages_to_rebuild() -> None:
+    arguments = deployment.runtime_sync_arguments()
+
+    assert arguments.count("--reinstall-package") == 2
+    assert arguments[arguments.index("--reinstall-package") + 1] == "lattice"
+    assert arguments[arguments.index("--reinstall-package", arguments.index("--reinstall-package") + 1) + 1] == "axis-model-runner"
+
+
+@pytest.mark.oracle
+def test_runtime_tree_attestation_detects_a_stale_cached_package(tmp_path) -> None:
+    source = tmp_path / "source"
+    installed = tmp_path / "installed"
+    source.mkdir()
+    installed.mkdir()
+    source.joinpath("cli.py").write_text("from .security import ensure_cli_token\n", encoding="utf-8")
+    installed.joinpath("cli.py").write_text("from .security import ensure_cli_token\n", encoding="utf-8")
+
+    expected = mapped_inventory(((source, ""),))
+    assert tree_inventory(installed) == expected
+
+    installed.joinpath("cli.py").write_text("# stale cached wheel\n", encoding="utf-8")
+    assert tree_inventory(installed) != expected
+
+
 @pytest.mark.regression
 def test_live_publication_probe_never_swallows_operator_interrupt(monkeypatch) -> None:
     service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
@@ -607,11 +633,14 @@ def test_runtime_manifest_binds_complete_sources_and_executing_modules(monkeypat
     executable.write_text("#!/bin/sh\n", encoding="utf-8")
     executable.chmod(0o755)
     locations = {"lattice": str(target / "lattice/__init__.py"), "model_runner": str(target / "axis_model_runner/__init__.py")}
-    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=["lattice==0.1.0"], module_locations=locations)
+    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}], "model_runner": [{"path": "process.py", "sha256": "d" * 64, "byte_count": 1}]}
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=["lattice==0.2.0"], module_locations=locations, source_trees=source_trees)
     raw = canonical_bytes(manifest)
     (target / "runtime.json").write_bytes(raw)
     monkeypatch.setattr(deployment, "probe_runtime", lambda _target: locations)
     monkeypatch.setattr(deployment, "canonical_runtime_manifest", lambda value, _python: canonical_bytes(value))
+    monkeypatch.setattr(deployment, "source_tree_inventories", lambda: source_trees)
+    monkeypatch.setattr(deployment, "installed_tree_inventories", lambda _locations: source_trees)
 
     deployment.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
     assert all(set(source) == {"ref", "revision", "sha256"} for source in manifest["generated_object"]["sources"])
@@ -627,10 +656,25 @@ def test_negative_control_runtime_manifest_rejects_incomplete_generated_source(t
     python = target / ".venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
     python.symlink_to(Path(__import__("sys").executable))
-    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=[], module_locations={"lattice": "/runtime/lattice", "model_runner": "/runtime/model-runner"})
+    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}], "model_runner": [{"path": "process.py", "sha256": "d" * 64, "byte_count": 1}]}
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=[], module_locations={"lattice": "/runtime/lattice", "model_runner": "/runtime/model-runner"}, source_trees=source_trees)
     del manifest["generated_object"]["sources"][0]["sha256"]
 
     with pytest.raises(RuntimeError, match="provenance"):
+        deployment._validate_runtime_manifest(manifest, target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
+
+
+@pytest.mark.regression
+def test_negative_control_runtime_manifest_rejects_missing_package_attestation(tmp_path) -> None:
+    target = tmp_path / "runtime"
+    python = target / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.symlink_to(Path(__import__("sys").executable))
+    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}], "model_runner": [{"path": "process.py", "sha256": "d" * 64, "byte_count": 1}]}
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=[], module_locations={"lattice": "/runtime/lattice", "model_runner": "/runtime/model-runner"}, source_trees=source_trees)
+    del manifest["source_trees"]["model_runner"]
+
+    with pytest.raises(RuntimeError, match="source-tree attestation is malformed"):
         deployment._validate_runtime_manifest(manifest, target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
 
 
