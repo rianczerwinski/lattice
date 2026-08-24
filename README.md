@@ -94,7 +94,7 @@ The main visible node is one harness-level agent invocation. It may contain many
 
 ```text
 Invocation
-├── role and role-session identity
+├── direct or role-session actor binding
 ├── provider, model, harness, and effort
 ├── exact observable context manifest
 ├── prompt and expected response contract
@@ -130,7 +130,7 @@ Every edge identifies the exact source and target revisions. A join is not a cac
 
 ### Role and role session
 
-A role is a durable function with incentives, authority limits, and a view contract. A role session is the ordered spine of invocations that perform that function for a particular project or run.
+A role is an optional durable function with incentives, authority limits, and a view contract. Ordinary conversation is direct: it inherits only selected ancestry, project defaults, explicit context modules, and the current prompt. Governed workflows bind named roles when their semantics actually require them. A role session is the ordered spine of invocations that perform such a function for a particular project or run.
 
 Role identity and model identity are orthogonal. Using the same model for two roles does not make the roles share cognition, and using two providers does not create useful independence unless their prompts, evidence, and incentives differ. Conversely, a persistent role may change model only through a recorded route amendment.
 
@@ -193,9 +193,11 @@ A workflow pack supplies domain semantics without changing the Lattice engine. I
 The core user-facing operations are intentionally small:
 
 ```text
-invoke(role_session, prompt, context_selection) -> invocation
-fork(invocation, role_or_model, context_overrides) -> invocation
-join(invocations, role_or_model, context_selection) -> invocation
+preview(batch_id, invocation_specs) -> exact context + confirmation reasons
+invoke(actor_binding, prompt, context_selection, route) -> invocation
+fan_out(context_assembly, routes) -> atomic invocation batch
+fork(invocation, actor_binding, route, context_overrides) -> invocation
+join(invocations, actor_binding, route, context_selection) -> invocation
 inspect(invocation) -> context_manifest + trace
 diff(invocation_a, invocation_b) -> context_and_execution_delta
 replay(invocation, explicit_overrides) -> new_invocation
@@ -205,12 +207,12 @@ extract(path_or_subgraph) -> workflow_template
 
 `replay` never overwrites the original and never implies deterministic output. `fork` creates a new descendant with explicit inheritance. `join` compiles a fresh context from named blocks; it does not concatenate whole transcripts or pretend that incompatible branches jointly occurred. `extract` captures the proven dependency and trigger structure of a path while leaving project-specific evidence as parameters.
 
-The ordinary interaction is:
+Send, side quest, fan-out, cross-feed, and return are cockpit gestures over the same batch primitive rather than separate kernel state machines. The ordinary interaction is:
 
-1. The user or a trigger proposes the next invocation.
-2. Lattice compiles a context manifest from the role view, selected ancestry, project state, and explicit modules.
-3. The user may inspect the exact compiled context and its per-parent consequential delta before execution.
-4. The selected runtime executes through a leased, journaled action.
+1. The user selects a route and writes the next conversational edge.
+2. Lattice previews exact context without persisting keystroke drafts.
+3. If no deterministic authority or context-loss reason requires confirmation, Lattice atomically seals the invocation batch and starts execution in the same action.
+4. Each selected runtime executes through its own leased, journaled action and route-specific manifest.
 5. Lattice persists the response, trace, artifacts, and edges before projecting the new state.
 6. The next frontier is derived from the updated state.
 
@@ -458,7 +460,7 @@ The primary surface is response-first and project-local:
 
 The user should not need to create schemas, name every edge, or draw a graph before speaking. The interface infers a proposed edge and context selection, makes consequential choices visible, and accepts correction before execution. Routine provenance is automatic; authority-changing or meaning-changing choices remain legible.
 
-An empty graph is a poor demonstration. The first product-shaped experience should begin with one active project whose existing conversations, files, decisions, people, and model work are recovered into an inspectable thread, then allow continuation through any qualified model without a fresh rebrief.
+A blank project opens directly into the composer and can speak to any qualified model without creating a role or workflow. Existing conversations, files, decisions, people, and model work may then be recovered or grafted into inspectable branches without becoming a prerequisite for ordinary use.
 
 ## Failure model and non-negotiable invariants
 

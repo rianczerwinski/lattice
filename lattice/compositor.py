@@ -48,11 +48,16 @@ class ContextCompositor:
     def _implicit_selections(self, draft: dict[str, Any]) -> list[ContextSelection]:
         selections: list[ContextSelection] = []
         actor_binding = draft["actor_binding"]
+        role_default_block_ids: set[str] = set()
         if actor_binding["kind"] == "role-session":
             session = self.store.get_role_session(actor_binding["role_session_id"])
             role = self.store.get_role(session["role_id"])
             selections.append(ContextSelection(block_id=role["instructions_block_id"], disposition=BlockDisposition.selected, plane="instruction", label=f"role:{role['name']}"))
             for default in self.store.list_role_context_defaults(role["role_id"]):
+                role_default_block_ids.add(default["block_id"])
+                selections.append(ContextSelection(block_id=default["block_id"], disposition=BlockDisposition.selected, plane="state", label=f"module:{default['module_id']}"))
+        for default in self.store.list_project_context_defaults(draft["project_id"]):
+            if default["block_id"] not in role_default_block_ids:
                 selections.append(ContextSelection(block_id=default["block_id"], disposition=BlockDisposition.selected, plane="state", label=f"module:{default['module_id']}"))
         for parent_id in draft["parents"]:
             parent = self.store.get_invocation(parent_id)
@@ -62,12 +67,35 @@ class ContextCompositor:
         selections.append(ContextSelection(block_id=draft["prompt_block_id"], disposition=BlockDisposition.selected, plane="current_prompt", label="user-prompt"))
         return selections
 
-    def compile(self, draft: dict[str, Any], *, preview: bool = False) -> tuple[dict[str, Any], bytes]:
+    def compile(
+        self,
+        draft: dict[str, Any],
+        *,
+        preview: bool = False,
+        virtual_blocks: dict[str, dict[str, Any]] | None = None,
+    ) -> tuple[dict[str, Any], bytes]:
+        """Compile durable or stateless-preflight context through the same path."""
+
+        virtual_blocks = virtual_blocks or {}
+
+        def get_block(block_id: str, *, include_content: bool = True) -> dict[str, Any]:
+            if block_id in virtual_blocks:
+                block = dict(virtual_blocks[block_id])
+                if not include_content:
+                    block.pop("content", None)
+                return block
+            return self.store.get_block(block_id, include_content=include_content)
+
         explicit = [ContextSelection.model_validate(item) for item in draft["selections"]]
-        combined = explicit if draft.get("context_mode", "standard") == "explicit" else self._implicit_selections(draft) + explicit
+        if draft.get("context_mode", "standard") == "explicit":
+            combined = explicit
+        else:
+            implicit = self._implicit_selections(draft)
+            muted_block_ids = {item.block_id for item in explicit if item.disposition == BlockDisposition.omitted}
+            combined = [item for item in implicit if item.block_id not in muted_block_ids] + explicit
         identities: set[tuple[str, str, str, str, tuple[str, ...], str | None]] = set()
-        entries: list[tuple[ContextSelection, dict[str, Any]]] = []
-        for selection in combined:
+        entries: list[tuple[int, ContextSelection, dict[str, Any]]] = []
+        for selection_index, selection in enumerate(combined):
             identity = (
                 selection.block_id,
                 selection.plane,
@@ -79,18 +107,27 @@ class ContextCompositor:
             if identity in identities:
                 continue
             identities.add(identity)
-            block = self.store.get_block(selection.block_id)
+            block = get_block(selection.block_id)
             if block["project_id"] != draft["project_id"]:
                 raise LatticeConflict("context block belongs to another project")
-            derived = [self.store.get_block(block_id, include_content=False) for block_id in selection.derived_from_block_ids]
+            derived = [get_block(block_id, include_content=False) for block_id in selection.derived_from_block_ids]
             if any(parent["project_id"] != draft["project_id"] for parent in derived):
                 raise LatticeConflict("derived context source belongs to another project")
             if selection.disposition == BlockDisposition.summarized:
                 transformation = __import__("json").loads(block["transformation_json"] or "null")
                 if not selection.derived_from_block_ids or not isinstance(transformation, dict) or transformation.get("kind") != "summary" or transformation.get("source_block_ids") != selection.derived_from_block_ids:
                     raise LatticeConflict("summarized context requires a summary transformation bound to exact source blocks")
-            entries.append((selection, block))
-        entries.sort(key=lambda pair: (PLANE_ORDER[pair[0].plane], pair[0].label, pair[0].block_id))
+            entries.append((selection_index, selection, block))
+        # Only the operator-controlled knowledge plane preserves selection order.
+        # Fixed planes remain deterministic regardless of caller enumeration.
+        entries.sort(
+            key=lambda item: (
+                PLANE_ORDER[item[1].plane],
+                item[0] if item[1].plane == "knowledge" else 0,
+                item[1].label if item[1].plane != "knowledge" else "",
+                item[1].block_id if item[1].plane != "knowledge" else "",
+            )
+        )
 
         segments: list[dict[str, Any]] = []
         omitted: list[dict[str, Any]] = []
@@ -98,14 +135,14 @@ class ContextCompositor:
         prompt_byte_count = 0
         sources: list[dict[str, str | None]] = []
         source_identities: set[tuple[str, str, str]] = set()
-        for ordinal, (selection, block) in enumerate(entries):
+        for ordinal, (_selection_index, selection, block) in enumerate(entries):
             source = {"ref": f"lattice:block/{block['block_id']}", "revision": str(block["status_revision"]), "sha256": block["content_sha256"]}
             source_identity = (source["ref"], source["revision"], source["sha256"])
             if source_identity not in source_identities:
                 source_identities.add(source_identity)
                 sources.append(source)
             for derived_block_id in selection.derived_from_block_ids:
-                derived = self.store.get_block(derived_block_id, include_content=False)
+                derived = get_block(derived_block_id, include_content=False)
                 derived_source = {"ref": f"lattice:block/{derived_block_id}", "revision": str(derived["status_revision"]), "sha256": derived["content_sha256"]}
                 derived_identity = (derived_source["ref"], derived_source["revision"], derived_source["sha256"])
                 if derived_identity not in source_identities:

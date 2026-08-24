@@ -17,13 +17,17 @@ from pydantic import BaseModel, ConfigDict, Field
 from .config import WEB_DIST, LatticeConfig
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, strict_json_loads
 from .contracts import (
+    ActorBindingV1,
     ContextBlockCreate,
     ContextSelection,
     ContextModuleDefinition,
+    DerivedTextBlockCreate,
     DraftCreate,
     DraftPatch,
     ExecuteRequest,
     ImportConversationRequest,
+    InvocationBatchCreateV1,
+    InvocationBatchPreviewV1,
     ProjectCreate,
     ProviderRoute,
     RoleCreate,
@@ -50,7 +54,8 @@ class StrictRequest(BaseModel):
 
 
 class ForkRequest(StrictRequest):
-    role_session_id: str
+    role_session_id: str | None = None
+    actor_binding: ActorBindingV1 | None = None
     prompt: str = Field(min_length=1)
     route: ProviderRoute
 
@@ -337,6 +342,10 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     async def create_context_block(value: ContextBlockCreate):
         return store.create_context_block(value)
 
+    @app.post("/api/v1/context-blocks/excerpts")
+    async def create_context_excerpt(value: DerivedTextBlockCreate):
+        return store.create_derived_text_block(value)
+
     @app.get("/api/v1/context-blocks/{block_id}")
     async def get_context_block(block_id: str):
         return store.get_block(block_id)
@@ -367,13 +376,29 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     async def seal_draft(draft_id: str, value: SealDraftRequest):
         return lattice.seal(draft_id, expected_revision=value.expected_revision, expected_preflight_sha256=value.expected_preflight_sha256)
 
+    @app.post("/api/v1/invocation-batches/preview")
+    async def preview_invocation_batch(value: InvocationBatchPreviewV1):
+        return lattice.preview_invocation_batch(value)
+
+    @app.post("/api/v1/invocation-batches", status_code=202)
+    async def create_invocation_batch(value: InvocationBatchCreateV1):
+        batch = lattice.create_invocation_batch(value)
+        attempts = []
+        for member in batch["members"]:
+            attempts.append(await supervisor.execute(member["invocation_id"], ExecuteRequest(idempotency_key=f"batch:{value.batch_id}:{member['spec_id']}")))
+        return {**store.get_invocation_batch(value.batch_id), "execution_attempts": attempts}
+
+    @app.get("/api/v1/invocation-batches/{batch_id}")
+    async def get_invocation_batch(batch_id: str):
+        return store.get_invocation_batch(batch_id)
+
     @app.post("/api/v1/invocations/{invocation_id}/forks")
     async def fork(invocation_id: str, value: ForkRequest):
-        return lattice.fork(invocation_id, role_session_id=value.role_session_id, prompt=value.prompt, route=value.route)
+        return lattice.fork(invocation_id, role_session_id=value.role_session_id, actor_binding=value.actor_binding, prompt=value.prompt, route=value.route)
 
     @app.post("/api/v1/joins")
     async def join(value: JoinRequest):
-        return lattice.join(value.invocation_ids, role_session_id=value.role_session_id, prompt=value.prompt, route=value.route)
+        return lattice.join(value.invocation_ids, role_session_id=value.role_session_id, actor_binding=value.actor_binding, prompt=value.prompt, route=value.route)
 
     @app.post("/api/v1/invocations/{invocation_id}/replays")
     async def replay(invocation_id: str, value: ReplayRequest):
@@ -686,9 +711,18 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         try:
             result = await asyncio.to_thread(context_modules.resolve, value.definition)
         except ContextModuleError as error:
+            store.record_event(project_id=value.project_id, event_type="context-module.failed", subject_type="context-module", subject_id=value.definition.module_id, payload={"definition": value.definition.model_dump(mode="json"), "failure_kind": "resolution-failed", "error": str(error)})
             raise HTTPException(422, str(error)) from error
         block = store.create_context_block(ContextBlockCreate(project_id=value.project_id, semantic_type=f"context-module:{value.definition.module_id}", content=result.content.decode("utf-8"), source_ref=result.receipt["source_ref"], source_sha256=result.receipt["content_sha256"], authority=value.definition.module_id, evidence_level="module-receipt", sensitivity="private", transformation=result.receipt))
-        return {"block": block, "receipt": result.receipt}
+        default = None
+        if value.definition.mode.value in {"project_default", "workflow_required"}:
+            default = store.set_project_context_default(value.project_id, block["block_id"], module_id=value.definition.module_id, mode=value.definition.mode.value)
+        return {"block": block, "receipt": result.receipt, "project_default": default}
+
+    @app.delete("/api/v1/projects/{project_id}/context-defaults/{module_id}", status_code=204)
+    async def remove_project_context_default(project_id: str, module_id: str):
+        store.remove_project_context_default(project_id, module_id)
+        return Response(status_code=204)
 
     @app.delete("/api/v1/roles/{role_id}/context-defaults/{block_id}", status_code=204)
     async def remove_context_default(role_id: str, block_id: str):
@@ -728,3 +762,6 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         return HTMLResponse("<main><h1>Lattice API is running</h1><p>Build <code>web/</code> to install the cockpit.</p></main>")
 
     return app
+    DerivedTextBlockCreate,
+    InvocationBatchCreateV1,
+    InvocationBatchPreviewV1,

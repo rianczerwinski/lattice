@@ -52,7 +52,7 @@
       "statement": "Freestyle UI verbs would become divergent kernel state machines, and fan-out cannot truthfully share one route-specific manifest.",
       "route": [2, 4],
       "status": "open",
-      "implementation_receipts": [],
+      "implementation_receipts": ["lattice/contracts.py:ContextAssemblyV1", "lattice/contracts.py:InvocationBatchPreviewV1", "lattice/store.py:insert_invocation_batch", "lattice/operations.py:preview_invocation_batch", "lattice/operations.py:create_invocation_batch", "tests/test_invocation_batches.py"],
       "independent_oracle": "Every gesture compiles to one generic batch contract while each child retains its own capability and compiled-request manifest.",
       "false_mutation": "Remove one fan-out child's capability record or give siblings different semantic assemblies and require the batch oracle to fail."
     },
@@ -72,7 +72,7 @@
       "statement": "Generic contradiction or provider-opacity warnings are not deterministic execution boundaries and would produce arbitrary interruption ceremony.",
       "route": [3, 4],
       "status": "open",
-      "implementation_receipts": [],
+      "implementation_receipts": ["lattice/operations.py:_confirmation_reasons", "tests/test_invocation_batches.py"],
       "independent_oracle": "Confirmation reasons derive only from exact authority expansion, operator-uninitiated loss or transformation, or a weakened qualified isolation profile.",
       "false_mutation": "Plant a hidden omission or new write authority and require one-action execution to stop while an explicitly selected provider route proceeds without redundant confirmation."
     },
@@ -102,7 +102,7 @@
       "statement": "Exact observable context and its delta must remain continuously inspectable without turning every ordinary send into a mandatory preflight ceremony.",
       "route": [2, 3, 4],
       "status": "open",
-      "implementation_receipts": [],
+      "implementation_receipts": ["lattice/contracts.py:DerivedTextBlockCreate", "lattice/store.py:create_derived_text_block", "lattice/manifest_reader.py:verify_and_reconstruct", "tests/test_invocation_batches.py"],
       "independent_oracle": "Independent reconstruction matches provider bytes and the tray distinguishes added, removed, transformed, omitted, unchanged, and provider-opaque material.",
       "false_mutation": "Relabel a summary as verbatim or hide an omission and require the independent reader or browser oracle to fail."
     },

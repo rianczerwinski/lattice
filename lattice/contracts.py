@@ -249,6 +249,96 @@ class DraftPatch(StrictModel):
         return value
 
 
+class ContextAssemblyV1(StrictModel):
+    """The route-neutral semantic context shared by one or more invocations."""
+
+    project_id: str = Field(min_length=1)
+    actor_binding: ActorBindingV1 = Field(default_factory=DirectActorBinding)
+    prompt: str = Field(max_length=1_000_000)
+    selections: list[ContextSelection] = Field(default_factory=list, max_length=1000)
+    parent_invocation_ids: list[str] = Field(default_factory=list, max_length=32)
+    relation: EdgeRelation = EdgeRelation.responds_to
+    context_mode: Literal["standard", "explicit"] = "standard"
+    response_schema: dict[str, Any] = Field(default_factory=standard_response_contract)
+
+    @field_validator("parent_invocation_ids")
+    @classmethod
+    def assembly_parents_are_unique(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("parent invocation IDs must be unique")
+        return value
+
+    @model_validator(mode="after")
+    def assembly_context_is_complete(self) -> "ContextAssemblyV1":
+        if self.context_mode == "explicit":
+            prompts = [item for item in self.selections if item.plane == "current_prompt"]
+            if len(prompts) != 1 or prompts[0].disposition != BlockDisposition.selected:
+                raise ValueError("explicit context requires exactly one directly selected current-prompt block")
+        if self.response_schema != standard_response_contract():
+            raise ValueError("Lattice currently supports only its lossless response-and-artifacts envelope")
+        return self
+
+
+class InvocationSpecV1(StrictModel):
+    spec_id: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$")
+    assembly: ContextAssemblyV1
+    route: ProviderRoute
+
+
+class InvocationBatchPreviewV1(StrictModel):
+    batch_id: str = Field(pattern=r"^batch_[0-9a-f]{32}$")
+    specifications: list[InvocationSpecV1] = Field(min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def batch_is_one_project_with_unique_members(self) -> "InvocationBatchPreviewV1":
+        spec_ids = [item.spec_id for item in self.specifications]
+        if len(spec_ids) != len(set(spec_ids)):
+            raise ValueError("batch specification IDs must be unique")
+        if len({item.assembly.project_id for item in self.specifications}) != 1:
+            raise ValueError("one invocation batch cannot cross projects")
+        return self
+
+
+class InvocationBatchCreateV1(InvocationBatchPreviewV1):
+    idempotency_key: str = Field(min_length=8, max_length=200)
+    expected_preview_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmed_reason_sha256s: list[str] = Field(default_factory=list, max_length=100, min_length=0)
+
+    @field_validator("confirmed_reason_sha256s")
+    @classmethod
+    def confirmations_are_unique(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("confirmation reason identities must be unique")
+        return value
+
+
+class InvocationBatchReceiptV1(StrictModel):
+    batch_id: str
+    project_id: str
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    preview_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    invocation_ids: list[str] = Field(min_length=1, max_length=16)
+    manifest_sha256s: list[str] = Field(min_length=1, max_length=16)
+    assembly_sha256s: list[str] = Field(min_length=1, max_length=16)
+    generated_object: dict[str, Any]
+    receipt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class DerivedTextBlockCreate(StrictModel):
+    project_id: str
+    source_block_id: str = Field(min_length=1)
+    start_byte: int = Field(ge=0)
+    end_byte: int = Field(gt=0)
+    semantic_type: str = Field(default="exact-excerpt", min_length=1, max_length=120)
+    sensitivity: Literal["private", "shareable", "public"] | None = None
+
+    @model_validator(mode="after")
+    def excerpt_range_is_forward(self) -> "DerivedTextBlockCreate":
+        if self.end_byte <= self.start_byte:
+            raise ValueError("excerpt end byte must follow its start byte")
+        return self
+
+
 class ExecuteRequest(StrictModel):
     idempotency_key: str = Field(min_length=8, max_length=200)
 
@@ -296,6 +386,9 @@ class ImportConversationRequest(StrictModel):
 
 class ContextModuleMode(StrEnum):
     manual = "manual"
+    project_default = "project_default"
+    # Read compatibility for workflow packs and databases authored before
+    # project-scoped defaults became available.
     role_default = "role_default"
     workflow_required = "workflow_required"
 

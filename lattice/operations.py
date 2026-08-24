@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import json
+import uuid
 from collections import Counter
 from typing import Any
 
-from .canonical import canonical_bytes, generated_object, opaque_id, sha256_bytes, sha256_json
+from .canonical import canonical_bytes, generated_object, opaque_id, sha256_bytes, sha256_json, stamp
 from .compositor import ContextCompositor
 from .contracts import (
     ActorBindingV1,
     ContextSelection,
+    ContextAssemblyV1,
     DirectActorBinding,
     DraftCreate,
     EdgeRelation,
+    InvocationBatchCreateV1,
+    InvocationBatchPreviewV1,
     ProviderRoute,
     TagRequest,
 )
@@ -29,6 +33,205 @@ class Lattice:
 
     def invoke(self, value: DraftCreate) -> dict[str, Any]:
         return self.store.create_draft(value)
+
+    @staticmethod
+    def _batch_prompt_block(assembly: ContextAssemblyV1) -> tuple[str, dict[str, Any], bytes]:
+        content = assembly.prompt.encode("utf-8")
+        digest = sha256_bytes(content)
+        identity = sha256_bytes(canonical_bytes({"project_id": assembly.project_id, "prompt_sha256": digest}))
+        block_id = f"block_{identity[:32]}"
+        return block_id, {
+            "block_id": block_id,
+            "project_id": assembly.project_id,
+            "semantic_type": "user-prompt",
+            "content_sha256": digest,
+            "byte_count": len(content),
+            "initial_status": "active",
+            "producing_invocation_id": None,
+            "source_ref": None,
+            "source_sha256": None,
+            "authority": "operator",
+            "evidence_level": "operator-intent",
+            "sensitivity": "private",
+            "transformation_json": None,
+            "created_at": None,
+            "status": "active",
+            "status_revision": 1,
+            "content": assembly.prompt,
+        }, content
+
+    @staticmethod
+    def _confirmation_reasons(preflight: dict[str, Any], parents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        capabilities = preflight["capabilities"]
+        previous = [parent["manifest"].get("capabilities", {}) for parent in parents]
+        baseline_tools = set().union(*(set(item.get("tools", [])) for item in previous)) if previous else set()
+        baseline_permissions = set().union(*(set(item.get("permissions", [])) for item in previous)) if previous else set()
+        baseline_workspaces = {item.get("workspace") for item in previous}
+        baseline_network = {item.get("network_policy", "disabled") for item in previous}
+        reasons: list[dict[str, Any]] = []
+
+        def add(code: str, detail: dict[str, Any]) -> None:
+            material = {"code": code, "detail": detail}
+            reasons.append({**material, "reason_sha256": sha256_json(material)})
+
+        tools = set(capabilities.get("tools", []))
+        permissions = set(capabilities.get("permissions", []))
+        workspace = capabilities.get("workspace")
+        network = capabilities.get("network_policy", "disabled")
+        if tools - baseline_tools:
+            add("authority.tools-expanded", {"added": sorted(tools - baseline_tools)})
+        if permissions - baseline_permissions:
+            add("authority.permissions-expanded", {"added": sorted(permissions - baseline_permissions)})
+        if workspace is not None and workspace not in baseline_workspaces:
+            add("authority.workspace-expanded", {"workspace": workspace})
+        if network != "disabled" and network not in baseline_network:
+            add("authority.network-expanded", {"network_policy": network})
+        for item in preflight.get("omitted", []):
+            if str(item.get("reason") or "").startswith("automatic:"):
+                add("context.automatic-omission", {"block_id": item["block_id"], "reason": item["reason"]})
+        for item in preflight.get("segments", []):
+            transformation = item.get("transformation")
+            if isinstance(transformation, dict) and transformation.get("initiated_by") not in {None, "operator"}:
+                add("context.automatic-transformation", {"block_id": item["block_id"], "transformation": transformation})
+        previous_isolation = {item.get("isolation") for item in previous if item.get("isolation") is not None}
+        current_isolation = capabilities.get("isolation")
+        if previous_isolation and current_isolation not in previous_isolation:
+            add("execution.isolation-changed", {"before": sorted(previous_isolation), "after": current_isolation})
+        return reasons
+
+    def preview_invocation_batch(self, value: InvocationBatchPreviewV1) -> dict[str, Any]:
+        """Compile a batch without persisting drafts, invocations, or events."""
+
+        members: list[dict[str, Any]] = []
+        all_reasons: dict[str, dict[str, Any]] = {}
+        for spec in value.specifications:
+            assembly = spec.assembly
+            self.store.validate_invocation_intent(assembly, spec.route)
+            assembly_sha = sha256_json(assembly.model_dump(mode="json"))
+            prompt_block_id, prompt_block, _prompt_bytes = self._batch_prompt_block(assembly)
+            draft_identity = sha256_bytes(canonical_bytes({"batch_id": value.batch_id, "spec_id": spec.spec_id}))
+            actor = assembly.actor_binding.model_dump(mode="json")
+            selections = [item.model_dump(mode="json") for item in assembly.selections]
+            if assembly.context_mode == "explicit":
+                selections = [{**item, "block_id": prompt_block_id} if item["plane"] == "current_prompt" else item for item in selections]
+            draft = {
+                "draft_id": f"draft_{draft_identity[:32]}",
+                "project_id": assembly.project_id,
+                "actor_kind": actor["kind"],
+                "actor_binding": actor,
+                "role_session_id": actor.get("role_session_id"),
+                "prompt_block_id": prompt_block_id,
+                "route": spec.route.model_dump(mode="json"),
+                "selections": selections,
+                "parents": assembly.parent_invocation_ids,
+                "relation": assembly.relation.value,
+                "context_mode": assembly.context_mode,
+                "response_schema": assembly.response_schema,
+                "revision": 1,
+                "state": "editable",
+                "created_at": None,
+                "updated_at": None,
+            }
+            preflight, compiled = self.compositor.compile(draft, preview=True, virtual_blocks={prompt_block_id: prompt_block})
+            parents = [self.store.get_invocation(parent_id) for parent_id in assembly.parent_invocation_ids]
+            reasons = self._confirmation_reasons(preflight, parents)
+            for reason in reasons:
+                all_reasons[reason["reason_sha256"]] = reason
+            parent_deltas = [
+                {"invocation_id": parent["invocation_id"], "manifest_sha256": parent["manifest_sha256"], **self.context_delta(parent["manifest"], preflight)}
+                for parent in parents
+            ]
+            members.append({
+                "spec_id": spec.spec_id,
+                "assembly_sha256": assembly_sha,
+                "draft": draft,
+                "preflight": preflight,
+                "compiled_prompt_preview": compiled.decode("utf-8"),
+                "parent_deltas": parent_deltas,
+            })
+        material = {
+            "contract_version": "InvocationBatchPreviewV1",
+            "batch_id": value.batch_id,
+            "project_id": value.specifications[0].assembly.project_id,
+            "request_sha256": sha256_json(value.model_dump(mode="json")),
+            "members": members,
+            "confirmation_reasons": [all_reasons[key] for key in sorted(all_reasons)],
+        }
+        return {**material, "preview_sha256": sha256_json(material)}
+
+    def create_invocation_batch(self, value: InvocationBatchCreateV1) -> dict[str, Any]:
+        request_material = value.model_dump(mode="json")
+        create_request_sha = sha256_json({key: item for key, item in request_material.items() if key != "idempotency_key"})
+        existing = self.store.get_invocation_batch_by_idempotency(value.idempotency_key)
+        if existing is not None:
+            if existing["create_request_sha256"] != create_request_sha:
+                raise LatticeConflict("batch idempotency key was already used for different bytes")
+            return existing
+        preview_input = InvocationBatchPreviewV1(batch_id=value.batch_id, specifications=value.specifications)
+        preview = self.preview_invocation_batch(preview_input)
+        if preview["preview_sha256"] != value.expected_preview_sha256:
+            raise LatticeConflict("batch preview changed; nothing was created")
+        required = {item["reason_sha256"] for item in preview["confirmation_reasons"]}
+        confirmed = set(value.confirmed_reason_sha256s)
+        if confirmed != required:
+            raise LatticeConflict("batch confirmations do not exactly match its deterministic reasons")
+
+        now = stamp()
+        prepared: list[dict[str, Any]] = []
+        for spec, member in zip(value.specifications, preview["members"], strict=True):
+            assembly = spec.assembly
+            prompt_block_id, prompt_block, prompt_bytes = self._batch_prompt_block(assembly)
+            draft = {**member["draft"], "created_at": now, "updated_at": now}
+            self.store.blobs.put(prompt_bytes)
+            manifest, compiled = self.compositor.compile(draft, virtual_blocks={prompt_block_id: prompt_block})
+            self.store.blobs.put(compiled)
+            reconstructed = verify_and_reconstruct(
+                self.store,
+                manifest,
+                draft_override=draft,
+                block_overrides={prompt_block_id: prompt_block},
+            )
+            if reconstructed != compiled:
+                raise LatticeConflict("independent manifest reader disagrees with batch compositor")
+            prepared.append({
+                "spec_id": spec.spec_id,
+                "assembly_sha256": member["assembly_sha256"],
+                "prompt_block": prompt_block,
+                "draft": draft,
+                "manifest": manifest,
+                "compiled_prompt_sha256": manifest["compilation"]["compiled_prompt_sha256"],
+            })
+
+        sources = [
+            {"ref": f"lattice:invocation/{item['manifest']['invocation_id']}", "revision": None, "sha256": item["manifest"]["manifest_sha256"]}
+            for item in prepared
+        ]
+        receipt: dict[str, Any] = {
+            "batch_id": value.batch_id,
+            "project_id": preview["project_id"],
+            "request_sha256": preview["request_sha256"],
+            "create_request_sha256": create_request_sha,
+            "preview_sha256": preview["preview_sha256"],
+            "invocation_ids": [item["manifest"]["invocation_id"] for item in prepared],
+            "manifest_sha256s": [item["manifest"]["manifest_sha256"] for item in prepared],
+            "assembly_sha256s": [item["assembly_sha256"] for item in prepared],
+            "confirmation_reason_sha256s": sorted(required),
+            "generated_object": generated_object(
+                kind="lattice-invocation-batch-receipt",
+                schema_name="lattice-invocation-batch-receipt",
+                subject=f"lattice-invocation-batch:{value.batch_id}",
+                sources=sources,
+                artifact_id=f"artifact:{uuid.uuid5(uuid.NAMESPACE_URL, f'lattice-batch:{value.batch_id}')}",
+                generated_at=now,
+            ),
+        }
+        receipt["receipt_sha256"] = sha256_json(receipt)
+        return self.store.insert_invocation_batch(
+            idempotency_key=value.idempotency_key,
+            create_request_sha256=create_request_sha,
+            receipt=receipt,
+            prepared=prepared,
+        )
 
     @staticmethod
     def context_delta(previous: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:

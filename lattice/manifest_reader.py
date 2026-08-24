@@ -109,7 +109,25 @@ def _independent_segment_bytes(segment: dict[str, Any], content: bytes, compilat
     return canonical_bytes(record) + b"\n"
 
 
-def verify_and_reconstruct(store: LatticeStore, manifest: dict[str, Any]) -> bytes:
+def verify_and_reconstruct(
+    store: LatticeStore,
+    manifest: dict[str, Any],
+    *,
+    draft_override: dict[str, Any] | None = None,
+    block_overrides: dict[str, dict[str, Any]] | None = None,
+) -> bytes:
+    """Verify a durable manifest or a stateless batch candidate independently."""
+
+    block_overrides = block_overrides or {}
+
+    def get_block(block_id: str, *, include_content: bool = True) -> dict[str, Any]:
+        if block_id in block_overrides:
+            value = dict(block_overrides[block_id])
+            if not include_content:
+                value.pop("content", None)
+            return value
+        return store.get_block(block_id, include_content=include_content)
+
     slug, title = _verify_generated_object(manifest)
     claimed_manifest_sha = manifest.get("manifest_sha256")
     actual_manifest_sha = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})
@@ -146,7 +164,9 @@ def verify_and_reconstruct(store: LatticeStore, manifest: dict[str, Any]) -> byt
     generated_sources = {item["ref"]: item for item in generated_source_values}
     if len(generated_sources) != len(generated_source_values):
         raise ManifestVerificationError("manifest contains ambiguous duplicate source references")
-    draft = store.get_draft(manifest["draft_id"])
+    draft = draft_override or store.get_draft(manifest["draft_id"])
+    if draft["draft_id"] != manifest["draft_id"]:
+        raise ManifestVerificationError("manifest draft override has the wrong identity")
     if compilation_format == f"{slug}-context-jsonl-v4":
         actor_binding = manifest.get("actor_binding")
         if actor_binding != draft.get("actor_binding"):
@@ -212,7 +232,7 @@ def verify_and_reconstruct(store: LatticeStore, manifest: dict[str, Any]) -> byt
         raise ManifestVerificationError("context segment ordering is ambiguous")
     expected_source_refs: set[str] = set()
     for segment in all_entries:
-        block = store.get_block(segment["block_id"], include_content=False)
+        block = get_block(segment["block_id"], include_content=False)
         content = store.blobs.get(block["content_sha256"])
         if block["project_id"] != manifest["project_id"]:
             raise ManifestVerificationError(f"context block belongs to another project: {segment['block_id']}")
@@ -224,7 +244,7 @@ def verify_and_reconstruct(store: LatticeStore, manifest: dict[str, Any]) -> byt
             if any(segment.get(key) != value for key, value in provenance.items()):
                 raise ManifestVerificationError(f"context provenance is not ledger-bound: {segment['block_id']}")
         try:
-            historical_status = store.get_block_status_revision(segment["block_id"], segment["status_revision"])
+            historical_status = block["status"] if segment["block_id"] in block_overrides and segment["status_revision"] == block["status_revision"] else store.get_block_status_revision(segment["block_id"], segment["status_revision"])
         except (KeyError, TypeError) as error:
             raise ManifestVerificationError(f"context status revision does not resolve: {segment['block_id']}") from error
         if historical_status != segment["status"]:
@@ -237,7 +257,7 @@ def verify_and_reconstruct(store: LatticeStore, manifest: dict[str, Any]) -> byt
         expected_source_refs.add(source["ref"])
         derived = segment.get("derived_from_block_ids", [])
         for source_block_id in derived:
-            source_block = store.get_block(source_block_id, include_content=False)
+            source_block = get_block(source_block_id, include_content=False)
             if source_block["project_id"] != manifest["project_id"]:
                 raise ManifestVerificationError(f"derived context source belongs to another project: {source_block_id}")
             derived_source = generated_sources.get(f"{slug}:block/{source_block_id}")

@@ -24,6 +24,7 @@ from .contracts import (
     BlockDisposition,
     BlockStatus,
     ContextBlockCreate,
+    DerivedTextBlockCreate,
     DraftCreate,
     DraftPatch,
     DraftState,
@@ -223,6 +224,27 @@ CREATE TABLE IF NOT EXISTS invocations(
     CHECK((actor_kind='direct' AND role_session_id IS NULL) OR (actor_kind='role-session' AND role_session_id IS NOT NULL))
 ) STRICT;
 
+CREATE TABLE IF NOT EXISTS invocation_batches(
+    batch_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    idempotency_key TEXT NOT NULL UNIQUE,
+    request_sha256 TEXT NOT NULL CHECK(length(request_sha256)=64),
+    preview_sha256 TEXT NOT NULL CHECK(length(preview_sha256)=64),
+    receipt_json TEXT NOT NULL CHECK(json_valid(receipt_json)),
+    receipt_sha256 TEXT NOT NULL CHECK(length(receipt_sha256)=64),
+    created_at TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS invocation_batch_members(
+    batch_id TEXT NOT NULL REFERENCES invocation_batches(batch_id),
+    ordinal INTEGER NOT NULL CHECK(ordinal>=0),
+    spec_id TEXT NOT NULL,
+    assembly_sha256 TEXT NOT NULL CHECK(length(assembly_sha256)=64),
+    invocation_id TEXT NOT NULL UNIQUE REFERENCES invocations(invocation_id),
+    PRIMARY KEY(batch_id,ordinal),
+    UNIQUE(batch_id,spec_id)
+) STRICT;
+
 CREATE TABLE IF NOT EXISTS edges(
     edge_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(project_id),
@@ -400,6 +422,16 @@ CREATE TABLE IF NOT EXISTS role_context_defaults(
     PRIMARY KEY(role_id, block_id)
 ) STRICT;
 
+CREATE TABLE IF NOT EXISTS project_context_defaults(
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    block_id TEXT NOT NULL REFERENCES context_blocks(block_id),
+    module_id TEXT NOT NULL,
+    mode TEXT NOT NULL CHECK(mode IN ('project_default','workflow_required')),
+    active INTEGER NOT NULL CHECK(active IN (0,1)),
+    PRIMARY KEY(project_id,block_id),
+    UNIQUE(project_id,module_id)
+) STRICT;
+
 CREATE INDEX IF NOT EXISTS events_project_seq ON events(project_id, seq);
 CREATE INDEX IF NOT EXISTS events_subject_seq ON events(subject_type, subject_id, event_type, seq);
 CREATE INDEX IF NOT EXISTS invocations_project_created ON invocations(project_id, created_at);
@@ -411,8 +443,8 @@ CREATE INDEX IF NOT EXISTS ledger_changes_current ON ledger_changes(table_name, 
 
 CHANGE_TABLES = (
     "projects", "context_blocks", "block_status", "roles", "role_sessions", "drafts", "invocations", "edges",
-    "attempts", "leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
-    "workflow_triggers", "role_context_defaults", "conversation_imports", "conversation_import_turns",
+    "invocation_batches", "invocation_batch_members", "attempts", "leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
+    "workflow_triggers", "role_context_defaults", "project_context_defaults", "conversation_imports", "conversation_import_turns",
 )
 
 
@@ -558,6 +590,7 @@ class LatticeStore:
                 self._baseline_current_views(conn)
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(7,?)", (stamp(),))
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(8,?)", (stamp(),))
+            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(9,?)", (stamp(),))
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
 
@@ -960,6 +993,30 @@ class LatticeStore:
         except SubscriptionRouteUnavailable as error:
             raise LatticeConflict(str(error)) from error
 
+    def validate_invocation_intent(self, assembly: Any, route: Any) -> None:
+        """Validate a stateless preflight without creating any ledger objects."""
+
+        project = self.get_project(assembly.project_id)
+        actor = assembly.actor_binding.model_dump(mode="json")
+        role_session_id = actor.get("role_session_id")
+        self._assert_actor_route_authorized(actor["kind"], role_session_id, route.model_dump(mode="json"))
+        if project["workflow_pack"] is not None and actor["kind"] == "direct":
+            # Direct conversation may coexist with a workflow project, but it
+            # cannot impersonate a named workflow actor or satisfy role gates.
+            pass
+        for parent_id in assembly.parent_invocation_ids:
+            parent = self.get_invocation(parent_id)
+            if parent["project_id"] != assembly.project_id:
+                raise LatticeConflict("parent invocation does not belong to project")
+            if not parent.get("output_block_id"):
+                raise LatticeConflict(f"parent {parent_id} has no terminal output to consume")
+        for selection in assembly.selections:
+            if assembly.context_mode == "explicit" and selection.plane == "current_prompt":
+                continue
+            block = self.get_block(selection.block_id, include_content=False)
+            if block["project_id"] != assembly.project_id:
+                raise LatticeConflict("context block belongs to another project")
+
     def create_project(self, value: ProjectCreate) -> dict[str, Any]:
         project_id = opaque_id("project")
         now = stamp()
@@ -977,6 +1034,7 @@ class LatticeStore:
             project = self._row(conn.execute("SELECT * FROM projects WHERE project_id=?", (project_id,)).fetchone(), project_id)
             project["roles"] = [self._decode_role(dict(row)) for row in conn.execute("SELECT * FROM roles WHERE project_id=? ORDER BY created_at", (project_id,))]
             project["sessions"] = [dict(row) for row in conn.execute("SELECT * FROM role_sessions WHERE project_id=? ORDER BY created_at", (project_id,))]
+            project["context_defaults"] = [dict(row) for row in conn.execute("SELECT * FROM project_context_defaults WHERE project_id=? AND active=1 ORDER BY module_id,block_id", (project_id,))]
             workflow = conn.execute("SELECT * FROM workflow_instances WHERE project_id=?", (project_id,)).fetchone()
             project["workflow"] = dict(workflow) if workflow else None
             if project["workflow"]:
@@ -1149,6 +1207,8 @@ class LatticeStore:
                              VALUES(?,?,?,?,?,'active',?,?,?,'module-receipt','private',?,?)""", (block_id, project_id, f"context-module:{definition['module_id']}", content_sha, len(content), receipt["source_ref"], receipt["content_sha256"], definition["module_id"], canonical_bytes(receipt).decode(), now))
                 module_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": content_sha, "semantic_type": f"context-module:{definition['module_id']}", "status": "active", "mode": definition["mode"]})
                 conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, module_event))
+                if definition["mode"] in {"project_default", "workflow_required"}:
+                    conn.execute("INSERT INTO project_context_defaults(project_id,block_id,module_id,mode,active) VALUES(?,?,?,?,1)", (project_id, block_id, definition["module_id"], definition["mode"]))
                 if definition["mode"] in {"role_default", "workflow_required"}:
                     for _spec, role_id, *_rest in prepared_roles:
                         conn.execute("INSERT INTO role_context_defaults(role_id,block_id,module_id,mode,active) VALUES(?,?,?,?,1)", (role_id, block_id, definition["module_id"], definition["mode"]))
@@ -1167,6 +1227,38 @@ class LatticeStore:
     def list_role_context_defaults(self, role_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
             return [dict(row) for row in conn.execute("SELECT * FROM role_context_defaults WHERE role_id=? AND active=1 ORDER BY module_id,block_id", (role_id,))]
+
+    def list_project_context_defaults(self, project_id: str) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            return [dict(row) for row in conn.execute("SELECT * FROM project_context_defaults WHERE project_id=? AND active=1 ORDER BY module_id,block_id", (project_id,))]
+
+    def set_project_context_default(self, project_id: str, block_id: str, *, module_id: str, mode: str) -> dict[str, Any]:
+        if mode not in {"project_default", "workflow_required"}:
+            raise LatticeConflict("only project-default or workflow-required modules can be registered on a project")
+        with self.transaction() as conn:
+            project = self._row(conn.execute("SELECT workflow_pack FROM projects WHERE project_id=?", (project_id,)).fetchone(), project_id)
+            block = self._row(conn.execute("SELECT project_id FROM context_blocks WHERE block_id=?", (block_id,)).fetchone(), block_id)
+            if block["project_id"] != project_id:
+                raise LatticeConflict("context default block belongs to another project")
+            if mode == "workflow_required" and project["workflow_pack"] is None:
+                raise LatticeConflict("workflow-required context needs a governed workflow project")
+            existing = conn.execute("SELECT block_id,mode,active FROM project_context_defaults WHERE project_id=? AND module_id=?", (project_id, module_id)).fetchone()
+            if existing is None:
+                conn.execute("INSERT INTO project_context_defaults(project_id,block_id,module_id,mode,active) VALUES(?,?,?,?,1)", (project_id, block_id, module_id, mode))
+            elif existing["block_id"] != block_id or existing["mode"] != mode or not existing["active"]:
+                conn.execute("UPDATE project_context_defaults SET block_id=?,mode=?,active=1 WHERE project_id=? AND module_id=?", (block_id, mode, project_id, module_id))
+            self._event(conn, project_id=project_id, event_type="project-context.registered", subject_type="context-block", subject_id=block_id, payload={"module_id": module_id, "mode": mode, "previous_block_id": existing["block_id"] if existing else None})
+        return next(item for item in self.list_project_context_defaults(project_id) if item["module_id"] == module_id)
+
+    def remove_project_context_default(self, project_id: str, module_id: str) -> None:
+        with self.transaction() as conn:
+            row = self._row(conn.execute("SELECT block_id,mode,active FROM project_context_defaults WHERE project_id=? AND module_id=?", (project_id, module_id)).fetchone(), module_id)
+            if row["mode"] != "project_default":
+                raise LatticeConflict("workflow-required context cannot be removed")
+            if not row["active"]:
+                return
+            conn.execute("UPDATE project_context_defaults SET active=0 WHERE project_id=? AND module_id=?", (project_id, module_id))
+            self._event(conn, project_id=project_id, event_type="project-context.removed", subject_type="context-block", subject_id=row["block_id"], payload={"module_id": module_id})
 
     def remove_role_context_default(self, role_id: str, block_id: str) -> None:
         with self.transaction() as conn:
@@ -1204,6 +1296,58 @@ class LatticeStore:
             if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (value.project_id,)).fetchone() is None:
                 raise LatticeNotFound(value.project_id)
             self._insert_context_block(conn, value, block_id=block_id, content=content, digest=digest, now=now)
+        return self.get_block(block_id, include_content=False)
+
+    def create_derived_text_block(self, value: DerivedTextBlockCreate) -> dict[str, Any]:
+        """Create a byte-exact UTF-8 excerpt without mutating its source block."""
+
+        source = self.get_block(value.source_block_id)
+        if source["project_id"] != value.project_id:
+            raise LatticeConflict("excerpt source belongs to another project")
+        source_bytes = source["content"].encode("utf-8")
+        if value.end_byte > len(source_bytes):
+            raise LatticeConflict("excerpt byte range exceeds its source")
+        excerpt = source_bytes[value.start_byte:value.end_byte]
+        try:
+            excerpt_text = excerpt.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as error:
+            raise LatticeConflict("excerpt byte range splits a UTF-8 code point") from error
+        excerpt_sha = self.blobs.put(excerpt)
+        transformation = {
+            "kind": "exact-utf8-byte-range-v1",
+            "source_block_id": value.source_block_id,
+            "source_sha256": source["content_sha256"],
+            "start_byte": value.start_byte,
+            "end_byte": value.end_byte,
+            "excerpt_sha256": excerpt_sha,
+        }
+        block_value = ContextBlockCreate(
+            project_id=value.project_id,
+            semantic_type=value.semantic_type,
+            content=excerpt_text,
+            source_ref=f"lattice:block/{value.source_block_id}",
+            source_sha256=source["content_sha256"],
+            authority="operator-derived",
+            evidence_level="exact-excerpt",
+            sensitivity=value.sensitivity or source["sensitivity"],
+            transformation=transformation,
+        )
+        block_id = opaque_id("block")
+        now = stamp()
+        with self.transaction() as conn:
+            self._insert_context_block(conn, block_value, block_id=block_id, content=excerpt, digest=excerpt_sha, now=now)
+            self._insert_edge(
+                conn,
+                project_id=value.project_id,
+                relation=EdgeRelation.derived_from,
+                source_type="context-block",
+                source_id=block_id,
+                source_revision=excerpt_sha,
+                target_type="context-block",
+                target_id=value.source_block_id,
+                target_revision=source["content_sha256"],
+                metadata={"transformation": transformation},
+            )
         return self.get_block(block_id, include_content=False)
 
     def get_block(self, block_id: str, *, include_content: bool = True) -> dict[str, Any]:
@@ -1423,6 +1567,105 @@ class LatticeStore:
                 if changed != 1:
                     raise LatticeConflict("conversation import turn changed before invocation sealing")
         return self.get_invocation(invocation_id)
+
+    def get_invocation_batch_by_idempotency(self, idempotency_key: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM invocation_batches WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+        return self.get_invocation_batch(row["batch_id"]) if row else None
+
+    def get_invocation_batch(self, batch_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute("SELECT * FROM invocation_batches WHERE batch_id=?", (batch_id,)).fetchone(), batch_id)
+            members = [dict(item) for item in conn.execute(
+                """SELECT m.ordinal,m.spec_id,m.assembly_sha256,m.invocation_id,i.state,i.terminal_kind,i.output_block_id,i.manifest_sha256
+                   FROM invocation_batch_members m JOIN invocations i USING(invocation_id)
+                   WHERE m.batch_id=? ORDER BY m.ordinal""",
+                (batch_id,),
+            )]
+            for member in members:
+                member["attempts"] = [dict(item) for item in conn.execute(
+                    "SELECT attempt_id,attempt_number,state,failure_kind,error_text,started_at,completed_at FROM attempts WHERE invocation_id=? ORDER BY attempt_number",
+                    (member["invocation_id"],),
+                )]
+        receipt = json.loads(row.pop("receipt_json"))
+        if sha256_bytes(canonical_bytes({key: value for key, value in receipt.items() if key != "receipt_sha256"})) != row["receipt_sha256"] or receipt.get("receipt_sha256") != row["receipt_sha256"]:
+            raise LatticeConflict("stored invocation batch receipt disagrees with its immutable identity")
+        return {**receipt, "members": members}
+
+    def insert_invocation_batch(
+        self,
+        *,
+        idempotency_key: str,
+        create_request_sha256: str,
+        receipt: dict[str, Any],
+        prepared: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Seal every batch member and its shared receipt in one transaction."""
+
+        batch_id = receipt["batch_id"]
+        now = receipt["generated_object"]["generated_at"]
+        with self.transaction() as conn:
+            existing = conn.execute("SELECT batch_id,request_sha256 FROM invocation_batches WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+            if existing is not None:
+                if existing["request_sha256"] != create_request_sha256:
+                    raise LatticeConflict("batch idempotency key was already used for different bytes")
+                existing_id = existing["batch_id"]
+            else:
+                if conn.execute("SELECT 1 FROM invocation_batches WHERE batch_id=?", (batch_id,)).fetchone() is not None:
+                    raise LatticeConflict("batch identity was already used")
+                prompt_blocks: dict[str, dict[str, Any]] = {}
+                for item in prepared:
+                    prompt_blocks[item["prompt_block"]["block_id"]] = item["prompt_block"]
+                for block in prompt_blocks.values():
+                    stored = conn.execute("SELECT project_id,content_sha256,semantic_type FROM context_blocks WHERE block_id=?", (block["block_id"],)).fetchone()
+                    if stored is None:
+                        prompt_value = ContextBlockCreate(project_id=block["project_id"], semantic_type="user-prompt", content=block["content"], evidence_level="operator-intent")
+                        self._insert_context_block(conn, prompt_value, block_id=block["block_id"], content=block["content"].encode("utf-8"), digest=block["content_sha256"], now=now)
+                    elif dict(stored) != {"project_id": block["project_id"], "content_sha256": block["content_sha256"], "semantic_type": "user-prompt"}:
+                        raise LatticeConflict("content-bound prompt identity conflicts with existing bytes")
+
+                for item in prepared:
+                    draft = item["draft"]
+                    manifest = item["manifest"]
+                    for segment in manifest["segments"] + manifest["omitted"]:
+                        current = conn.execute(
+                            """SELECT b.project_id,b.content_sha256,b.semantic_type,s.status,s.revision
+                               FROM context_blocks b JOIN block_status s USING(block_id) WHERE b.block_id=?""",
+                            (segment["block_id"],),
+                        ).fetchone()
+                        if current is None or current["project_id"] != draft["project_id"] or current["content_sha256"] != segment["sha256"] or current["semantic_type"] != segment["semantic_type"] or current["status"] != segment["status"] or current["revision"] != segment["status_revision"]:
+                            raise LatticeConflict("batch context changed before atomic sealing")
+                    for parent in manifest["ancestry"]:
+                        current_parent = conn.execute("SELECT project_id,manifest_sha256,output_block_id FROM invocations WHERE invocation_id=?", (parent["invocation_id"],)).fetchone()
+                        if current_parent is None or current_parent["project_id"] != draft["project_id"] or current_parent["manifest_sha256"] != parent["manifest_sha256"] or current_parent["output_block_id"] is None:
+                            raise LatticeConflict("batch ancestry changed before atomic sealing")
+                    conn.execute(
+                        """INSERT INTO drafts(draft_id,project_id,actor_kind,role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,context_mode,response_schema_json,revision,state,invocation_id,created_at,updated_at)
+                           VALUES(?,?,?,?,?,?,?,?,?,?,?,1,'sealed',?,?,?)""",
+                        (draft["draft_id"], draft["project_id"], draft["actor_kind"], draft["role_session_id"], draft["prompt_block_id"], canonical_bytes(draft["route"]).decode(), canonical_bytes(draft["selections"]).decode(), canonical_bytes(draft["parents"]).decode(), draft["relation"], draft["context_mode"], canonical_bytes(draft["response_schema"]).decode(), manifest["invocation_id"], now, now),
+                    )
+                    self._event(conn, project_id=draft["project_id"], event_type="draft.created", subject_type="draft", subject_id=draft["draft_id"], payload={"prompt_block_id": draft["prompt_block_id"], "parents": draft["parents"], "batch_id": batch_id})
+                    conn.execute(
+                        """INSERT INTO invocations(invocation_id,project_id,actor_kind,role_session_id,draft_id,manifest_artifact_id,manifest_sha256,manifest_json,compiled_prompt_sha256,route_json,response_schema_json,state,created_at)
+                           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        (manifest["invocation_id"], draft["project_id"], draft["actor_kind"], draft["role_session_id"], draft["draft_id"], manifest["generated_object"]["artifact_id"], manifest["manifest_sha256"], canonical_bytes(manifest).decode(), item["compiled_prompt_sha256"], canonical_bytes(draft["route"]).decode(), canonical_bytes(draft["response_schema"]).decode(), InvocationState.sealed.value, now),
+                    )
+                    self._event(conn, project_id=draft["project_id"], event_type="invocation.sealed", subject_type="invocation", subject_id=manifest["invocation_id"], payload={"manifest_artifact_id": manifest["generated_object"]["artifact_id"], "manifest_sha256": manifest["manifest_sha256"], "batch_id": batch_id})
+                    for parent_id in draft["parents"]:
+                        self._insert_edge(conn, project_id=draft["project_id"], relation=EdgeRelation(draft["relation"]), source_type="invocation", source_id=manifest["invocation_id"], source_revision=manifest["manifest_sha256"], target_type="invocation", target_id=parent_id, target_revision=self._invocation_revision(conn, parent_id), metadata={"batch_id": batch_id})
+
+                conn.execute(
+                    "INSERT INTO invocation_batches(batch_id,project_id,idempotency_key,request_sha256,preview_sha256,receipt_json,receipt_sha256,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                    (batch_id, receipt["project_id"], idempotency_key, create_request_sha256, receipt["preview_sha256"], canonical_bytes(receipt).decode(), receipt["receipt_sha256"], now),
+                )
+                for ordinal, item in enumerate(prepared):
+                    conn.execute(
+                        "INSERT INTO invocation_batch_members(batch_id,ordinal,spec_id,assembly_sha256,invocation_id) VALUES(?,?,?,?,?)",
+                        (batch_id, ordinal, item["spec_id"], item["assembly_sha256"], item["manifest"]["invocation_id"]),
+                    )
+                self._event(conn, project_id=receipt["project_id"], event_type="invocation-batch.sealed", subject_type="invocation-batch", subject_id=batch_id, payload={"receipt_sha256": receipt["receipt_sha256"], "invocation_ids": receipt["invocation_ids"]})
+                existing_id = batch_id
+        return self.get_invocation_batch(existing_id)
 
     @staticmethod
     def _invocation_revision(conn: sqlite3.Connection, invocation_id: str) -> str:
