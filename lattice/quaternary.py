@@ -12,6 +12,8 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable
 
@@ -382,7 +384,15 @@ class QuaternaryAdapter:
                 pass
             process.wait()
 
-    def _readonly(self) -> sqlite3.Connection:
+    @contextmanager
+    def _readonly(self) -> Iterator[sqlite3.Connection]:
+        conn = self._open_readonly()
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    def _open_readonly(self) -> sqlite3.Connection:
         conn = sqlite3.connect(f"file:{self.database}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA query_only=ON")

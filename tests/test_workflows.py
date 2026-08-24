@@ -52,6 +52,29 @@ def test_quaternary_adapter_reads_authoritative_state_without_writing(tmp_path: 
     assert database.read_bytes() == before
 
 
+@pytest.mark.regression
+def test_quaternary_adapter_closes_each_read_connection(monkeypatch, tmp_path: Path):
+    database = tmp_path / "quaternary.sqlite3"
+    with sqlite3.connect(database) as conn:
+        conn.execute("CREATE TABLE qe_language_preparations(preparation_id TEXT, language_code TEXT, generation INTEGER, state TEXT)")
+        conn.execute("INSERT INTO qe_language_preparations VALUES('qep_de_1','de',1,'ready')")
+    adapter = QuaternaryAdapter(database, tmp_path / "gatherctl.py")
+    opened: list[sqlite3.Connection] = []
+    open_readonly = adapter._open_readonly
+
+    def tracked_open() -> sqlite3.Connection:
+        conn = open_readonly()
+        opened.append(conn)
+        return conn
+
+    monkeypatch.setattr(adapter, "_open_readonly", tracked_open)
+    adapter.inspect({"language": "de"})
+
+    assert len(opened) == 1
+    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+        opened[0].execute("SELECT 1")
+
+
 @pytest.mark.oracle
 def test_quaternary_language_state_selects_latest_and_binds_omitted_action_rows(tmp_path: Path):
     database = tmp_path / "quaternary.sqlite3"
