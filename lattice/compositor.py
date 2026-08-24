@@ -128,6 +128,24 @@ class ContextCompositor:
                 if selection.derived_from_block_ids and selection.derived_from_block_ids != intrinsic_sources:
                     raise LatticeConflict("declared excerpt lineage contradicts its transformation receipt")
                 selection = selection.model_copy(update={"derived_from_block_ids": intrinsic_sources})
+            elif isinstance(transformation, dict) and transformation.get("kind") == "exact-artifact-graft-v1":
+                expected_keys = {"kind", "source_artifact_id", "source_sha256", "name", "media_type"}
+                artifact_id = transformation.get("source_artifact_id")
+                if set(transformation) != expected_keys or not isinstance(artifact_id, str):
+                    raise LatticeConflict("exact artifact transformation has an unsupported shape")
+                artifact = self.store.get_artifact(artifact_id, include_content=False)
+                generated = artifact["generated"]
+                if (
+                    artifact["project_id"] != draft["project_id"]
+                    or artifact["content_sha256"] != block["content_sha256"]
+                    or transformation["source_sha256"] != artifact["content_sha256"]
+                    or transformation["name"] != generated.get("name")
+                    or transformation["media_type"] != generated.get("media_type")
+                    or block["source_ref"] != f"lattice:artifact/{artifact_id}"
+                    or block["source_sha256"] != artifact["content_sha256"]
+                    or block["producing_invocation_id"] != generated.get("producing_invocation_id")
+                ):
+                    raise LatticeConflict("exact artifact bytes do not reconstruct from their declared source")
             identity = (
                 selection.block_id,
                 selection.plane,
@@ -163,7 +181,7 @@ class ContextCompositor:
         prompt_parts: list[bytes] = []
         prompt_byte_count = 0
         sources: list[dict[str, str | None]] = []
-        source_identities: set[tuple[str, str, str]] = set()
+        source_identities: set[tuple[str, str | None, str]] = set()
         for ordinal, (_selection_index, selection, block) in enumerate(entries):
             source = {"ref": f"lattice:block/{block['block_id']}", "revision": str(block["status_revision"]), "sha256": block["content_sha256"]}
             source_identity = (source["ref"], source["revision"], source["sha256"])
@@ -177,6 +195,13 @@ class ContextCompositor:
                 if derived_identity not in source_identities:
                     source_identities.add(derived_identity)
                     sources.append(derived_source)
+            transformation = __import__("json").loads(block["transformation_json"]) if block["transformation_json"] else None
+            if isinstance(transformation, dict) and transformation.get("kind") == "exact-artifact-graft-v1":
+                artifact_source = {"ref": f"lattice:artifact/{transformation['source_artifact_id']}", "revision": None, "sha256": transformation["source_sha256"]}
+                artifact_identity = (artifact_source["ref"], artifact_source["revision"], artifact_source["sha256"])
+                if artifact_identity not in source_identities:
+                    source_identities.add(artifact_identity)
+                    sources.append(artifact_source)
             item = {
                 "ordinal": ordinal,
                 "block_id": block["block_id"],
@@ -193,7 +218,7 @@ class ContextCompositor:
                 "source_ref": block["source_ref"],
                 "source_sha256": block["source_sha256"],
                 "producing_invocation_id": block["producing_invocation_id"],
-                "transformation": __import__("json").loads(block["transformation_json"]) if block["transformation_json"] else None,
+                "transformation": transformation,
                 "derived_from_block_ids": selection.derived_from_block_ids,
                 "reason": selection.reason,
             }

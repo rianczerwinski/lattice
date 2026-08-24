@@ -296,6 +296,29 @@ def verify_and_reconstruct(
                 or block["source_sha256"] != source_block["content_sha256"]
             ):
                 raise ManifestVerificationError(f"exact excerpt bytes do not reconstruct from their declared source: {segment['block_id']}")
+        if compilation_format == f"{slug}-context-jsonl-v6" and isinstance(transformation, dict) and transformation.get("kind") == "exact-artifact-graft-v1":
+            expected_keys = {"kind", "source_artifact_id", "source_sha256", "name", "media_type"}
+            artifact_id = transformation.get("source_artifact_id")
+            if set(transformation) != expected_keys or not isinstance(artifact_id, str) or derived:
+                raise ManifestVerificationError(f"exact artifact lineage is invalid: {segment['block_id']}")
+            artifact = store.get_artifact(artifact_id, include_content=False)
+            generated = artifact["generated"]
+            artifact_source = generated_sources.get(f"{slug}:artifact/{artifact_id}")
+            if (
+                not artifact_source
+                or artifact_source["revision"] is not None
+                or artifact_source["sha256"] != artifact["content_sha256"]
+                or artifact["project_id"] != manifest["project_id"]
+                or artifact["content_sha256"] != segment["sha256"]
+                or transformation["source_sha256"] != artifact["content_sha256"]
+                or transformation["name"] != generated.get("name")
+                or transformation["media_type"] != generated.get("media_type")
+                or block["source_ref"] != f"{slug}:artifact/{artifact_id}"
+                or block["source_sha256"] != artifact["content_sha256"]
+                or block["producing_invocation_id"] != generated.get("producing_invocation_id")
+            ):
+                raise ManifestVerificationError(f"exact artifact bytes do not reconstruct from their declared source: {segment['block_id']}")
+            expected_source_refs.add(artifact_source["ref"])
         if segment in manifest["segments"]:
             if segment["disposition"] not in {"selected", "summarized"}:
                 raise ManifestVerificationError("non-selected context was included in the provider prompt")

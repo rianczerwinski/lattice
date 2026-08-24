@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from lattice.server import create_app
-from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, DraftCreate, ProviderRoute, TagRequest
+from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, ContextSelection, DraftCreate, ProviderRoute, TagRequest
 from lattice.operations import Lattice
 from lattice.security import OperatorSessions, ensure_cli_token
 from lattice.store import LatticeConflict
@@ -266,6 +266,15 @@ def test_oracle_artifact_inspector_returns_exact_content_bytes(lattice_env) -> N
     assert exact_block.json()["source_ref"] == f"lattice:artifact/{artifact_id}"
     assert exact_block.json()["source_sha256"] == inspected.json()["content_sha256"]
     assert json.loads(exact_block.json()["transformation_json"])["kind"] == "exact-artifact-graft-v1"
+    draft = store.create_draft(DraftCreate(
+        project_id=lattice_env["project"]["project_id"],
+        role_session_id=lattice_env["session"]["role_session_id"],
+        prompt="Use this exact artifact.",
+        route=lattice_env["route"],
+        selections=[ContextSelection(block_id=grafted.json()["block_id"], plane="knowledge", label="exact artifact")],
+    ))
+    sealed = lattice_env["lattice"].seal(draft["draft_id"])
+    assert {"ref": f"lattice:artifact/{artifact_id}", "revision": None, "sha256": inspected.json()["content_sha256"]} in sealed["manifest"]["generated_object"]["sources"]
 
 
 @pytest.mark.regression
@@ -282,6 +291,32 @@ def test_negative_control_artifact_graft_rejects_bytes_that_drift_from_identity(
 
     with pytest.raises(OSError, match="do not match identity"):
         store.create_artifact_context_block(artifact_id)
+
+
+@pytest.mark.regression
+def test_negative_control_artifact_graft_rejects_semantic_source_drift(lattice_env) -> None:
+    store = lattice_env["store"]
+    draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="artifact", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    attempt = store.create_attempt(invocation["invocation_id"], "artifact-semantic-drift-attempt", "test-boot", 9_999_999_999)
+    store.mark_attempt_running(attempt["attempt_id"])
+    result = store.finish_successful_attempt(attempt["attempt_id"], response="done", artifacts=[{"name": "proof.txt", "media_type": "text/plain", "content": "BOUND_BYTES"}], journal_path="fixture:journal", runtime_receipt={"fixture": True})
+    artifact_id = result["artifacts"][0]["artifact_id"]
+    block = store.create_artifact_context_block(artifact_id)
+    artifact = store.get_artifact(artifact_id, include_content=False)
+    artifact["generated"]["name"] = "substituted.txt"
+    with store.transaction() as conn:
+        conn.execute("UPDATE artifacts SET generated_json=? WHERE artifact_id=?", (json.dumps(artifact["generated"], sort_keys=True, separators=(",", ":")), artifact_id))
+    consuming = store.create_draft(DraftCreate(
+        project_id=lattice_env["project"]["project_id"],
+        role_session_id=lattice_env["session"]["role_session_id"],
+        prompt="Use it.",
+        route=lattice_env["route"],
+        selections=[ContextSelection(block_id=block["block_id"], plane="knowledge", label="exact artifact")],
+    ))
+
+    with pytest.raises(LatticeConflict, match="exact artifact bytes do not reconstruct"):
+        lattice_env["lattice"].seal(consuming["draft_id"])
 
 
 @pytest.mark.oracle
