@@ -1,0 +1,2534 @@
+{
+  "surface_schema_version": 2,
+  "surface_id": "surface:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
+  "generated_object": {
+    "contract_version": 1,
+    "role": "canonical",
+    "kind": "surface",
+    "schema": {
+      "name": "surface",
+      "version": 2
+    },
+    "artifact_id": "artifact:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
+    "generated_at": "20260823T173404",
+    "producer": {
+      "name": "surface-skill",
+      "version": "2.0.0"
+    },
+    "subject": "workframe:lattice",
+    "sources": [
+      {
+        "ref": "git:workframe",
+        "revision": "736506e91b5e16ebe8f7572a46cfad736405a192",
+        "sha256": null
+      }
+    ],
+    "parent_artifact_id": "artifact:655e2f46-8de9-5768-bc8c-858c0015ce37"
+  },
+  "workframe": {
+    "name": "Lattice",
+    "root": "."
+  },
+  "operation": "reconcile",
+  "generated": {
+    "at": "20260823T173404",
+    "source_revision": "736506e91b5e16ebe8f7572a46cfad736405a192",
+    "compiler": "surface-skill/2.0.0"
+  },
+  "source_census": {
+    "method": "git-ls-tree",
+    "revision": "736506e91b5e16ebe8f7572a46cfad736405a192",
+    "excluded_paths": [
+      "SURFACE.json",
+      "SURFACE.md",
+      "surface.validation.json"
+    ],
+    "entries": [
+      {
+        "path": ".gitignore",
+        "mode": "100644",
+        "object_id": "d5db73eb8937f86f69077a59170e1eb2b67a6479"
+      },
+      {
+        "path": "README.md",
+        "mode": "100644",
+        "object_id": "2395ed636a2f6471c274251bf3f354b4e6dafb6d"
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/AUDIT.json",
+        "mode": "100644",
+        "object_id": "1e395a05d7ace5be704ebc4ea7239f0a40fde842"
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/AUDIT.md",
+        "mode": "100644",
+        "object_id": "c2fd76972da049ac74846d66581830c49a6c9f61"
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/audit.validation.json",
+        "mode": "100644",
+        "object_id": "f6645897fbe04de4f287ddf7fe95c1d66de02ac6"
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+        "mode": "100644",
+        "object_id": "885f82eff68b56b085e8a8a88ddabd1e83f3de79"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/AUDIT.json",
+        "mode": "100644",
+        "object_id": "9922912fe6266c6a0df46f7e4fb5f2bebd7ae1ae"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/AUDIT.md",
+        "mode": "100644",
+        "object_id": "f39a0f96bb874b6677dcaa920cfdc79b5d755853"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/README.md",
+        "mode": "100644",
+        "object_id": "c87ab18339652dc75b47719984c3fe1f5e9a65d5"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/audit.validation.json",
+        "mode": "100644",
+        "object_id": "f46c75d4b50664a134fe5655f16bd4421782740f"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/evidence/README.md",
+        "mode": "100644",
+        "object_id": "bbc1863b403bccffe56563dc02fe8857f909c6fa"
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/evidence/verification.txt",
+        "mode": "100644",
+        "object_id": "0becc0fa2339393af8cafa6e9fd6e33a88487b39"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/AUDIT.json",
+        "mode": "100644",
+        "object_id": "f80dca707a6e0369ce5ad6783434903c23f9922e"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/AUDIT.md",
+        "mode": "100644",
+        "object_id": "e08db1af7e29b4dbb960a2e03cd1693c94d99f41"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/README.md",
+        "mode": "100644",
+        "object_id": "89ff97539a2f6816341a65c6afdb9c532f9ba743"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "mode": "100644",
+        "object_id": "475640df029370a58dfad47ea43fc45ac9bdbe5a"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+        "mode": "100644",
+        "object_id": "a68fe29dcf7dcbfb006c5e5ae6d9f3d5df5d86ef"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+        "mode": "100644",
+        "object_id": "df427ee0d35b5a73013773d787fb9137c8d2e17b"
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
+        "mode": "100644",
+        "object_id": "99c7ab44251c34b9e614686424f25746b6fae294"
+      },
+      {
+        "path": "audit/README.md",
+        "mode": "100644",
+        "object_id": "a97875af0a325d53b9ade2503db0eb25b9529bf8"
+      },
+      {
+        "path": "lattice/__init__.py",
+        "mode": "100644",
+        "object_id": "8ed4e2c787f338a630765880bbdf5fdbbdc97cfa"
+      },
+      {
+        "path": "lattice/asgi.py",
+        "mode": "100644",
+        "object_id": "367d2acaae34c8212c4eff70614aee64f47c8a7a"
+      },
+      {
+        "path": "lattice/blob_store.py",
+        "mode": "100644",
+        "object_id": "09a8f9deb8a24955c59403345b322a76d3f90b23"
+      },
+      {
+        "path": "lattice/canonical.py",
+        "mode": "100644",
+        "object_id": "940d6372d8f1462e1f3aa23e62c7a7960c0d067b"
+      },
+      {
+        "path": "lattice/compositor.py",
+        "mode": "100644",
+        "object_id": "82ff59a0abe9535cb960ad549527031ea64f818d"
+      },
+      {
+        "path": "lattice/config.py",
+        "mode": "100644",
+        "object_id": "ffebf88d033d44dd90aa3dc7d279b2407acaf55d"
+      },
+      {
+        "path": "lattice/context_modules.py",
+        "mode": "100644",
+        "object_id": "ebfc63ab34cdea08fb6049f371fee4e507571358"
+      },
+      {
+        "path": "lattice/contracts.py",
+        "mode": "100644",
+        "object_id": "a8fd2e6db0390a496c9c805b49e668c959c42923"
+      },
+      {
+        "path": "lattice/http_boundary.py",
+        "mode": "100644",
+        "object_id": "141742cb58307aa65bca3a39a76bdcc63d4a27f4"
+      },
+      {
+        "path": "lattice/manifest_reader.py",
+        "mode": "100644",
+        "object_id": "29e30930c1d19cc4b56e0d612ee49daca729858a"
+      },
+      {
+        "path": "lattice/octopus_import.py",
+        "mode": "100644",
+        "object_id": "82762b2ceb592cb3eaa5713f24bc3ffadd732a18"
+      },
+      {
+        "path": "lattice/operations.py",
+        "mode": "100644",
+        "object_id": "02b14b47a248f88ce77e5c05f25334521a2b1a6d"
+      },
+      {
+        "path": "lattice/platform_foundry.py",
+        "mode": "100644",
+        "object_id": "cacbe77257bff6b5efcb05febde02553c5fc5832"
+      },
+      {
+        "path": "lattice/quaternary.py",
+        "mode": "100644",
+        "object_id": "4e354ae24cb7c81168df1aee2eda39edbd9349c4"
+      },
+      {
+        "path": "lattice/security.py",
+        "mode": "100644",
+        "object_id": "dd81b9ff6d65ece243014a46a2c2e9d689acb381"
+      },
+      {
+        "path": "lattice/server.py",
+        "mode": "100644",
+        "object_id": "01ec4c27c6f591e696e98b661a1fcc05b67ffa9b"
+      },
+      {
+        "path": "lattice/store.py",
+        "mode": "100644",
+        "object_id": "b9b70ac787b3b840220b6f581e19612913369ceb"
+      },
+      {
+        "path": "lattice/supervisor.py",
+        "mode": "100644",
+        "object_id": "8d4226812900989f47b27643c99e26bc8f008d32"
+      },
+      {
+        "path": "lattice/workflow_template_reader.py",
+        "mode": "100644",
+        "object_id": "f199b68bf049de64256a96fbec3350c407ff1723"
+      },
+      {
+        "path": "lattice/workflows.py",
+        "mode": "100644",
+        "object_id": "09f50c2952edd0d6c9c9fa880b2532e8e34898aa"
+      },
+      {
+        "path": "pyproject.toml",
+        "mode": "100644",
+        "object_id": "5389123b065437b7db853cfdbf6d958165809a17"
+      },
+      {
+        "path": "surface-history/20260821T225026.json",
+        "mode": "100644",
+        "object_id": "89739004bf5558a8c8c68576fefc572e136b143f"
+      },
+      {
+        "path": "surface-history/README.md",
+        "mode": "100644",
+        "object_id": "c530e42e32d979b62062b44b6577a0ff3ac5c847"
+      },
+      {
+        "path": "tests/conftest.py",
+        "mode": "100644",
+        "object_id": "e8bda1d03ef95a0509a6680ce5f713f6565c33cb"
+      },
+      {
+        "path": "tests/test_api.py",
+        "mode": "100644",
+        "object_id": "5f626f8f6702986db949360ac77a767d0d1d9a56"
+      },
+      {
+        "path": "tests/test_kernel.py",
+        "mode": "100644",
+        "object_id": "d93e0b0d6e79762b84227669b9ee7f42306d3222"
+      },
+      {
+        "path": "tests/test_octopus_import.py",
+        "mode": "100644",
+        "object_id": "43ebce730c562e9a9cbc582f4a5bebcb6da2cae9"
+      },
+      {
+        "path": "tests/test_operations.py",
+        "mode": "100644",
+        "object_id": "15348c8503d32c85675c6308db868a04aeb71ced"
+      },
+      {
+        "path": "tests/test_supervisor.py",
+        "mode": "100644",
+        "object_id": "59a4ec97d89c9dbe6cb506173114a6b5ff12665d"
+      },
+      {
+        "path": "tests/test_workflows.py",
+        "mode": "100644",
+        "object_id": "f0f0c2aaac5f1a273d63dd02c0d3be9bf13a8941"
+      },
+      {
+        "path": "uv.lock",
+        "mode": "100644",
+        "object_id": "711ab94be13664a9ad6e3126ec07d4f33056c9bd"
+      },
+      {
+        "path": "web/dist/assets/index-BIUp4R_f.js",
+        "mode": "100644",
+        "object_id": "23ae5fdef0d1a434c22b93f98c6a732b55c50d03"
+      },
+      {
+        "path": "web/dist/assets/index-DYXbQRUy.css",
+        "mode": "100644",
+        "object_id": "417141eee0454ffc3ecc6886cf944a11b0c1260b"
+      },
+      {
+        "path": "web/dist/index.html",
+        "mode": "100644",
+        "object_id": "5e022e07895b76bc979a463f966a0b0472a7c08a"
+      },
+      {
+        "path": "web/index.html",
+        "mode": "100644",
+        "object_id": "2a07c61bdf1ebe1ac914fbc756303dceebeb4fbc"
+      },
+      {
+        "path": "web/package-lock.json",
+        "mode": "100644",
+        "object_id": "51ccfec2bf73a9770dc657e0d765071a8cd6102d"
+      },
+      {
+        "path": "web/package.json",
+        "mode": "100644",
+        "object_id": "80d2ae38325cf2f4ed70a3d0bac87add57e02d24"
+      },
+      {
+        "path": "web/src/App.svelte",
+        "mode": "100644",
+        "object_id": "f2c07d55918abe433c20f10e4bdedd6f46fb0211"
+      },
+      {
+        "path": "web/src/api.test.ts",
+        "mode": "100644",
+        "object_id": "51ba3c8896bc0fc77413450fed16586e8809dc7b"
+      },
+      {
+        "path": "web/src/api.ts",
+        "mode": "100644",
+        "object_id": "754ac3b971721f61f8bce86c33fe411e34554170"
+      },
+      {
+        "path": "web/src/main.ts",
+        "mode": "100644",
+        "object_id": "d0187822a23f4118bab4a5dab20dd15b26f55734"
+      },
+      {
+        "path": "web/src/renderMarkdown.test.ts",
+        "mode": "100644",
+        "object_id": "889ecb153e09c2ed55bf125e212665c1eddb0748"
+      },
+      {
+        "path": "web/src/renderMarkdown.ts",
+        "mode": "100644",
+        "object_id": "3429c00b5b3d0d97cfdfe8b8c1c0942cdc2d2280"
+      },
+      {
+        "path": "web/src/style.css",
+        "mode": "100644",
+        "object_id": "d4815f082d1d77787d9efca0cdad598a1699fa3e"
+      },
+      {
+        "path": "web/src/types.ts",
+        "mode": "100644",
+        "object_id": "4aa20aab9e2fd5a144e63be668c9dbb85e112ceb"
+      },
+      {
+        "path": "web/src/workflowPresentation.test.ts",
+        "mode": "100644",
+        "object_id": "aa0ef7def8a8a5d4b9dea820024a81745f8ee017"
+      },
+      {
+        "path": "web/src/workflowPresentation.ts",
+        "mode": "100644",
+        "object_id": "b29aa95752a8c9a283d8d297dce9a461c6eab3ce"
+      },
+      {
+        "path": "web/tsconfig.json",
+        "mode": "100644",
+        "object_id": "271901fed5441bf6295a0a088d5ea1f6d817c217"
+      },
+      {
+        "path": "web/vite.config.ts",
+        "mode": "100644",
+        "object_id": "34b9bda234c2b870804415a1d69224f165e7d88f"
+      },
+      {
+        "path": "workflow_packs/platform-foundry/README.md",
+        "mode": "100644",
+        "object_id": "e1a6dbb02ee4785f4df7a6cf676e1ac3b78c30ed"
+      },
+      {
+        "path": "workflow_packs/platform-foundry/pack.json",
+        "mode": "100644",
+        "object_id": "ba8357a4a2c1626342bbbe1864b1e990e2fb7a75"
+      },
+      {
+        "path": "workflow_packs/quaternary/pack.json",
+        "mode": "100644",
+        "object_id": "897ee0714cc37babdedf8bcb8901d136e1b440d6"
+      }
+    ],
+    "entries_sha256": "8c28d8c269477cba39563202eb31c7467b8ec1af3b243aa89206d827f12d463f",
+    "mappings": [
+      {
+        "path": ".gitignore",
+        "disposition": "decoration",
+        "item_ids": [
+          "item:20cc4b37-8c07-5063-afff-b3ab3031c1f7"
+        ],
+        "node_ids": [
+          "node:9db167ff-3831-52f8-9313-9858090362cc"
+        ],
+        "reason": "README supplies product contract and .gitignore supplies local-state boundaries."
+      },
+      {
+        "path": "README.md",
+        "disposition": "decoration",
+        "item_ids": [
+          "item:987075b1-a3a6-58b2-9fec-872d881e8424"
+        ],
+        "node_ids": [
+          "node:9db167ff-3831-52f8-9313-9858090362cc"
+        ],
+        "reason": "README supplies product contract and .gitignore supplies local-state boundaries."
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/AUDIT.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a324bf89-7b74-5dea-8ded-a88f2c33826e"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/AUDIT.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0313971f-2a3f-57f5-a79f-37f39d6f729c"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/audit.validation.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:212a7266-424a-5b59-a1dc-9e277dc1b474"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/AUDIT.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b067ec1c-ae9e-5763-ae69-60611a60a4ab"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/AUDIT.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ecefaa5b-f54e-589a-84ea-622caa0656e4"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:05d37970-cd9a-57d5-a646-2e005d0c6ed6"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/audit.validation.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e8fde914-0db9-5dc1-9127-7c646d985ef8"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/evidence/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:dd8e8128-19d5-5a0d-a873-f7686bbc108c"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260820T121500-closure-system/evidence/verification.txt",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:dd702fca-a046-5b55-aa07-d48bc0cea0c1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/AUDIT.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:972325fa-8da3-50d3-89d4-1a1741f5b2e1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/AUDIT.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:668be020-fd9c-5e80-8b8b-f73f8f4063a6"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f9a36ca8-4bd2-5fd8-a7e0-11f3a9229952"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:9b287b3d-ac8f-5b30-8829-84ee28069983"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:93b40191-c3b1-50f9-8373-970f59218ed1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b6318a80-64c4-55c9-8bb8-80752984b0bb"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable immediate-parent generation makes the final Surface attestation independently resolvable."
+      },
+      {
+        "path": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+      },
+      {
+        "path": "audit/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+      },
+      {
+        "path": "lattice/__init__.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:8f0bedcb-63e7-563c-8e38-6f1ff64c1400"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "lattice/asgi.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:667e8f08-47d4-5599-a31f-54d653203c03"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "The entry contributes to execution and authority boundary."
+      },
+      {
+        "path": "lattice/blob_store.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1235a742-53bf-5445-a286-7aa8f665b24a"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "lattice/canonical.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:aa65e2ad-5b28-5d97-b70d-d0e05e222702"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "lattice/compositor.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:34434f6c-f2ab-59cd-9b06-e2f5ed87d8fb"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "lattice/config.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:c15f664b-9be0-5b00-8fec-cc58406cd59f"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "The entry contributes to execution and authority boundary."
+      },
+      {
+        "path": "lattice/context_modules.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:63fe6fab-9f4f-5d5f-8c24-7b2f04407bb2"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "The entry contributes to evidence and workflow integrations."
+      },
+      {
+        "path": "lattice/contracts.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:7d949ae0-5f7a-515b-beab-e515aed4feb0"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "lattice/http_boundary.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2c8e13ec-128f-5ac0-917b-2311d641634b"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "The entry contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "lattice/manifest_reader.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:305d0545-4542-5571-a900-fd0b0e544812"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "lattice/octopus_import.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1183afa2-1324-5932-8566-750d5575b653"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "The entry contributes to evidence and workflow integrations."
+      },
+      {
+        "path": "lattice/operations.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a1f86371-bc4a-5c37-b9ed-6f0cf0aba8d8"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "lattice/platform_foundry.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5dd439c9-a654-559c-b1e5-f88d4a7359fb"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "This source contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "lattice/quaternary.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:41d67350-2d77-519b-a18b-8460cded8f93"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "The entry contributes to evidence and workflow integrations."
+      },
+      {
+        "path": "lattice/security.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f6509f49-cb38-56ab-a1ba-dc340bb9e0d2"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "The entry contributes to execution and authority boundary."
+      },
+      {
+        "path": "lattice/server.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f1534b56-d009-59f3-b06a-0a51b13d8e4f"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "The entry contributes to execution and authority boundary."
+      },
+      {
+        "path": "lattice/store.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:38b5a658-5270-588e-a412-d22b6a1f6bec"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "The entry contributes to durable lattice kernel."
+      },
+      {
+        "path": "lattice/supervisor.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:bd25b5f7-343e-5dff-b2dd-c3202cdc1f3b"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "The entry contributes to execution and authority boundary."
+      },
+      {
+        "path": "lattice/workflow_template_reader.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:d13e2534-4e7f-5670-98df-a60e4424aec3"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "The entry contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "lattice/workflows.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:02efb420-ccb5-59a9-bbb8-f9e0b426db21"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "The entry contributes to evidence and workflow integrations."
+      },
+      {
+        "path": "pyproject.toml",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:bfbb5da3-11ce-5364-8466-70eea4556e29"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "tests/conftest.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b47fe7af-b676-5398-936c-8c959a38f1e0"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "tests/test_api.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "tests/test_kernel.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3950ee5a-7ee6-551a-b8c9-82ff94f70582"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "tests/test_octopus_import.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5379b5ce-b9d8-58dc-a8b4-00eaead251e6"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "tests/test_operations.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:cba1d1ea-e741-5eb5-a02e-b54245ceca0e"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "tests/test_supervisor.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:515300a2-aa71-5244-9946-3116181f8143"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "tests/test_workflows.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "uv.lock",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:91ab609d-be36-5d49-b80c-c1ee31f92be5"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry contributes to packaging and assurance."
+      },
+      {
+        "path": "web/dist/assets/index-BIUp4R_f.js",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:49e5a8d6-913b-58b3-bfc7-eeb380273031"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "web/dist/assets/index-DYXbQRUy.css",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0dbe4915-4154-5a76-96df-7b22a339e5fe"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "web/dist/index.html",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:9b90b33e-e89d-5643-a7d2-823bebe8b707"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/index.html",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f489ef36-55ac-5d04-850a-4789bf396db6"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/package-lock.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:8eb8c30a-bf3c-5d38-8c95-5fad641a6968"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/package.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e29eb786-55fe-5fec-b54b-3c22c3d98243"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/src/App.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:578f69de-c56c-5b30-939e-2385d80c074d"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/src/api.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b8724d3a-a21f-5349-a81a-22b66dec084e"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "web/src/api.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:d281d945-c739-5cc8-9617-c07d9dd220c5"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/src/main.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:de0467eb-480d-5697-8baa-e18610d381ab"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/src/renderMarkdown.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
+        "path": "web/src/renderMarkdown.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "This generated cockpit asset is hash-bound to the production build."
+      },
+      {
+        "path": "web/src/style.css",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5d44d1b5-155a-55ad-8a81-b5ab7eb2999a"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/src/types.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:507eccda-e353-5be2-b317-241a9e5f03df"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/src/workflowPresentation.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f9d0e3d3-d167-516e-b470-db34f083d4e1"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "web/src/workflowPresentation.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:fd33ca72-9b0a-5137-b696-020de5329411"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "web/tsconfig.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:da06c3e5-4840-5fc2-991f-64a2e2b9b11c"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "web/vite.config.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a2acf806-fb54-5f79-9d0c-a6f61c760446"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "The entry contributes to response-first cockpit."
+      },
+      {
+        "path": "workflow_packs/platform-foundry/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "This source contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "workflow_packs/platform-foundry/pack.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ab0af34a-e096-54d5-bf5e-a862b1a26515"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "This source contributes directly to the named operational subsystem."
+      },
+      {
+        "path": "workflow_packs/quaternary/pack.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:376ff270-2112-5298-8e09-88c7f6399508"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "The entry contributes to evidence and workflow integrations."
+      },
+      {
+        "path": "surface-history/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:327bcb35-d3eb-5906-a962-b858c5229a19"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry preserves locally resolvable generated-object lineage inside the packaging and assurance boundary."
+      },
+      {
+        "path": "surface-history/20260821T225026.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ed83afee-c94a-5588-a774-2f6b4ca14249"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "The entry preserves locally resolvable generated-object lineage inside the packaging and assurance boundary."
+      }
+    ]
+  },
+  "evidence_census": {
+    "method": "declared-inputs",
+    "scope": "The frozen post-remediation audit is retained as historical materialized assurance beyond the tracked-file census.",
+    "entries": [
+      {
+        "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "kind": "materialized_state",
+        "state_token": "78e11f89f86c81ea07fd102edbb526ace18c1b9352fe395e4ecaf2f36915f72b",
+        "disposition": "included",
+        "source_id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
+        "reason": "The attestation independently establishes audit closure at its frozen pre-rename revision and is explicitly marked stale for current-revision assurance."
+      }
+    ]
+  },
+  "evidence_sources": [
+    {
+      "id": "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+      "ref": "lattice/store.py",
+      "kind": "code",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The store implements hash-chained append-only events, derived-state reconciliation, exact seal preconditions, bounded slices and neighborhoods, workflow templates, and stable streaming blob rebuilds."
+    },
+    {
+      "id": "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
+      "ref": "lattice/supervisor.py",
+      "kind": "code",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The supervisor enforces leased execution, restart reconciliation, bounded journal and provider output, exact route manifests, and typed terminal failure."
+    },
+    {
+      "id": "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
+      "ref": "lattice/octopus_import.py",
+      "kind": "code",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "Octopus import and governed workflow boundaries execute, while the complete authenticated German native-role exchange remains blocked by provider qualification."
+    },
+    {
+      "id": "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+      "ref": "web/src/App.svelte",
+      "kind": "code",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The cockpit exposes response-first manual routing, exact context preflight and reconstruction, bounded lineage, workflow live views, and reusable path extraction."
+    },
+    {
+      "id": "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+      "ref": "tests/test_kernel.py",
+      "kind": "code",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The test suite carries independently authored oracles, properties, regressions, contracts, concurrency checks, and deliberately failing negative siblings across the remediation surface."
+    },
+    {
+      "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
+      "ref": "README.md",
+      "kind": "readme",
+      "provenance": "observed",
+      "mode_affinity": [
+        "constraints"
+      ],
+      "observation": "The canonical workframe contract states Lattice's telos, boundaries, 0.1.0 identity, current acceptance, and known incomplete German workflow."
+    },
+    {
+      "id": "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
+      "ref": "tests/test_workflows.py",
+      "kind": "code",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "Workflow tests exercise authoritative reads, exact state receipts, rejected mutation authority, query freezing, idempotency, restart ambiguity, bounded inputs, and Platform Foundry reuse."
+    },
+    {
+      "id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
+      "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The independent Audit Planes validator establishes closure over 39 findings at its frozen pre-rename revision; it remains historical assurance rather than a current-revision audit."
+    }
+  ],
+  "module_map": {
+    "schema_version": 2,
+    "artifact_id": "carve:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
+    "subject": "Lattice conversational lattice harness",
+    "operation": "reconcile",
+    "mode": "medium",
+    "requested_shape": "decomposition",
+    "diagnosed_shape": "decomposition",
+    "organizing_principle": "Operational ownership across durable cognition, execution, integration, interaction, and assurance",
+    "caller_constraints": [
+      "Keep model-runner topology-neutral",
+      "Keep temporal invocation history authoritative in Lattice"
+    ],
+    "inventory": [
+      {
+        "id": "item:20cc4b37-8c07-5063-afff-b3ab3031c1f7",
+        "label": ".gitignore",
+        "role": "decoration",
+        "evidence": [
+          {
+            "ref": ".gitignore",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:987075b1-a3a6-58b2-9fec-872d881e8424",
+        "label": "README.md",
+        "role": "decoration",
+        "evidence": [
+          {
+            "ref": "README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:a324bf89-7b74-5dea-8ded-a88f2c33826e",
+        "label": "audit/20260818T140529-initial-system/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260818T140529-initial-system/AUDIT.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0313971f-2a3f-57f5-a79f-37f39d6f729c",
+        "label": "audit/20260818T140529-initial-system/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260818T140529-initial-system/AUDIT.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef",
+        "label": "audit/20260818T140529-initial-system/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260818T140529-initial-system/audit.validation.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:212a7266-424a-5b59-a1dc-9e277dc1b474",
+        "label": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b067ec1c-ae9e-5763-ae69-60611a60a4ab",
+        "label": "audit/20260820T121500-closure-system/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/AUDIT.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ecefaa5b-f54e-589a-84ea-622caa0656e4",
+        "label": "audit/20260820T121500-closure-system/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/AUDIT.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:05d37970-cd9a-57d5-a646-2e005d0c6ed6",
+        "label": "audit/20260820T121500-closure-system/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:e8fde914-0db9-5dc1-9127-7c646d985ef8",
+        "label": "audit/20260820T121500-closure-system/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/audit.validation.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:dd8e8128-19d5-5a0d-a873-f7686bbc108c",
+        "label": "audit/20260820T121500-closure-system/evidence/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/evidence/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:dd702fca-a046-5b55-aa07-d48bc0cea0c1",
+        "label": "audit/20260820T121500-closure-system/evidence/verification.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260820T121500-closure-system/evidence/verification.txt",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:972325fa-8da3-50d3-89d4-1a1741f5b2e1",
+        "label": "audit/20260821T223204-pagani-remediation/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/AUDIT.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:668be020-fd9c-5e80-8b8b-f73f8f4063a6",
+        "label": "audit/20260821T223204-pagani-remediation/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/AUDIT.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f9a36ca8-4bd2-5fd8-a7e0-11f3a9229952",
+        "label": "audit/20260821T223204-pagani-remediation/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:9b287b3d-ac8f-5b30-8829-84ee28069983",
+        "label": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:93b40191-c3b1-50f9-8373-970f59218ed1",
+        "label": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/evidence/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b6318a80-64c4-55c9-8bb8-80752984b0bb",
+        "label": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1",
+        "label": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
+        "label": "audit/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:8f0bedcb-63e7-563c-8e38-6f1ff64c1400",
+        "label": "lattice/__init__.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/__init__.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:667e8f08-47d4-5599-a31f-54d653203c03",
+        "label": "lattice/asgi.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/asgi.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1235a742-53bf-5445-a286-7aa8f665b24a",
+        "label": "lattice/blob_store.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/blob_store.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:aa65e2ad-5b28-5d97-b70d-d0e05e222702",
+        "label": "lattice/canonical.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/canonical.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:34434f6c-f2ab-59cd-9b06-e2f5ed87d8fb",
+        "label": "lattice/compositor.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/compositor.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:c15f664b-9be0-5b00-8fec-cc58406cd59f",
+        "label": "lattice/config.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/config.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:63fe6fab-9f4f-5d5f-8c24-7b2f04407bb2",
+        "label": "lattice/context_modules.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/context_modules.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:7d949ae0-5f7a-515b-beab-e515aed4feb0",
+        "label": "lattice/contracts.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/contracts.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:2c8e13ec-128f-5ac0-917b-2311d641634b",
+        "label": "lattice/http_boundary.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/http_boundary.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:305d0545-4542-5571-a900-fd0b0e544812",
+        "label": "lattice/manifest_reader.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/manifest_reader.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1183afa2-1324-5932-8566-750d5575b653",
+        "label": "lattice/octopus_import.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/octopus_import.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:a1f86371-bc4a-5c37-b9ed-6f0cf0aba8d8",
+        "label": "lattice/operations.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/operations.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5dd439c9-a654-559c-b1e5-f88d4a7359fb",
+        "label": "lattice/platform_foundry.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/platform_foundry.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:41d67350-2d77-519b-a18b-8460cded8f93",
+        "label": "lattice/quaternary.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/quaternary.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f6509f49-cb38-56ab-a1ba-dc340bb9e0d2",
+        "label": "lattice/security.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/security.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f1534b56-d009-59f3-b06a-0a51b13d8e4f",
+        "label": "lattice/server.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/server.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:38b5a658-5270-588e-a412-d22b6a1f6bec",
+        "label": "lattice/store.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/store.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:bd25b5f7-343e-5dff-b2dd-c3202cdc1f3b",
+        "label": "lattice/supervisor.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/supervisor.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:d13e2534-4e7f-5670-98df-a60e4424aec3",
+        "label": "lattice/workflow_template_reader.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/workflow_template_reader.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:02efb420-ccb5-59a9-bbb8-f9e0b426db21",
+        "label": "lattice/workflows.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/workflows.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
+        "label": "pyproject.toml",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "pyproject.toml",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
+        "label": "tests/conftest.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/conftest.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd",
+        "label": "tests/test_api.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_api.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:3950ee5a-7ee6-551a-b8c9-82ff94f70582",
+        "label": "tests/test_kernel.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_kernel.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5379b5ce-b9d8-58dc-a8b4-00eaead251e6",
+        "label": "tests/test_octopus_import.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_octopus_import.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:cba1d1ea-e741-5eb5-a02e-b54245ceca0e",
+        "label": "tests/test_operations.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_operations.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:515300a2-aa71-5244-9946-3116181f8143",
+        "label": "tests/test_supervisor.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_supervisor.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265",
+        "label": "tests/test_workflows.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_workflows.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:91ab609d-be36-5d49-b80c-c1ee31f92be5",
+        "label": "uv.lock",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "uv.lock",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:49e5a8d6-913b-58b3-bfc7-eeb380273031",
+        "label": "web/dist/assets/index-BIUp4R_f.js",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/dist/assets/index-BIUp4R_f.js",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0dbe4915-4154-5a76-96df-7b22a339e5fe",
+        "label": "web/dist/assets/index-DYXbQRUy.css",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/dist/assets/index-DYXbQRUy.css",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:9b90b33e-e89d-5643-a7d2-823bebe8b707",
+        "label": "web/dist/index.html",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/dist/index.html",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f489ef36-55ac-5d04-850a-4789bf396db6",
+        "label": "web/index.html",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/index.html",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:8eb8c30a-bf3c-5d38-8c95-5fad641a6968",
+        "label": "web/package-lock.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/package-lock.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:e29eb786-55fe-5fec-b54b-3c22c3d98243",
+        "label": "web/package.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/package.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:578f69de-c56c-5b30-939e-2385d80c074d",
+        "label": "web/src/App.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/App.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b8724d3a-a21f-5349-a81a-22b66dec084e",
+        "label": "web/src/api.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/api.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:d281d945-c739-5cc8-9617-c07d9dd220c5",
+        "label": "web/src/api.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/api.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:de0467eb-480d-5697-8baa-e18610d381ab",
+        "label": "web/src/main.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/main.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637",
+        "label": "web/src/renderMarkdown.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/renderMarkdown.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9",
+        "label": "web/src/renderMarkdown.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/renderMarkdown.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5d44d1b5-155a-55ad-8a81-b5ab7eb2999a",
+        "label": "web/src/style.css",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/style.css",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:507eccda-e353-5be2-b317-241a9e5f03df",
+        "label": "web/src/types.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/types.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f9d0e3d3-d167-516e-b470-db34f083d4e1",
+        "label": "web/src/workflowPresentation.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/workflowPresentation.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:fd33ca72-9b0a-5137-b696-020de5329411",
+        "label": "web/src/workflowPresentation.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/workflowPresentation.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:da06c3e5-4840-5fc2-991f-64a2e2b9b11c",
+        "label": "web/tsconfig.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/tsconfig.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:a2acf806-fb54-5f79-9d0c-a6f61c760446",
+        "label": "web/vite.config.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/vite.config.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297",
+        "label": "workflow_packs/platform-foundry/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "workflow_packs/platform-foundry/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ab0af34a-e096-54d5-bf5e-a862b1a26515",
+        "label": "workflow_packs/platform-foundry/pack.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "workflow_packs/platform-foundry/pack.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:376ff270-2112-5298-8e09-88c7f6399508",
+        "label": "workflow_packs/quaternary/pack.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "workflow_packs/quaternary/pack.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:327bcb35-d3eb-5906-a962-b858c5229a19",
+        "label": "surface-history/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ed83afee-c94a-5588-a774-2f6b4ca14249",
+        "label": "surface-history/20260821T225026.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260821T225026.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      }
+    ],
+    "relations": [
+      {
+        "id": "relation:71cdffe5-76f0-5cf3-9091-c85bc79edb25",
+        "kind": "dependency",
+        "source_id": "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+        "target_id": "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+        "reason": "Execution seals and advances graph state through the durable kernel.",
+        "evidence": [
+          {
+            "ref": "lattice/supervisor.py",
+            "note": "The supervisor consumes sealed invocations and stores terminal receipts."
+          }
+        ]
+      },
+      {
+        "id": "relation:a62f1b77-29f2-5af9-ae2a-e6415521f0f2",
+        "kind": "interaction",
+        "source_id": "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
+        "target_id": "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+        "reason": "Imports and workflow adapters create canonical blocks, edges, projects, and slices.",
+        "evidence": [
+          {
+            "ref": "lattice/octopus_import.py",
+            "note": "The importer builds project-local invocation history through kernel operations."
+          }
+        ]
+      },
+      {
+        "id": "relation:3a98421c-e29d-59a3-9404-028f8bd98425",
+        "kind": "interaction",
+        "source_id": "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+        "target_id": "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+        "reason": "The cockpit performs preflight and execution through the same-origin API.",
+        "evidence": [
+          {
+            "ref": "web/src/App.svelte",
+            "note": "The interface previews, seals, executes, and inspects invocations."
+          }
+        ]
+      }
+    ],
+    "lineage": {
+      "parent_artifact_id": "carve:655e2f46-8de9-5768-bc8c-858c0015ce37",
+      "reconciliation_scope": "global",
+      "decision": "The product, package, and source-root rename requires a global census and semantic reconciliation; the five capability owners remain the same continuing modules.",
+      "preserved_node_ids": [
+        "node:9db167ff-3831-52f8-9313-9858090362cc",
+        "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+        "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+        "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
+        "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+        "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+      ],
+      "added_node_ids": [],
+      "retired_node_ids": []
+    },
+    "tree": {
+      "id": "node:9db167ff-3831-52f8-9313-9858090362cc",
+      "label": "Conversational lattice service",
+      "kind": "Local cognition harness",
+      "gloss": "A local service for authoring and inspecting a multi-model conversational lattice one invocation at a time.",
+      "cohesion_basis": "Every child contributes to one observable conversational routing and provenance system.",
+      "member_ids": [],
+      "children": [
+        {
+          "id": "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+          "label": "Durable lattice kernel",
+          "kind": "Lattice capability subsystem",
+          "gloss": "Versioned contracts, append-only events, content-addressed context, graph operations, and independent manifest reconstruction.",
+          "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
+          "member_ids": [
+            "item:8f0bedcb-63e7-563c-8e38-6f1ff64c1400",
+            "item:1235a742-53bf-5445-a286-7aa8f665b24a",
+            "item:aa65e2ad-5b28-5d97-b70d-d0e05e222702",
+            "item:34434f6c-f2ab-59cd-9b06-e2f5ed87d8fb",
+            "item:7d949ae0-5f7a-515b-beab-e515aed4feb0",
+            "item:305d0545-4542-5571-a900-fd0b0e544812",
+            "item:a1f86371-bc4a-5c37-b9ed-6f0cf0aba8d8",
+            "item:38b5a658-5270-588e-a412-d22b6a1f6bec"
+          ],
+          "children": [],
+          "facets": []
+        },
+        {
+          "id": "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+          "label": "Execution and authority boundary",
+          "kind": "Lattice capability subsystem",
+          "gloss": "Loopback API authority and leased subscription-CLI execution with durable failure state.",
+          "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
+          "member_ids": [
+            "item:667e8f08-47d4-5599-a31f-54d653203c03",
+            "item:c15f664b-9be0-5b00-8fec-cc58406cd59f",
+            "item:2c8e13ec-128f-5ac0-917b-2311d641634b",
+            "item:f6509f49-cb38-56ab-a1ba-dc340bb9e0d2",
+            "item:f1534b56-d009-59f3-b06a-0a51b13d8e4f",
+            "item:bd25b5f7-343e-5dff-b2dd-c3202cdc1f3b"
+          ],
+          "children": [],
+          "facets": []
+        },
+        {
+          "id": "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
+          "label": "Evidence and workflow integrations",
+          "kind": "Lattice capability subsystem",
+          "gloss": "Octopus exact-source import, governed context modules, workflow packs, and the quaternary boundary.",
+          "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
+          "member_ids": [
+            "item:63fe6fab-9f4f-5d5f-8c24-7b2f04407bb2",
+            "item:1183afa2-1324-5932-8566-750d5575b653",
+            "item:5dd439c9-a654-559c-b1e5-f88d4a7359fb",
+            "item:41d67350-2d77-519b-a18b-8460cded8f93",
+            "item:d13e2534-4e7f-5670-98df-a60e4424aec3",
+            "item:02efb420-ccb5-59a9-bbb8-f9e0b426db21",
+            "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297",
+            "item:ab0af34a-e096-54d5-bf5e-a862b1a26515",
+            "item:376ff270-2112-5298-8e09-88c7f6399508"
+          ],
+          "children": [],
+          "facets": []
+        },
+        {
+          "id": "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+          "label": "Response-first cockpit",
+          "kind": "Lattice capability subsystem",
+          "gloss": "The Svelte conversational surface and its compiled same-origin assets.",
+          "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
+          "member_ids": [
+            "item:49e5a8d6-913b-58b3-bfc7-eeb380273031",
+            "item:0dbe4915-4154-5a76-96df-7b22a339e5fe",
+            "item:9b90b33e-e89d-5643-a7d2-823bebe8b707",
+            "item:f489ef36-55ac-5d04-850a-4789bf396db6",
+            "item:8eb8c30a-bf3c-5d38-8c95-5fad641a6968",
+            "item:e29eb786-55fe-5fec-b54b-3c22c3d98243",
+            "item:578f69de-c56c-5b30-939e-2385d80c074d",
+            "item:b8724d3a-a21f-5349-a81a-22b66dec084e",
+            "item:d281d945-c739-5cc8-9617-c07d9dd220c5",
+            "item:de0467eb-480d-5697-8baa-e18610d381ab",
+            "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637",
+            "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9",
+            "item:5d44d1b5-155a-55ad-8a81-b5ab7eb2999a",
+            "item:507eccda-e353-5be2-b317-241a9e5f03df",
+            "item:f9d0e3d3-d167-516e-b470-db34f083d4e1",
+            "item:fd33ca72-9b0a-5137-b696-020de5329411",
+            "item:da06c3e5-4840-5fc2-991f-64a2e2b9b11c",
+            "item:a2acf806-fb54-5f79-9d0c-a6f61c760446"
+          ],
+          "children": [],
+          "facets": []
+        },
+        {
+          "id": "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+          "label": "Packaging and assurance",
+          "kind": "Lattice capability subsystem",
+          "gloss": "Install metadata, dependency locks, and truth-typed regression, property, contract, and oracle tests.",
+          "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
+          "member_ids": [
+            "item:a324bf89-7b74-5dea-8ded-a88f2c33826e",
+            "item:0313971f-2a3f-57f5-a79f-37f39d6f729c",
+            "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef",
+            "item:212a7266-424a-5b59-a1dc-9e277dc1b474",
+            "item:b067ec1c-ae9e-5763-ae69-60611a60a4ab",
+            "item:ecefaa5b-f54e-589a-84ea-622caa0656e4",
+            "item:05d37970-cd9a-57d5-a646-2e005d0c6ed6",
+            "item:e8fde914-0db9-5dc1-9127-7c646d985ef8",
+            "item:dd8e8128-19d5-5a0d-a873-f7686bbc108c",
+            "item:dd702fca-a046-5b55-aa07-d48bc0cea0c1",
+            "item:972325fa-8da3-50d3-89d4-1a1741f5b2e1",
+            "item:668be020-fd9c-5e80-8b8b-f73f8f4063a6",
+            "item:f9a36ca8-4bd2-5fd8-a7e0-11f3a9229952",
+            "item:9b287b3d-ac8f-5b30-8829-84ee28069983",
+            "item:93b40191-c3b1-50f9-8373-970f59218ed1",
+            "item:b6318a80-64c4-55c9-8bb8-80752984b0bb",
+            "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1",
+            "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
+            "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
+            "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
+            "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd",
+            "item:3950ee5a-7ee6-551a-b8c9-82ff94f70582",
+            "item:5379b5ce-b9d8-58dc-a8b4-00eaead251e6",
+            "item:cba1d1ea-e741-5eb5-a02e-b54245ceca0e",
+            "item:515300a2-aa71-5244-9946-3116181f8143",
+            "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265",
+            "item:91ab609d-be36-5d49-b80c-c1ee31f92be5",
+            "item:327bcb35-d3eb-5906-a962-b858c5229a19",
+            "item:ed83afee-c94a-5588-a774-2f6b4ca14249"
+          ],
+          "children": [],
+          "facets": []
+        }
+      ],
+      "facets": []
+    },
+    "semantic_review": {
+      "status": "reviewed",
+      "checks": {
+        "population_sanity": {
+          "status": "passed",
+          "claim": "The subject is a differentiated mechanism rather than an extensible population of peer instances.",
+          "evidence": [
+            "README.md",
+            "lattice/server.py"
+          ]
+        },
+        "paradigm_sweep": {
+          "status": "not_run",
+          "claim": "Medium mode does not require a full paradigm sweep.",
+          "evidence": []
+        },
+        "native_n_array": {
+          "status": "not_run",
+          "claim": "Medium mode does not require a native child-count array.",
+          "evidence": []
+        },
+        "one_ply_lookahead": {
+          "status": "passed",
+          "claim": "Each top-level child terminates in a coherent artifact set without repeated child-level crossings.",
+          "evidence": [
+            "lattice/",
+            "web/",
+            "tests/",
+            "workflow_packs/",
+            "audit/"
+          ]
+        },
+        "kind_homogeneity": {
+          "status": "passed",
+          "claim": "All five children are positive operational subsystems; packaging and assurance is the weakest but remains the independent ship-and-proof boundary.",
+          "evidence": [
+            "pyproject.toml",
+            "tests/test_kernel.py",
+            "web/package.json"
+          ]
+        },
+        "incumbent_challenge": {
+          "status": "passed",
+          "claim": "Parent-generation preservation belongs to the proof boundary rather than a peer product subsystem; the five operational owners remain semantically stable.",
+          "evidence": [
+            "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+            "audit/20260821T223204-pagani-remediation/audit.validation.json",
+            "tests/test_kernel.py"
+          ]
+        }
+      }
+    },
+    "residuals": {
+      "excluded_decorations": [
+        {
+          "item_id": "item:20cc4b37-8c07-5063-afff-b3ab3031c1f7",
+          "distributed_as": "README supplies product contract and .gitignore supplies local-state boundaries.",
+          "evidence": [
+            ".gitignore"
+          ]
+        },
+        {
+          "item_id": "item:987075b1-a3a6-58b2-9fec-872d881e8424",
+          "distributed_as": "README supplies product contract and .gitignore supplies local-state boundaries.",
+          "evidence": [
+            "README.md"
+          ]
+        }
+      ],
+      "unresolved_items": [],
+      "seam_straddlers": [],
+      "judgment_calls": [
+        {
+          "decision": "Keep API hosting with execution rather than cockpit.",
+          "alternative": "Home server.py under the interface surface.",
+          "reason": "Its trust, lease, and workflow command boundary dominates its static-hosting role.",
+          "node_ids": [
+            "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+            "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+          ]
+        }
+      ],
+      "low_confidence": [],
+      "semi_lattice_signals": [
+        {
+          "item_ids": [
+            "item:f1534b56-d009-59f3-b06a-0a51b13d8e4f"
+          ],
+          "node_ids": [
+            "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+            "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
+            "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+          ],
+          "reason": "The composition root legitimately connects API authority, workflows, and UI hosting while retaining one primary home."
+        }
+      ],
+      "population_warnings": []
+    }
+  },
+  "node_overlays": [
+    {
+      "node_id": "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+      "claims": [
+        {
+          "id": "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
+          "mode": "is",
+          "state": "shipped",
+          "summary": "Lattice durably stores a hash-chained append-only lattice, seals immutable context manifests with compare-and-swap, reconstructs locally observable context independently, and exposes bounded replay, diff, slice, and neighborhood operations.",
+          "detail": null,
+          "source_ids": [
+            "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": []
+        }
+      ]
+    },
+    {
+      "node_id": "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+      "claims": [
+        {
+          "id": "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
+          "mode": "is",
+          "state": "shipped",
+          "summary": "Qualified subscription CLIs execute through leased, restart-safe attempts with bounded journaled I/O, authority-bound manifests, typed failures, and explicit provider-owned opacity.",
+          "detail": null,
+          "source_ids": [
+            "source:1bed9604-7f0c-589c-a954-1508e9e796f2"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": []
+        }
+      ]
+    },
+    {
+      "node_id": "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
+      "claims": [
+        {
+          "id": "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
+          "mode": "is",
+          "state": "partial",
+          "summary": "Octopus exact-source import, declarative governed workflows, quaternary and Platform Foundry live projections, Slate slices, and Axial projection execute; complete authenticated German native-role acceptance remains unproven.",
+          "detail": null,
+          "source_ids": [
+            "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
+            "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": []
+        }
+      ]
+    },
+    {
+      "node_id": "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+      "claims": [
+        {
+          "id": "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
+          "mode": "is",
+          "state": "shipped",
+          "summary": "The same-origin cockpit supports manual one-edge routing, fork and join trailheads, exact preflight and manifest views, governed live views, reusable path discovery, and explicit partial, empty, unavailable, and failure states.",
+          "detail": null,
+          "source_ids": [
+            "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": []
+        }
+      ]
+    },
+    {
+      "node_id": "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+      "claims": [
+        {
+          "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
+          "mode": "is",
+          "state": "partial",
+          "summary": "The 0.1.0 wheel includes the Lattice package, cockpit, and workflow packs, with truth-typed Python and web assurance; the frozen whole-system audit predates the rename and therefore remains historical rather than current-revision assurance.",
+          "detail": null,
+          "source_ids": [
+            "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+            "source:f333a39f-3890-565c-82cb-93805cfab6c6"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": []
+        }
+      ]
+    }
+  ],
+  "lineage": {
+    "parent_surface_id": "surface:655e2f46-8de9-5768-bc8c-858c0015ce37",
+    "preserved_claim_ids": [
+      "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
+      "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
+      "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
+      "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
+      "claim:151818d8-6f73-5756-bc91-66146c2bfea7"
+    ],
+    "added_claim_ids": [],
+    "retired_claim_ids": [],
+    "preserved_source_ids": [
+      "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+      "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
+      "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
+      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
+      "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
+      "source:f333a39f-3890-565c-82cb-93805cfab6c6"
+    ],
+    "added_source_ids": [],
+    "retired_source_ids": []
+  },
+  "surface_residuals": {
+    "source_gaps": [],
+    "evidence_gaps": [],
+    "mode_judgments": [],
+    "staleness": [
+      {
+        "source_id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
+        "reason": "The whole-system audit is bound to the pre-rename source revision; current rename assurance comes from the tracked regression suite, build checks, and package inspection rather than a replacement architectural audit."
+      }
+    ],
+    "legacy_unresolved": []
+  }
+}
+
