@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import importlib.metadata
 import json
 import os
 import subprocess
@@ -22,6 +21,7 @@ import lattice as lattice_package
 from axis_model_runner import installed_adapter_status
 
 from .canonical import canonical_bytes, strict_json_loads
+from .__about__ import __version__
 from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
 from .outport import OutportService, outport_executable, resolve_lattice_service
@@ -35,10 +35,7 @@ BACKUP_FRESH_SECONDS = 36 * 60 * 60
 
 
 def _version() -> str:
-    try:
-        return importlib.metadata.version("lattice")
-    except importlib.metadata.PackageNotFoundError:
-        return "0.1.0+source"
+    return __version__
 
 
 def _service(config: LatticeConfig) -> OutportService | None:
@@ -297,9 +294,11 @@ def command_doctor(args: argparse.Namespace) -> int:
             raise RuntimeError(f"Lattice startup left batch members undispatched: {health['startup_recovery_failures']}")
         if health.get("workflow_pack_failures"):
             raise RuntimeError(f"Lattice quarantined invalid workflow packs: {health['workflow_pack_failures']}")
-        expected_runtime = _runtime_status()["runtime_id"]
-        if health.get("runtime_id") != expected_runtime:
-            raise RuntimeError(f"running Lattice uses runtime {health.get('runtime_id')!r} but the selected runtime is {expected_runtime!r}")
+        selected_runtime = _runtime_status()
+        if health.get("runtime_id") != selected_runtime["runtime_id"]:
+            raise RuntimeError(f"running Lattice uses runtime {health.get('runtime_id')!r} but the selected runtime is {selected_runtime['runtime_id']!r}")
+        if health.get("version") != selected_runtime["version"]:
+            raise RuntimeError(f"running Lattice reports version {health.get('version')!r} but the selected runtime contains {selected_runtime['version']!r}")
         return health
 
     checks = [

@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from lattice import cli
 from lattice import durability
+from lattice import __version__
 from lattice.canonical import canonical_bytes, generated_object
 from lattice.config import LatticeConfig, user_data_root
 from lattice.contracts import DraftCreate, ProjectCreate
@@ -39,6 +40,13 @@ def outport_payload(*, port: int = 9010, url: str = "https://lattice.axisvi.test
             },
         },
     }).encode()
+
+
+@pytest.mark.contract
+def test_release_identity_has_one_package_owned_source() -> None:
+    assert __version__ == "0.2.0"
+    assert cli._version() == __version__
+    assert deployment.release_version() == __version__
 
 
 @pytest.mark.regression
@@ -156,6 +164,23 @@ def test_oracle_snapshot_restore_reproduces_exact_lattice_state(lattice_env, tmp
     assert {item["path"] for item in manifest["inventory"]} >= {"lattice.sqlite3"}
 
 
+@pytest.mark.contract
+def test_v2_snapshot_reader_preserves_v010_producer_compatibility(lattice_env, tmp_path) -> None:
+    source = assess_data_root(lattice_env["config"].data_root)
+    snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="legacy-producer-contract", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
+    manifest_path = snapshot / snapshot_runtime.SNAPSHOT_MANIFEST
+    legacy = json.loads(manifest_path.read_bytes())
+    legacy["generated_object"]["producer"]["version"] = "0.1.0"
+    manifest_path.write_bytes(canonical_bytes(legacy))
+
+    assert verify_snapshot(snapshot)["generated_object"]["producer"] == {"name": "lattice", "version": "0.1.0"}
+
+    legacy["generated_object"]["producer"]["name"] = "impostor"
+    manifest_path.write_bytes(canonical_bytes(legacy))
+    with pytest.raises(OSError, match="generated-object envelope is invalid"):
+        verify_snapshot(snapshot)
+
+
 @pytest.mark.regression
 def test_snapshot_and_restore_sync_complete_directory_trees(monkeypatch, lattice_env, tmp_path) -> None:
     source = assess_data_root(lattice_env["config"].data_root)
@@ -264,6 +289,7 @@ def test_legacy_backup_manifest_remains_readable_without_rewriting_history(latti
     legacy = json.loads(path.read_bytes())
     legacy["contract_version"] = "LatticeBackup/1.0"
     legacy["generated_object"]["schema"]["version"] = 1
+    legacy["generated_object"]["producer"]["version"] = "0.1.0"
     del legacy["generated_object"]["sources"][0]["sha256"]
     path.write_bytes(canonical_bytes(legacy))
 
@@ -374,6 +400,27 @@ def test_negative_control_doctor_rejects_service_from_unselected_runtime(monkeyp
     check = next(item for item in output["checks"] if item["name"] == "service")
     assert check["state"] == "fail"
     assert "prior-runtime" in check["detail"] and "candidate-runtime" in check["detail"]
+
+
+@pytest.mark.regression
+def test_negative_control_doctor_rejects_service_version_disagreement(monkeypatch, tmp_path, capsys) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    monkeypatch.setattr(cli, "_service", lambda _config: service)
+    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime", "version": "0.1.0"})
+    monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime", "version": "0.2.0"})
+    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
+    monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
+
+    status = cli.command_doctor(argparse.Namespace(json=True))
+    output = json.loads(capsys.readouterr().out)
+
+    assert status == 1
+    check = next(item for item in output["checks"] if item["name"] == "service")
+    assert check["state"] == "fail"
+    assert "0.1.0" in check["detail"] and "0.2.0" in check["detail"]
 
 
 @pytest.mark.regression
@@ -588,6 +635,30 @@ def test_negative_control_live_publication_rejects_the_prior_runtime(monkeypatch
     monkeypatch.setattr(deployment.time, "monotonic", lambda: next(ticks))
 
     with pytest.raises(RuntimeError, match="prior-runtime"):
+        deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
+
+
+@pytest.mark.regression
+def test_negative_control_live_publication_rejects_wrong_package_version(monkeypatch) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    monkeypatch.setattr("lattice.outport.resolve_lattice_service", lambda _root: service)
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return json.dumps({"status": "ok", "port": 9010, "data_root": str(deployment.DEFAULT_DATA_ROOT), "runtime_id": "candidate-runtime", "version": "0.1.0"}).encode()
+
+    monkeypatch.setattr(deployment.urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr(deployment.time, "sleep", lambda _seconds: None)
+    ticks = iter((0.0, 0.5, 1.0))
+    monkeypatch.setattr(deployment.time, "monotonic", lambda: next(ticks))
+
+    with pytest.raises(RuntimeError, match="0.1.0"):
         deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
 
 

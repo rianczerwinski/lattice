@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import plistlib
+import re
 import shlex
 import shutil
 import sqlite3
@@ -20,7 +21,6 @@ import urllib.request
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 AXISVI_ROOT = SOURCE_ROOT.parents[2]
@@ -36,6 +36,7 @@ LAUNCH_AGENTS = Path.home() / "Library" / "LaunchAgents"
 LOG_ROOT = Path.home() / "Library" / "Logs" / "Lattice"
 SERVICE_LABEL = "com.axisvi.lattice"
 BACKUP_LABEL = "com.axisvi.lattice.backup"
+VERSION_PATTERN = re.compile(rb'^__version__ = "([0-9]+\.[0-9]+\.[0-9]+)"$', re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,16 @@ def exact_sha256(path: Path) -> str:
         while chunk := handle.read(1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def release_version() -> str:
+    """Read the same static package version consumed by Hatch without importing source code."""
+
+    raw = (SOURCE_ROOT / "lattice" / "__about__.py").read_bytes()
+    match = VERSION_PATTERN.search(raw)
+    if match is None:
+        raise RuntimeError("Lattice package version is missing or not a stable semantic version")
+    return match.group(1).decode("ascii")
 
 
 def git_revision(root: Path, *, pathspec: str | None = None) -> str:
@@ -438,8 +449,7 @@ def verify_runtime_target(target: Path, *, runtime_id: str, lattice_revision: st
 
 
 def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
-    version = "0.1.0"
-    runtime_id = f"{version}-{lattice_revision[:12]}-{runner_revision[:12]}"
+    runtime_id = f"{release_version()}-{lattice_revision[:12]}-{runner_revision[:12]}"
     target = VERSIONS_ROOT / runtime_id
     marker = target / ".pending"
     if target.exists():
@@ -699,7 +709,7 @@ def verify_live_service(expected_runtime_id: str, timeout_seconds: int = 90) -> 
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{service.port}/api/health", timeout=2) as response:
                 payload = json.loads(response.read())
-            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and not payload.get("startup_recovery_failures") and not payload.get("workflow_pack_failures"):
+            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and payload.get("version") == release_version() and not payload.get("startup_recovery_failures") and not payload.get("workflow_pack_failures"):
                 return
             last_error = RuntimeError(f"health identity mismatch: {payload}")
         except Exception as error:

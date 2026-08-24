@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
+from .__about__ import __version__
 from .config import WEB_DIST, LatticeConfig
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, strict_json_loads
 from .contracts import (
@@ -249,7 +250,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         finally:
             service_lock.release()
 
-    app = FastAPI(title="Lattice", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Lattice", version=__version__, lifespan=lifespan)
     app.state.config = config
     app.state.store = store
     app.state.lattice = lattice
@@ -271,12 +272,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
-        import importlib.metadata
-        try:
-            version = importlib.metadata.version("lattice")
-        except importlib.metadata.PackageNotFoundError:
-            version = "0.1.0+source"
-        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": version, "runtime_id": config.runtime_id, "startup_recovery_failures": supervisor.startup_recovery_failures, "workflow_pack_failures": workflow_pack_failures}
+        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, "runtime_id": config.runtime_id, "startup_recovery_failures": supervisor.startup_recovery_failures, "workflow_pack_failures": workflow_pack_failures}
 
     @app.get("/api/session")
     async def create_session(response: Response) -> dict[str, str]:

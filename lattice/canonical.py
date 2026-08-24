@@ -12,6 +12,8 @@ from typing import Any
 
 import rfc8785
 
+from .__about__ import __version__
+
 
 MAX_CANONICAL_NODES = 100_000
 MAX_CANONICAL_DEPTH = 256
@@ -133,7 +135,7 @@ def generated_object(
     schema_version: int = 1,
     role: str = "canonical",
     producer_name: str = "lattice",
-    producer_version: str = "0.1.0",
+    producer_version: str = __version__,
     parent_artifact_id: str | None = None,
     artifact_id: str | None = None,
     generated_at: str | None = None,

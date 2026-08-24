@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lattice"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Local-first conversational lattice harness"
 requires-python = ">=3.13"
 dependencies = [
@@ -21,6 +21,9 @@ lattice = "lattice.cli:main"
 
 [tool.uv.sources]
 axis-model-runner = { path = "../../tools/model-runner", editable = true }
+
+[tool.hatch.version]
+path = "lattice/__about__.py"
 
 [dependency-groups]
 dev = [

@@ -253,7 +253,9 @@ def verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
         if not isinstance(envelope, dict) or set(envelope) != required_envelope:
             raise OSError("legacy Lattice snapshot generated-object envelope is invalid")
         expected_schema = {"name": "lattice-backup", "version": 1}
-    if envelope.get("role") != "snapshot" or envelope.get("kind") != "lattice-backup" or envelope.get("schema") != expected_schema or envelope.get("producer") != {"name": "lattice", "version": "0.1.0"} or envelope.get("subject") != "lattice:canonical-runtime-state":
+    producer = envelope.get("producer")
+    valid_producer = isinstance(producer, dict) and producer.get("name") == "lattice" and (contract_version == "LatticeBackup/2.0" or producer == {"name": "lattice", "version": "0.1.0"})
+    if envelope.get("role") != "snapshot" or envelope.get("kind") != "lattice-backup" or envelope.get("schema") != expected_schema or not valid_producer or envelope.get("subject") != "lattice:canonical-runtime-state":
         raise OSError("Lattice snapshot generated-object envelope is invalid")
     sources = envelope.get("sources")
     expected_source_keys = {"ref", "revision", "sha256"} if contract_version == "LatticeBackup/2.0" else {"ref", "revision"}
