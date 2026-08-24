@@ -1,0 +1,2736 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "canonical",
+    "kind": "audit",
+    "schema": {
+      "name": "audit-planes",
+      "version": 4
+    },
+    "artifact_id": "artifact:b7d50ccf-ba99-4b4d-ad63-747ac1254882",
+    "generated_at": "20260824T100820Z",
+    "producer": {
+      "name": "audit-planes",
+      "version": "4.0.0"
+    },
+    "subject": "audit:c062824e-b182-4880-9290-e84bac4cb0f7",
+    "sources": [
+      {
+        "ref": "git:/Users/rian/AXISVI/axis/chariots/lattice",
+        "revision": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+        "sha256": null
+      }
+    ]
+  },
+  "schema_version": "audit-planes/v4",
+  "audit_id": "audit:c062824e-b182-4880-9290-e84bac4cb0f7",
+  "audit_version": 1,
+  "lifecycle": "closure-candidate",
+  "source": {
+    "root": "/Users/rian/AXISVI/axis/chariots/lattice",
+    "subtree": "",
+    "revision": "f4d70ba44777603b8e624c23a7bd882f249b16bd"
+  },
+  "surface_binding": {
+    "path": "/Users/rian/AXISVI/axis/chariots/lattice/SURFACE.json",
+    "artifact_id": "artifact:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
+    "sha256": "6c6eb816b6b6502299129c130f5bf204d6a929acc6f9cce9af1e31e01c0b74d4",
+    "content_census_sha256": "c880e5b2960bf2efc147b7ae652557243306fc9ba89ab87b58e74a865121bc9a",
+    "excluded_generated_paths": [
+      "SURFACE.json",
+      "SURFACE.md",
+      "surface.validation.json"
+    ]
+  },
+  "telos": {
+    "statement": "Determine whether the conversation-first and operational-reliability implementation at the frozen revision warrants real-data-ready operation without losing exact context, graph history, authority, or recoverability.",
+    "owner_claims": [
+      {
+        "claim_id": "owner-claim:real-data-ready-boundary",
+        "statement": "Real personal data is not imported automatically; closure requires the synthetic, authenticated-provider, restart, and restore path to succeed before real-data operation begins.",
+        "authority": "owner-confirmed",
+        "owner_source_id": "owner-source:approved-plan"
+      }
+    ]
+  },
+  "subjects": [
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "label": "Lattice conversation-first and operational-reliability system",
+      "entry_paths": [
+        ".gitignore",
+        "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
+        "README.md",
+        "assurance/README.md",
+        "assurance/baseline.json",
+        "assurance/findings.json",
+        "audit/20260818T140529-initial-system/AUDIT.json",
+        "audit/20260818T140529-initial-system/AUDIT.md",
+        "audit/20260818T140529-initial-system/audit.validation.json",
+        "audit/20260818T140529-initial-system/evidence/reproductions.txt",
+        "audit/20260820T121500-closure-system/AUDIT.json",
+        "audit/20260820T121500-closure-system/AUDIT.md",
+        "audit/20260820T121500-closure-system/README.md",
+        "audit/20260820T121500-closure-system/audit.validation.json",
+        "audit/20260820T121500-closure-system/evidence/README.md",
+        "audit/20260820T121500-closure-system/evidence/verification.txt",
+        "audit/20260821T223204-pagani-remediation/AUDIT.json",
+        "audit/20260821T223204-pagani-remediation/AUDIT.md",
+        "audit/20260821T223204-pagani-remediation/README.md",
+        "audit/20260821T223204-pagani-remediation/audit.validation.json",
+        "audit/20260821T223204-pagani-remediation/evidence/README.md",
+        "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
+        "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
+        "audit/README.md",
+        "lattice/__init__.py",
+        "lattice/asgi.py",
+        "lattice/blob_store.py",
+        "lattice/canonical.py",
+        "lattice/cli.py",
+        "lattice/compositor.py",
+        "lattice/config.py",
+        "lattice/context_modules.py",
+        "lattice/contracts.py",
+        "lattice/diagnostics.py",
+        "lattice/durability.py",
+        "lattice/http_boundary.py",
+        "lattice/manifest_reader.py",
+        "lattice/octopus_import.py",
+        "lattice/operations.py",
+        "lattice/outport.py",
+        "lattice/platform_foundry.py",
+        "lattice/quaternary.py",
+        "lattice/security.py",
+        "lattice/server.py",
+        "lattice/snapshot.py",
+        "lattice/store.py",
+        "lattice/supervisor.py",
+        "lattice/workflow_template_reader.py",
+        "lattice/workflows.py",
+        "ops/README.md",
+        "ops/authenticated_acceptance.py",
+        "ops/install.py",
+        "pyproject.toml",
+        "surface-history/20260821T225026.json",
+        "surface-history/20260823T173404.json",
+        "surface-history/README.md",
+        "tests/conftest.py",
+        "tests/fixtures/README.md",
+        "tests/fixtures/workflow_packs/README.md",
+        "tests/fixtures/workflow_packs/quaternary/README.md",
+        "tests/fixtures/workflow_packs/quaternary/pack.json",
+        "tests/test_api.py",
+        "tests/test_authenticated_acceptance.py",
+        "tests/test_conversation_kernel.py",
+        "tests/test_invocation_batches.py",
+        "tests/test_kernel.py",
+        "tests/test_octopus_import.py",
+        "tests/test_operations.py",
+        "tests/test_reliability.py",
+        "tests/test_supervisor.py",
+        "tests/test_workflows.py",
+        "uv.lock",
+        "web/dist/assets/index-BgfOII1L.js",
+        "web/dist/assets/index-DWKh4nZB.css",
+        "web/dist/index.html",
+        "web/e2e/conversation.spec.ts",
+        "web/index.html",
+        "web/package-lock.json",
+        "web/package.json",
+        "web/playwright.config.ts",
+        "web/src/App.svelte",
+        "web/src/api.test.ts",
+        "web/src/api.ts",
+        "web/src/contextActions.test.ts",
+        "web/src/contextActions.ts",
+        "web/src/contextModules.test.ts",
+        "web/src/contextModules.ts",
+        "web/src/executionRoutes.test.ts",
+        "web/src/executionRoutes.ts",
+        "web/src/invocationBatch.test.ts",
+        "web/src/invocationBatch.ts",
+        "web/src/main.ts",
+        "web/src/renderMarkdown.test.ts",
+        "web/src/renderMarkdown.ts",
+        "web/src/style.css",
+        "web/src/types.ts",
+        "web/src/workflowPresentation.test.ts",
+        "web/src/workflowPresentation.ts",
+        "web/tsconfig.json",
+        "web/vite.config.ts",
+        "workflow_packs/platform-foundry/README.md",
+        "workflow_packs/platform-foundry/pack.json"
+      ],
+      "plane_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "consequence": "C1-critical"
+    }
+  ],
+  "target_depths": [
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "target": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "target": "sanity"
+    }
+  ],
+  "risk_paths": [],
+  "assessments": [
+    {
+      "assessment_id": "assessment:plane-1-discoverability",
+      "claim_id": "claim:plane-1-discoverability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "discoverability",
+      "applicability": "applicable",
+      "claim": "The audited structure boundary shows that canonical READMEs and the Surface map expose each capability owner and historical assurance boundary.",
+      "relevance": "The discoverability atom determines whether Lattice can preserve its conversation-first guarantee when is the code organized so its intent is discoverable?",
+      "evidence_ids": [
+        "evidence:plane-1"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-1"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth discoverability assessment inspected README.md and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated discoverability campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-1-dead-code",
+      "claim_id": "claim:plane-1-dead-code",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "dead-code",
+      "applicability": "applicable",
+      "claim": "The audited structure boundary shows that tracked runtime modules, generated assets, workflow packs, and tests have an identified operational or assurance consumer.",
+      "relevance": "The dead-code atom determines whether Lattice can preserve its conversation-first guarantee when is the code organized so its intent is discoverable?",
+      "evidence_ids": [
+        "evidence:plane-1"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-1"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth dead-code assessment inspected README.md and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated dead-code campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-1-duplication",
+      "claim_id": "claim:plane-1-duplication",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "duplication",
+      "applicability": "applicable",
+      "claim": "The audited structure boundary shows that one store, one compositor, one REST service, one cockpit, and one Outport identity remain authoritative.",
+      "relevance": "The duplication atom determines whether Lattice can preserve its conversation-first guarantee when is the code organized so its intent is discoverable?",
+      "evidence_ids": [
+        "evidence:plane-1"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-1"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth duplication assessment inspected README.md and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated duplication campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-1-file-cohesion",
+      "claim_id": "claim:plane-1-file-cohesion",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "file-cohesion",
+      "applicability": "applicable",
+      "claim": "The audited structure boundary shows that source files group contracts, storage, execution, integration, UI, and operations by distinct reasons to change.",
+      "relevance": "The file-cohesion atom determines whether Lattice can preserve its conversation-first guarantee when is the code organized so its intent is discoverable?",
+      "evidence_ids": [
+        "evidence:plane-1"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-1"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth file-cohesion assessment inspected README.md and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated file-cohesion campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-1-layering",
+      "claim_id": "claim:plane-1-layering",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "layering",
+      "applicability": "applicable",
+      "claim": "The audited structure boundary shows that model-runner stays topology-neutral while Lattice owns graph semantics and domain packs own governed meaning.",
+      "relevance": "The layering atom determines whether Lattice can preserve its conversation-first guarantee when is the code organized so its intent is discoverable?",
+      "evidence_ids": [
+        "evidence:plane-1"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-1"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth layering assessment inspected README.md and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated layering campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-1-dependency-graph-health",
+      "claim_id": "claim:plane-1-dependency-graph-health",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "dependency-graph-health",
+      "applicability": "applicable",
+      "claim": "The audited structure boundary shows that imports and service boundaries follow kernel to execution and integration to surface without a second canonical graph.",
+      "relevance": "The dependency-graph-health atom determines whether Lattice can preserve its conversation-first guarantee when is the code organized so its intent is discoverable?",
+      "evidence_ids": [
+        "evidence:plane-1"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-1"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth dependency-graph-health assessment inspected README.md and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated dependency-graph-health campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-2-abstraction-fit",
+      "claim_id": "claim:plane-2-abstraction-fit",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "applicability": "applicable",
+      "claim": "The audited design boundary shows that direct actors and generic invocation batches represent freestyle conversation without making roles or gestures kernel-specific.",
+      "relevance": "The abstraction-fit atom determines whether Lattice can preserve its conversation-first guarantee when are these the right abstractions and state models for the domain?",
+      "evidence_ids": [
+        "evidence:plane-2"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-2"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth abstraction-fit assessment inspected lattice/contracts.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated abstraction-fit campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-2-config-surface",
+      "claim_id": "claim:plane-2-config-surface",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "applicability": "applicable",
+      "claim": "The audited design boundary shows that provider authority, project defaults, context modules, Outport identity, and workflow roots remain explicit typed inputs.",
+      "relevance": "The config-surface atom determines whether Lattice can preserve its conversation-first guarantee when are these the right abstractions and state models for the domain?",
+      "evidence_ids": [
+        "evidence:plane-2"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-2"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth config-surface assessment inspected lattice/contracts.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated config-surface campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-2-missing-types",
+      "claim_id": "claim:plane-2-missing-types",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "applicability": "applicable",
+      "claim": "The audited design boundary shows that actors, assemblies, batches, episodes, manifests, attempts, modules, and proof limits preserve consequential distinctions.",
+      "relevance": "The missing-types atom determines whether Lattice can preserve its conversation-first guarantee when are these the right abstractions and state models for the domain?",
+      "evidence_ids": [
+        "evidence:plane-2"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-2"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth missing-types assessment inspected lattice/contracts.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated missing-types campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-2-extension-points",
+      "claim_id": "claim:plane-2-extension-points",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "applicability": "applicable",
+      "claim": "The audited design boundary shows that registered context modules, workflow packs, provider routes, and external concern identities extend without arbitrary UI code.",
+      "relevance": "The extension-points atom determines whether Lattice can preserve its conversation-first guarantee when are these the right abstractions and state models for the domain?",
+      "evidence_ids": [
+        "evidence:plane-2"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-2"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth extension-points assessment inspected lattice/contracts.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated extension-points campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-2-error-model",
+      "claim_id": "claim:plane-2-error-model",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "error-model",
+      "applicability": "applicable",
+      "claim": "The audited design boundary shows that preview staleness, provider failure, partial batches, unavailable modules, and recovery faults retain typed outcomes.",
+      "relevance": "The error-model atom determines whether Lattice can preserve its conversation-first guarantee when are these the right abstractions and state models for the domain?",
+      "evidence_ids": [
+        "evidence:plane-2"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-2"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth error-model assessment inspected lattice/contracts.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated error-model campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-2-state-model",
+      "claim_id": "claim:plane-2-state-model",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "state-model",
+      "applicability": "applicable",
+      "claim": "The audited design boundary shows that append-only events, immutable invocations, mutable preflight, overlapping slices, and separate attempts model lifecycle boundaries.",
+      "relevance": "The state-model atom determines whether Lattice can preserve its conversation-first guarantee when are these the right abstractions and state models for the domain?",
+      "evidence_ids": [
+        "evidence:plane-2"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-2"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth state-model assessment inspected lattice/contracts.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated state-model campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-2-testability",
+      "claim_id": "claim:plane-2-testability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "testability",
+      "applicability": "applicable",
+      "claim": "The audited design boundary shows that pure compilers, fake provider CLIs, independent manifest reconstruction, and fixture-bound adapters admit deterministic tests.",
+      "relevance": "The testability atom determines whether Lattice can preserve its conversation-first guarantee when are these the right abstractions and state models for the domain?",
+      "evidence_ids": [
+        "evidence:plane-2"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-2"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth testability assessment inspected lattice/contracts.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated testability campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-3-mutability-contract",
+      "claim_id": "claim:plane-3-mutability-contract",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "applicability": "applicable",
+      "claim": "The audited interfaces boundary shows that draft selection mutates before sealing while manifests, results, attempts, and source blocks remain immutable afterward.",
+      "relevance": "The mutability-contract atom determines whether Lattice can preserve its conversation-first guarantee when are internal and external seams stable, minimal, and honest?",
+      "evidence_ids": [
+        "evidence:plane-3"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-3"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth mutability-contract assessment inspected lattice/server.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated mutability-contract campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-3-identifier-encoding",
+      "claim_id": "claim:plane-3-identifier-encoding",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "applicability": "applicable",
+      "claim": "The audited interfaces boundary shows that opaque UUID and SHA-256 identities avoid path, role, domain, and display-position collisions.",
+      "relevance": "The identifier-encoding atom determines whether Lattice can preserve its conversation-first guarantee when are internal and external seams stable, minimal, and honest?",
+      "evidence_ids": [
+        "evidence:plane-3"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-3"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth identifier-encoding assessment inspected lattice/server.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated identifier-encoding campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-3-version-source-of-truth",
+      "claim_id": "claim:plane-3-version-source-of-truth",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "applicability": "applicable",
+      "claim": "The audited interfaces boundary shows that contract versions, schema generation, runtime manifest, source hashes, and current selector state have explicit owners.",
+      "relevance": "The version-source-of-truth atom determines whether Lattice can preserve its conversation-first guarantee when are internal and external seams stable, minimal, and honest?",
+      "evidence_ids": [
+        "evidence:plane-3"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-3"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth version-source-of-truth assessment inspected lattice/server.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated version-source-of-truth campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-3-serialization-boundary",
+      "claim_id": "claim:plane-3-serialization-boundary",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "applicability": "applicable",
+      "claim": "The audited interfaces boundary shows that strict models and RFC 8785 canonical JSON reject ambiguous or non-finite durable representations.",
+      "relevance": "The serialization-boundary atom determines whether Lattice can preserve its conversation-first guarantee when are internal and external seams stable, minimal, and honest?",
+      "evidence_ids": [
+        "evidence:plane-3"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-3"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth serialization-boundary assessment inspected lattice/server.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated serialization-boundary campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-3-dead-parameters",
+      "claim_id": "claim:plane-3-dead-parameters",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "applicability": "applicable",
+      "claim": "The audited interfaces boundary shows that REST and operation inputs are consumed into manifests, authority checks, or compatibility paths rather than silently ignored.",
+      "relevance": "The dead-parameters atom determines whether Lattice can preserve its conversation-first guarantee when are internal and external seams stable, minimal, and honest?",
+      "evidence_ids": [
+        "evidence:plane-3"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-3"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth dead-parameters assessment inspected lattice/server.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated dead-parameters campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-3-data-flow-invariants",
+      "claim_id": "claim:plane-3-data-flow-invariants",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "applicability": "applicable",
+      "claim": "The audited interfaces boundary shows that selected parents and exact blocks flow through preview hash, atomic seal, execution receipt, and live concern projection.",
+      "relevance": "The data-flow-invariants atom determines whether Lattice can preserve its conversation-first guarantee when are internal and external seams stable, minimal, and honest?",
+      "evidence_ids": [
+        "evidence:plane-3"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-3"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth data-flow-invariants assessment inspected lattice/server.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated data-flow-invariants campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-3-compatibility",
+      "claim_id": "claim:plane-3-compatibility",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "applicability": "applicable",
+      "claim": "The audited interfaces boundary shows that manifest v2/v3 readers and role-oriented draft endpoints remain available beside v4 direct conversation.",
+      "relevance": "The compatibility atom determines whether Lattice can preserve its conversation-first guarantee when are internal and external seams stable, minimal, and honest?",
+      "evidence_ids": [
+        "evidence:plane-3"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-3"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth compatibility assessment inspected lattice/server.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated compatibility campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-3-deprecation-discipline",
+      "claim_id": "claim:plane-3-deprecation-discipline",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "applicability": "applicable",
+      "claim": "The audited interfaces boundary shows that compatibility surfaces are named as role-oriented or legacy rather than silently redefined.",
+      "relevance": "The deprecation-discipline atom determines whether Lattice can preserve its conversation-first guarantee when are internal and external seams stable, minimal, and honest?",
+      "evidence_ids": [
+        "evidence:plane-3"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-3"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth deprecation-discipline assessment inspected lattice/server.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated deprecation-discipline campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-4-translation-fidelity",
+      "claim_id": "claim:plane-4-translation-fidelity",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "applicability": "applicable",
+      "claim": "The audited correctness boundary shows that the independent reader reproduces provider bytes from sealed segments without trusting compositor output.",
+      "relevance": "The translation-fidelity atom determines whether Lattice can preserve its conversation-first guarantee when does the logic do what it claims, against an independent oracle?",
+      "evidence_ids": [
+        "evidence:plane-4"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-4"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth translation-fidelity assessment inspected lattice/manifest_reader.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated translation-fidelity campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-4-deviation-soundness",
+      "claim_id": "claim:plane-4-deviation-soundness",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "applicability": "applicable",
+      "claim": "The audited correctness boundary shows that provider-owned context and unavailable ambient isolation are recorded as proof limits instead of simulated certainty.",
+      "relevance": "The deviation-soundness atom determines whether Lattice can preserve its conversation-first guarantee when does the logic do what it claims, against an independent oracle?",
+      "evidence_ids": [
+        "evidence:plane-4"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-4"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth deviation-soundness assessment inspected lattice/manifest_reader.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated deviation-soundness campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-4-magic-number",
+      "claim_id": "claim:plane-4-magic-number",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "applicability": "applicable",
+      "claim": "The audited correctness boundary shows that bounded payload, page, lease, retry, and deadline constants are enforced at named operational boundaries.",
+      "relevance": "The magic-number atom determines whether Lattice can preserve its conversation-first guarantee when does the logic do what it claims, against an independent oracle?",
+      "evidence_ids": [
+        "evidence:plane-4"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-4"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth magic-number assessment inspected lattice/manifest_reader.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated magic-number campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-4-uncited-heuristic",
+      "claim_id": "claim:plane-4-uncited-heuristic",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "applicability": "applicable",
+      "claim": "The audited correctness boundary shows that context ordering and confirmation reasons derive from declared planes and authority changes rather than confidence scoring.",
+      "relevance": "The uncited-heuristic atom determines whether Lattice can preserve its conversation-first guarantee when does the logic do what it claims, against an independent oracle?",
+      "evidence_ids": [
+        "evidence:plane-4"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-4"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth uncited-heuristic assessment inspected lattice/manifest_reader.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated uncited-heuristic campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-4-numerical-stability",
+      "claim_id": "claim:plane-4-numerical-stability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "applicability": "not-applicable",
+      "claim": "The numerical-stability atom is not applicable to this release because the system contains no floating-point numerical inference kernel whose stability could decide graph truth.",
+      "relevance": "Recording this precise non-applicability prevents the correctness audit from claiming work over a mechanism the product does not contain or promise.",
+      "evidence_ids": [
+        "evidence:plane-4"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-4"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth numerical-stability assessment inspected lattice/manifest_reader.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated numerical-stability campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-4-operator-misuse",
+      "claim_id": "claim:plane-4-operator-misuse",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "applicability": "applicable",
+      "claim": "The audited correctness boundary shows that invalid actor-role pairs, stale previews, cross-project batches, unsafe continuation, and authority expansion fail before execution.",
+      "relevance": "The operator-misuse atom determines whether Lattice can preserve its conversation-first guarantee when does the logic do what it claims, against an independent oracle?",
+      "evidence_ids": [
+        "evidence:plane-4"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-4"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth operator-misuse assessment inspected lattice/manifest_reader.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated operator-misuse campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-4-provenance",
+      "claim_id": "claim:plane-4-provenance",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "provenance",
+      "applicability": "applicable",
+      "claim": "The audited correctness boundary shows that every manifest, excerpt, artifact, projection, runtime, snapshot, and workflow generation retains exact source lineage.",
+      "relevance": "The provenance atom determines whether Lattice can preserve its conversation-first guarantee when does the logic do what it claims, against an independent oracle?",
+      "evidence_ids": [
+        "evidence:plane-4"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-4"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth provenance assessment inspected lattice/manifest_reader.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated provenance campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-5-redundant-computation",
+      "claim_id": "claim:plane-5-redundant-computation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "redundant-computation",
+      "applicability": "applicable",
+      "claim": "The audited performance boundary shows that bounded graph pages and content-addressed blocks avoid whole-history transcript reconstruction in the foreground.",
+      "relevance": "The redundant-computation atom determines whether Lattice can preserve its conversation-first guarantee when where are time and memory spent, and does that match intent?",
+      "evidence_ids": [
+        "evidence:plane-5"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-5"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth redundant-computation assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated redundant-computation campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-5-hot-loop-vectorization",
+      "claim_id": "claim:plane-5-hot-loop-vectorization",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "hot-loop-vectorization",
+      "applicability": "not-applicable",
+      "claim": "The hot-loop-vectorization atom is not applicable to this release because the audited service has no numeric array hot loop for which vectorization is a correctness-relevant performance control.",
+      "relevance": "Recording this precise non-applicability prevents the performance audit from claiming work over a mechanism the product does not contain or promise.",
+      "evidence_ids": [
+        "evidence:plane-5"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-5"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth hot-loop-vectorization assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated hot-loop-vectorization campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-5-inner-loop-allocation",
+      "claim_id": "claim:plane-5-inner-loop-allocation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "inner-loop-allocation",
+      "applicability": "applicable",
+      "claim": "The audited performance boundary shows that large immutable payloads remain outside row-oriented graph operations and frontend lists page dormant branches.",
+      "relevance": "The inner-loop-allocation atom determines whether Lattice can preserve its conversation-first guarantee when where are time and memory spent, and does that match intent?",
+      "evidence_ids": [
+        "evidence:plane-5"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-5"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth inner-loop-allocation assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated inner-loop-allocation campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-5-memory-layout",
+      "claim_id": "claim:plane-5-memory-layout",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "memory-layout",
+      "applicability": "applicable",
+      "claim": "The audited performance boundary shows that SQLite rows carry graph state while large bytes use the blob store instead of repeated inline copies.",
+      "relevance": "The memory-layout atom determines whether Lattice can preserve its conversation-first guarantee when where are time and memory spent, and does that match intent?",
+      "evidence_ids": [
+        "evidence:plane-5"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-5"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth memory-layout assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated memory-layout campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-5-realtime-budget",
+      "claim_id": "claim:plane-5-realtime-budget",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "realtime-budget",
+      "applicability": "not-applicable",
+      "claim": "The realtime-budget atom is not applicable to this release because the product promises conversational responsiveness but declares no hard realtime deadline in the audited source.",
+      "relevance": "Recording this precise non-applicability prevents the performance audit from claiming work over a mechanism the product does not contain or promise.",
+      "evidence_ids": [
+        "evidence:plane-5"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-5"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth realtime-budget assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated realtime-budget campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-5-resource-amortization",
+      "claim_id": "claim:plane-5-resource-amortization",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "resource-amortization",
+      "applicability": "applicable",
+      "claim": "The audited performance boundary shows that shared ContextAssembly binds fan-out semantics once while every route receives independent capability bytes.",
+      "relevance": "The resource-amortization atom determines whether Lattice can preserve its conversation-first guarantee when where are time and memory spent, and does that match intent?",
+      "evidence_ids": [
+        "evidence:plane-5"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-5"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth resource-amortization assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated resource-amortization campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-6-silent-failure",
+      "claim_id": "claim:plane-6-silent-failure",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "applicability": "applicable",
+      "claim": "The audited robustness boundary shows that provider, backend, optional-surface, module, storage, and restore faults surface distinctly from empty success.",
+      "relevance": "The silent-failure atom determines whether Lattice can preserve its conversation-first guarantee when what happens when inputs or dependencies violate assumptions?",
+      "evidence_ids": [
+        "evidence:plane-6"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-6"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth silent-failure assessment inspected lattice/snapshot.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated silent-failure campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-6-assumption-violation",
+      "claim_id": "claim:plane-6-assumption-violation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "applicability": "applicable",
+      "claim": "The audited robustness boundary shows that symlink, hash, schema, actor, authority, preview, and source-generation violations reject at their trust boundary.",
+      "relevance": "The assumption-violation atom determines whether Lattice can preserve its conversation-first guarantee when what happens when inputs or dependencies violate assumptions?",
+      "evidence_ids": [
+        "evidence:plane-6"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-6"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth assumption-violation assessment inspected lattice/snapshot.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated assumption-violation campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-6-degradation-containment",
+      "claim_id": "claim:plane-6-degradation-containment",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "applicability": "applicable",
+      "claim": "The audited robustness boundary shows that one provider or secondary drawer may fail while sealed siblings and the primary conversation remain usable.",
+      "relevance": "The degradation-containment atom determines whether Lattice can preserve its conversation-first guarantee when what happens when inputs or dependencies violate assumptions?",
+      "evidence_ids": [
+        "evidence:plane-6"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-6"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth degradation-containment assessment inspected lattice/snapshot.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated degradation-containment campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-6-recovery-after-fault",
+      "claim_id": "claim:plane-6-recovery-after-fault",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "applicability": "applicable",
+      "claim": "The audited robustness boundary shows that leases reconcile, retries become new attempts, launchd restarts, snapshots restore off-path, and publication rolls back.",
+      "relevance": "The recovery-after-fault atom determines whether Lattice can preserve its conversation-first guarantee when what happens when inputs or dependencies violate assumptions?",
+      "evidence_ids": [
+        "evidence:plane-6"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-6"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth recovery-after-fault assessment inspected lattice/snapshot.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated recovery-after-fault campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-6-input-degradation",
+      "claim_id": "claim:plane-6-input-degradation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "applicability": "applicable",
+      "claim": "The audited robustness boundary shows that unsupported context, oversized bytes, malformed imports, unavailable provider profiles, and incomplete history remain explicit.",
+      "relevance": "The input-degradation atom determines whether Lattice can preserve its conversation-first guarantee when what happens when inputs or dependencies violate assumptions?",
+      "evidence_ids": [
+        "evidence:plane-6"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-6"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth input-degradation assessment inspected lattice/snapshot.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated input-degradation campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-7-race-freedom",
+      "claim_id": "claim:plane-7-race-freedom",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "applicability": "applicable",
+      "claim": "The audited concurrency boundary shows that SQLite sole-writer transactions and generation fences serialize graph commits and ignore stale optional UI completion.",
+      "relevance": "The race-freedom atom determines whether Lattice can preserve its conversation-first guarantee when what happens under parallel execution, retries, and shared state?",
+      "evidence_ids": [
+        "evidence:plane-7"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-7"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth race-freedom assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated race-freedom campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-7-deadlock-freedom",
+      "claim_id": "claim:plane-7-deadlock-freedom",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "applicability": "applicable",
+      "claim": "The audited concurrency boundary shows that bounded leases, timeouts, cancellation, restart reconciliation, and provider-process isolation prevent indefinite ownership.",
+      "relevance": "The deadlock-freedom atom determines whether Lattice can preserve its conversation-first guarantee when what happens under parallel execution, retries, and shared state?",
+      "evidence_ids": [
+        "evidence:plane-7"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-7"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth deadlock-freedom assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated deadlock-freedom campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-7-atomicity",
+      "claim_id": "claim:plane-7-atomicity",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "applicability": "applicable",
+      "claim": "The audited concurrency boundary shows that batch sealing, append events, migration rebuild, snapshot publication, and runtime selection cross their boundaries transactionally.",
+      "relevance": "The atomicity atom determines whether Lattice can preserve its conversation-first guarantee when what happens under parallel execution, retries, and shared state?",
+      "evidence_ids": [
+        "evidence:plane-7"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-7"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth atomicity assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated atomicity campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-7-data-integrity",
+      "claim_id": "claim:plane-7-data-integrity",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "applicability": "applicable",
+      "claim": "The audited concurrency boundary shows that content hashes, foreign keys, append-chain checks, blob inventory, and exact manifests detect lost or conflicting bytes.",
+      "relevance": "The data-integrity atom determines whether Lattice can preserve its conversation-first guarantee when what happens under parallel execution, retries, and shared state?",
+      "evidence_ids": [
+        "evidence:plane-7"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-7"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth data-integrity assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated data-integrity campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-7-idempotency",
+      "claim_id": "claim:plane-7-idempotency",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "applicability": "applicable",
+      "claim": "The audited concurrency boundary shows that batch keys, import identities, event identities, projection receipts, and retry attempts reject duplicate semantic creation.",
+      "relevance": "The idempotency atom determines whether Lattice can preserve its conversation-first guarantee when what happens under parallel execution, retries, and shared state?",
+      "evidence_ids": [
+        "evidence:plane-7"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-7"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth idempotency assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated idempotency campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-7-toctou",
+      "claim_id": "claim:plane-7-toctou",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "toctou",
+      "applicability": "applicable",
+      "claim": "The audited concurrency boundary shows that expected preview hashes, active-parent tokens, runtime-generation probes, and captured snapshot state fence preflight races.",
+      "relevance": "The toctou atom determines whether Lattice can preserve its conversation-first guarantee when what happens under parallel execution, retries, and shared state?",
+      "evidence_ids": [
+        "evidence:plane-7"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-7"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth toctou assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated toctou campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-7-ordering-visibility",
+      "claim_id": "claim:plane-7-ordering-visibility",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "applicability": "applicable",
+      "claim": "The audited concurrency boundary shows that event sequence, parent edges, attempt lineage, context ordinals, and completion state preserve observable ordering.",
+      "relevance": "The ordering-visibility atom determines whether Lattice can preserve its conversation-first guarantee when what happens under parallel execution, retries, and shared state?",
+      "evidence_ids": [
+        "evidence:plane-7"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-7"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth ordering-visibility assessment inspected lattice/store.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated ordering-visibility campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-8-secrets-in-code",
+      "claim_id": "claim:plane-8-secrets-in-code",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "applicability": "applicable",
+      "claim": "The audited security boundary shows that provider credentials and operator capabilities are absent from tracked source and stripped or loaded from protected local stores.",
+      "relevance": "The secrets-in-code atom determines whether Lattice can preserve its conversation-first guarantee when what are the attack, trust, privacy, and supply-chain surfaces?",
+      "evidence_ids": [
+        "evidence:plane-8"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-8"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth secrets-in-code assessment inspected lattice/security.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated secrets-in-code campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-8-untrusted-input-sink",
+      "claim_id": "claim:plane-8-untrusted-input-sink",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "applicability": "applicable",
+      "claim": "The audited security boundary shows that strict JSON models, bounded URLs and roots, safe subprocess argument arrays, and no generated-code execution guard sinks.",
+      "relevance": "The untrusted-input-sink atom determines whether Lattice can preserve its conversation-first guarantee when what are the attack, trust, privacy, and supply-chain surfaces?",
+      "evidence_ids": [
+        "evidence:plane-8"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-8"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth untrusted-input-sink assessment inspected lattice/security.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated untrusted-input-sink campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-8-trusted-path-io",
+      "claim_id": "claim:plane-8-trusted-path-io",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "applicability": "applicable",
+      "claim": "The audited security boundary shows that snapshot, install, import, module, and artifact paths resolve under declared roots and reject symlink traversal.",
+      "relevance": "The trusted-path-io atom determines whether Lattice can preserve its conversation-first guarantee when what are the attack, trust, privacy, and supply-chain surfaces?",
+      "evidence_ids": [
+        "evidence:plane-8"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-8"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth trusted-path-io assessment inspected lattice/security.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated trusted-path-io campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-8-transport-security",
+      "claim_id": "claim:plane-8-transport-security",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "applicability": "applicable",
+      "claim": "The audited security boundary shows that loopback HTTP is host- and origin-gated while Outport supplies the public local HTTPS identity.",
+      "relevance": "The transport-security atom determines whether Lattice can preserve its conversation-first guarantee when what are the attack, trust, privacy, and supply-chain surfaces?",
+      "evidence_ids": [
+        "evidence:plane-8"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-8"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth transport-security assessment inspected lattice/security.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated transport-security campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-8-supply-chain",
+      "claim_id": "claim:plane-8-supply-chain",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "applicability": "applicable",
+      "claim": "The audited security boundary shows that locked dependencies, complete emitted-tree hashes, runtime manifests, and non-editable staged environments bind installed bytes.",
+      "relevance": "The supply-chain atom determines whether Lattice can preserve its conversation-first guarantee when what are the attack, trust, privacy, and supply-chain surfaces?",
+      "evidence_ids": [
+        "evidence:plane-8"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-8"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth supply-chain assessment inspected lattice/security.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated supply-chain campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-8-privacy-retention",
+      "claim_id": "claim:plane-8-privacy-retention",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "applicability": "applicable",
+      "claim": "The audited security boundary shows that canonical data stays local, exact private evidence is reveal-controlled, and no real corpus imports automatically.",
+      "relevance": "The privacy-retention atom determines whether Lattice can preserve its conversation-first guarantee when what are the attack, trust, privacy, and supply-chain surfaces?",
+      "evidence_ids": [
+        "evidence:plane-8"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-8"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth privacy-retention assessment inspected lattice/security.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated privacy-retention campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-8-license-redistribution",
+      "claim_id": "claim:plane-8-license-redistribution",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "applicability": "applicable",
+      "claim": "The audited security boundary shows that packaged dependencies are enumerated, though this sanity pass did not independently adjudicate every transitive license.",
+      "relevance": "The license-redistribution atom determines whether Lattice can preserve its conversation-first guarantee when what are the attack, trust, privacy, and supply-chain surfaces?",
+      "evidence_ids": [
+        "evidence:plane-8"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-8"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth license-redistribution assessment inspected lattice/security.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated license-redistribution campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-9-runtime-logging",
+      "claim_id": "claim:plane-9-runtime-logging",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "applicability": "applicable",
+      "claim": "The audited observability boundary shows that attempt journals, append events, launchd logs, and typed provider failures retain boundary-specific diagnostics.",
+      "relevance": "The runtime-logging atom determines whether Lattice can preserve its conversation-first guarantee when can an operator understand and debug the running system from outside?",
+      "evidence_ids": [
+        "evidence:plane-9"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-9"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth runtime-logging assessment inspected lattice/diagnostics.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated runtime-logging campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-9-metrics-health",
+      "claim_id": "claim:plane-9-metrics-health",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "applicability": "applicable",
+      "claim": "The audited observability boundary shows that doctor reports service, runtime, store, provider, workflow, backup, and recovery health as separate checks.",
+      "relevance": "The metrics-health atom determines whether Lattice can preserve its conversation-first guarantee when can an operator understand and debug the running system from outside?",
+      "evidence_ids": [
+        "evidence:plane-9"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-9"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth metrics-health assessment inspected lattice/diagnostics.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated metrics-health campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-9-trace-correlation",
+      "claim_id": "claim:plane-9-trace-correlation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "applicability": "applicable",
+      "claim": "The audited observability boundary shows that invocation, attempt, batch, manifest, event, artifact, provider session, and concern identities correlate execution end to end.",
+      "relevance": "The trace-correlation atom determines whether Lattice can preserve its conversation-first guarantee when can an operator understand and debug the running system from outside?",
+      "evidence_ids": [
+        "evidence:plane-9"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-9"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth trace-correlation assessment inspected lattice/diagnostics.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated trace-correlation campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-9-error-surface",
+      "claim_id": "claim:plane-9-error-surface",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "applicability": "applicable",
+      "claim": "The audited observability boundary shows that the cockpit renders data, empty, partial, provider failure, backend failure, and optional integration failure separately.",
+      "relevance": "The error-surface atom determines whether Lattice can preserve its conversation-first guarantee when can an operator understand and debug the running system from outside?",
+      "evidence_ids": [
+        "evidence:plane-9"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-9"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth error-surface assessment inspected lattice/diagnostics.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated error-surface campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-9-debuggability",
+      "claim_id": "claim:plane-9-debuggability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "applicability": "applicable",
+      "claim": "The audited observability boundary shows that exact manifests, context delta, proof limits, journal locators, diagnostics, and graph neighborhoods localize observed failure.",
+      "relevance": "The debuggability atom determines whether Lattice can preserve its conversation-first guarantee when can an operator understand and debug the running system from outside?",
+      "evidence_ids": [
+        "evidence:plane-9"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-9"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth debuggability assessment inspected lattice/diagnostics.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated debuggability campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-10-docstring-contract",
+      "claim_id": "claim:plane-10-docstring-contract",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "applicability": "applicable",
+      "claim": "The audited api-contract boundary shows that public operations and CLI commands expose typed contracts and stable response objects beyond implementation comments.",
+      "relevance": "The docstring-contract atom determines whether Lattice can preserve its conversation-first guarantee when what can a consumer know and rely on without reading source?",
+      "evidence_ids": [
+        "evidence:plane-10"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-10"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth docstring-contract assessment inspected lattice/cli.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated docstring-contract campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-10-error-actionability",
+      "claim_id": "claim:plane-10-error-actionability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "applicability": "applicable",
+      "claim": "The audited api-contract boundary shows that rejections identify the stale hash, missing authority, unavailable profile, failed dependency, or corrupt object.",
+      "relevance": "The error-actionability atom determines whether Lattice can preserve its conversation-first guarantee when what can a consumer know and rely on without reading source?",
+      "evidence_ids": [
+        "evidence:plane-10"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-10"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth error-actionability assessment inspected lattice/cli.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated error-actionability campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-10-naming-consistency",
+      "claim_id": "claim:plane-10-naming-consistency",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "applicability": "applicable",
+      "claim": "The audited api-contract boundary shows that invocation, batch, episode, concern, attempt, runtime, and context block keep distinct names across Python and TypeScript.",
+      "relevance": "The naming-consistency atom determines whether Lattice can preserve its conversation-first guarantee when what can a consumer know and rely on without reading source?",
+      "evidence_ids": [
+        "evidence:plane-10"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-10"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth naming-consistency assessment inspected lattice/cli.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated naming-consistency campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-10-breaking-change-surface",
+      "claim_id": "claim:plane-10-breaking-change-surface",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "applicability": "applicable",
+      "claim": "The audited api-contract boundary shows that versioned manifests, additive migrations, compatibility endpoints, and runtime staging bound consumer-visible change.",
+      "relevance": "The breaking-change-surface atom determines whether Lattice can preserve its conversation-first guarantee when what can a consumer know and rely on without reading source?",
+      "evidence_ids": [
+        "evidence:plane-10"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-10"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth breaking-change-surface assessment inspected lattice/cli.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated breaking-change-surface campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-10-help-behavior-match",
+      "claim_id": "claim:plane-10-help-behavior-match",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "applicability": "applicable",
+      "claim": "The audited api-contract boundary shows that serve, open, status, doctor, backup, and restore parser surfaces correspond to implemented command handlers.",
+      "relevance": "The help-behavior-match atom determines whether Lattice can preserve its conversation-first guarantee when what can a consumer know and rely on without reading source?",
+      "evidence_ids": [
+        "evidence:plane-10"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-10"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth help-behavior-match assessment inspected lattice/cli.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated help-behavior-match campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-11-metadata",
+      "claim_id": "claim:plane-11-metadata",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "metadata",
+      "applicability": "applicable",
+      "claim": "The audited packaging boundary shows that the package declares its CLI, backend, bundled cockpit, workflow packs, version, and Python requirements.",
+      "relevance": "The metadata atom determines whether Lattice can preserve its conversation-first guarantee when can the artifact build, install, and resolve its assets cleanly?",
+      "evidence_ids": [
+        "evidence:plane-11"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-11"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth metadata assessment inspected ops/install.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated metadata campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-11-dependency-spec",
+      "claim_id": "claim:plane-11-dependency-spec",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "dependency-spec",
+      "applicability": "applicable",
+      "claim": "The audited packaging boundary shows that uv and npm locks bind the Python and Svelte dependency graphs used by source and installed builds.",
+      "relevance": "The dependency-spec atom determines whether Lattice can preserve its conversation-first guarantee when can the artifact build, install, and resolve its assets cleanly?",
+      "evidence_ids": [
+        "evidence:plane-11"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-11"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth dependency-spec assessment inspected ops/install.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated dependency-spec campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-11-clean-build",
+      "claim_id": "claim:plane-11-clean-build",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "clean-build",
+      "applicability": "applicable",
+      "claim": "The audited packaging boundary shows that the frontend production build and Python package assurance complete outside incremental dev-server state.",
+      "relevance": "The clean-build atom determines whether Lattice can preserve its conversation-first guarantee when can the artifact build, install, and resolve its assets cleanly?",
+      "evidence_ids": [
+        "evidence:plane-11"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-11"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth clean-build assessment inspected ops/install.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated clean-build campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-11-asset-inclusion",
+      "claim_id": "claim:plane-11-asset-inclusion",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "asset-inclusion",
+      "applicability": "applicable",
+      "claim": "The audited packaging boundary shows that wheel and runtime manifests include the compiled cockpit and workflow packs and hash the emitted tree.",
+      "relevance": "The asset-inclusion atom determines whether Lattice can preserve its conversation-first guarantee when can the artifact build, install, and resolve its assets cleanly?",
+      "evidence_ids": [
+        "evidence:plane-11"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-11"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth asset-inclusion assessment inspected ops/install.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated asset-inclusion campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-11-clean-install",
+      "claim_id": "claim:plane-11-clean-install",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "clean-install",
+      "applicability": "applicable",
+      "claim": "The audited packaging boundary shows that installation creates a fresh non-editable environment, probes imports outside the checkout, and only then publishes.",
+      "relevance": "The clean-install atom determines whether Lattice can preserve its conversation-first guarantee when can the artifact build, install, and resolve its assets cleanly?",
+      "evidence_ids": [
+        "evidence:plane-11"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-11"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth clean-install assessment inspected ops/install.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated clean-install campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-11-path-resolution",
+      "claim_id": "claim:plane-11-path-resolution",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "path-resolution",
+      "applicability": "applicable",
+      "claim": "The audited packaging boundary shows that installed entrypoints resolve selected runtime modules, canonical data roots, Outport, logs, and backups explicitly.",
+      "relevance": "The path-resolution atom determines whether Lattice can preserve its conversation-first guarantee when can the artifact build, install, and resolve its assets cleanly?",
+      "evidence_ids": [
+        "evidence:plane-11"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-11"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth path-resolution assessment inspected ops/install.py and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated path-resolution campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-12-audience-framing",
+      "claim_id": "claim:plane-12-audience-framing",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "audience-framing",
+      "applicability": "applicable",
+      "claim": "The audited reception boundary shows that the README and cockpit present an evolving conversation with routing powers rather than a workflow IDE.",
+      "relevance": "The audience-framing atom determines whether Lattice can preserve its conversation-first guarantee when can the intended audience understand, begin, and continue using it?",
+      "evidence_ids": [
+        "evidence:plane-12"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-12"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth audience-framing assessment inspected web/src/App.svelte and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated audience-framing campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-12-first-run",
+      "claim_id": "claim:plane-12-first-run",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "first-run",
+      "applicability": "applicable",
+      "claim": "The audited reception boundary shows that a blank project opens directly to response and composer with inline Claude, Codex, or dual routing.",
+      "relevance": "The first-run atom determines whether Lattice can preserve its conversation-first guarantee when can the intended audience understand, begin, and continue using it?",
+      "evidence_ids": [
+        "evidence:plane-12"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-12"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth first-run assessment inspected web/src/App.svelte and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated first-run campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-12-positioning",
+      "claim_id": "claim:plane-12-positioning",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "positioning",
+      "applicability": "applicable",
+      "claim": "The audited reception boundary shows that the product distinguishes itself from linear chat, visual workflows, and durable job runners by progressive multi-parent authorship.",
+      "relevance": "The positioning atom determines whether Lattice can preserve its conversation-first guarantee when can the intended audience understand, begin, and continue using it?",
+      "evidence_ids": [
+        "evidence:plane-12"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-12"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth positioning assessment inspected web/src/App.svelte and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated positioning campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-12-doc-coverage",
+      "claim_id": "claim:plane-12-doc-coverage",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "doc-coverage",
+      "applicability": "applicable",
+      "claim": "The audited reception boundary shows that README, operations map, assurance ledger, Surface, and audit history expose use, boundaries, state, and proof limits.",
+      "relevance": "The doc-coverage atom determines whether Lattice can preserve its conversation-first guarantee when can the intended audience understand, begin, and continue using it?",
+      "evidence_ids": [
+        "evidence:plane-12"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-12"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth doc-coverage assessment inspected web/src/App.svelte and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated doc-coverage campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-12-accessibility",
+      "claim_id": "claim:plane-12-accessibility",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "accessibility",
+      "applicability": "applicable",
+      "claim": "The audited reception boundary shows that semantic buttons, labels, status text, and keyboard-addressable controls exist, but no dedicated assistive-technology study was run.",
+      "relevance": "The accessibility atom determines whether Lattice can preserve its conversation-first guarantee when can the intended audience understand, begin, and continue using it?",
+      "evidence_ids": [
+        "evidence:plane-12"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-12"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth accessibility assessment inspected web/src/App.svelte and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated accessibility campaign."
+      ]
+    },
+    {
+      "assessment_id": "assessment:plane-12-community-infra",
+      "claim_id": "claim:plane-12-community-infra",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "community-infra",
+      "applicability": "not-applicable",
+      "claim": "The community-infra atom is not applicable to this release because community participation infrastructure is outside this personal local-service remediation and is not a release claim.",
+      "relevance": "Recording this precise non-applicability prevents the reception audit from claiming work over a mechanism the product does not contain or promise.",
+      "evidence_ids": [
+        "evidence:plane-12"
+      ],
+      "counterevidence_ids": [],
+      "inspection_ids": [
+        "inspection:plane-12"
+      ],
+      "risk_path_ids": [],
+      "proof_limits": [
+        "This sanity-depth community-infra assessment inspected web/src/App.svelte and its named symbols; it did not traverse every one of the 105 frozen census entries or run a dedicated community-infra campaign."
+      ]
+    }
+  ],
+  "inspections": [
+    {
+      "inspection_id": "inspection:plane-1",
+      "path": "README.md",
+      "sha256": "67690667f8edf50f3cf6e0567e24978dded4ce9cf1896aff9b4cdb906c56baa5",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 35
+        }
+      ],
+      "symbols": [],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the structure control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected README.md at its recorded SHA-256 for the named structure atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-2",
+      "path": "lattice/contracts.py",
+      "sha256": "f49c388339467c43100b1fa091100edccf3bbe05620b29ba35b348637ed4f5a7",
+      "line_ranges": [
+        {
+          "start": 121,
+          "end": 365
+        }
+      ],
+      "symbols": [
+        "DirectActorBinding",
+        "RoleSessionActorBinding",
+        "InvocationBatchCreateV1"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the design control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/contracts.py at its recorded SHA-256 for the named design atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-3",
+      "path": "lattice/server.py",
+      "sha256": "80f0b5f95258aa9dd7881031955396cf266e6d7a93460bfc552da0e3c0607f12",
+      "line_ranges": [
+        {
+          "start": 353,
+          "end": 575
+        }
+      ],
+      "symbols": [
+        "preview_invocation_batch",
+        "create_invocation_batch",
+        "invocation_navigation"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the interfaces control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/server.py at its recorded SHA-256 for the named interfaces atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-4",
+      "path": "lattice/manifest_reader.py",
+      "sha256": "180ba694c1c3e8f18819da6800cf562b32ca87bdf61f038ddc20cf99bd7e8004",
+      "line_ranges": [
+        {
+          "start": 113,
+          "end": 337
+        }
+      ],
+      "symbols": [
+        "verify_and_reconstruct"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the correctness control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/manifest_reader.py at its recorded SHA-256 for the named correctness atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-5",
+      "path": "lattice/store.py",
+      "sha256": "0780eb15fafc5c2cee37c159f59f32b350f9182cf373737261bf0dbf7b7fee01",
+      "line_ranges": [
+        {
+          "start": 1870,
+          "end": 1955
+        }
+      ],
+      "symbols": [
+        "page_invocations",
+        "trailheads"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the performance control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/store.py at its recorded SHA-256 for the named performance atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-6",
+      "path": "lattice/snapshot.py",
+      "sha256": "7104cecd9da40bee4af52e330465e17b668d06cb077d3f0b327f94f6e6306f2e",
+      "line_ranges": [
+        {
+          "start": 144,
+          "end": 325
+        }
+      ],
+      "symbols": [
+        "create_snapshot",
+        "assess_snapshot",
+        "restore_snapshot"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the robustness control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/snapshot.py at its recorded SHA-256 for the named robustness atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-7",
+      "path": "lattice/store.py",
+      "sha256": "0780eb15fafc5c2cee37c159f59f32b350f9182cf373737261bf0dbf7b7fee01",
+      "line_ranges": [
+        {
+          "start": 1705,
+          "end": 1840
+        }
+      ],
+      "symbols": [
+        "insert_invocation_batch"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the concurrency control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/store.py at its recorded SHA-256 for the named concurrency atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-8",
+      "path": "lattice/security.py",
+      "sha256": "430c0101ab422eb6fc3f178799e090ecda35f4e1295763dd6f26e1ce99dcdc9f",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 180
+        }
+      ],
+      "symbols": [
+        "OperatorSessionMiddleware",
+        "require_csrf"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the security control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/security.py at its recorded SHA-256 for the named security atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-9",
+      "path": "lattice/diagnostics.py",
+      "sha256": "bccdccad04759e5701a4e0b6657a99e79925f0dd23db18e33d7bc824669ee28c",
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 261
+        }
+      ],
+      "symbols": [
+        "assess_data_root",
+        "assess_backup"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the observability control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/diagnostics.py at its recorded SHA-256 for the named observability atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-10",
+      "path": "lattice/cli.py",
+      "sha256": "72234ba13d9f02c63634adddc4544f9b95605218b8ef2ac0a8889e6ce394562b",
+      "line_ranges": [
+        {
+          "start": 190,
+          "end": 330
+        }
+      ],
+      "symbols": [
+        "serve_command",
+        "doctor_command",
+        "backup_command",
+        "restore_command"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the api contract control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected lattice/cli.py at its recorded SHA-256 for the named api contract atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-11",
+      "path": "ops/install.py",
+      "sha256": "2347404566929b0cd303e990d93f399ff8e7edaedb71b5179a2cd68f5425efe6",
+      "line_ranges": [
+        {
+          "start": 440,
+          "end": 716
+        }
+      ],
+      "symbols": [
+        "install_runtime",
+        "publish_runtime",
+        "install_launchd",
+        "verify_live_service"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the packaging control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected ops/install.py at its recorded SHA-256 for the named packaging atoms; no source bytes were changed during audit."
+    },
+    {
+      "inspection_id": "inspection:plane-12",
+      "path": "web/src/App.svelte",
+      "sha256": "a16e7d0ce08cd7dd426097351510c116048ab58ded580f3a63543678a176a29d",
+      "line_ranges": [
+        {
+          "start": 200,
+          "end": 560
+        },
+        {
+          "start": 850,
+          "end": 1010
+        }
+      ],
+      "symbols": [
+        "prepareBatch",
+        "executePreparedBatch",
+        "inspect",
+        "beginSideQuest",
+        "captureResponseSelection",
+        "tagSelectedToSlate"
+      ],
+      "risk_path_ids": [],
+      "method": "Line-and-symbol inspection of the reception control boundary at immutable revision f4d70ba44777.",
+      "receipt": "Inspected web/src/App.svelte at its recorded SHA-256 for the named reception atoms; no source bytes were changed during audit."
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evidence:plane-1",
+      "kind": "source",
+      "ref": "README.md",
+      "sha256": "67690667f8edf50f3cf6e0567e24978dded4ce9cf1896aff9b4cdb906c56baa5",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "The README, Surface, package tree, and local indexes expose five operational owners and distinguish product contract, generated views, historical audits, and executable code.",
+      "excerpt": "Lattice is a local-first conversational lattice harness: a user progressively authors a graph of model invocations, one consequential edge at a time",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-2",
+      "kind": "source",
+      "ref": "lattice/contracts.py",
+      "sha256": "f49c388339467c43100b1fa091100edccf3bbe05620b29ba35b348637ed4f5a7",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "Typed direct and role-session actors, stateless assemblies, route-specific batch members, confirmation hashes, and receipts model conversation as the kernel primitive while workflows remain an optional governed layer.",
+      "excerpt": "ActorBindingV1 = Annotated[DirectActorBinding | RoleSessionActorBinding, Field(discriminator=\"kind\")]",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-3",
+      "kind": "source",
+      "ref": "lattice/server.py",
+      "sha256": "80f0b5f95258aa9dd7881031955396cf266e6d7a93460bfc552da0e3c0607f12",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "The same-origin REST boundary carries typed batch preview, atomic create, episodes, navigation, context modules, exact slices, and compatibility endpoints without exposing an alternate graph authority.",
+      "excerpt": "return lattice.create_invocation_batch(value)",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-4",
+      "kind": "source",
+      "ref": "lattice/manifest_reader.py",
+      "sha256": "180ba694c1c3e8f18819da6800cf562b32ca87bdf61f038ddc20cf99bd7e8004",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "An implementation boundary separate from the compositor recomputes generated identity, source bindings, actor semantics, segment lineage, omission states, and exact provider bytes.",
+      "excerpt": "Verify a durable manifest or a stateless batch candidate independently.",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-5",
+      "kind": "source",
+      "ref": "lattice/store.py",
+      "sha256": "0780eb15fafc5c2cee37c159f59f32b350f9182cf373737261bf0dbf7b7fee01",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "Foreground graph reads use bounded pagination and explicit limits while large payloads remain in the content-addressed blob store; the audit found no claimed hard realtime budget or numeric hot loop.",
+      "excerpt": "ORDER BY created_at DESC,invocation_id DESC LIMIT ?",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-6",
+      "kind": "source",
+      "ref": "lattice/snapshot.py",
+      "sha256": "7104cecd9da40bee4af52e330465e17b668d06cb077d3f0b327f94f6e6306f2e",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "Snapshot creation refuses active work and symlinked sources, copies SQLite consistently, binds the captured generation, inventories every file, and restores through a verified staging root.",
+      "excerpt": "Publish one complete snapshot only after its database and file inventory verify.",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-7",
+      "kind": "source",
+      "ref": "lattice/store.py",
+      "sha256": "0780eb15fafc5c2cee37c159f59f32b350f9182cf373737261bf0dbf7b7fee01",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "Batch idempotency, preview compare-and-swap, all-or-none sealing, append events, and route-specific manifests share one SQLite transaction; execution leases and retries remain separate immutable attempts.",
+      "excerpt": "Persist every sealed invocation in one transaction before any provider attempt can begin.",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-8",
+      "kind": "source",
+      "ref": "lattice/security.py",
+      "sha256": "430c0101ab422eb6fc3f178799e090ecda35f4e1295763dd6f26e1ce99dcdc9f",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "Loopback host checks, same-origin operator sessions, CSRF, mode-0600 CLI capability, security headers, and no-CORS defaults constrain local mutations and iframe authority.",
+      "excerpt": "if request.url.hostname not in LOOPBACK_HOSTS",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-9",
+      "kind": "source",
+      "ref": "lattice/diagnostics.py",
+      "sha256": "bccdccad04759e5701a4e0b6657a99e79925f0dd23db18e33d7bc824669ee28c",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "Doctor-readable diagnostics distinguish service, schema, append-chain, blob, journal, workflow, provider, runtime, backup, and active-work states without aliasing a failed dependency to empty data.",
+      "excerpt": "report[\"state_digest\"] = store.state_digest()",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-10",
+      "kind": "source",
+      "ref": "lattice/cli.py",
+      "sha256": "72234ba13d9f02c63634adddc4544f9b95605218b8ef2ac0a8889e6ce394562b",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "The public CLI exposes serve, open, status, doctor, backup, and restore with structured JSON modes and actionable nonzero failure exits while Outport remains service authority.",
+      "excerpt": "subparsers.add_parser(\"doctor\")",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-11",
+      "kind": "source",
+      "ref": "ops/install.py",
+      "sha256": "2347404566929b0cd303e990d93f399ff8e7edaedb71b5179a2cd68f5425efe6",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "Installation builds a non-editable versioned runtime, verifies its full manifest, publishes selectors and launchd jobs transactionally, probes the exact runtime generation, and rolls back a failed publication.",
+      "excerpt": "restore_publication_state(prior)",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:plane-12",
+      "kind": "source",
+      "ref": "web/src/App.svelte",
+      "sha256": "a16e7d0ce08cd7dd426097351510c116048ab58ded580f3a63543678a176a29d",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "The response and composer are primary; Claude, Codex, dual routing, exact selections, side quests, return, comparison, trailheads, context delta, and typed secondary failures are available without opening workflow or graph configuration.",
+      "excerpt": "Keep the exact selection alive while the operator uses its action menu.",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:assurance-receipt",
+      "kind": "test",
+      "ref": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
+      "sha256": "dfd6f9fe42fb34d78a8bbf2d44d9219146dd2c1037cb8384a9f161594b99c2ad",
+      "state_token": "f4d70ba44777603b8e624c23a7bd882f249b16bd",
+      "observation": "The frozen receipt separates green synthetic suites and operational health from the unperformed exact-current authenticated and browser acceptance proofs.",
+      "excerpt": "246 passed; 23 passed; 39 passed, 5 subtests passed; selected runtime source revision 5fce638fd46681945f2c7322e325c4b09d2e5c97.",
+      "collected_at": "20260824T100820Z"
+    },
+    {
+      "evidence_id": "evidence:selected-runtime",
+      "kind": "runtime",
+      "ref": "/Users/rian/Library/Application Support/Lattice/runtime/versions/0.1.0-5fce638fd466-429adeff64b0/runtime.json",
+      "sha256": "0602c3c511f5699d506410f1b03e2fdb0bad0471436432a1cf203af61ff2b8c4",
+      "state_token": "artifact:6ff17d35-9f6c-41f5-b212-30e4565685ad",
+      "observation": "The launchd-selected non-editable runtime binds Lattice source 5fce638fd46681945f2c7322e325c4b09d2e5c97 rather than the audited f4d70ba44777603b8e624c23a7bd882f249b16bd generation.",
+      "excerpt": "\"revision\":\"5fce638fd46681945f2c7322e325c4b09d2e5c97\"",
+      "collected_at": "20260824T100820Z"
+    }
+  ],
+  "evidence_mappings": [
+    {
+      "evidence_id": "evidence:plane-1",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-1-discoverability",
+          "mechanism": "The README.md inspection bears on discoverability through this mechanism: canonical READMEs and the Surface map expose each capability owner and historical assurance boundary."
+        },
+        {
+          "claim_id": "claim:plane-1-dead-code",
+          "mechanism": "The README.md inspection bears on dead-code through this mechanism: tracked runtime modules, generated assets, workflow packs, and tests have an identified operational or assurance consumer."
+        },
+        {
+          "claim_id": "claim:plane-1-duplication",
+          "mechanism": "The README.md inspection bears on duplication through this mechanism: one store, one compositor, one REST service, one cockpit, and one Outport identity remain authoritative."
+        },
+        {
+          "claim_id": "claim:plane-1-file-cohesion",
+          "mechanism": "The README.md inspection bears on file-cohesion through this mechanism: source files group contracts, storage, execution, integration, UI, and operations by distinct reasons to change."
+        },
+        {
+          "claim_id": "claim:plane-1-layering",
+          "mechanism": "The README.md inspection bears on layering through this mechanism: model-runner stays topology-neutral while Lattice owns graph semantics and domain packs own governed meaning."
+        },
+        {
+          "claim_id": "claim:plane-1-dependency-graph-health",
+          "mechanism": "The README.md inspection bears on dependency-graph-health through this mechanism: imports and service boundaries follow kernel to execution and integration to surface without a second canonical graph."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-2",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-2-abstraction-fit",
+          "mechanism": "The lattice/contracts.py inspection bears on abstraction-fit through this mechanism: direct actors and generic invocation batches represent freestyle conversation without making roles or gestures kernel-specific."
+        },
+        {
+          "claim_id": "claim:plane-2-config-surface",
+          "mechanism": "The lattice/contracts.py inspection bears on config-surface through this mechanism: provider authority, project defaults, context modules, Outport identity, and workflow roots remain explicit typed inputs."
+        },
+        {
+          "claim_id": "claim:plane-2-missing-types",
+          "mechanism": "The lattice/contracts.py inspection bears on missing-types through this mechanism: actors, assemblies, batches, episodes, manifests, attempts, modules, and proof limits preserve consequential distinctions."
+        },
+        {
+          "claim_id": "claim:plane-2-extension-points",
+          "mechanism": "The lattice/contracts.py inspection bears on extension-points through this mechanism: registered context modules, workflow packs, provider routes, and external concern identities extend without arbitrary UI code."
+        },
+        {
+          "claim_id": "claim:plane-2-error-model",
+          "mechanism": "The lattice/contracts.py inspection bears on error-model through this mechanism: preview staleness, provider failure, partial batches, unavailable modules, and recovery faults retain typed outcomes."
+        },
+        {
+          "claim_id": "claim:plane-2-state-model",
+          "mechanism": "The lattice/contracts.py inspection bears on state-model through this mechanism: append-only events, immutable invocations, mutable preflight, overlapping slices, and separate attempts model lifecycle boundaries."
+        },
+        {
+          "claim_id": "claim:plane-2-testability",
+          "mechanism": "The lattice/contracts.py inspection bears on testability through this mechanism: pure compilers, fake provider CLIs, independent manifest reconstruction, and fixture-bound adapters admit deterministic tests."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-3",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-3-mutability-contract",
+          "mechanism": "The lattice/server.py inspection bears on mutability-contract through this mechanism: draft selection mutates before sealing while manifests, results, attempts, and source blocks remain immutable afterward."
+        },
+        {
+          "claim_id": "claim:plane-3-identifier-encoding",
+          "mechanism": "The lattice/server.py inspection bears on identifier-encoding through this mechanism: opaque UUID and SHA-256 identities avoid path, role, domain, and display-position collisions."
+        },
+        {
+          "claim_id": "claim:plane-3-version-source-of-truth",
+          "mechanism": "The lattice/server.py inspection bears on version-source-of-truth through this mechanism: contract versions, schema generation, runtime manifest, source hashes, and current selector state have explicit owners."
+        },
+        {
+          "claim_id": "claim:plane-3-serialization-boundary",
+          "mechanism": "The lattice/server.py inspection bears on serialization-boundary through this mechanism: strict models and RFC 8785 canonical JSON reject ambiguous or non-finite durable representations."
+        },
+        {
+          "claim_id": "claim:plane-3-dead-parameters",
+          "mechanism": "The lattice/server.py inspection bears on dead-parameters through this mechanism: REST and operation inputs are consumed into manifests, authority checks, or compatibility paths rather than silently ignored."
+        },
+        {
+          "claim_id": "claim:plane-3-data-flow-invariants",
+          "mechanism": "The lattice/server.py inspection bears on data-flow-invariants through this mechanism: selected parents and exact blocks flow through preview hash, atomic seal, execution receipt, and live concern projection."
+        },
+        {
+          "claim_id": "claim:plane-3-compatibility",
+          "mechanism": "The lattice/server.py inspection bears on compatibility through this mechanism: manifest v2/v3 readers and role-oriented draft endpoints remain available beside v4 direct conversation."
+        },
+        {
+          "claim_id": "claim:plane-3-deprecation-discipline",
+          "mechanism": "The lattice/server.py inspection bears on deprecation-discipline through this mechanism: compatibility surfaces are named as role-oriented or legacy rather than silently redefined."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-4",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-4-translation-fidelity",
+          "mechanism": "The lattice/manifest_reader.py inspection bears on translation-fidelity through this mechanism: the independent reader reproduces provider bytes from sealed segments without trusting compositor output."
+        },
+        {
+          "claim_id": "claim:plane-4-deviation-soundness",
+          "mechanism": "The lattice/manifest_reader.py inspection bears on deviation-soundness through this mechanism: provider-owned context and unavailable ambient isolation are recorded as proof limits instead of simulated certainty."
+        },
+        {
+          "claim_id": "claim:plane-4-magic-number",
+          "mechanism": "The lattice/manifest_reader.py inspection bears on magic-number through this mechanism: bounded payload, page, lease, retry, and deadline constants are enforced at named operational boundaries."
+        },
+        {
+          "claim_id": "claim:plane-4-uncited-heuristic",
+          "mechanism": "The lattice/manifest_reader.py inspection bears on uncited-heuristic through this mechanism: context ordering and confirmation reasons derive from declared planes and authority changes rather than confidence scoring."
+        },
+        {
+          "claim_id": "claim:plane-4-numerical-stability",
+          "mechanism": "The lattice/manifest_reader.py inspection bears on numerical-stability through this mechanism: the system contains no floating-point numerical inference kernel whose stability could decide graph truth."
+        },
+        {
+          "claim_id": "claim:plane-4-operator-misuse",
+          "mechanism": "The lattice/manifest_reader.py inspection bears on operator-misuse through this mechanism: invalid actor-role pairs, stale previews, cross-project batches, unsafe continuation, and authority expansion fail before execution."
+        },
+        {
+          "claim_id": "claim:plane-4-provenance",
+          "mechanism": "The lattice/manifest_reader.py inspection bears on provenance through this mechanism: every manifest, excerpt, artifact, projection, runtime, snapshot, and workflow generation retains exact source lineage."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-5",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-5-redundant-computation",
+          "mechanism": "The lattice/store.py inspection bears on redundant-computation through this mechanism: bounded graph pages and content-addressed blocks avoid whole-history transcript reconstruction in the foreground."
+        },
+        {
+          "claim_id": "claim:plane-5-hot-loop-vectorization",
+          "mechanism": "The lattice/store.py inspection bears on hot-loop-vectorization through this mechanism: the audited service has no numeric array hot loop for which vectorization is a correctness-relevant performance control."
+        },
+        {
+          "claim_id": "claim:plane-5-inner-loop-allocation",
+          "mechanism": "The lattice/store.py inspection bears on inner-loop-allocation through this mechanism: large immutable payloads remain outside row-oriented graph operations and frontend lists page dormant branches."
+        },
+        {
+          "claim_id": "claim:plane-5-memory-layout",
+          "mechanism": "The lattice/store.py inspection bears on memory-layout through this mechanism: SQLite rows carry graph state while large bytes use the blob store instead of repeated inline copies."
+        },
+        {
+          "claim_id": "claim:plane-5-realtime-budget",
+          "mechanism": "The lattice/store.py inspection bears on realtime-budget through this mechanism: the product promises conversational responsiveness but declares no hard realtime deadline in the audited source."
+        },
+        {
+          "claim_id": "claim:plane-5-resource-amortization",
+          "mechanism": "The lattice/store.py inspection bears on resource-amortization through this mechanism: shared ContextAssembly binds fan-out semantics once while every route receives independent capability bytes."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-6",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-6-silent-failure",
+          "mechanism": "The lattice/snapshot.py inspection bears on silent-failure through this mechanism: provider, backend, optional-surface, module, storage, and restore faults surface distinctly from empty success."
+        },
+        {
+          "claim_id": "claim:plane-6-assumption-violation",
+          "mechanism": "The lattice/snapshot.py inspection bears on assumption-violation through this mechanism: symlink, hash, schema, actor, authority, preview, and source-generation violations reject at their trust boundary."
+        },
+        {
+          "claim_id": "claim:plane-6-degradation-containment",
+          "mechanism": "The lattice/snapshot.py inspection bears on degradation-containment through this mechanism: one provider or secondary drawer may fail while sealed siblings and the primary conversation remain usable."
+        },
+        {
+          "claim_id": "claim:plane-6-recovery-after-fault",
+          "mechanism": "The lattice/snapshot.py inspection bears on recovery-after-fault through this mechanism: leases reconcile, retries become new attempts, launchd restarts, snapshots restore off-path, and publication rolls back."
+        },
+        {
+          "claim_id": "claim:plane-6-input-degradation",
+          "mechanism": "The lattice/snapshot.py inspection bears on input-degradation through this mechanism: unsupported context, oversized bytes, malformed imports, unavailable provider profiles, and incomplete history remain explicit."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-7",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-7-race-freedom",
+          "mechanism": "The lattice/store.py inspection bears on race-freedom through this mechanism: SQLite sole-writer transactions and generation fences serialize graph commits and ignore stale optional UI completion."
+        },
+        {
+          "claim_id": "claim:plane-7-deadlock-freedom",
+          "mechanism": "The lattice/store.py inspection bears on deadlock-freedom through this mechanism: bounded leases, timeouts, cancellation, restart reconciliation, and provider-process isolation prevent indefinite ownership."
+        },
+        {
+          "claim_id": "claim:plane-7-atomicity",
+          "mechanism": "The lattice/store.py inspection bears on atomicity through this mechanism: batch sealing, append events, migration rebuild, snapshot publication, and runtime selection cross their boundaries transactionally."
+        },
+        {
+          "claim_id": "claim:plane-7-data-integrity",
+          "mechanism": "The lattice/store.py inspection bears on data-integrity through this mechanism: content hashes, foreign keys, append-chain checks, blob inventory, and exact manifests detect lost or conflicting bytes."
+        },
+        {
+          "claim_id": "claim:plane-7-idempotency",
+          "mechanism": "The lattice/store.py inspection bears on idempotency through this mechanism: batch keys, import identities, event identities, projection receipts, and retry attempts reject duplicate semantic creation."
+        },
+        {
+          "claim_id": "claim:plane-7-toctou",
+          "mechanism": "The lattice/store.py inspection bears on toctou through this mechanism: expected preview hashes, active-parent tokens, runtime-generation probes, and captured snapshot state fence preflight races."
+        },
+        {
+          "claim_id": "claim:plane-7-ordering-visibility",
+          "mechanism": "The lattice/store.py inspection bears on ordering-visibility through this mechanism: event sequence, parent edges, attempt lineage, context ordinals, and completion state preserve observable ordering."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-8",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-8-secrets-in-code",
+          "mechanism": "The lattice/security.py inspection bears on secrets-in-code through this mechanism: provider credentials and operator capabilities are absent from tracked source and stripped or loaded from protected local stores."
+        },
+        {
+          "claim_id": "claim:plane-8-untrusted-input-sink",
+          "mechanism": "The lattice/security.py inspection bears on untrusted-input-sink through this mechanism: strict JSON models, bounded URLs and roots, safe subprocess argument arrays, and no generated-code execution guard sinks."
+        },
+        {
+          "claim_id": "claim:plane-8-trusted-path-io",
+          "mechanism": "The lattice/security.py inspection bears on trusted-path-io through this mechanism: snapshot, install, import, module, and artifact paths resolve under declared roots and reject symlink traversal."
+        },
+        {
+          "claim_id": "claim:plane-8-transport-security",
+          "mechanism": "The lattice/security.py inspection bears on transport-security through this mechanism: loopback HTTP is host- and origin-gated while Outport supplies the public local HTTPS identity."
+        },
+        {
+          "claim_id": "claim:plane-8-supply-chain",
+          "mechanism": "The lattice/security.py inspection bears on supply-chain through this mechanism: locked dependencies, complete emitted-tree hashes, runtime manifests, and non-editable staged environments bind installed bytes."
+        },
+        {
+          "claim_id": "claim:plane-8-privacy-retention",
+          "mechanism": "The lattice/security.py inspection bears on privacy-retention through this mechanism: canonical data stays local, exact private evidence is reveal-controlled, and no real corpus imports automatically."
+        },
+        {
+          "claim_id": "claim:plane-8-license-redistribution",
+          "mechanism": "The lattice/security.py inspection bears on license-redistribution through this mechanism: packaged dependencies are enumerated, though this sanity pass did not independently adjudicate every transitive license."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-9",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-9-runtime-logging",
+          "mechanism": "The lattice/diagnostics.py inspection bears on runtime-logging through this mechanism: attempt journals, append events, launchd logs, and typed provider failures retain boundary-specific diagnostics."
+        },
+        {
+          "claim_id": "claim:plane-9-metrics-health",
+          "mechanism": "The lattice/diagnostics.py inspection bears on metrics-health through this mechanism: doctor reports service, runtime, store, provider, workflow, backup, and recovery health as separate checks."
+        },
+        {
+          "claim_id": "claim:plane-9-trace-correlation",
+          "mechanism": "The lattice/diagnostics.py inspection bears on trace-correlation through this mechanism: invocation, attempt, batch, manifest, event, artifact, provider session, and concern identities correlate execution end to end."
+        },
+        {
+          "claim_id": "claim:plane-9-error-surface",
+          "mechanism": "The lattice/diagnostics.py inspection bears on error-surface through this mechanism: the cockpit renders data, empty, partial, provider failure, backend failure, and optional integration failure separately."
+        },
+        {
+          "claim_id": "claim:plane-9-debuggability",
+          "mechanism": "The lattice/diagnostics.py inspection bears on debuggability through this mechanism: exact manifests, context delta, proof limits, journal locators, diagnostics, and graph neighborhoods localize observed failure."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-10",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-10-docstring-contract",
+          "mechanism": "The lattice/cli.py inspection bears on docstring-contract through this mechanism: public operations and CLI commands expose typed contracts and stable response objects beyond implementation comments."
+        },
+        {
+          "claim_id": "claim:plane-10-error-actionability",
+          "mechanism": "The lattice/cli.py inspection bears on error-actionability through this mechanism: rejections identify the stale hash, missing authority, unavailable profile, failed dependency, or corrupt object."
+        },
+        {
+          "claim_id": "claim:plane-10-naming-consistency",
+          "mechanism": "The lattice/cli.py inspection bears on naming-consistency through this mechanism: invocation, batch, episode, concern, attempt, runtime, and context block keep distinct names across Python and TypeScript."
+        },
+        {
+          "claim_id": "claim:plane-10-breaking-change-surface",
+          "mechanism": "The lattice/cli.py inspection bears on breaking-change-surface through this mechanism: versioned manifests, additive migrations, compatibility endpoints, and runtime staging bound consumer-visible change."
+        },
+        {
+          "claim_id": "claim:plane-10-help-behavior-match",
+          "mechanism": "The lattice/cli.py inspection bears on help-behavior-match through this mechanism: serve, open, status, doctor, backup, and restore parser surfaces correspond to implemented command handlers."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-11",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-11-metadata",
+          "mechanism": "The ops/install.py inspection bears on metadata through this mechanism: the package declares its CLI, backend, bundled cockpit, workflow packs, version, and Python requirements."
+        },
+        {
+          "claim_id": "claim:plane-11-dependency-spec",
+          "mechanism": "The ops/install.py inspection bears on dependency-spec through this mechanism: uv and npm locks bind the Python and Svelte dependency graphs used by source and installed builds."
+        },
+        {
+          "claim_id": "claim:plane-11-clean-build",
+          "mechanism": "The ops/install.py inspection bears on clean-build through this mechanism: the frontend production build and Python package assurance complete outside incremental dev-server state."
+        },
+        {
+          "claim_id": "claim:plane-11-asset-inclusion",
+          "mechanism": "The ops/install.py inspection bears on asset-inclusion through this mechanism: wheel and runtime manifests include the compiled cockpit and workflow packs and hash the emitted tree."
+        },
+        {
+          "claim_id": "claim:plane-11-clean-install",
+          "mechanism": "The ops/install.py inspection bears on clean-install through this mechanism: installation creates a fresh non-editable environment, probes imports outside the checkout, and only then publishes."
+        },
+        {
+          "claim_id": "claim:plane-11-path-resolution",
+          "mechanism": "The ops/install.py inspection bears on path-resolution through this mechanism: installed entrypoints resolve selected runtime modules, canonical data roots, Outport, logs, and backups explicitly."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:plane-12",
+      "claim_mechanisms": [
+        {
+          "claim_id": "claim:plane-12-audience-framing",
+          "mechanism": "The web/src/App.svelte inspection bears on audience-framing through this mechanism: the README and cockpit present an evolving conversation with routing powers rather than a workflow IDE."
+        },
+        {
+          "claim_id": "claim:plane-12-first-run",
+          "mechanism": "The web/src/App.svelte inspection bears on first-run through this mechanism: a blank project opens directly to response and composer with inline Claude, Codex, or dual routing."
+        },
+        {
+          "claim_id": "claim:plane-12-positioning",
+          "mechanism": "The web/src/App.svelte inspection bears on positioning through this mechanism: the product distinguishes itself from linear chat, visual workflows, and durable job runners by progressive multi-parent authorship."
+        },
+        {
+          "claim_id": "claim:plane-12-doc-coverage",
+          "mechanism": "The web/src/App.svelte inspection bears on doc-coverage through this mechanism: README, operations map, assurance ledger, Surface, and audit history expose use, boundaries, state, and proof limits."
+        },
+        {
+          "claim_id": "claim:plane-12-accessibility",
+          "mechanism": "The web/src/App.svelte inspection bears on accessibility through this mechanism: semantic buttons, labels, status text, and keyboard-addressable controls exist, but no dedicated assistive-technology study was run."
+        },
+        {
+          "claim_id": "claim:plane-12-community-infra",
+          "mechanism": "The web/src/App.svelte inspection bears on community-infra through this mechanism: community participation infrastructure is outside this personal local-service remediation and is not a release claim."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:assurance-receipt",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:7ad1b636-46f5-4fe2-b2f3-a9d7cfed305e",
+          "mechanism": "The receipt bounds the runtime mismatch by showing that Outport, launchd, storage, adapters, and backup remain healthy even though the selected source is old."
+        },
+        {
+          "claim_id": "closure:synthetic-conversation-and-recovery",
+          "mechanism": "The receipt binds the performed backend, frontend, model-runner, doctor, and recovery checks to the synthetic closure claim."
+        }
+      ]
+    },
+    {
+      "evidence_id": "evidence:selected-runtime",
+      "claim_mechanisms": [
+        {
+          "claim_id": "finding:7ad1b636-46f5-4fe2-b2f3-a9d7cfed305e",
+          "mechanism": "The installed generated-object source revision directly proves that the operator-visible service predates the audited implementation."
+        }
+      ]
+    }
+  ],
+  "owner_sources": [
+    {
+      "owner_source_id": "owner-source:approved-plan",
+      "authority_kind": "file-contract",
+      "ref": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
+      "sha256": "b37e608c107a478e327d55fdc9a022e88d198f26f7a0be7cd3e14e049c6b9217",
+      "excerpt": "Real personal data is not imported automatically. Closure means the system has survived synthetic, sanitized, authenticated-provider, restart, and restore testing and is ready for the user to begin real-data operation.",
+      "derived_by_auditor": false
+    }
+  ],
+  "prior_art": [
+    {
+      "prior_art_id": "prior-art:progressive-conversation-graphs",
+      "track": "strongest-competitor",
+      "source_ref": "README.md",
+      "source_sha256": "67690667f8edf50f3cf6e0567e24978dded4ce9cf1896aff9b4cdb906c56baa5",
+      "description": "The retrieved Lattice product contract compares linear chat, visual workflows, durable runners, Dandelion, Loom, and agent session managers by node scale and progressive graph authorship.",
+      "mechanisms": [
+        {
+          "element_id": "claim:plane-2-abstraction-fit",
+          "mechanism": "The design adapts graph branching and session control but keeps the next conversational edge, not a predefined workflow or whole job, as the human-authored primitive."
+        }
+      ]
+    },
+    {
+      "prior_art_id": "prior-art:durable-runner-boundary",
+      "track": "mechanism-family",
+      "source_ref": "README.md",
+      "source_sha256": "67690667f8edf50f3cf6e0567e24978dded4ce9cf1896aff9b4cdb906c56baa5",
+      "description": "The product contract separates Smithers-scale job recovery and model-runner execution durability from Lattice-owned prompt, topology, and context semantics.",
+      "mechanisms": [
+        {
+          "element_id": "claim:plane-1-layering",
+          "mechanism": "Lattice reuses immutable journals, leases, and resumability below the graph while refusing to make job or provider sessions the canonical conversation identity."
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "finding:7ad1b636-46f5-4fe2-b2f3-a9d7cfed305e",
+      "title": "The supervised service does not run the audited conversation-first generation",
+      "significance": "S2",
+      "status": "active",
+      "inherited": false,
+      "source_ref": "assurance/findings.json",
+      "source_sha256": "3d835709b0c56c9b6b14c4e946e38abb548d44f57645bfff0e09ef6641baf09f",
+      "relation": {
+        "kind": "new",
+        "finding_ids": []
+      },
+      "claim": "The operator-visible launchd service is healthy but its installed runtime manifest binds Lattice source 5fce638f, while this audit binds f4d70ba; the remediated cockpit and kernel are therefore not yet the running product.",
+      "evidence_ids": [
+        "evidence:selected-runtime"
+      ],
+      "counterevidence_ids": [
+        "evidence:assurance-receipt"
+      ],
+      "failure_mode": "Opening Lattice through its authoritative Outport identity executes an older verified package and cannot exercise the audited direct-conversation, context-action, and secondary-failure changes.",
+      "consequence": "Real personal operation would validate and depend on a different object from the one this remediation and audit describe, so real-data-ready closure would be materially false even though data integrity and rollback remain healthy.",
+      "response": "Publish this or a later clean immutable revision through the staged installer, require doctor to bind the selected source revision, and repeat the exact-current browser and authenticated acceptance paths before admitting personal data."
+    }
+  ],
+  "adversarial_passes": [
+    {
+      "pass_id": "pass:independent-negative-controls",
+      "independence": "separate-code-path",
+      "scope": "Pre-existing independent readers, deterministic fixtures, browser interception, restore inventory, and doctor probes attack the producer's conversation and recovery claims.",
+      "mutations": [
+        {
+          "mutation_id": "mutation:direct-requires-role",
+          "claim_id": "closure:synthetic-conversation-and-recovery",
+          "statement": "Secretly require or inject a role into a direct invocation.",
+          "oracle": "The direct-actor kernel oracle rejects a role session on a direct actor and reconstructs no role bytes.",
+          "rejected": true,
+          "evidence_ids": [
+            "evidence:assurance-receipt"
+          ]
+        },
+        {
+          "mutation_id": "mutation:duplicate-batch",
+          "claim_id": "closure:synthetic-conversation-and-recovery",
+          "statement": "Submit one idempotency key twice and create duplicate invocations.",
+          "oracle": "The batch receipt and event-count oracle require exactly one semantic creation.",
+          "rejected": true,
+          "evidence_ids": [
+            "evidence:assurance-receipt"
+          ]
+        },
+        {
+          "mutation_id": "mutation:missing-restore-blob",
+          "claim_id": "closure:synthetic-conversation-and-recovery",
+          "statement": "Delete one referenced blob and report restore success.",
+          "oracle": "Snapshot assessment rejects a readable database whose content inventory is incomplete.",
+          "rejected": true,
+          "evidence_ids": [
+            "evidence:assurance-receipt"
+          ]
+        },
+        {
+          "mutation_id": "mutation:runtime-disagreement",
+          "claim_id": "closure:synthetic-conversation-and-recovery",
+          "statement": "Serve a runtime generation different from the selected and Outport-bound generation.",
+          "oracle": "Doctor and live-publication tests reject the prior or mismatched runtime.",
+          "rejected": true,
+          "evidence_ids": [
+            "evidence:assurance-receipt"
+          ]
+        },
+        {
+          "mutation_id": "mutation:secondary-erases-conversation",
+          "claim_id": "closure:synthetic-conversation-and-recovery",
+          "statement": "Make an optional graph or workflow request failure erase the selected response.",
+          "oracle": "The browser-negative regression retains response and composer while rendering the planted secondary failure.",
+          "rejected": true,
+          "evidence_ids": [
+            "evidence:assurance-receipt"
+          ]
+        }
+      ],
+      "performed_at": "20260824T100820Z"
+    }
+  ],
+  "closure_claims": [
+    {
+      "claim_id": "closure:synthetic-conversation-and-recovery",
+      "statement": "The synthetic source generation rejects the named actor, idempotency, restore, runtime-disagreement, and secondary-surface mutations while preserving prior workflow and import contracts.",
+      "evidence_ids": [
+        "evidence:assurance-receipt"
+      ],
+      "mutation_ids": [
+        "mutation:direct-requires-role",
+        "mutation:duplicate-batch",
+        "mutation:missing-restore-blob",
+        "mutation:runtime-disagreement",
+        "mutation:secondary-erases-conversation"
+      ]
+    }
+  ],
+  "residuals": [
+    {
+      "residual_id": "residual:authenticated-current-source",
+      "statement": "No successful authenticated Claude/Codex acceptance report binds the exact audited source revision after three bounded attempts.",
+      "disposition": "blocks-closure"
+    },
+    {
+      "residual_id": "residual:browser-current-complete-path",
+      "statement": "The complete mocked browser path passed before secondary-failure isolation and the current negative mutation passed afterward, but the corrected exact-current full path was not rerun after its fixture defect.",
+      "disposition": "blocks-closure"
+    },
+    {
+      "residual_id": "residual:independent-reviewer",
+      "statement": "This audit used validator, independent reader, and negative-control code paths but was produced in the same implementation session; no separate human or agent reviewer has verified the immutable revision.",
+      "disposition": "blocks-closure"
+    },
+    {
+      "residual_id": "residual:outport-go-suite",
+      "statement": "The host lacks the Go toolchain, so Outport's own repository suite was not rerun; Lattice's consumption and disagreement contracts passed independently.",
+      "disposition": "proof-limit"
+    }
+  ]
+}

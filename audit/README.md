@@ -5,5 +5,6 @@ Each timestamped outpost binds one immutable implementation revision and preserv
 ```
 ├── 20260818T140529-initial-system/    Initial systemic audit and active remediation findings
 ├── 20260820T121500-closure-system/    Closure audit, rejected mutations, and proof limits
-└── 20260821T223204-pagani-remediation/ Post-remediation closure audit and complete finding ledger
+├── 20260821T223204-pagani-remediation/ Post-remediation closure audit and complete finding ledger
+└── 20260824T100820-conversation-first-remediation/ Audit Planes v4 pass over the conversation-first and operational-reliability source generation
 ```

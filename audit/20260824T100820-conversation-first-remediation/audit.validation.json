@@ -1,0 +1,644 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "attestation",
+    "kind": "audit-validation",
+    "schema": {
+      "name": "audit-planes-validation",
+      "version": 4
+    },
+    "artifact_id": "artifact:6cd77cbf-864a-5384-8dc6-6693a464dc46",
+    "generated_at": "20260824T100820Z",
+    "producer": {
+      "name": "audit-planes-validator",
+      "version": "4.0.0"
+    },
+    "subject": "audit:c062824e-b182-4880-9290-e84bac4cb0f7",
+    "sources": [
+      {
+        "ref": "AUDIT.json",
+        "revision": "1",
+        "sha256": "f96b3cf5b7961112fdc1b82d3b805c76c8bea1b8a3f0381ce63e639cf6ef0bf9"
+      }
+    ],
+    "binding": {
+      "artifact_id": "artifact:b7d50ccf-ba99-4b4d-ad63-747ac1254882",
+      "sha256": "f96b3cf5b7961112fdc1b82d3b805c76c8bea1b8a3f0381ce63e639cf6ef0bf9"
+    },
+    "validator": {
+      "name": "audit-planes-validator",
+      "version": "4.0.0"
+    },
+    "result": "failed"
+  },
+  "artifact_sha256": "f96b3cf5b7961112fdc1b82d3b805c76c8bea1b8a3f0381ce63e639cf6ef0bf9",
+  "contract_valid": true,
+  "evidentiary_assurance": "candidate",
+  "admissible_state": "closure-candidate",
+  "errors": [],
+  "blockers": [
+    "active material findings remain: ['finding:7ad1b636-46f5-4fe2-b2f3-a9d7cfed305e']",
+    "blocking residuals remain: ['residual:authenticated-current-source', 'residual:browser-current-complete-path', 'residual:independent-reviewer']"
+  ],
+  "atom_depths": [
+    {
+      "assessment_id": "assessment:plane-1-discoverability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "discoverability",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-1-dead-code",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "dead-code",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-1-duplication",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "duplication",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-1-file-cohesion",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "file-cohesion",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-1-layering",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "layering",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-1-dependency-graph-health",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "atom": "dependency-graph-health",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-2-abstraction-fit",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "abstraction-fit",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-2-config-surface",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "config-surface",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-2-missing-types",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "missing-types",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-2-extension-points",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "extension-points",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-2-error-model",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "error-model",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-2-state-model",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "state-model",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-2-testability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "atom": "testability",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-3-mutability-contract",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "mutability-contract",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-3-identifier-encoding",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "identifier-encoding",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-3-version-source-of-truth",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "version-source-of-truth",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-3-serialization-boundary",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "serialization-boundary",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-3-dead-parameters",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "dead-parameters",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-3-data-flow-invariants",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "data-flow-invariants",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-3-compatibility",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "compatibility",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-3-deprecation-discipline",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "atom": "deprecation-discipline",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-4-translation-fidelity",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "translation-fidelity",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-4-deviation-soundness",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "deviation-soundness",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-4-magic-number",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "magic-number",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-4-uncited-heuristic",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "uncited-heuristic",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-4-numerical-stability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "numerical-stability",
+      "achieved": "exhaustive"
+    },
+    {
+      "assessment_id": "assessment:plane-4-operator-misuse",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "operator-misuse",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-4-provenance",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "atom": "provenance",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-5-redundant-computation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "redundant-computation",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-5-hot-loop-vectorization",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "hot-loop-vectorization",
+      "achieved": "exhaustive"
+    },
+    {
+      "assessment_id": "assessment:plane-5-inner-loop-allocation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "inner-loop-allocation",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-5-memory-layout",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "memory-layout",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-5-realtime-budget",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "realtime-budget",
+      "achieved": "exhaustive"
+    },
+    {
+      "assessment_id": "assessment:plane-5-resource-amortization",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "atom": "resource-amortization",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-6-silent-failure",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "silent-failure",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-6-assumption-violation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "assumption-violation",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-6-degradation-containment",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "degradation-containment",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-6-recovery-after-fault",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "recovery-after-fault",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-6-input-degradation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "atom": "input-degradation",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-7-race-freedom",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "race-freedom",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-7-deadlock-freedom",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "deadlock-freedom",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-7-atomicity",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "atomicity",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-7-data-integrity",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "data-integrity",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-7-idempotency",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "idempotency",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-7-toctou",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "toctou",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-7-ordering-visibility",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "atom": "ordering-visibility",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-8-secrets-in-code",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "secrets-in-code",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-8-untrusted-input-sink",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "untrusted-input-sink",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-8-trusted-path-io",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "trusted-path-io",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-8-transport-security",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "transport-security",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-8-supply-chain",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "supply-chain",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-8-privacy-retention",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "privacy-retention",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-8-license-redistribution",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "atom": "license-redistribution",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-9-runtime-logging",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "runtime-logging",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-9-metrics-health",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "metrics-health",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-9-trace-correlation",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "trace-correlation",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-9-error-surface",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "error-surface",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-9-debuggability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "atom": "debuggability",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-10-docstring-contract",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "docstring-contract",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-10-error-actionability",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "error-actionability",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-10-naming-consistency",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "naming-consistency",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-10-breaking-change-surface",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "breaking-change-surface",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-10-help-behavior-match",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "atom": "help-behavior-match",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-11-metadata",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "metadata",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-11-dependency-spec",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "dependency-spec",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-11-clean-build",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "clean-build",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-11-asset-inclusion",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "asset-inclusion",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-11-clean-install",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "clean-install",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-11-path-resolution",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "atom": "path-resolution",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-12-audience-framing",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "audience-framing",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-12-first-run",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "first-run",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-12-positioning",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "positioning",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-12-doc-coverage",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "doc-coverage",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-12-accessibility",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "accessibility",
+      "achieved": "sanity"
+    },
+    {
+      "assessment_id": "assessment:plane-12-community-infra",
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "atom": "community-infra",
+      "achieved": "exhaustive"
+    }
+  ],
+  "achieved_depths": [
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 1,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 2,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 3,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 4,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 5,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 6,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 7,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 8,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 9,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 10,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 11,
+      "target": "sanity",
+      "achieved": "sanity"
+    },
+    {
+      "subject_id": "subject:dc51473a-c848-5e96-bde6-d942eac96837",
+      "plane_id": 12,
+      "target": "sanity",
+      "achieved": "sanity"
+    }
+  ]
+}

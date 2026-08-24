@@ -1,0 +1,43 @@
+Lattice conversation-first remediation assurance receipt
+audit source revision: f4d70ba44777603b8e624c23a7bd882f249b16bd
+surface artifact: artifact:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4
+
+Backend oracle/property/contract/regression suite:
+./.venv/bin/python -m pytest -q
+246 passed, 1 upstream StarletteDeprecationWarning in 189.39s
+
+Frontend contract and regression suite:
+npm test -- --run
+23 passed in 7 files
+npm run check
+0 errors and 0 warnings
+npm run build
+118 modules transformed; production assets emitted successfully
+
+Model-runner execution-kernel suite:
+axis/tools/model-runner/.venv/bin/python -m pytest -q
+39 passed, 5 subtests passed
+
+Browser evidence:
+The complete mocked conversation-first path passed on the source generation before secondary-failure isolation. The current secondary-outage mutation passed after that isolation. The exact-current complete path reached Slate tagging, then failed in its deterministic fixture because the mock parsed `tags` as the source identity; the fixture was corrected but not rerun after the three-attempt ceiling. This is a proof limit, not a demonstrated product failure.
+
+Authenticated evidence:
+An earlier generation completed the authenticated Claude/Codex manual lattice. Three bounded attempts did not produce a successful authenticated report for the exact current source revision. No fourth attempt was made.
+
+Operational doctor, run outside the localhost-restricted audit sandbox:
+status: pass
+Outport: lattice.axisvi.test, port 9010, up true
+launchd: com.axisvi.lattice loaded and running
+service: healthy, canonical data root, schema 9
+database/blobs/journals: pass
+provider adapters: Claude and Codex expose compiled-fresh, workspace-agent, and native-continuation
+backup and separate-root recovery assessment: pass
+
+Selected installed runtime manifest:
+runtime_id: 0.1.0-5fce638fd466-429adeff64b0
+Lattice source revision: 5fce638fd46681945f2c7322e325c4b09d2e5c97
+model-runner source revision: 429adeff64b0d1fbfe97067080014ba92fe5b5b0
+The selected service therefore predates the audited conversation-first source revision f4d70ba44777603b8e624c23a7bd882f249b16bd.
+
+External proof limit:
+Outport's own Go test suite was not executed because the host does not currently provide the Go toolchain. Lattice's Outport consumption contract and disagreement mutations passed in the Python reliability suite.
