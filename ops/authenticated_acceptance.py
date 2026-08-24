@@ -19,6 +19,7 @@ from typing import Any
 
 TERMINAL_STATES = {"succeeded", "failed", "interrupted", "imported"}
 SOURCE_PYTHON = Path(__file__).resolve().parents[1] / ".venv" / "bin" / "python"
+SOURCE_ENVIRONMENT = SOURCE_PYTHON.parent.parent
 
 
 def stamp() -> str:
@@ -35,7 +36,7 @@ def reexec_in_source_environment() -> None:
     if not SOURCE_PYTHON.is_file():
         raise AcceptanceFailure(f"Lattice source environment is unavailable: {SOURCE_PYTHON}")
     target = SOURCE_PYTHON.resolve()
-    if Path(sys.executable).resolve() == target:
+    if Path(sys.prefix).resolve() == SOURCE_ENVIRONMENT.resolve():
         return
     os.execv(str(target), [str(target), str(Path(__file__).resolve()), *sys.argv[1:]])
 
@@ -57,7 +58,7 @@ class LatticeAPI:
             headers["Content-Type"] = "application/json"
         request = urllib.request.Request(f"{self.base_url}{path}", data=content, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with urllib.request.urlopen(request, timeout=10 if method in {"GET", "HEAD"} else 30) as response:
                 raw = response.read()
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")
@@ -156,12 +157,18 @@ class AcceptanceRun:
     def wait_for_invocation(self, invocation_id: str) -> dict[str, Any]:
         deadline = time.monotonic() + self.timeout_seconds
         last: dict[str, Any] | None = None
+        last_error: str | None = None
         while time.monotonic() < deadline:
-            last = self.api.get(f"/api/v1/invocations/{invocation_id}")
+            try:
+                last = self.api.get(f"/api/v1/invocations/{invocation_id}")
+            except AcceptanceFailure as error:
+                last_error = str(error)
+                time.sleep(0.5)
+                continue
             if last["state"] in TERMINAL_STATES:
                 return last
             time.sleep(0.5)
-        raise AcceptanceFailure(f"invocation {invocation_id} did not terminalize within {self.timeout_seconds}s; last={last}")
+        raise AcceptanceFailure(f"invocation {invocation_id} did not terminalize within {self.timeout_seconds}s; last={last}; last_error={last_error}")
 
     @staticmethod
     def native_session(invocation: dict[str, Any]) -> str:

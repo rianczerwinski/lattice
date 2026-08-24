@@ -126,7 +126,8 @@ def reexec_in_source_environment() -> None:
     """Enter the verified source environment before importing application code."""
 
     target = source_python().resolve()
-    if Path(sys.executable).resolve() == target:
+    source_environment = SOURCE_ROOT / ".venv"
+    if Path(sys.prefix).resolve() == source_environment.resolve():
         return
     os.execv(str(target), [str(target), str(Path(__file__).resolve()), *sys.argv[1:]])
 

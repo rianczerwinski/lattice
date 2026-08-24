@@ -41,7 +41,8 @@ def test_acceptance_driver_reexecs_before_optional_dependencies(monkeypatch, tmp
         raise RuntimeError("exec boundary")
 
     monkeypatch.setattr(authenticated_acceptance, "SOURCE_PYTHON", source)
-    monkeypatch.setattr(authenticated_acceptance.sys, "executable", str(tmp_path / "system-python"))
+    monkeypatch.setattr(authenticated_acceptance, "SOURCE_ENVIRONMENT", tmp_path / "source-environment")
+    monkeypatch.setattr(authenticated_acceptance.sys, "prefix", str(tmp_path / "system-prefix"))
     monkeypatch.setattr(authenticated_acceptance.os, "execv", fake_execv)
 
     with pytest.raises(RuntimeError, match="exec boundary"):

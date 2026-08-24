@@ -254,7 +254,7 @@ def test_installer_reexecs_before_application_imports(monkeypatch, tmp_path) -> 
         raise RuntimeError("exec boundary")
 
     monkeypatch.setattr(deployment, "source_python", lambda: source)
-    monkeypatch.setattr(deployment.sys, "executable", str(tmp_path / "system-python"))
+    monkeypatch.setattr(deployment.sys, "prefix", str(tmp_path / "system-prefix"))
     monkeypatch.setattr(deployment.os, "execv", fake_execv)
 
     with pytest.raises(RuntimeError, match="exec boundary"):
