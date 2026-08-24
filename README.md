@@ -19,7 +19,7 @@ lattice open
 lattice doctor
 ```
 
-Outport owns Lattice's `lattice.axisvi.test` identity and current port allocation; launchd keeps the installed, version-pinned runtime alive across crashes and login. `lattice` works from any shell directory. Canonical private state and verified backups live under `~/Library/Application Support/Lattice/`; logs live under `~/Library/Logs/Lattice/`. The legacy repository-local store is retained untouched until the cutover proves it can be retired. The source layout is:
+Outport owns Lattice's `lattice.axisvi.test` identity and current port allocation; launchd keeps the installed, version-pinned runtime alive across crashes and login. `lattice` works from any shell directory. Canonical private state and verified backups live under `~/Library/Application Support/Lattice/`; logs live under `~/Library/Logs/Lattice/`. The former repository-local store is not active; it remains byte-preserved only as the pre-cutover recovery source. The source layout is:
 
 ```text
 lattice/          backend contracts, ledger, compositor, execution, imports, workflow adapters
@@ -32,7 +32,7 @@ ops/              verified runtime installation, launchd supervision, upgrades, 
 
 Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additional pack roots in a standalone installation. Inside AXISVI, the existing Canon adapter adds `sui/mission/projects/canon/dev/quaternary-exhaustion/workflows/` automatically. A duplicate `pack_id` across roots is a startup error, so an external project can never be silently shadowed by a bundled definition.
 
-The conversation-first source generation has passed its synthetic backend, manifest-reader, workflow, reliability, frontend, and browser-negative assurance suites. An earlier generation completed the authenticated Claude/Codex manual lattice, but the exact current source revision has not yet repeated that authenticated acceptance, and the healthy launchd service still runs an older verified runtime generation. Lattice therefore does not yet claim real-data-ready closure. The governed German workflow machinery is implemented, but its authenticated native Gemini lane remains unavailable: the installed official CLI rejects the consumer tier and cannot presently meet Lattice's exact-context isolation contract.
+Lattice `0.2.0` is real-data-ready for the manual conversation-first product. Runtime `0.2.0-0c231103830f-87f5299a9d22` binds the exact Lattice and model-runner source trees, runs under launchd at its Outport identity, and has passed the synthetic backend, independent manifest-reader, workflow, reliability, frontend, exact-current browser, authenticated Claude/Codex, provider-failure, daemon-restart, and separate-root restore paths. The authenticated acceptance preserved 18 immutable invocations across direct send, side quest, dual fan-out, exact excerpt graft, reciprocal cross-feed, fan-in, provider-native resume and fork, portable fallback, failure recovery, and dormant-branch continuation. No personal corpus was imported during acceptance. The governed German workflow machinery is implemented, but its authenticated native Gemini lane remains unavailable: the installed official CLI rejects the consumer tier and cannot presently meet Lattice's exact-context isolation contract.
 
 ## Telos
 

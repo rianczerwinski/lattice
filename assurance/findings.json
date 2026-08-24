@@ -4,18 +4,22 @@
     "role": "canonical",
     "kind": "lattice-remediation-findings",
     "schema": {"name": "lattice-remediation-findings", "version": 1},
-    "artifact_id": "artifact:ed003a0f-2ae4-459a-ab48-c29e0e0bd38d",
-    "generated_at": "20260824T094333",
+    "artifact_id": "artifact:1c019874-1b3b-4f23-a8b5-d30834fbab0b",
+    "generated_at": "20260824T171018",
     "parent_artifact_id": "artifact:9519c266-323c-4f6c-867f-26967c2ce6b2",
-    "producer": {"name": "lattice-remediation", "version": "1.0.0"},
+    "producer": {"name": "lattice-remediation", "version": "1.1.0"},
     "subject": "lattice:conversation-first-remediation-findings",
     "sources": [
-      {"ref": "file:/Users/rian/AXISVI/axis/chariots/lattice/CONVERSATION-FIRST-REMEDIATION-PLAN.md", "revision": null, "sha256": "b37e608c107a478e327d55fdc9a022e88d198f26f7a0be7cd3e14e049c6b9217"}
+      {"ref": "git:/Users/rian/AXISVI/axis/chariots/lattice/assurance/findings.json", "revision": "0c231103830feff5e3b1d555ae8205c05f2cc0ac", "sha256": "3d835709b0c56c9b6b14c4e946e38abb548d44f57645bfff0e09ef6641baf09f"},
+      {"ref": "file:/Users/rian/AXISVI/axis/chariots/lattice/CONVERSATION-FIRST-REMEDIATION-PLAN.md", "revision": null, "sha256": "b37e608c107a478e327d55fdc9a022e88d198f26f7a0be7cd3e14e049c6b9217"},
+      {"ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T170628-0e255354-991.json", "revision": "artifact:0e255354-9911-4681-90e2-e1498064608a", "sha256": "40588eb9040633865f11e0063747fea1c1dcac0f2117aae3633961618b5da478"},
+      {"ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-0c231103830f-87f5299a9d22/runtime.json", "revision": "artifact:b2c8a29a-032e-4db9-a070-263c0121a5b6", "sha256": "819565907379db7201ac73c216bcffc3308ddabe41fa86fafd9e9b97404a85fe"},
+      {"ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T170655-068be392-a77/snapshot.json", "revision": "artifact:068be392-a775-4188-bf9a-1fc541352094", "sha256": "a3f786e6daab984348e02cff5695c052609861c747470724c46a9a0e555d574c"}
     ]
   },
   "contract_version": "LatticeRemediationFindings/1.0",
   "status_vocabulary": ["open", "implemented-pending-verification", "closed"],
-  "proof_limit": "The exact current source revision has not completed authenticated Claude/Codex acceptance or verified installed-runtime publication. The current source has synthetic, independent-reader, workflow, reliability, frontend, and browser-negative evidence; the healthy supervised service runs an earlier verified generation. Panel obligations remain bound to their settled expressions in the approved plan because the canonical advisory transcript could not be resolved during baseline construction.",
+  "proof_limit": "The v0.2.0 Lattice source revision completed synthetic, independent-reader, workflow, reliability, frontend, exact-current browser, authenticated Claude/Codex, provider-failure, launchd-restart, and separate-root restore acceptance in an installed byte-attested runtime. Provider-owned system context remains observable only through each adapter's declared proof limits. No personal corpus was imported. The governed German workflow machinery remains implemented but its authenticated Gemini native lane is unavailable because the installed official CLI cannot satisfy the consumer-subscription and exact-context boundary.",
   "findings": [
     {
       "finding_id": "41abd11e-7163-421a-8efb-8f6dbe0dc623",
@@ -32,8 +36,8 @@
       "severity": "S1",
       "statement": "Native continuation was specified while model-runner rejected every session policy except fresh execution.",
       "route": [6],
-      "status": "implemented-pending-verification",
-      "implementation_receipts": ["axis/tools/model-runner/axis_model_runner/adapters.py:validate_execution_policy", "axis/tools/model-runner/axis_model_runner/adapters.py:build_command", "lattice/contracts.py:ProviderRoute", "lattice/store.py:_assert_actor_route_authorized", "lattice/supervisor.py:ExecutionSupervisor._run", "web/src/executionRoutes.ts:buildRoutePayload", "tests/test_supervisor.py:test_oracle_native_continuation_uses_the_selected_parent_receipt_and_exact_authority", "axis/tools/model-runner/tests/test_model_runner.py:test_contract_native_resume_and_fork_require_an_observed_session"],
+      "status": "closed",
+      "implementation_receipts": ["axis/tools/model-runner/axis_model_runner/adapters.py:validate_execution_policy", "axis/tools/model-runner/axis_model_runner/adapters.py:build_command", "lattice/contracts.py:ProviderRoute", "lattice/store.py:_assert_actor_route_authorized", "lattice/supervisor.py:ExecutionSupervisor._run", "web/src/executionRoutes.ts:buildRoutePayload", "tests/test_supervisor.py:test_oracle_native_continuation_uses_the_selected_parent_receipt_and_exact_authority", "axis/tools/model-runner/tests/test_model_runner.py:test_contract_native_resume_and_fork_require_an_observed_session", "acceptance:artifact:0e255354-9911-4681-90e2-e1498064608a proves Claude and Codex workspace, native fork, native resume, portable fallback, and cross-authority rejection"],
       "independent_oracle": "Authenticated provider acceptance proves a session ID, a qualified resume or fork command, and rejection across model, workspace, or authority changes.",
       "false_mutation": "Reuse a native session after changing workspace or permissions and require eligibility to fail."
     },
@@ -132,8 +136,8 @@
       "severity": "product",
       "statement": "Lattice must remain recoverable when Panels, the browser UI, a provider, or a development checkout fails.",
       "route": [8],
-      "status": "implemented-pending-verification",
-      "implementation_receipts": ["lattice/cli.py:doctor", "lattice/snapshot.py:create_snapshot", "lattice/snapshot.py:restore_snapshot", "ops/install.py:publish", "tests/test_reliability.py", "operational:lattice doctor --json and separate-root restore passed for installed generation"],
+      "status": "closed",
+      "implementation_receipts": ["lattice/cli.py:doctor", "lattice/snapshot.py:create_snapshot", "lattice/snapshot.py:restore_snapshot", "ops/install.py:publish", "tests/test_reliability.py", "runtime:artifact:b2c8a29a-032e-4db9-a070-263c0121a5b6", "acceptance:artifact:0e255354-9911-4681-90e2-e1498064608a proves launchd restart and post-restart continuation", "backup:artifact:068be392-a775-4188-bf9a-1fc541352094 restored to an isolated root with state digest 1973335d34e5e4119bd948977231b6cb35782d375ecb08129603d3e7dd4e1439"],
       "independent_oracle": "Outport resolution, launchd restart, pinned runtime upgrade rollback, database and blob diagnosis, snapshot restore, and post-restore continuation all pass independently.",
       "false_mutation": "Remove a referenced blob from a snapshot or break the active runtime symlink and require doctor or restore to report failure rather than success."
     },
@@ -176,6 +180,36 @@
       "implementation_receipts": ["web/src/App.svelte:inspect", "web/src/App.svelte:inspectGeneration", "web/e2e/conversation.spec.ts:browser regression: secondary surface outages do not erase the conversation"],
       "independent_oracle": "Planted 503 responses on every secondary surface render typed local failures while the selected response and composer remain usable.",
       "false_mutation": "Couple a secondary request to the primary response state and require the degraded-surface browser regression to fail."
+    },
+    {
+      "finding_id": "df38214d-acfe-45ba-ae03-0ac7206afe94",
+      "severity": "S1",
+      "statement": "A published runtime could bind the current source revision while uv reused a cached local wheel containing older application bytes, making provenance and rollback claims materially false.",
+      "route": [8],
+      "status": "closed",
+      "implementation_receipts": ["lattice/runtime_attestation.py:tree_inventory", "ops/install.py:install_runtime", "ops/install.py:verify_installed_runtime", "tests/test_reliability.py:test_oracle_installer_rejects_stale_cached_local_package", "tests/test_reliability.py:test_negative_control_runtime_manifest_requires_exact_application_trees", "runtime:artifact:b2c8a29a-032e-4db9-a070-263c0121a5b6"],
+      "independent_oracle": "The installer forcibly rebuilds both local packages, independently inventories their source and installed module trees, and the installed doctor rehashes those bytes before reporting the runtime healthy.",
+      "false_mutation": "Install a stale local wheel or remove one attested file from the runtime manifest and require publication or doctor to fail before activation."
+    },
+    {
+      "finding_id": "1cb3eb76-a875-47d1-a222-f5236e3d5b2b",
+      "severity": "S2",
+      "statement": "The installed doctor's first complete execution could fail on an unimported token helper even though mocked diagnostic tests passed.",
+      "route": [8],
+      "status": "closed",
+      "implementation_receipts": ["lattice/cli.py:ensure_cli_token", "tests/test_reliability.py:test_contract_doctor_passes_with_healthy_installed_dependencies", "operational:/Users/rian/.local/bin/lattice doctor --json passed from installed runtime 0.2.0-0c231103830f-87f5299a9d22"],
+      "independent_oracle": "A positive installed-doctor contract and the non-editable installed CLI both traverse the healthy branch to a passing terminal report.",
+      "false_mutation": "Remove the token-helper import and require the positive doctor contract to fail rather than relying only on negative-path mocks."
+    },
+    {
+      "finding_id": "d7893887-f5e3-43ad-9ce4-53d0c3c76033",
+      "severity": "S2",
+      "statement": "Codex CLI removed the isolation keys used by the qualified route, while adapter health checked only the binary version and therefore remained falsely ready until a sealed invocation failed.",
+      "route": [6, 8],
+      "status": "closed",
+      "implementation_receipts": ["axis/tools/model-runner/axis_model_runner/adapters.py:CODEX_DISABLED_FEATURES", "axis/tools/model-runner/axis_model_runner/adapters.py:_codex_capability_probe", "axis/tools/model-runner/tests/test_model_runner.py:test_oracle_codex_control_surface_probe_rejects_removed_isolation_control", "acceptance:artifact:0e255354-9911-4681-90e2-e1498064608a"],
+      "independent_oracle": "The installed route probe requires every qualified Codex feature gate and exec option, while authenticated acceptance proves the same generated command executes through fresh, workspace, resume, and fork profiles.",
+      "false_mutation": "Remove or rename one required Codex isolation feature and require doctor to mark the route unavailable before any invocation is sealed."
     }
   ]
 }
