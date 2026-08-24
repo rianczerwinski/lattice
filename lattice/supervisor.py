@@ -75,17 +75,28 @@ class ExecutionSupervisor:
         self.boot_id = f"boot_{uuid.uuid4().hex}"
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._cancellations: dict[str, threading.Event] = {}
+        self.startup_recovery_failures: list[dict[str, str]] = []
 
     async def start(self) -> int:
         attempts = await asyncio.to_thread(self.store.reconcile_orphans, self.boot_id)
         commands = await asyncio.to_thread(self.store.reconcile_workflow_commands, self.boot_id)
         undispatched = await asyncio.to_thread(self.store.list_undispatched_batch_members)
+        dispatched = 0
         for member in undispatched:
-            await self.execute(
-                member["invocation_id"],
-                ExecuteRequest(idempotency_key=f"batch:{member['batch_id']}:{member['spec_id']}"),
-            )
-        return attempts + commands + len(undispatched)
+            try:
+                await self.execute(
+                    member["invocation_id"],
+                    ExecuteRequest(idempotency_key=f"batch:{member['batch_id']}:{member['spec_id']}"),
+                )
+                dispatched += 1
+            except Exception as error:
+                failure = {"batch_id": member["batch_id"], "spec_id": member["spec_id"], "invocation_id": member["invocation_id"], "error": f"{type(error).__name__}: {error}"}
+                self.startup_recovery_failures.append(failure)
+                try:
+                    await asyncio.to_thread(self.store.record_event, project_id=member["project_id"], event_type="invocation-batch.recovery-failed", subject_type="invocation", subject_id=member["invocation_id"], payload=failure)
+                except Exception as receipt_error:
+                    failure["receipt_error"] = f"{type(receipt_error).__name__}: {receipt_error}"
+        return attempts + commands + dispatched
 
     async def stop(self) -> None:
         for cancel in self._cancellations.values():

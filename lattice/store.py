@@ -1676,7 +1676,7 @@ class LatticeStore:
 
         with self._connect() as conn:
             return [dict(row) for row in conn.execute(
-                """SELECT b.batch_id,m.spec_id,m.invocation_id
+                """SELECT b.batch_id,b.project_id,m.spec_id,m.invocation_id
                    FROM invocation_batches b
                    JOIN invocation_batch_members m USING(batch_id)
                    JOIN invocations i USING(invocation_id)

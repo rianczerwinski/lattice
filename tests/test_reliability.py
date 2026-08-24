@@ -217,6 +217,28 @@ def test_negative_control_doctor_rejects_service_from_unselected_runtime(monkeyp
     assert "prior-runtime" in check["detail"] and "candidate-runtime" in check["detail"]
 
 
+@pytest.mark.regression
+def test_negative_control_doctor_reports_undispatched_startup_recovery(monkeypatch, tmp_path, capsys) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    failure = {"invocation_id": "invocation_poisoned", "error": "planted"}
+    monkeypatch.setattr(cli, "_service", lambda _config: service)
+    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime", "startup_recovery_failures": [failure]})
+    monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
+    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
+    monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
+
+    status = cli.command_doctor(argparse.Namespace(json=True))
+    output = json.loads(capsys.readouterr().out)
+
+    assert status == 1
+    check = next(item for item in output["checks"] if item["name"] == "service")
+    assert check["state"] == "fail"
+    assert "invocation_poisoned" in check["detail"]
+
+
 @pytest.mark.contract
 def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -> None:
     service = deployment.plist_payload(deployment.SERVICE_LABEL, backup=False, runtime_id="test-runtime")

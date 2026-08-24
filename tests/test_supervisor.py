@@ -110,6 +110,34 @@ async def test_restart_dispatches_only_batch_members_that_never_received_an_atte
 
 
 @pytest.mark.asyncio
+@pytest.mark.regression
+async def test_negative_control_one_poisoned_recovery_member_cannot_starve_later_batches(monkeypatch, lattice_env) -> None:
+    project_id = lattice_env["project"]["project_id"]
+    supervisor = ExecutionSupervisor(lattice_env["store"])
+    members = [
+        {"batch_id": "batch_poisoned", "project_id": project_id, "spec_id": "first", "invocation_id": "invocation_poisoned"},
+        {"batch_id": "batch_healthy", "project_id": project_id, "spec_id": "second", "invocation_id": "invocation_healthy"},
+    ]
+    attempted: list[str] = []
+
+    async def fake_execute(invocation_id, _request):
+        attempted.append(invocation_id)
+        if invocation_id == "invocation_poisoned":
+            raise OSError("planted dispatch poison")
+        return {"attempt_id": "attempt_healthy"}
+
+    monkeypatch.setattr(lattice_env["store"], "list_undispatched_batch_members", lambda: members)
+    monkeypatch.setattr(supervisor, "execute", fake_execute)
+
+    reconciled = await supervisor.start()
+
+    assert reconciled == 1
+    assert attempted == ["invocation_poisoned", "invocation_healthy"]
+    assert supervisor.startup_recovery_failures == [{"batch_id": "batch_poisoned", "spec_id": "first", "invocation_id": "invocation_poisoned", "error": "OSError: planted dispatch poison"}]
+    assert any(event["event_type"] == "invocation-batch.recovery-failed" for event in lattice_env["store"].events_after(project_id, 0))
+
+
+@pytest.mark.asyncio
 @pytest.mark.contract
 async def test_contract_unexpected_execution_error_terminalizes_attempt(monkeypatch, lattice_env) -> None:
     draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="P1", route=lattice_env["route"]))

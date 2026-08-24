@@ -664,7 +664,7 @@ def verify_live_service(expected_runtime_id: str, timeout_seconds: int = 90) -> 
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{service.port}/api/health", timeout=2) as response:
                 payload = json.loads(response.read())
-            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id:
+            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and not payload.get("startup_recovery_failures"):
                 return
             last_error = RuntimeError(f"health identity mismatch: {payload}")
         except Exception as error:
