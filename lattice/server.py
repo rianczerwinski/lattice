@@ -779,8 +779,8 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.post("/api/v1/context-modules/resolve")
     async def resolve_context_module(value: ResolveContextModuleRequest):
-        if value.definition.mode.value == "role_default":
-            raise HTTPException(422, "role_default is a legacy workflow-pack mode and cannot be installed without a named role")
+        if value.definition.mode.value in {"role_default", "workflow_required"}:
+            raise HTTPException(422, f"{value.definition.mode.value} is a governed workflow-pack mode and cannot be installed through the manual context surface")
         try:
             result = await asyncio.to_thread(context_modules.resolve, value.definition)
         except ContextModuleError as error:

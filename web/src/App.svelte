@@ -1,9 +1,10 @@
 <script lang="ts">
   import { api, beginSession, extractWorkflow, post } from './api';
   import { batchIdempotencyKey, reciprocalCrossFeedParents, resolveExactSelection } from './invocationBatch';
+  import { buildContextModuleDefinition } from './contextModules';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
-  import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
+  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
 
   let projects: Project[] = [];
@@ -11,6 +12,13 @@
   let routes: Route[] = [];
   let workflowPacks: WorkflowPack[] = [];
   let workflowPackFailures: Array<{ pack_id: string; detail: string }> = [];
+  let contextModuleCatalogue: ContextModuleCatalogue | null = null;
+  let contextModuleCatalogueError = '';
+  let contextModuleId = '';
+  let contextModuleMode: 'manual' | 'project_default' = 'manual';
+  let contextModuleSourceKind: ContextModuleSourceKind = 'file';
+  let contextModuleSource = '';
+  let contextModuleReceipt = '';
   let selectedRoute = '';
   let routeMode: 'anthropic' | 'openai' | 'both' = 'anthropic';
   let executionProfile: 'compiled-fresh' | 'workspace-agent' | 'native-continuation' = 'compiled-fresh';
@@ -93,6 +101,8 @@
       routes = loadedRoutes;
       workflowPacks = workflowCatalogue.packs;
       workflowPackFailures = workflowCatalogue.failures;
+      try { contextModuleCatalogue = await api<ContextModuleCatalogue>('/api/v1/context-modules'); }
+      catch (cause) { contextModuleCatalogueError = cause instanceof Error ? cause.message : String(cause); }
       modelOverrides = Object.fromEntries(routes.map((route) => [route.provider_code, route.model_code]));
       const firstRoute = routes.find((route) => route.qualified && route.provider_code === 'anthropic') ?? routes.find((route) => route.qualified && route.provider_code === 'openai');
       if (firstRoute) {
@@ -748,6 +758,37 @@
     finally { working = false; }
   }
 
+  async function resolveContextModule() {
+    if (!project || !contextModuleCatalogue) return;
+    working = true;
+    error = '';
+    try {
+      const definition = buildContextModuleDefinition(contextModuleCatalogue, { moduleId: contextModuleId, mode: contextModuleMode, sourceKind: contextModuleSourceKind, source: contextModuleSource });
+      const result = await post<ContextModuleResolution>('/api/v1/context-modules/resolve', { project_id: project.project_id, definition });
+      contextModuleReceipt = result.receipt.receipt_sha256;
+      if (contextModuleMode === 'manual') {
+        explicitSelections = [...explicitSelections, { block_id: result.block.block_id, plane: 'knowledge', label: `module:${contextModuleId}`, disposition: 'selected', derived_from_block_ids: [] }];
+        resetPreview();
+      } else {
+        await openProject(project.project_id);
+      }
+      contextModuleId = '';
+      contextModuleSource = '';
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    finally { working = false; }
+  }
+
+  async function removeContextDefault(moduleId: string) {
+    if (!project) return;
+    working = true;
+    error = '';
+    try {
+      await api(`/api/v1/projects/${project.project_id}/context-defaults/${encodeURIComponent(moduleId)}`, { method: 'DELETE' });
+      await openProject(project.project_id);
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    finally { working = false; }
+  }
+
   boot();
 </script>
 
@@ -986,6 +1027,20 @@
         {:else}<p class="muted">Prepare an edge to inspect its exact world before execution.</p>{/if}
 
         {#if comparison}<div class="comparison"><h3>Branch delta</h3><pre>{JSON.stringify(comparison, null, 2)}</pre></div>{/if}
+        <details class="context-modules">
+          <summary>Context modules</summary>
+          <p>Resolve exact local or read-only source bytes for this edge, or keep a removable project default.</p>
+          {#if contextModuleCatalogueError}<p class="terminal-failure">Catalogue unavailable: {contextModuleCatalogueError}</p>
+          {:else if contextModuleCatalogue}
+            {#if project?.context_defaults?.length}<div class="context-defaults">{#each project.context_defaults as item}<div><span>{item.module_id}</span><small>{item.mode} · {item.block_id.slice(-8)}</small>{#if item.mode === 'project_default'}<button class="quiet" disabled={working} on:click={() => removeContextDefault(item.module_id)}>Remove</button>{/if}</div>{/each}</div>{/if}
+            <label>Identity<input bind:value={contextModuleId} placeholder="weather.home" /></label>
+            <label>Source kind<select bind:value={contextModuleSourceKind}><option value="file">file</option><option value="surface">Surface</option><option value="octopus">Octopus conversation</option><option value="http_readonly">read-only HTTP</option></select></label>
+            <label>{contextModuleSourceKind === 'http_readonly' ? 'Exact URL' : contextModuleSourceKind === 'octopus' ? 'Conversation ID' : 'Absolute path'}<input bind:value={contextModuleSource} placeholder={contextModuleSourceKind === 'http_readonly' ? 'https://weather.example/current' : contextModuleSourceKind === 'octopus' ? 'conversation-uuid' : '/absolute/source/path'} /></label>
+            <label>Use<select bind:value={contextModuleMode}><option value="manual">this edge</option><option value="project_default">project default</option></select></label>
+            <button class="quiet" disabled={working || !contextModuleId.trim() || !contextModuleSource.trim()} on:click={resolveContextModule}>Resolve exact source</button>
+            {#if contextModuleReceipt}<small class="module-receipt">Receipt · {contextModuleReceipt.slice(0, 16)}</small>{/if}
+          {/if}
+        </details>
         {#if selected}<details class="slate-tag"><summary>Tag into a live Slate topic</summary><label>Stable Slate identity<input bind:value={slateConcern} placeholder="canon-quaternary-german" /></label><label>Visible topic label<input bind:value={slateLabel} placeholder="Canon > Quaternary > German" /></label><div><button class="quiet" disabled={working || !slateConcern.trim() || !slateLabel.trim()} on:click={() => tagSelectedToSlate('invocation')}>Tag invocation</button><button class="quiet" disabled={working || !selected.output_block_id || !slateConcern.trim() || !slateLabel.trim()} on:click={() => tagSelectedToSlate('response')}>Tag response block</button></div>{#if slateTagReceipt}<small>Live slice updated · {slateTagReceipt}</small>{/if}</details>{/if}
         {#if selected && ['succeeded', 'imported'].includes(selected.state)}<details class="role-pin"><summary>Pin demonstrated function as role</summary><p class="muted">Creates an optional role for future edges. This invocation and its context remain unchanged.</p><label>Role name<input bind:value={pinRoleName} placeholder="Critic" /></label><label>Future instructions<textarea bind:value={pinRoleInstructions} rows="4" placeholder="Describe the function worth repeating…"></textarea></label><label>Session label<input bind:value={pinRoleSessionLabel} placeholder="Critic spine" /></label><button class="quiet" disabled={working || !pinRoleName.trim() || !pinRoleInstructions.trim() || !pinRoleSessionLabel.trim()} on:click={pinSelectedAsRole}>Pin as role</button>{#if pinRoleReceipt}<small>Future role created · {pinRoleReceipt}</small>{/if}</details>{/if}
         {#if project?.workflow_templates?.length}

@@ -202,9 +202,9 @@ def test_context_module_catalogue_and_failures_are_explicit(lattice_env) -> None
             "project_id": lattice_env["project"]["project_id"],
             "definition": {"module_id": "bad.file", "version": 1, "mode": "manual", "source_kind": "file", "capabilities": [], "configuration": {"path": "/unreadable"}},
         })
-        legacy = client.post("/api/v1/context-modules/resolve", headers=headers, json={
+        governed = client.post("/api/v1/context-modules/resolve", headers=headers, json={
             "project_id": lattice_env["project"]["project_id"],
-            "definition": {"module_id": "legacy.role", "version": 1, "mode": "role_default", "source_kind": "file", "capabilities": ["read-local-file"], "configuration": {"path": "/unreadable"}},
+            "definition": {"module_id": "governed.required", "version": 1, "mode": "workflow_required", "source_kind": "file", "capabilities": ["read-local-file"], "configuration": {"path": "/unreadable"}},
         })
 
     assert catalogue.status_code == 200
@@ -218,8 +218,8 @@ def test_context_module_catalogue_and_failures_are_explicit(lattice_env) -> None
     assert receipt["sensitivity"] == "private"
     assert receipt["authority"] == "bad.file"
     assert receipt["receipt_sha256"]
-    assert legacy.status_code == 422
-    assert "legacy workflow-pack mode" in legacy.json()["detail"]
+    assert governed.status_code == 422
+    assert "governed workflow-pack mode" in governed.json()["detail"]
 
 
 @pytest.mark.oracle
