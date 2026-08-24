@@ -122,6 +122,15 @@ def source_python() -> Path:
     return candidate
 
 
+def reexec_in_source_environment() -> None:
+    """Enter the verified source environment before importing application code."""
+
+    target = source_python().resolve()
+    if Path(sys.executable).resolve() == target:
+        return
+    os.execv(str(target), [str(target), str(Path(__file__).resolve()), *sys.argv[1:]])
+
+
 def required_binary(name: str) -> Path:
     candidate = shutil.which(name)
     if candidate is None:
@@ -514,4 +523,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    reexec_in_source_environment()
     main()

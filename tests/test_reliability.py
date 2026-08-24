@@ -243,6 +243,27 @@ def test_negative_control_runtime_probe_executes_outside_the_source_checkout(mon
     assert locations["lattice"].startswith("/installed/")
 
 
+@pytest.mark.regression
+def test_installer_reexecs_before_application_imports(monkeypatch, tmp_path) -> None:
+    source = tmp_path / "source-python"
+    source.write_text("", encoding="utf-8")
+    observed = {}
+
+    def fake_execv(executable, arguments):
+        observed.update({"executable": executable, "arguments": arguments})
+        raise RuntimeError("exec boundary")
+
+    monkeypatch.setattr(deployment, "source_python", lambda: source)
+    monkeypatch.setattr(deployment.sys, "executable", str(tmp_path / "system-python"))
+    monkeypatch.setattr(deployment.os, "execv", fake_execv)
+
+    with pytest.raises(RuntimeError, match="exec boundary"):
+        deployment.reexec_in_source_environment()
+
+    assert observed["executable"] == str(source.resolve())
+    assert observed["arguments"][0] == str(source.resolve())
+
+
 @pytest.mark.contract
 def test_runtime_manifest_canonicalization_uses_the_candidate_environment(tmp_path) -> None:
     runtime_python = Path(__import__("sys").executable)
