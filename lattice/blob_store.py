@@ -83,9 +83,11 @@ class BlobStore:
     def put_file(self, source: Path) -> tuple[str, int]:
         """Stream a stable regular file into the blob store without buffering it."""
 
+        if source.is_symlink():
+            raise ValueError("blob source must be a regular non-symlink file")
         source = source.resolve(strict=True)
         before = source.stat()
-        if not source.is_file() or source.is_symlink():
+        if not source.is_file():
             raise ValueError("blob source must be a regular non-symlink file")
         descriptor, temporary_name = tempfile.mkstemp(prefix=".stream.", suffix=".pending", dir=self.root)
         temporary = Path(temporary_name)

@@ -202,6 +202,17 @@ def test_blob_publication_requires_a_strict_file_sync(lattice_env, monkeypatch) 
     assert len(synced) == 1
 
 
+@pytest.mark.regression
+def test_negative_control_streamed_blob_ingestion_rejects_a_direct_symlink(lattice_env, tmp_path) -> None:
+    target = tmp_path / "exact-source"
+    target.write_bytes(b"private bytes")
+    planted = tmp_path / "planted-link"
+    planted.symlink_to(target)
+
+    with pytest.raises(ValueError, match="non-symlink"):
+        lattice_env["store"].blobs.put_file(planted)
+
+
 @pytest.mark.oracle
 def test_negative_control_removed_context_cannot_pass_manifest_oracle(lattice_env) -> None:
     draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="truth", route=lattice_env["route"]))
