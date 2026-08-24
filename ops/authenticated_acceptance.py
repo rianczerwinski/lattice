@@ -90,8 +90,8 @@ class LatticeAPI:
 
 def route(provider: str, **overrides: Any) -> dict[str, Any]:
     defaults = {
-        "anthropic": {"provider": "anthropic", "model": "opus", "harness": "claude", "effort": "high"},
-        "openai": {"provider": "openai", "model": "gpt-5.6-sol", "harness": "codex", "effort": "high"},
+        "anthropic": {"provider": "anthropic", "model": "sonnet", "harness": "claude", "effort": "medium"},
+        "openai": {"provider": "openai", "model": "gpt-5.6-sol", "harness": "codex", "effort": "medium"},
     }
     value = {**defaults[provider], **overrides}
     return value
