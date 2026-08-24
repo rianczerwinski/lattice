@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -82,6 +83,30 @@ def git_revision(root: Path, *, pathspec: str | None = None) -> str:
     return run(["git", "rev-parse", "HEAD"], cwd=root, capture=True).stdout.decode().strip()
 
 
+def sync_file(descriptor: int) -> None:
+    os.fsync(descriptor)
+    if sys.platform == "darwin":
+        fcntl.fcntl(descriptor, fcntl.F_FULLFSYNC)
+
+
+def sync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def sync_tree(root: Path) -> None:
+    for path in sorted((item for item in root.rglob("*") if item.is_file() and not item.is_symlink()), key=str):
+        with path.open("rb") as handle:
+            sync_file(handle.fileno())
+    directories = [item for item in root.rglob("*") if item.is_dir() and not item.is_symlink()]
+    for path in sorted(directories, key=lambda item: len(item.parts), reverse=True):
+        sync_directory(path)
+    sync_directory(root)
+
+
 def write_atomic(path: Path, content: bytes, *, mode: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".pending", dir=path.parent)
@@ -94,15 +119,11 @@ def write_atomic(path: Path, content: bytes, *, mode: int) -> None:
             if written <= 0:
                 raise OSError(f"write made no progress: {path}")
             view = view[written:]
-        os.fsync(descriptor)
+        sync_file(descriptor)
         os.close(descriptor)
         descriptor = -1
         os.replace(temporary, path)
-        directory = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        sync_directory(path.parent)
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -131,6 +152,7 @@ def replace_symlink(link: Path, target: Path) -> None:
     temporary = link.parent / f".{link.name}.{uuid.uuid4().hex}.pending"
     os.symlink(target, temporary)
     os.replace(temporary, link)
+    sync_directory(link.parent)
 
 
 def source_python() -> Path:
@@ -423,8 +445,7 @@ def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
         return target
     VERSIONS_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     target.mkdir(mode=0o700)
-    marker.write_text("installation is not published\n", encoding="utf-8")
-    os.chmod(marker, 0o600)
+    write_atomic(marker, b"installation is not published\n", mode=0o600)
     try:
         run(["uv", "venv", str(target / ".venv"), "--python", str(source_python())])
         environment = dict(os.environ)
@@ -437,11 +458,15 @@ def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
         frozen = run(["uv", "pip", "freeze", "--python", str(target / ".venv" / "bin" / "python")], capture=True).stdout.decode().splitlines()
         manifest = build_runtime_manifest(target=target, runtime_id=runtime_id, lattice_revision=lattice_revision, runner_revision=runner_revision, packages=frozen, module_locations=locations)
         write_atomic(target / "runtime.json", canonical_runtime_manifest(manifest, target / ".venv" / "bin" / "python"), mode=0o600)
+        sync_tree(target)
         marker.unlink()
+        sync_directory(target)
+        sync_directory(VERSIONS_ROOT)
         verify_runtime_target(target, runtime_id=runtime_id, lattice_revision=lattice_revision, runner_revision=runner_revision)
         return target
     except BaseException:
         shutil.rmtree(target)
+        sync_directory(VERSIONS_ROOT)
         raise
 
 
@@ -532,6 +557,7 @@ def _restore_symlink(path: Path, target: Path | None) -> None:
         return
     if path.is_symlink():
         path.unlink()
+        sync_directory(path.parent)
     elif path.exists():
         raise RuntimeError(f"refusing to remove non-symlink deployment selector: {path}")
 
@@ -543,6 +569,7 @@ def _restore_file(path: Path, state: FileState | None) -> None:
     if path.is_symlink() or path.exists() and not path.is_file():
         raise RuntimeError(f"refusing to remove unsupported deployment object: {path}")
     path.unlink(missing_ok=True)
+    sync_directory(path.parent)
 
 
 def unload_job(label: str) -> None:
@@ -562,23 +589,29 @@ def restore_publication_state(state: PublicationState) -> None:
 
     service_path = LAUNCH_AGENTS / f"{SERVICE_LABEL}.plist"
     backup_path = LAUNCH_AGENTS / f"{BACKUP_LABEL}.plist"
-    _restore_symlink(CURRENT_LINK, state.current_target)
-    _restore_symlink(PREVIOUS_LINK, state.previous_target)
-    _restore_file(SHIM, state.shim)
-    _restore_file(service_path, state.service_plist)
-    _restore_file(backup_path, state.backup_plist)
-    if state.backup_loaded:
-        if state.backup_plist is None:
-            raise RuntimeError("prior backup job was loaded without a recoverable plist")
-        reload_job(BACKUP_LABEL, backup_path)
+    failures: list[BaseException] = []
+
+    def attempt(operation) -> None:
+        try:
+            operation()
+        except BaseException as error:
+            failures.append(error)
+
+    attempt(lambda: _restore_symlink(CURRENT_LINK, state.current_target))
+    attempt(lambda: _restore_symlink(PREVIOUS_LINK, state.previous_target))
+    attempt(lambda: _restore_file(SHIM, state.shim))
+    attempt(lambda: _restore_file(service_path, state.service_plist))
+    attempt(lambda: _restore_file(backup_path, state.backup_plist))
+    if state.backup_loaded and state.backup_plist is None:
+        failures.append(RuntimeError("prior backup job was loaded without a recoverable plist"))
     else:
-        unload_job(BACKUP_LABEL)
-    if state.service_loaded:
-        if state.service_plist is None:
-            raise RuntimeError("prior service job was loaded without a recoverable plist")
-        reload_job(SERVICE_LABEL, service_path)
+        attempt(lambda: reload_job(BACKUP_LABEL, backup_path) if state.backup_loaded else unload_job(BACKUP_LABEL))
+    if state.service_loaded and state.service_plist is None:
+        failures.append(RuntimeError("prior service job was loaded without a recoverable plist"))
     else:
-        unload_job(SERVICE_LABEL)
+        attempt(lambda: reload_job(SERVICE_LABEL, service_path) if state.service_loaded else unload_job(SERVICE_LABEL))
+    if failures:
+        raise BaseExceptionGroup("Lattice publication rollback was incomplete", failures)
 
 
 def publish_runtime(target: Path) -> None:
@@ -664,7 +697,7 @@ def verify_live_service(expected_runtime_id: str, timeout_seconds: int = 90) -> 
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{service.port}/api/health", timeout=2) as response:
                 payload = json.loads(response.read())
-            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and not payload.get("startup_recovery_failures"):
+            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and not payload.get("startup_recovery_failures") and not payload.get("workflow_pack_failures"):
                 return
             last_error = RuntimeError(f"health identity mismatch: {payload}")
         except Exception as error:

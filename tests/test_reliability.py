@@ -17,6 +17,7 @@ from lattice.contracts import DraftCreate, ProjectCreate
 from lattice.diagnostics import assess_backup, assess_data_root
 from lattice.outport import OutportService, outport_executable, resolve_lattice_service
 from lattice.server import create_app
+from lattice import snapshot as snapshot_runtime
 from lattice.snapshot import create_snapshot, restore_snapshot, verify_snapshot
 from ops import install as deployment
 
@@ -81,6 +82,25 @@ def test_oracle_snapshot_restore_reproduces_exact_lattice_state(lattice_env, tmp
     assert manifest["generated_object"]["role"] == "snapshot"
     assert manifest["generated_object"]["sources"] == [{"ref": f"lattice:data-root:{lattice_env['config'].data_root.resolve()}", "revision": source["state_digest"], "sha256": None}]
     assert {item["path"] for item in manifest["inventory"]} >= {"lattice.sqlite3"}
+
+
+@pytest.mark.regression
+def test_snapshot_and_restore_sync_complete_directory_trees(monkeypatch, lattice_env, tmp_path) -> None:
+    source = assess_data_root(lattice_env["config"].data_root)
+    synced = []
+    real_sync = snapshot_runtime._sync_tree_directories
+
+    def recording_sync(root):
+        synced.append(root)
+        real_sync(root)
+
+    monkeypatch.setattr(snapshot_runtime, "_sync_tree_directories", recording_sync)
+    snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="directory-durability-regression", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
+    restore_snapshot(snapshot, tmp_path / "restored")
+
+    assert len(synced) == 2
+    assert synced[0].name.startswith(".lattice-snapshot-")
+    assert synced[1].name.startswith(".restored.restore-")
 
 
 @pytest.mark.regression
@@ -433,6 +453,30 @@ def test_negative_control_live_publication_rejects_the_prior_runtime(monkeypatch
 
 
 @pytest.mark.regression
+def test_negative_control_live_publication_rejects_quarantined_workflows(monkeypatch) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    monkeypatch.setattr("lattice.outport.resolve_lattice_service", lambda _root: service)
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return json.dumps({"status": "ok", "port": 9010, "data_root": str(deployment.DEFAULT_DATA_ROOT), "runtime_id": "candidate-runtime", "workflow_pack_failures": [{"pack_id": "broken", "detail": "planted"}]}).encode()
+
+    monkeypatch.setattr(deployment.urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr(deployment.time, "sleep", lambda _seconds: None)
+    ticks = iter((0.0, 0.5, 1.0))
+    monkeypatch.setattr(deployment.time, "monotonic", lambda: next(ticks))
+
+    with pytest.raises(RuntimeError, match="workflow_pack_failures"):
+        deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
+
+
+@pytest.mark.regression
 def test_negative_control_first_install_failure_unpublishes_every_candidate_selector(monkeypatch, tmp_path) -> None:
     runtime_root = tmp_path / "runtime"
     target = runtime_root / "versions" / "candidate"
@@ -463,6 +507,55 @@ def test_negative_control_first_install_failure_unpublishes_every_candidate_sele
     assert not previous.exists() and not previous.is_symlink()
     assert not shim.exists() and not service_path.exists() and not backup_path.exists()
     assert unloaded == [deployment.BACKUP_LABEL, deployment.SERVICE_LABEL]
+
+
+@pytest.mark.regression
+def test_publication_rollback_attempts_every_independent_restoration(monkeypatch, tmp_path) -> None:
+    current = tmp_path / "current"
+    previous = tmp_path / "previous"
+    shim = tmp_path / "lattice"
+    agents = tmp_path / "LaunchAgents"
+    monkeypatch.setattr(deployment, "CURRENT_LINK", current)
+    monkeypatch.setattr(deployment, "PREVIOUS_LINK", previous)
+    monkeypatch.setattr(deployment, "SHIM", shim)
+    monkeypatch.setattr(deployment, "LAUNCH_AGENTS", agents)
+    calls = []
+
+    def restore_symlink(path, _target):
+        calls.append(("selector", path.name))
+        if path == current:
+            raise OSError("planted current-selector failure")
+
+    monkeypatch.setattr(deployment, "_restore_symlink", restore_symlink)
+    monkeypatch.setattr(deployment, "_restore_file", lambda path, _state: calls.append(("file", path.name)))
+    monkeypatch.setattr(deployment, "unload_job", lambda label: calls.append(("job", label)))
+
+    with pytest.raises(BaseExceptionGroup, match="rollback was incomplete"):
+        deployment.restore_publication_state(deployment.PublicationState(None, None, None, None, None, False, False))
+
+    assert calls == [
+        ("selector", "current"),
+        ("selector", "previous"),
+        ("file", "lattice"),
+        ("file", f"{deployment.SERVICE_LABEL}.plist"),
+        ("file", f"{deployment.BACKUP_LABEL}.plist"),
+        ("job", deployment.BACKUP_LABEL),
+        ("job", deployment.SERVICE_LABEL),
+    ]
+
+
+@pytest.mark.regression
+def test_runtime_selector_replacement_syncs_its_parent(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "versions" / "candidate"
+    target.mkdir(parents=True)
+    link = tmp_path / "runtime" / "current"
+    synced = []
+    monkeypatch.setattr(deployment, "sync_directory", lambda path: synced.append(path))
+
+    deployment.replace_symlink(link, target)
+
+    assert link.resolve() == target
+    assert synced == [link.parent]
 
 
 @pytest.mark.regression
