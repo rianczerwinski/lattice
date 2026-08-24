@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -68,6 +69,33 @@ def test_outport_is_the_only_lattice_service_identity(tmp_path) -> None:
     assert service.url == "https://lattice.axisvi.test"
     assert service.frame_origins == ("https://slate.axisvi.test",)
     assert service.loopback_url == "http://127.0.0.1:9010"
+
+
+@pytest.mark.contract
+def test_lattice_remains_an_independent_ignored_nested_repository() -> None:
+    root = deployment.AXISVI_ROOT
+    assert not (root / ".gitmodules").exists() or "axis/chariots/lattice" not in (root / ".gitmodules").read_text(encoding="utf-8")
+    tracked = subprocess.run(["git", "ls-files", "-s", "--", "axis/chariots/lattice"], cwd=root, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    ignored = subprocess.run(["git", "check-ignore", "-q", "axis/chariots/lattice/README.md"], cwd=root, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+
+    assert tracked.stdout == b""
+    assert ignored.returncode == 0
+    assert (root / "axis" / "chariots" / "lattice" / ".git").is_dir()
+
+
+@pytest.mark.regression
+def test_negative_control_doctor_requires_both_service_and_backup_launchd_jobs(monkeypatch) -> None:
+    def fake_run(arguments, **_kwargs):
+        target = arguments[-1]
+        if target.endswith(cli.LAUNCHD_LABEL):
+            return argparse.Namespace(returncode=0, stdout=b"state = running\n", stderr=b"")
+        return argparse.Namespace(returncode=3, stdout=b"", stderr=b"Could not find service")
+
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="com.axisvi.lattice.backup.*not loaded"):
+        cli._launchd_status()
 
 
 @pytest.mark.regression

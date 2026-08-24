@@ -30,6 +30,7 @@ from .snapshot import create_snapshot, restore_snapshot
 
 
 LAUNCHD_LABEL = "com.axisvi.lattice"
+BACKUP_LAUNCHD_LABEL = "com.axisvi.lattice.backup"
 BACKUP_FRESH_SECONDS = 36 * 60 * 60
 
 
@@ -107,16 +108,26 @@ def _check(name: str, operation) -> dict[str, Any]:
         return {"name": name, "state": "fail", "detail": f"{type(error).__name__}: {error}"}
 
 
-def _launchd_status() -> dict[str, Any]:
+def _launchd_job_status(label: str, *, require_running: bool) -> dict[str, Any]:
     if sys.platform != "darwin":
         raise RuntimeError("launchd supervision is required only on macOS")
-    target = f"gui/{os.getuid()}/{LAUNCHD_LABEL}"
+    target = f"gui/{os.getuid()}/{label}"
     result = subprocess.run(["launchctl", "print", target], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(f"{target} is not loaded: {detail}")
     output = result.stdout.decode("utf-8", errors="replace")
-    return {"label": LAUNCHD_LABEL, "loaded": True, "running": "state = running" in output}
+    running = "state = running" in output
+    if require_running and not running:
+        raise RuntimeError(f"{target} is loaded but not running")
+    return {"label": label, "loaded": True, "running": running}
+
+
+def _launchd_status() -> dict[str, Any]:
+    return {
+        "service": _launchd_job_status(LAUNCHD_LABEL, require_running=True),
+        "backup": _launchd_job_status(BACKUP_LAUNCHD_LABEL, require_running=False),
+    }
 
 
 def _runtime_status() -> dict[str, Any]:
