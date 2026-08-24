@@ -247,7 +247,7 @@ def test_negative_control_slice_rejects_partial_or_forged_continuations(lattice_
     with pytest.raises(Exception, match="requires created_at, object_type, and object_id"):
         store.get_slice(slice_value["slice_id"], after_created_at="20260821T000000")
     with pytest.raises(Exception, match="unsupported object type"):
-        store.get_slice(slice_value["slice_id"], after_created_at="20260821T000000", after_object_type="artifact", after_object_id="artifact-fake")
+        store.get_slice(slice_value["slice_id"], after_created_at="20260821T000000", after_object_type="workflow", after_object_id="workflow-fake")
 
 
 @pytest.mark.regression

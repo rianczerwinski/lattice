@@ -2099,7 +2099,7 @@ class LatticeStore:
         slice_id = opaque_id("slice")
         concern_ref = f"lattice:{episode_id}"
         now = stamp()
-        query = {"concern_ref": concern_ref, "object_types": ["invocation", "context-block"]}
+        query = {"concern_ref": concern_ref, "object_types": ["invocation", "context-block", "artifact"]}
         with self.transaction() as conn:
             anchor_revision = self._object_revision(conn, value.project_id, value.anchor_type, value.anchor_id)
             parent = None
@@ -2218,7 +2218,7 @@ class LatticeStore:
             return None
         if any(value is None for value in values):
             raise LatticeConflict("slice continuation requires created_at, object_type, and object_id together")
-        if after_object_type not in {"context-block", "invocation"}:
+        if after_object_type not in {"artifact", "context-block", "invocation"}:
             raise LatticeConflict("slice continuation has an unsupported object type")
         return after_created_at, after_object_type, after_object_id
 
@@ -2292,7 +2292,7 @@ class LatticeStore:
         if "invocation" in object_types:
             sql = """SELECT 'invocation' AS object_type,i.invocation_id AS object_id,i.project_id,i.state,
                             i.role_session_id,i.output_block_id,NULL AS semantic_type,
-                            b.content_sha256 AS response_sha256,b.byte_count AS response_byte_count,i.created_at,
+                            b.content_sha256 AS response_sha256,b.byte_count AS response_byte_count,NULL AS media_type,i.created_at,
                             COALESCE((SELECT MIN(e.seq) FROM events e WHERE e.subject_type='invocation' AND e.subject_id=i.invocation_id AND e.event_type='invocation.sealed'),0) AS created_event_seq
                      FROM invocations i LEFT JOIN context_blocks b ON b.block_id=i.output_block_id"""
             conditions: list[str] = []
@@ -2308,7 +2308,7 @@ class LatticeStore:
         if "context-block" in object_types:
             sql = """SELECT 'context-block' AS object_type,b.block_id AS object_id,b.project_id,s.status AS state,
                             NULL AS role_session_id,NULL AS output_block_id,b.semantic_type,
-                            b.content_sha256 AS response_sha256,b.byte_count AS response_byte_count,b.created_at,
+                            b.content_sha256 AS response_sha256,b.byte_count AS response_byte_count,NULL AS media_type,b.created_at,
                             COALESCE((SELECT MIN(e.seq) FROM events e WHERE e.subject_type='context-block' AND e.subject_id=b.block_id AND e.event_type='context-block.created'),0) AS created_event_seq
                      FROM context_blocks b JOIN block_status s USING(block_id)"""
             conditions = []
@@ -2317,6 +2317,23 @@ class LatticeStore:
                 params.append(concern)
             if not global_scope:
                 conditions.append("b.project_id=?")
+                params.append(slice_row["project_id"])
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
+            selections.append(sql)
+        if "artifact" in object_types:
+            sql = """SELECT 'artifact' AS object_type,a.artifact_id AS object_id,a.project_id,'available' AS state,
+                            NULL AS role_session_id,NULL AS output_block_id,a.artifact_kind AS semantic_type,
+                            a.content_sha256 AS response_sha256,json_extract(a.generated_json,'$.byte_count') AS response_byte_count,
+                            json_extract(a.generated_json,'$.media_type') AS media_type,a.created_at,
+                            COALESCE((SELECT MIN(e.seq) FROM events e WHERE e.subject_type='artifact' AND e.subject_id=a.artifact_id AND e.event_type='artifact.created'),0) AS created_event_seq
+                     FROM artifacts a"""
+            conditions = []
+            if concern:
+                conditions.append("EXISTS (SELECT 1 FROM edges e WHERE e.relation='concerns' AND e.source_type='artifact' AND e.source_id=a.artifact_id AND e.target_id=?)")
+                params.append(concern)
+            if not global_scope:
+                conditions.append("a.project_id=?")
                 params.append(slice_row["project_id"])
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
@@ -2342,14 +2359,21 @@ class LatticeStore:
         for item in items:
             if item["object_type"] == "invocation":
                 item["invocation_id"] = item["object_id"]
-            else:
+            elif item["object_type"] == "context-block":
                 item["block_id"] = item["object_id"]
                 item["status"] = item["state"]
+                item["content_sha256"] = item["response_sha256"]
+            else:
+                item["artifact_id"] = item["object_id"]
+                item["artifact_kind"] = item["semantic_type"]
                 item["content_sha256"] = item["response_sha256"]
             byte_count = item.get("response_byte_count")
             digest = item.get("response_sha256")
             if digest is None or byte_count is None:
                 item["response_state"] = "not-produced"
+                continue
+            if item["object_type"] == "artifact" and not self._textual_media_type(item.get("media_type")):
+                item["response_state"] = "binary-artifact"
                 continue
             if byte_count > self.SLICE_INLINE_RESPONSE_BYTES - inline_bytes:
                 item["response_state"] = "omitted-byte-budget"
@@ -2392,6 +2416,13 @@ class LatticeStore:
                 },
             },
         }
+
+    @staticmethod
+    def _textual_media_type(media_type: Any) -> bool:
+        if not isinstance(media_type, str):
+            return False
+        base = media_type.split(";", 1)[0].strip().casefold()
+        return base.startswith("text/") or base in {"application/json", "application/ld+json", "application/xml", "application/javascript"} or base.endswith("+json") or base.endswith("+xml")
 
     def events_after(self, project_id: str, after: int = 0, limit: int = 200) -> list[dict[str, Any]]:
         with self._connect() as conn:

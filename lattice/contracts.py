@@ -411,7 +411,7 @@ class TagRequest(StrictModel):
 
 class SliceQuery(StrictModel):
     concern_ref: str | None = Field(default=None, min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
-    object_types: list[Literal["invocation", "context-block"]] = Field(default_factory=lambda: ["invocation"], min_length=1)
+    object_types: list[Literal["invocation", "context-block", "artifact"]] = Field(default_factory=lambda: ["invocation"], min_length=1)
 
     @field_validator("object_types")
     @classmethod

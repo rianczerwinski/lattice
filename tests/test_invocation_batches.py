@@ -15,6 +15,7 @@ from lattice.contracts import (
     DirectActorBinding,
     DraftCreate,
     EpisodeCreate,
+    EpisodeMemberCreate,
     InvocationBatchCreateV1,
     InvocationBatchPreviewV1,
     InvocationSpecV1,
@@ -271,6 +272,42 @@ def test_episodes_are_overlapping_live_slices_and_returned_work_is_new_history(l
     with lattice_env["store"]._connect() as conn:
         query_bytes = conn.execute("SELECT query_json FROM slices WHERE slice_id=?", (parent_episode["slice_id"],)).fetchone()[0]
     assert "root answer" not in query_bytes
+
+
+@pytest.mark.oracle
+def test_artifact_episode_members_remain_live_references_without_binary_text_coercion(lattice_env) -> None:
+    store = lattice_env["store"]
+    draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="Produce evidence artifacts", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    attempt = store.create_attempt(invocation["invocation_id"], "artifact-episode-attempt", "test-boot", 9_999_999_999)
+    completed = store.finish_successful_attempt(
+        attempt["attempt_id"],
+        response="Artifacts produced",
+        artifacts=[
+            {"name": "finding.txt", "media_type": "text/plain; charset=utf-8", "content": "exact textual finding"},
+            {"name": "diagram.png", "media_type": "image/png", "content": "not conversational text"},
+        ],
+        journal_path="fixture:artifact-episode",
+        runtime_receipt={"fixture": True},
+    )
+    artifacts = {store.get_artifact(item["artifact_id"], include_content=False)["generated"]["name"]: item for item in completed["artifacts"]}
+    text_artifact = artifacts["finding.txt"]
+    binary_artifact = artifacts["diagram.png"]
+
+    episode = store.create_episode(EpisodeCreate(project_id=lattice_env["project"]["project_id"], name="Artifact side quest", anchor_type="artifact", anchor_id=text_artifact["artifact_id"]))
+    episode = store.add_episode_member(episode["slice_id"], EpisodeMemberCreate(object_type="artifact", object_id=binary_artifact["artifact_id"]))["episode"]
+    members = {item["artifact_id"]: item for item in episode["items"]}
+
+    assert set(members) == {text_artifact["artifact_id"], binary_artifact["artifact_id"]}
+    assert members[text_artifact["artifact_id"]]["response"] == "exact textual finding"
+    assert members[text_artifact["artifact_id"]]["response_state"] == "included"
+    assert members[text_artifact["artifact_id"]]["content_sha256"] == text_artifact["content_sha256"]
+    assert members[binary_artifact["artifact_id"]]["response_state"] == "binary-artifact"
+    assert "response" not in members[binary_artifact["artifact_id"]]
+    assert members[binary_artifact["artifact_id"]]["content_sha256"] == binary_artifact["content_sha256"]
+    with store._connect() as conn:
+        query_bytes = conn.execute("SELECT query_json FROM slices WHERE slice_id=?", (episode["slice_id"],)).fetchone()[0]
+    assert "exact textual finding" not in query_bytes and "not conversational text" not in query_bytes
 
 
 @pytest.mark.oracle
