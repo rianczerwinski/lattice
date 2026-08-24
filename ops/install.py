@@ -157,6 +157,7 @@ def runtime_path() -> str:
 
 def verify_source() -> None:
     run([str(source_python()), "-m", "pytest", "-q"])
+    run(["npm", "run", "check"], cwd=SOURCE_ROOT / "web")
     run(["npm", "run", "build"], cwd=SOURCE_ROOT / "web")
     run(["npm", "test", "--", "--run"], cwd=SOURCE_ROOT / "web")
     if run(["git", "status", "--porcelain=v1"], capture=True).stdout.decode().strip():
@@ -487,7 +488,7 @@ def verify_live_service(expected_runtime_id: str, timeout_seconds: int = 90) -> 
             if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id:
                 return
             last_error = RuntimeError(f"health identity mismatch: {payload}")
-        except BaseException as error:
+        except Exception as error:
             last_error = error
         time.sleep(0.5)
     raise RuntimeError(f"installed Lattice did not become healthy: {last_error}")

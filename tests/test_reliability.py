@@ -264,6 +264,30 @@ def test_installer_reexecs_before_application_imports(monkeypatch, tmp_path) -> 
     assert observed["arguments"][0] == str(source.resolve())
 
 
+@pytest.mark.regression
+def test_installer_verification_includes_static_cockpit_diagnostics(monkeypatch) -> None:
+    calls = []
+
+    def fake_run(arguments, *, cwd=deployment.SOURCE_ROOT, env=None, capture=False):
+        calls.append((arguments, cwd, env, capture))
+        return argparse.Namespace(stdout=b"", stderr=b"", returncode=0)
+
+    monkeypatch.setattr(deployment, "run", fake_run)
+    deployment.verify_source()
+
+    assert (["npm", "run", "check"], deployment.SOURCE_ROOT / "web", None, False) in calls
+
+
+@pytest.mark.regression
+def test_live_publication_probe_never_swallows_operator_interrupt(monkeypatch) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    monkeypatch.setattr("lattice.outport.resolve_lattice_service", lambda _root: service)
+    monkeypatch.setattr(deployment.urllib.request, "urlopen", lambda *_args, **_kwargs: (_ for _ in ()).throw(KeyboardInterrupt()))
+
+    with pytest.raises(KeyboardInterrupt):
+        deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
+
+
 @pytest.mark.contract
 def test_runtime_manifest_canonicalization_uses_the_candidate_environment(tmp_path) -> None:
     runtime_python = Path(__import__("sys").executable)
