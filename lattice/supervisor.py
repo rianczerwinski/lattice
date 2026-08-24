@@ -146,7 +146,7 @@ class ExecutionSupervisor:
         project_id = invocation["project_id"]
         try:
             self.store.mark_attempt_running(attempt_id)
-            if invocation["manifest"].get("contract_version") not in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} or invocation["manifest"].get("response_contract") != invocation["response_schema"]:
+            if invocation["manifest"].get("contract_version") not in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LatticeContextManifest/7.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} or invocation["manifest"].get("response_contract") != invocation["response_schema"]:
                 raise LatticeConflict("invocation response contract is not execution-bound by an executable context manifest")
             prompt = verify_and_reconstruct(self.store, invocation["manifest"]).decode("utf-8")
             adapter = self._adapter(invocation["route"])

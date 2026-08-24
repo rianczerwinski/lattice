@@ -179,23 +179,34 @@ class AcceptanceRun:
             raise AcceptanceFailure(f"workspace invocation {invocation['invocation_id']} exposed no provider session UUID")
         return session_id
 
+    def assert_marker(self, label: str, invocation: dict[str, Any], marker: str) -> None:
+        output = invocation.get("output_block")
+        content = output.get("content") if isinstance(output, dict) else None
+        attempts = invocation.get("attempts") or []
+        digest = attempts[-1].get("output_sha256") if attempts else None
+        self.assert_truth(f"{label}:semantic-response", isinstance(content, str) and marker in content, {"marker": marker, "output_sha256": digest})
+
     def run_core(self) -> dict[str, Any]:
         project = self.api.post("/api/v1/projects", {"title": f"Authenticated acceptance {self.started_at}", "purpose": "Synthetic Lattice closure evidence; contains no personal corpus."})
         self.project_id = project["project_id"]
         self.assert_truth("blank-project-has-no-role", project.get("roles") == [] and project.get("sessions") == [], {"roles": project.get("roles"), "sessions": project.get("sessions")})
 
         root = self.create_batch([specification("claude-root", assembly(self.project_id, "Reply in one short sentence containing marker ROOT-CLAUDE. This is synthetic acceptance data."), route("anthropic"))], "root-claude")[0]
+        self.assert_marker("root-claude", root, "ROOT-CLAUDE")
         main_episode = self.api.post("/api/v1/episodes", {"project_id": self.project_id, "name": "Main acceptance trail", "anchor_type": "invocation", "anchor_id": root["invocation_id"]})
         child_episode = self.api.post("/api/v1/episodes", {"project_id": self.project_id, "name": "Synthetic side quest", "parent_episode_id": main_episode["slice_id"], "anchor_type": "invocation", "anchor_id": root["invocation_id"]})
 
-        side = self.create_batch([specification("codex-side", assembly(self.project_id, "Take a side quest: identify one limitation of a two-model comparison in one sentence.", parents=[root["invocation_id"]]), route("openai"), concerns=[child_episode["concern_ref"]])], "codex-side-quest")[0]
+        side = self.create_batch([specification("codex-side", assembly(self.project_id, "Take a side quest: identify one limitation of a two-model comparison in one sentence and include marker SIDE-CODEX.", parents=[root["invocation_id"]]), route("openai"), concerns=[child_episode["concern_ref"]])], "codex-side-quest")[0]
+        self.assert_marker("codex-side-quest", side, "SIDE-CODEX")
         self.api.post(f"/api/v1/episodes/{child_episode['slice_id']}/members", {"object_type": "invocation", "object_id": side["invocation_id"]})
 
-        shared = assembly(self.project_id, "Independently give one concise criterion for trustworthy context routing.", parents=[root["invocation_id"]])
+        shared = assembly(self.project_id, "Independently give one concise criterion for trustworthy context routing and include marker FANOUT-ROUTED.", parents=[root["invocation_id"]])
         fanout = self.create_batch([
             specification("claude-fanout", shared, route("anthropic")),
             specification("codex-fanout", shared, route("openai")),
         ], "two-provider-fanout")
+        for invocation in fanout:
+            self.assert_marker(f"two-provider-fanout-{invocation['route']['provider']}", invocation, "FANOUT-ROUTED")
         by_provider = {item["route"]["provider"]: item for item in fanout}
 
         source_text = by_provider["anthropic"]["output_block"]["content"]
@@ -211,11 +222,14 @@ class AcceptanceRun:
         graft = {"block_id": excerpt["block_id"], "disposition": "selected", "plane": "knowledge", "label": "authenticated-exact-graft", "derived_from_block_ids": [by_provider["anthropic"]["output_block_id"]]}
 
         crossfeed = self.create_batch([
-            specification("claude-reads-codex", assembly(self.project_id, "Critique the selected Codex answer in one sentence.", parents=[by_provider["openai"]["invocation_id"]], selections=[graft]), route("anthropic")),
-            specification("codex-reads-claude", assembly(self.project_id, "Critique the selected Claude answer in one sentence.", parents=[by_provider["anthropic"]["invocation_id"]], selections=[graft]), route("openai")),
+            specification("claude-reads-codex", assembly(self.project_id, "Critique the selected Codex answer in one sentence and include marker XFEED-CLAUDE.", parents=[by_provider["openai"]["invocation_id"]], selections=[graft]), route("anthropic")),
+            specification("codex-reads-claude", assembly(self.project_id, "Critique the selected Claude answer in one sentence and include marker XFEED-CODEX.", parents=[by_provider["anthropic"]["invocation_id"]], selections=[graft]), route("openai")),
         ], "reciprocal-crossfeed")
+        self.assert_marker("reciprocal-crossfeed-claude", next(item for item in crossfeed if item["route"]["provider"] == "anthropic"), "XFEED-CLAUDE")
+        self.assert_marker("reciprocal-crossfeed-codex", next(item for item in crossfeed if item["route"]["provider"] == "openai"), "XFEED-CODEX")
 
-        joined = self.create_batch([specification("codex-join", assembly(self.project_id, "Join the two critiques into one practical recommendation.", parents=[item["invocation_id"] for item in crossfeed], selections=[graft]), route("openai"), concerns=[main_episode["concern_ref"]])], "fan-in-return")[0]
+        joined = self.create_batch([specification("codex-join", assembly(self.project_id, "Join the two critiques into one practical recommendation and include marker JOINED-CODEX.", parents=[item["invocation_id"] for item in crossfeed], selections=[graft]), route("openai"), concerns=[main_episode["concern_ref"]])], "fan-in-return")[0]
+        self.assert_marker("fan-in-return", joined, "JOINED-CODEX")
         joined_inspection = self.api.get(f"/api/v1/invocations/{joined['invocation_id']}")
         self.assert_truth("exact-context-reader", joined_inspection["manifest_verification"]["valid"] is True and excerpt_text in joined_inspection["compiled_prompt"], {"manifest_sha256": joined_inspection["manifest"]["manifest_sha256"], "excerpt_block_id": excerpt["block_id"]})
         self.assert_truth("proof-limits-visible", bool(joined_inspection["manifest"]["provider_boundary"]["proof_limits"]), joined_inspection["manifest"]["provider_boundary"])
@@ -264,6 +278,7 @@ class AcceptanceRun:
                 "network_policy": "disabled",
             }
             base = self.create_batch([specification(f"{provider}-workspace", assembly(self.project_id, f"Start a persistent {provider} session and reply with marker WORKSPACE-{provider.upper()} without changing files.", parents=[core["joined"]["invocation_id"]]), route(provider, **authority))], f"{provider}-workspace")[0]
+            self.assert_marker(f"{provider}-workspace", base, f"WORKSPACE-{provider.upper()}")
             self.native_session(base)
             bases[provider] = base
             continuations[provider] = {}
@@ -271,8 +286,10 @@ class AcceptanceRun:
                 native_authority = {**authority, "execution_profile": "native-continuation", "session_policy": "visible_native_continuation", "continuation_mode": mode, "native_parent_invocation_id": base["invocation_id"]}
                 native_route = route(provider, **native_authority)
                 continuation = self.create_batch([specification(f"{provider}-{mode}", assembly(self.project_id, f"{mode.title()} this provider session and reply with marker {mode.upper()}-{provider.upper()}.", parents=[base["invocation_id"]]), native_route)], f"{provider}-native-{mode}")[0]
+                self.assert_marker(f"{provider}-native-{mode}", continuation, f"{mode.upper()}-{provider.upper()}")
                 continuations[provider][mode] = continuation
             portable[provider] = self.create_batch([specification(f"{provider}-portable", assembly(self.project_id, f"Use portable Lattice ancestry, not provider-session continuation, and reply with marker PORTABLE-{provider.upper()}.", parents=[base["invocation_id"]]), route(provider))], f"{provider}-portable-fallback")[0]
+            self.assert_marker(f"{provider}-portable-fallback", portable[provider], f"PORTABLE-{provider.upper()}")
 
             changed = dict(native_route)
             changed["workspace"] = str(self.data_root.resolve())
@@ -287,6 +304,7 @@ class AcceptanceRun:
         health = self.api.get("/api/health")
         self.assert_truth("daemon-survives-provider-failure", health["status"] == "ok", health)
         recovered = self.create_batch([specification("claude-after-failure", assembly(self.project_id, "Reply with marker RECOVERED-AFTER-PROVIDER-FAILURE.", parents=[parent_id]), route("anthropic"))], "provider-recovery")[0]
+        self.assert_marker("provider-recovery", recovered, "RECOVERED-AFTER-PROVIDER-FAILURE")
         return {"failed": failed, "recovered": recovered}
 
     def restart_and_resume(self, dormant_parent_id: str) -> dict[str, Any]:
@@ -309,6 +327,7 @@ class AcceptanceRun:
         if after is None or after.get("boot_id") == before.get("boot_id"):
             raise AcceptanceFailure("Lattice did not return with a new daemon boot identity")
         resumed = self.create_batch([specification("resume-dormant", assembly(self.project_id, "Resume this older branch and reply with marker DORMANT-RESUMED.", parents=[dormant_parent_id]), route("openai"))], "dormant-branch-after-restart")[0]
+        self.assert_marker("dormant-branch-after-restart", resumed, "DORMANT-RESUMED")
         return {"before_boot_id": before["boot_id"], "after_boot_id": after["boot_id"], "resumed_invocation_id": resumed["invocation_id"]}
 
     def report(self, *, status: str, core: dict[str, Any] | None, profiles: dict[str, Any] | None, failure_recovery: dict[str, Any] | None, restart: dict[str, Any] | None, error: str | None) -> dict[str, Any]:

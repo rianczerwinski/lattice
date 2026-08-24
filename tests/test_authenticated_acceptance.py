@@ -87,3 +87,21 @@ def test_negative_control_acceptance_report_refuses_to_fork_around_corrupt_histo
 
     with pytest.raises(AcceptanceFailure, match="cannot be silently bypassed"):
         run.report(status="fail", core=None, profiles=None, failure_recovery=None, restart=None, error="synthetic")
+
+
+@pytest.mark.oracle
+def test_negative_control_successful_process_cannot_substitute_a_semantic_refusal(tmp_path) -> None:
+    class API:
+        def get(self, _path):
+            return {"status": "ok"}
+
+    run = AcceptanceRun(API(), tmp_path, timeout_seconds=1)
+    invocation = {
+        "invocation_id": "invocation_refusal",
+        "state": "succeeded",
+        "output_block": {"content": "I will not follow the routed prompt."},
+        "attempts": [{"output_sha256": "0" * 64}],
+    }
+
+    with pytest.raises(AcceptanceFailure, match="semantic-response"):
+        run.assert_marker("root", invocation, "ROOT-CLAUDE")
