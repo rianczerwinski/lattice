@@ -692,7 +692,11 @@ def plist_payload(label: str, *, backup: bool, runtime_id: str | None = None) ->
         "ProgramArguments": [executable, "backup", "--reason", "scheduled-daily"] if backup else [executable, "serve"],
         "WorkingDirectory": str(AXISVI_ROOT),
         "EnvironmentVariables": {"AXISVI_ROOT": str(AXISVI_ROOT), "LATTICE_DATA_DIR": str(DEFAULT_DATA_ROOT), "LATTICE_RUNTIME_ID": selected_runtime, "OUTPORT_BIN": str(required_binary("outport")), "PATH": runtime_path()},
-        "ProcessType": "Background",
+        # launchd's Background class throttles work that was not directly
+        # requested by the user. The API daemon is the synchronous response
+        # path for the cockpit, while the scheduled snapshot is true
+        # background work.
+        "ProcessType": "Background" if backup else "Interactive",
         "ThrottleInterval": 10,
         "StandardOutPath": str(LOG_ROOT / ("backup.stdout.log" if backup else "service.stdout.log")),
         "StandardErrorPath": str(LOG_ROOT / ("backup.stderr.log" if backup else "service.stderr.log")),

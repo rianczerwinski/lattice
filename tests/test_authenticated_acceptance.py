@@ -105,3 +105,17 @@ def test_negative_control_successful_process_cannot_substitute_a_semantic_refusa
 
     with pytest.raises(AcceptanceFailure, match="semantic-response"):
         run.assert_marker("root", invocation, "ROOT-CLAUDE")
+
+
+@pytest.mark.oracle
+def test_negative_control_pass_report_requires_a_responsive_final_daemon(monkeypatch, tmp_path) -> None:
+    class API:
+        def get(self, _path):
+            return {"status": "ok"}
+
+    run = AcceptanceRun(API(), tmp_path, timeout_seconds=1)
+    observed = iter((0.0, 2.1))
+    monkeypatch.setattr(authenticated_acceptance.time, "monotonic", lambda: next(observed))
+
+    with pytest.raises(AcceptanceFailure, match="final-daemon-health-latency"):
+        run.assert_final_health()

@@ -511,8 +511,10 @@ def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -
 
     assert service["ProgramArguments"] == [str(deployment.CURRENT_LINK / ".venv" / "bin" / "lattice"), "serve"]
     assert service["RunAtLoad"] is True and service["KeepAlive"] is True and service["ThrottleInterval"] == 10
+    assert service["ProcessType"] == "Interactive"
     assert backup["ProgramArguments"][-2:] == ["--reason", "scheduled-daily"]
     assert backup["StartCalendarInterval"] == {"Hour": 3, "Minute": 0}
+    assert backup["ProcessType"] == "Background"
     assert service["EnvironmentVariables"]["OUTPORT_BIN"] == str(deployment.required_binary("outport"))
     assert service["EnvironmentVariables"]["LATTICE_RUNTIME_ID"] == "test-runtime"
     assert str(deployment.required_binary("claude").parent) in service["EnvironmentVariables"]["PATH"].split(":")

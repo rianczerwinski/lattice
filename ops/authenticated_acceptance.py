@@ -129,6 +129,14 @@ class AcceptanceRun:
             raise AcceptanceFailure(f"acceptance assertion failed: {name}: {detail}")
         self.assertions.append({"name": name, "state": "pass", "detail": detail})
 
+    def assert_final_health(self) -> dict[str, Any]:
+        started = time.monotonic()
+        health = self.api.get("/api/health")
+        elapsed = time.monotonic() - started
+        self.assert_truth("final-daemon-health", health.get("status") == "ok", health)
+        self.assert_truth("final-daemon-health-latency", elapsed < 2.0, {"elapsed_seconds": elapsed})
+        return health
+
     def create_batch(self, specs: list[dict[str, Any]], label: str, *, expect_failure: bool = False) -> list[dict[str, Any]]:
         batch_id = f"batch_{uuid.uuid4().hex}"
         preview_request = {"batch_id": batch_id, "specifications": specs}
@@ -433,6 +441,7 @@ def main(argv: list[str] | None = None) -> int:
             failure_recovery = run.run_provider_failure_recovery(core["joined"]["invocation_id"])
         if args.restart_launchd:
             restart = run.restart_and_resume(core["root"]["invocation_id"])
+        run.assert_final_health()
         report = run.report(status="pass", core=core, profiles=profiles, failure_recovery=failure_recovery, restart=restart, error=None)
     except BaseException as error:
         report = run.report(status="fail", core=core, profiles=profiles, failure_recovery=failure_recovery, restart=restart, error=f"{type(error).__name__}: {error}")
