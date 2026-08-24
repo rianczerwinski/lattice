@@ -30,13 +30,14 @@ function json(route: BrowserRoute, value: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
 }
 
-async function installDeterministicLattice(page: Page) {
+async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean } = {}) {
   let project: Record<string, unknown> | null = null;
   const invocations: InvocationRecord[] = [];
   const episodes: EpisodeRecord[] = [];
   const slateTopics = new Map<string, { slice_id: string; external_ref: string; name: string; scope: 'global'; items: Array<{ object_id: string; object_type: string }> }>();
   const blockOwner = new Map<string, string>();
   let sequence = 0;
+  let secondaryUnavailable = options.secondaryUnavailable ?? false;
 
   const routes = [
     { provider_code: 'anthropic', model_code: 'claude-sonnet-4-6', official_cli: 'claude', installed: true, qualified: true, operational: true, proof_limits: ['provider-owned system context remains opaque'], qualified_profiles: ['compiled-fresh', 'workspace-agent', 'native-continuation'] },
@@ -95,7 +96,7 @@ async function installDeterministicLattice(page: Page) {
 
     if (path === '/api/session') return json(intercepted, { csrf: 'browser-acceptance' });
     if (path === '/api/v1/routes') return json(intercepted, routes);
-    if (path === '/api/v1/workflow-packs') return json(intercepted, { packs: [], failures: [] });
+    if (path === '/api/v1/workflow-packs') return options.workflowUnavailable ? json(intercepted, { detail: 'planted workflow catalogue outage' }, 503) : json(intercepted, { packs: [], failures: [] });
     if (path === '/api/v1/context-modules') return json(intercepted, { contract_version: 'LatticeContextModuleCatalogue/1.0', modes: ['manual', 'project_default', 'workflow_required'], sources: [] });
     if (path === '/api/v1/projects' && request.method() === 'GET') return json(intercepted, project ? [project] : []);
     if (path === '/api/v1/projects' && request.method() === 'POST') {
@@ -142,7 +143,7 @@ async function installDeterministicLattice(page: Page) {
       return json(intercepted, { block_id: blockId });
     }
     if ((path.match(/^\/api\/v1\/invocations\/[^/]+\/tags$/) || path.match(/^\/api\/v1\/context-blocks\/[^/]+\/tags$/)) && request.method() === 'POST') {
-      const sourceId = decodeURIComponent(path.split('/')[5]);
+      const sourceId = decodeURIComponent(path.split('/')[4]);
       const sourceType = path.includes('/invocations/') ? 'invocation' : 'context-block';
       let topic = slateTopics.get(body.concern_ref);
       if (!topic) {
@@ -154,7 +155,7 @@ async function installDeterministicLattice(page: Page) {
     }
     const projectMatch = path.match(/^\/api\/v1\/projects\/([^/]+)$/);
     if (projectMatch && request.method() === 'GET') return json(intercepted, projectView());
-    if (path.match(/^\/api\/v1\/projects\/[^/]+\/episodes$/)) return json(intercepted, episodes);
+    if (path.match(/^\/api\/v1\/projects\/[^/]+\/episodes$/)) return secondaryUnavailable ? json(intercepted, { detail: 'planted episode outage' }, 503) : json(intercepted, episodes);
     if (path.match(/^\/api\/v1\/projects\/[^/]+\/trailheads$/)) return json(intercepted, { items: invocations.slice().reverse().map(summary), has_older: false, next_before: null });
     const invocationMatch = path.match(/^\/api\/v1\/invocations\/([^/]+)$/);
     if (invocationMatch) {
@@ -162,10 +163,11 @@ async function installDeterministicLattice(page: Page) {
       return item ? json(intercepted, invocationView(item)) : json(intercepted, { detail: 'not found' }, 404);
     }
     const neighborhoodMatch = path.match(/^\/api\/v1\/invocations\/([^/]+)\/neighborhood$/);
-    if (neighborhoodMatch) return json(intercepted, { nodes: invocations.map(summary), edges: [], coverage: { state: 'complete', requested_depth: 2, completed_depth: 2, node_limit: 200, edge_limit: 1000 } });
+    if (neighborhoodMatch) return secondaryUnavailable ? json(intercepted, { detail: 'planted graph outage' }, 503) : json(intercepted, { nodes: invocations.map(summary), edges: [], coverage: { state: 'complete', requested_depth: 2, completed_depth: 2, node_limit: 200, edge_limit: 1000 } });
     const navigationMatch = path.match(/^\/api\/v1\/invocations\/([^/]+)\/navigation$/);
     if (navigationMatch) {
       const item = invocations.find((candidate) => candidate.invocation_id === navigationMatch[1]);
+      if (secondaryUnavailable) return json(intercepted, { detail: 'planted navigation outage' }, 503);
       return item ? json(intercepted, navigation(item)) : json(intercepted, { detail: 'not found' }, 404);
     }
     const sliceMatch = path.match(/^\/api\/v1\/slices\/([^/]+)$/);
@@ -175,6 +177,7 @@ async function installDeterministicLattice(page: Page) {
     }
     return json(intercepted, { detail: `unhandled browser fixture route: ${request.method()} ${path}` }, 501);
   });
+  return { setSecondaryUnavailable(value: boolean) { secondaryUnavailable = value; } };
 }
 
 test('browser acceptance: freestyle one-edge lattice stays conversational and source-bound', async ({ page }) => {
@@ -247,5 +250,24 @@ test('browser acceptance: freestyle one-edge lattice stays conversational and so
 
   await expect(page.locator('.workflow-control')).toHaveCount(0);
   await expect(page.locator('.role-list')).toHaveCount(0);
+  await expect(page.locator('.error')).toHaveCount(0);
+});
+
+test('browser regression: secondary surface outages do not erase the conversation', async ({ page }) => {
+  await installDeterministicLattice(page, { secondaryUnavailable: true, workflowUnavailable: true });
+  await page.goto('/');
+
+  await page.getByPlaceholder('New project').fill('Degraded but usable');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByText(/Workflow catalogue unavailable: planted workflow catalogue outage/)).toBeAttached();
+  await expect(page.getByText(/Episodes unavailable: planted episode outage/)).toBeVisible();
+
+  await page.locator('.composer textarea').fill('Keep the primary conversation alive.');
+  await page.getByRole('button', { name: 'Send to anthropic' }).click();
+
+  await expect(page.locator('.response-card article')).toContainText('Claude answer 1');
+  await expect(page.getByText(/Concern navigation unavailable: planted navigation outage/)).toBeVisible();
+  await expect(page.getByText('Local graph unavailable')).toBeVisible();
+  await expect(page.locator('.composer textarea')).toBeVisible();
   await expect(page.locator('.error')).toHaveCount(0);
 });

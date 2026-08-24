@@ -14,6 +14,8 @@
   let routes: Route[] = [];
   let workflowPacks: WorkflowPack[] = [];
   let workflowPackFailures: Array<{ pack_id: string; detail: string }> = [];
+  let workflowCatalogueError = '';
+  let routeCatalogueError = '';
   let contextModuleCatalogue: ContextModuleCatalogue | null = null;
   let contextModuleCatalogueError = '';
   let contextModuleId = '';
@@ -47,6 +49,7 @@
   let selectionProofLimit = '';
   let episodes: Episode[] = [];
   let currentEpisode: Episode | null = null;
+  let episodeError = '';
   let slateConcern = '';
   let slateLabel = '';
   let slateTagReceipt = '';
@@ -55,8 +58,12 @@
   let pinRoleSessionLabel = '';
   let pinRoleReceipt = '';
   let selected: Invocation | null = null;
+  let inspectGeneration = 0;
   let selectedNavigation: InvocationNavigation | null = null;
   let selectedSlateSlice: LiveSlice | null = null;
+  let navigationError = '';
+  let neighborhoodError = '';
+  let slateSliceError = '';
   let comparison: Record<string, unknown> | null = null;
   let neighborhood: { nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } } | null = null;
   let loading = true;
@@ -100,11 +107,17 @@
     error = '';
     try {
       await beginSession();
-      const [loadedProjects, loadedRoutes, workflowCatalogue] = await Promise.all([api<Project[]>('/api/v1/projects'), api<Route[]>('/api/v1/routes'), api<WorkflowPackCatalogue>('/api/v1/workflow-packs')]);
+      const [loadedProjects, routeResult, workflowResult] = await Promise.all([
+        api<Project[]>('/api/v1/projects'),
+        api<Route[]>('/api/v1/routes').then((value) => ({ value, error: '' })).catch((cause) => ({ value: [] as Route[], error: cause instanceof Error ? cause.message : String(cause) })),
+        api<WorkflowPackCatalogue>('/api/v1/workflow-packs').then((value) => ({ value, error: '' })).catch((cause) => ({ value: { packs: [], failures: [] } as WorkflowPackCatalogue, error: cause instanceof Error ? cause.message : String(cause) })),
+      ]);
       projects = loadedProjects;
-      routes = loadedRoutes;
-      workflowPacks = workflowCatalogue.packs;
-      workflowPackFailures = workflowCatalogue.failures;
+      routes = routeResult.value;
+      routeCatalogueError = routeResult.error;
+      workflowPacks = workflowResult.value.packs;
+      workflowPackFailures = workflowResult.value.failures;
+      workflowCatalogueError = workflowResult.error;
       try { contextModuleCatalogue = await api<ContextModuleCatalogue>('/api/v1/context-modules'); }
       catch (cause) { contextModuleCatalogueError = cause instanceof Error ? cause.message : String(cause); }
       modelOverrides = Object.fromEntries(routes.map((route) => [route.provider_code, route.model_code]));
@@ -139,8 +152,15 @@
   async function openProject(projectId: string) {
     const switchingProjects = project?.project_id !== projectId;
     project = await api<Project>(`/api/v1/projects/${projectId}`);
-    episodes = await api<Episode[]>(`/api/v1/projects/${projectId}/episodes`);
-    currentEpisode = switchingProjects ? null : episodes.find((episode) => episode.slice_id === currentEpisode?.slice_id) ?? null;
+    try {
+      episodes = await api<Episode[]>(`/api/v1/projects/${projectId}/episodes`);
+      episodeError = '';
+      currentEpisode = switchingProjects ? null : episodes.find((episode) => episode.slice_id === currentEpisode?.slice_id) ?? null;
+    } catch (cause) {
+      episodes = [];
+      currentEpisode = null;
+      episodeError = cause instanceof Error ? cause.message : String(cause);
+    }
     selectedSession = '';
     selectedParents = new Set();
     allTrailheads = [];
@@ -274,7 +294,6 @@
       try { await Promise.all(batch.invocation_ids.map((invocationId) => pollInvocation(invocationId))); }
       finally { closeProgress.forEach((close) => close()); activeAttemptIds = []; }
       await openProject(projectId);
-      await inspect(batch.invocation_ids[batch.invocation_ids.length - 1]);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally { working = false; }
@@ -317,17 +336,30 @@
   }
 
   async function inspect(id: string) {
+    const generation = ++inspectGeneration;
     error = '';
     try {
-      [selected, neighborhood, selectedNavigation] = await Promise.all([
-        api<Invocation>(`/api/v1/invocations/${id}`),
-        api<{ nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } }>(`/api/v1/invocations/${id}/neighborhood?depth=2`),
-        api<InvocationNavigation>(`/api/v1/invocations/${id}/navigation`),
-      ]);
+      const invocation = await api<Invocation>(`/api/v1/invocations/${id}`);
+      if (generation !== inspectGeneration) return;
+      selected = invocation;
+      neighborhood = null;
+      selectedNavigation = null;
       selectedSlateSlice = null;
+      neighborhoodError = '';
+      navigationError = '';
+      slateSliceError = '';
       selectedExcerpt = null;
       selectionProofLimit = '';
       armedTransition = '';
+      const [neighborhoodResult, navigationResult] = await Promise.allSettled([
+        api<{ nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } }>(`/api/v1/invocations/${id}/neighborhood?depth=2`),
+        api<InvocationNavigation>(`/api/v1/invocations/${id}/navigation`),
+      ]);
+      if (generation !== inspectGeneration) return;
+      if (neighborhoodResult.status === 'fulfilled') neighborhood = neighborhoodResult.value;
+      else neighborhoodError = neighborhoodResult.reason instanceof Error ? neighborhoodResult.reason.message : String(neighborhoodResult.reason);
+      if (navigationResult.status === 'fulfilled') selectedNavigation = navigationResult.value;
+      else navigationError = navigationResult.reason instanceof Error ? navigationResult.reason.message : String(navigationResult.reason);
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
   }
 
@@ -495,8 +527,10 @@
 
   async function openSlateSlice(sliceId: string) {
     error = '';
+    selectedSlateSlice = null;
+    slateSliceError = '';
     try { selectedSlateSlice = await api<LiveSlice>(`/api/v1/slices/${sliceId}`); }
-    catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    catch (cause) { slateSliceError = cause instanceof Error ? cause.message : String(cause); }
   }
 
   async function pinSelectedAsRole() {
@@ -827,7 +861,7 @@
     <header>
       <div class="mark">L</div>
       <div><h1>Lattice</h1><p>One consequential edge at a time</p></div>
-      <div class="route-status">{activeRoute ? `${activeRoute.official_cli} · ${activeRoute.model_code}` : 'No qualified route'}</div>
+      <div class="route-status">{routeCatalogueError ? `Provider catalogue unavailable · ${routeCatalogueError}` : activeRoute ? `${activeRoute.official_cli} · ${activeRoute.model_code}` : 'No qualified route'}</div>
     </header>
 
     {#if error}<div class="error"><span>Execution boundary</span>{error}<button on:click={() => error = ''}>×</button></div>{/if}
@@ -847,6 +881,7 @@
         </div>
         <details class="secondary-control workflow-catalog">
           <summary>Governed workflows</summary>
+          {#if workflowCatalogueError}<p class="surface-failure">Workflow catalogue unavailable: {workflowCatalogueError}</p>{/if}
           {#each workflowPacks.filter((pack) => pack.available) as pack}
             <div class="workflow-launch">
               <strong>{pack.definition.title}</strong>
@@ -880,7 +915,8 @@
               </details>
             </div>
           </div>
-          {#if selectedNavigation}<nav class="lineage-breadcrumb" aria-label="Invocation concern navigation"><code>{selectedNavigation.invocation.invocation_id.slice(-8)}</code>{#each selectedNavigation.episodes as episode}<span>›</span><button on:click={() => currentEpisode = episodes.find((item) => item.slice_id === episode.slice_id) ?? episode}>{episode.name}</button>{/each}<span>›</span><strong>{selectedNavigation.project.title}</strong>{#each selectedNavigation.slate_topics as topic}<span>›</span><button class="slate" on:click={() => openSlateSlice(topic.slice_id)}>{topic.name}</button>{/each}</nav>{:else if currentEpisode}<nav class="episode-breadcrumb" aria-label="Current episode">{#if parentEpisode}<button on:click={() => currentEpisode = parentEpisode}>{parentEpisode.name}</button><span>›</span>{/if}<strong>{currentEpisode.name}</strong><small>{currentEpisode.items.length} member{currentEpisode.items.length === 1 ? '' : 's'}</small></nav>{/if}
+          {#if selectedNavigation}<nav class="lineage-breadcrumb" aria-label="Invocation concern navigation"><code>{selectedNavigation.invocation.invocation_id.slice(-8)}</code>{#each selectedNavigation.episodes as episode}<span>›</span><button on:click={() => currentEpisode = episodes.find((item) => item.slice_id === episode.slice_id) ?? episode}>{episode.name}</button>{/each}<span>›</span><strong>{selectedNavigation.project.title}</strong>{#each selectedNavigation.slate_topics as topic}<span>›</span><button class="slate" on:click={() => openSlateSlice(topic.slice_id)}>{topic.name}</button>{/each}</nav>{:else if navigationError}<p class="surface-failure">Concern navigation unavailable: {navigationError}</p>{:else if currentEpisode}<nav class="episode-breadcrumb" aria-label="Current episode">{#if parentEpisode}<button on:click={() => currentEpisode = parentEpisode}>{parentEpisode.name}</button><span>›</span>{/if}<strong>{currentEpisode.name}</strong><small>{currentEpisode.items.length} member{currentEpisode.items.length === 1 ? '' : 's'}</small></nav>{/if}
+          {#if episodeError}<p class="surface-failure">Episodes unavailable: {episodeError}</p>{/if}
 
           {#if project.workflow}
             <details class="workflow-control">
@@ -1049,10 +1085,12 @@
           <details><summary>Attempts ({selected.attempts.length})</summary><pre>{JSON.stringify(selected.attempts, null, 2)}</pre></details>
           {#if selected.artifacts.length}<details><summary>Artifacts ({selected.artifacts.length})</summary>{#each selected.artifacts as artifact}<details on:toggle={(event) => event.currentTarget.open && loadArtifact(artifact.artifact_id)}><summary>{artifact.artifact_id}</summary><pre>{artifactContents[artifact.artifact_id] ?? 'Loading exact bytes…'}</pre><div class="response-actions"><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'side-quest')}>Side quest</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'ask-claude')}>Ask Claude</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'ask-codex')}>Ask Codex</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'ask-both')}>Ask both</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'bring-here')}>Bring here</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'compare')}>Compare</button></div></details>{/each}</details>{/if}
           {#if neighborhood}<details><summary>Local graph{neighborhood.coverage.state === 'partial' ? ' partial' : ''} · {neighborhood.nodes.length} nodes</summary>{#if neighborhood.coverage.state === 'partial'}<p class="muted">This bounded view reached its node or edge limit at depth {neighborhood.coverage.completed_depth} of {neighborhood.coverage.requested_depth}.</p>{/if}<pre>{JSON.stringify(neighborhood.edges, null, 2)}</pre></details>{/if}
+          {#if neighborhoodError}<details class="surface-failure"><summary>Local graph unavailable</summary><p>{neighborhoodError}</p></details>{/if}
         {:else}<p class="muted">Prepare an edge to inspect its exact world before execution.</p>{/if}
 
         {#if comparison}<div class="comparison"><h3>Branch delta</h3><pre>{JSON.stringify(comparison, null, 2)}</pre></div>{/if}
         {#if selectedSlateSlice}<div class="slate-slice"><h3>{selectedSlateSlice.name}</h3><small>{selectedSlateSlice.external_ref} · {selectedSlateSlice.coverage.state}</small>{#if selectedSlateSlice.items.length}<div>{#each selectedSlateSlice.items as item}<button class="quiet" disabled={item.object_type !== 'invocation'} on:click={() => item.object_type === 'invocation' && inspect(item.object_id)}>{item.object_type} · {item.object_id.slice(-8)}</button>{/each}</div>{:else}<p class="muted">This live Slate slice is empty.</p>{/if}</div>{/if}
+        {#if slateSliceError}<p class="surface-failure">Slate slice unavailable: {slateSliceError}</p>{/if}
         <details class="context-modules">
           <summary>Context modules</summary>
           <p>Resolve exact local or read-only source bytes for this edge, or keep a removable project default.</p>
