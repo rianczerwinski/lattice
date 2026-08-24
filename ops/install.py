@@ -352,7 +352,22 @@ def shim_payload() -> bytes:
 def managed_shim(content: bytes) -> bool:
     executable = CURRENT_LINK / ".venv" / "bin" / "lattice"
     legacy = f"#!/bin/sh\nexport AXISVI_ROOT={shlex.quote(str(AXISVI_ROOT))}\nexec {shlex.quote(str(executable))} \"$@\"\n".encode("utf-8")
-    return content in {legacy, shim_payload()}
+    if content == legacy or content == shim_payload():
+        return True
+    try:
+        lines = content.decode("utf-8").splitlines()
+        outport_assignment = shlex.split(lines[3])
+    except (UnicodeDecodeError, ValueError, IndexError):
+        return False
+    if lines[:3] != ["#!/bin/sh", "# managed-by: lattice-installer-v1", f"export AXISVI_ROOT={shlex.quote(str(AXISVI_ROOT))}"] or lines[4:] != [f"exec {shlex.quote(str(executable))} \"$@\""]:
+        return False
+    if len(outport_assignment) != 2 or outport_assignment[0] != "export" or not outport_assignment[1].startswith("OUTPORT_BIN="):
+        return False
+    candidate = Path(outport_assignment[1].removeprefix("OUTPORT_BIN="))
+    try:
+        return candidate.is_absolute() and candidate.resolve(strict=True) == required_binary("outport").resolve(strict=True)
+    except FileNotFoundError:
+        return False
 
 
 def plist_payload(label: str, *, backup: bool) -> dict:

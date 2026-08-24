@@ -198,7 +198,11 @@ def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -
     assert str(deployment.CURRENT_LINK / ".venv" / "bin" / "lattice") in shim
     assert str(deployment.SOURCE_ROOT / ".venv") not in shim
     assert deployment.managed_shim(deployment.shim_payload()) is True
+    prior = deployment.shim_payload().decode("utf-8").replace(str(deployment.required_binary("outport")), str(deployment.required_binary("outport").resolve())).encode("utf-8")
+    assert deployment.managed_shim(prior) is True
     assert deployment.managed_shim(b"#!/bin/sh\nexec something-else\n") is False
+    planted = deployment.shim_payload().decode("utf-8").replace(str(deployment.required_binary("outport")), "/bin/sh").encode("utf-8")
+    assert deployment.managed_shim(planted) is False
 
 
 @pytest.mark.regression
