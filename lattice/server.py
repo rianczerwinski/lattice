@@ -272,9 +272,9 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         return {"csrf": csrf}
 
     @app.get("/api/v1/routes")
-    async def routes() -> list[dict[str, Any]]:
+    async def routes(probe: bool = Query(default=False)) -> list[dict[str, Any]]:
         from axis_model_runner import installed_adapter_status
-        return await asyncio.to_thread(installed_adapter_status, probe_versions=False)
+        return await asyncio.to_thread(installed_adapter_status, probe_versions=probe)
 
     async def resolve_trigger_route(project_id: str, action: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         project = store.get_project(project_id)

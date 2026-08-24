@@ -319,8 +319,20 @@ def test_negative_control_required_binary_preserves_the_public_entrypoint(monkey
 def test_negative_control_doctor_uses_the_daemon_provider_view(monkeypatch) -> None:
     service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
     monkeypatch.setattr(cli, "_service_routes", lambda _service: [
-        {"provider_code": "anthropic", "official_cli": "claude", "model_code": "opus", "qualified": False, "qualified_profiles": []},
-        {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
+        {"provider_code": "anthropic", "official_cli": "claude", "model_code": "opus", "qualified": False, "operational": False, "qualified_profiles": []},
+        {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "operational": True, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
+    ])
+
+    with pytest.raises(RuntimeError, match=r"unavailable=\['anthropic'\]"):
+        cli._adapter_status(service)
+
+
+@pytest.mark.regression
+def test_negative_control_doctor_rejects_an_installed_but_hung_provider(monkeypatch) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    monkeypatch.setattr(cli, "_service_routes", lambda _service: [
+        {"provider_code": "anthropic", "official_cli": "claude", "model_code": "opus", "qualified": True, "operational": False, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
+        {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "operational": True, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
     ])
 
     with pytest.raises(RuntimeError, match=r"unavailable=\['anthropic'\]"):

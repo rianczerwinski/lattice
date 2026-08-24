@@ -67,8 +67,8 @@ def _health(service: OutportService, *, timeout: float = 2.0) -> dict[str, Any]:
     return payload
 
 
-def _service_routes(service: OutportService, *, timeout: float = 2.0) -> list[dict[str, Any]]:
-    request = urllib.request.Request(f"{service.loopback_url}/api/v1/routes", headers={"Host": f"127.0.0.1:{service.port}"})
+def _service_routes(service: OutportService, *, timeout: float = 35.0) -> list[dict[str, Any]]:
+    request = urllib.request.Request(f"{service.loopback_url}/api/v1/routes?probe=true", headers={"Host": f"127.0.0.1:{service.port}"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read())
@@ -127,7 +127,7 @@ def _runtime_status() -> dict[str, Any]:
 def _adapter_status(service: OutportService | None = None) -> dict[str, Any]:
     statuses = _service_routes(service) if service is not None else installed_adapter_status(probe_versions=False)
     required = {item["provider_code"]: item for item in statuses if item["provider_code"] in {"anthropic", "openai"}}
-    missing = [provider for provider in ("anthropic", "openai") if provider not in required or not required[provider]["qualified"]]
+    missing = [provider for provider in ("anthropic", "openai") if provider not in required or not required[provider]["qualified"] or required[provider].get("operational") is not True]
     profile_gaps = [provider for provider, item in required.items() if not {"compiled-fresh", "workspace-agent", "native-continuation"}.issubset(set(item.get("qualified_profiles", [])))]
     if missing or profile_gaps:
         raise RuntimeError(f"required adapters are not qualified: unavailable={missing}, profile_gaps={profile_gaps}")
