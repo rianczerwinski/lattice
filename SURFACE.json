@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
+  "surface_id": "surface:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
-    "generated_at": "20260823T173404",
+    "artifact_id": "artifact:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
+    "generated_at": "20260824T100100",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "736506e91b5e16ebe8f7572a46cfad736405a192",
+        "revision": "3e3988e82e9e24338a1896b52906dd202e96554d",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:655e2f46-8de9-5768-bc8c-858c0015ce37"
+    "parent_artifact_id": "artifact:01d9da84-55f0-4df1-8282-9bc3f19b4b18"
   },
   "workframe": {
     "name": "Lattice",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260823T173404",
-    "source_revision": "736506e91b5e16ebe8f7572a46cfad736405a192",
+    "at": "20260824T100100",
+    "source_revision": "3e3988e82e9e24338a1896b52906dd202e96554d",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "736506e91b5e16ebe8f7572a46cfad736405a192",
+    "revision": "3e3988e82e9e24338a1896b52906dd202e96554d",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -50,9 +50,29 @@
         "object_id": "d5db73eb8937f86f69077a59170e1eb2b67a6479"
       },
       {
+        "path": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
+        "mode": "100644",
+        "object_id": "c6860892ca919741076e795c5862e9a175838e99"
+      },
+      {
         "path": "README.md",
         "mode": "100644",
-        "object_id": "2395ed636a2f6471c274251bf3f354b4e6dafb6d"
+        "object_id": "07ac4abc36e41c57992e68e25c6a3956344b232b"
+      },
+      {
+        "path": "assurance/README.md",
+        "mode": "100644",
+        "object_id": "f7860802f387dd3e7b1e193541ffd3095d3072a1"
+      },
+      {
+        "path": "assurance/baseline.json",
+        "mode": "100644",
+        "object_id": "e4db390b8b2d28b154b5033fb4f8295058069990"
+      },
+      {
+        "path": "assurance/findings.json",
+        "mode": "100644",
+        "object_id": "b621e9f6602cb1e12763aa568d71ab0d87d4ae9b"
       },
       {
         "path": "audit/20260818T140529-initial-system/AUDIT.json",
@@ -142,7 +162,7 @@
       {
         "path": "audit/README.md",
         "mode": "100644",
-        "object_id": "a97875af0a325d53b9ade2503db0eb25b9529bf8"
+        "object_id": "7b6e883312478a523b3a81edaf6bdaccce35763c"
       },
       {
         "path": "lattice/__init__.py",
@@ -157,32 +177,47 @@
       {
         "path": "lattice/blob_store.py",
         "mode": "100644",
-        "object_id": "09a8f9deb8a24955c59403345b322a76d3f90b23"
+        "object_id": "49499d65cf542023c916ced628dba784811b8c34"
       },
       {
         "path": "lattice/canonical.py",
         "mode": "100644",
-        "object_id": "940d6372d8f1462e1f3aa23e62c7a7960c0d067b"
+        "object_id": "e98a30d3939f7faf2fa018e109b8ce972141092c"
+      },
+      {
+        "path": "lattice/cli.py",
+        "mode": "100644",
+        "object_id": "5f3d27c6b1bdc4155ab8af8cf5f08cfc1daa2c1e"
       },
       {
         "path": "lattice/compositor.py",
         "mode": "100644",
-        "object_id": "82ff59a0abe9535cb960ad549527031ea64f818d"
+        "object_id": "fc88f65b75dc4e393fa8c7456c222edbd33ee8eb"
       },
       {
         "path": "lattice/config.py",
         "mode": "100644",
-        "object_id": "ffebf88d033d44dd90aa3dc7d279b2407acaf55d"
+        "object_id": "a884d37387610e91726a3c068d945e3d53a385f9"
       },
       {
         "path": "lattice/context_modules.py",
         "mode": "100644",
-        "object_id": "ebfc63ab34cdea08fb6049f371fee4e507571358"
+        "object_id": "9720c6cab86f90c25047ddf9a798198e86a2a68f"
       },
       {
         "path": "lattice/contracts.py",
         "mode": "100644",
-        "object_id": "a8fd2e6db0390a496c9c805b49e668c959c42923"
+        "object_id": "81c20e6c124841b0049f42b5c8f06791a1c048b7"
+      },
+      {
+        "path": "lattice/diagnostics.py",
+        "mode": "100644",
+        "object_id": "b2188e83f51b91c5492f4e013eb131b6592d2be9"
+      },
+      {
+        "path": "lattice/durability.py",
+        "mode": "100644",
+        "object_id": "e23cbaff71c4dc4950fab1c409e8ae7b4d301ea4"
       },
       {
         "path": "lattice/http_boundary.py",
@@ -192,7 +227,7 @@
       {
         "path": "lattice/manifest_reader.py",
         "mode": "100644",
-        "object_id": "29e30930c1d19cc4b56e0d612ee49daca729858a"
+        "object_id": "f0ff5cc73b801983d5e91689060ecc6b8c23a680"
       },
       {
         "path": "lattice/octopus_import.py",
@@ -202,7 +237,12 @@
       {
         "path": "lattice/operations.py",
         "mode": "100644",
-        "object_id": "02b14b47a248f88ce77e5c05f25334521a2b1a6d"
+        "object_id": "167194bcfe5c88559d227819975520570e66f48d"
+      },
+      {
+        "path": "lattice/outport.py",
+        "mode": "100644",
+        "object_id": "96bcdf29469deb5e65378e72fdf65ff8dce535b1"
       },
       {
         "path": "lattice/platform_foundry.py",
@@ -212,47 +252,72 @@
       {
         "path": "lattice/quaternary.py",
         "mode": "100644",
-        "object_id": "4e354ae24cb7c81168df1aee2eda39edbd9349c4"
+        "object_id": "d4a3a14d39bdff82f710855cc3111184fefc5669"
       },
       {
         "path": "lattice/security.py",
         "mode": "100644",
-        "object_id": "dd81b9ff6d65ece243014a46a2c2e9d689acb381"
+        "object_id": "1a27c74db5e9150fc25605d40411de40b748b829"
       },
       {
         "path": "lattice/server.py",
         "mode": "100644",
-        "object_id": "01ec4c27c6f591e696e98b661a1fcc05b67ffa9b"
+        "object_id": "8fc2cc490d6b28622c76855145e817a47360015c"
+      },
+      {
+        "path": "lattice/snapshot.py",
+        "mode": "100644",
+        "object_id": "d5a8c83dc6269c41b1ed76926e2bafd2ef064938"
       },
       {
         "path": "lattice/store.py",
         "mode": "100644",
-        "object_id": "b9b70ac787b3b840220b6f581e19612913369ceb"
+        "object_id": "00972dc84bc337f59c136abe5ddb8b6594af0762"
       },
       {
         "path": "lattice/supervisor.py",
         "mode": "100644",
-        "object_id": "8d4226812900989f47b27643c99e26bc8f008d32"
+        "object_id": "39844ed44ee3a7a3e85e878e32c9120e44bd6771"
       },
       {
         "path": "lattice/workflow_template_reader.py",
         "mode": "100644",
-        "object_id": "f199b68bf049de64256a96fbec3350c407ff1723"
+        "object_id": "2b599b4b3cee7a256c678a1d22bc6f4e4ca0c16c"
       },
       {
         "path": "lattice/workflows.py",
         "mode": "100644",
-        "object_id": "09f50c2952edd0d6c9c9fa880b2532e8e34898aa"
+        "object_id": "95577b2d960a6c9910f6c82b1bbe0fb5734cebd7"
+      },
+      {
+        "path": "ops/README.md",
+        "mode": "100644",
+        "object_id": "39a1dabcae25540681573824ea5d19674d86eece"
+      },
+      {
+        "path": "ops/authenticated_acceptance.py",
+        "mode": "100755",
+        "object_id": "94efa5f166f4f8a8350c1511368cdd97419c82bc"
+      },
+      {
+        "path": "ops/install.py",
+        "mode": "100755",
+        "object_id": "fa0bcf0bbced62932db2c11de785c1f99da1e2c8"
       },
       {
         "path": "pyproject.toml",
         "mode": "100644",
-        "object_id": "5389123b065437b7db853cfdbf6d958165809a17"
+        "object_id": "a3ac28f21edba1608e16dbcff46fcd84bf55f78a"
       },
       {
         "path": "surface-history/20260821T225026.json",
         "mode": "100644",
         "object_id": "89739004bf5558a8c8c68576fefc572e136b143f"
+      },
+      {
+        "path": "surface-history/20260823T173404.json",
+        "mode": "100644",
+        "object_id": "7e4b94c4a46b506bb174c0f1791dbcae254e0cac"
       },
       {
         "path": "surface-history/README.md",
@@ -262,17 +327,52 @@
       {
         "path": "tests/conftest.py",
         "mode": "100644",
-        "object_id": "e8bda1d03ef95a0509a6680ce5f713f6565c33cb"
+        "object_id": "d9a160b02a569f74c50a6d73b7d4ab7d6c436dc8"
+      },
+      {
+        "path": "tests/fixtures/README.md",
+        "mode": "100644",
+        "object_id": "565140730792adbc9d3292b35b04f312e3f34f7c"
+      },
+      {
+        "path": "tests/fixtures/workflow_packs/README.md",
+        "mode": "100644",
+        "object_id": "40ab6b561db94c66af97e8142c4baafef12da5a7"
+      },
+      {
+        "path": "tests/fixtures/workflow_packs/quaternary/README.md",
+        "mode": "100644",
+        "object_id": "f1b9df4a19515f28a6897ff49c2a4295740ed278"
+      },
+      {
+        "path": "tests/fixtures/workflow_packs/quaternary/pack.json",
+        "mode": "100644",
+        "object_id": "897ee0714cc37babdedf8bcb8901d136e1b440d6"
       },
       {
         "path": "tests/test_api.py",
         "mode": "100644",
-        "object_id": "5f626f8f6702986db949360ac77a767d0d1d9a56"
+        "object_id": "34cef793c81ba36c66adf682951a7d339ad31f01"
+      },
+      {
+        "path": "tests/test_authenticated_acceptance.py",
+        "mode": "100644",
+        "object_id": "e5a4a2b7da879841482b6a0d5bbca75572f83d6b"
+      },
+      {
+        "path": "tests/test_conversation_kernel.py",
+        "mode": "100644",
+        "object_id": "a82cf9b3439c202ddb500d728e9663a58d14aa9b"
+      },
+      {
+        "path": "tests/test_invocation_batches.py",
+        "mode": "100644",
+        "object_id": "50c5d85f74c961a893e6dc44b10f2c883e4b43b9"
       },
       {
         "path": "tests/test_kernel.py",
         "mode": "100644",
-        "object_id": "d93e0b0d6e79762b84227669b9ee7f42306d3222"
+        "object_id": "0e8d42e5aac00da82e381c50736ba7a59d11c2b4"
       },
       {
         "path": "tests/test_octopus_import.py",
@@ -282,37 +382,47 @@
       {
         "path": "tests/test_operations.py",
         "mode": "100644",
-        "object_id": "15348c8503d32c85675c6308db868a04aeb71ced"
+        "object_id": "f685f1d0b9dd64dc73eab67f785816feafd951d0"
+      },
+      {
+        "path": "tests/test_reliability.py",
+        "mode": "100644",
+        "object_id": "3683d4f5fa52143367477d086da1d42bf8b8a62c"
       },
       {
         "path": "tests/test_supervisor.py",
         "mode": "100644",
-        "object_id": "59a4ec97d89c9dbe6cb506173114a6b5ff12665d"
+        "object_id": "c9c22aa147bccae516c6e8cb8b6e5bff1e29d6d1"
       },
       {
         "path": "tests/test_workflows.py",
         "mode": "100644",
-        "object_id": "f0f0c2aaac5f1a273d63dd02c0d3be9bf13a8941"
+        "object_id": "5d466703969898a47deda82cc4624c925cc5cec4"
       },
       {
         "path": "uv.lock",
         "mode": "100644",
-        "object_id": "711ab94be13664a9ad6e3126ec07d4f33056c9bd"
+        "object_id": "39bebe3c1e4fedd323f6009e4d0d042e5c00535a"
       },
       {
-        "path": "web/dist/assets/index-BIUp4R_f.js",
+        "path": "web/dist/assets/index-BgfOII1L.js",
         "mode": "100644",
-        "object_id": "23ae5fdef0d1a434c22b93f98c6a732b55c50d03"
+        "object_id": "a595dd9f0be172d8ac110c46756435640d4ee191"
       },
       {
-        "path": "web/dist/assets/index-DYXbQRUy.css",
+        "path": "web/dist/assets/index-DWKh4nZB.css",
         "mode": "100644",
-        "object_id": "417141eee0454ffc3ecc6886cf944a11b0c1260b"
+        "object_id": "ada32d4a06b3fceef6aea452b16f1646fce646a5"
       },
       {
         "path": "web/dist/index.html",
         "mode": "100644",
-        "object_id": "5e022e07895b76bc979a463f966a0b0472a7c08a"
+        "object_id": "72b9442422c08cb2d9f82e9570edc5b3e5cd0f6d"
+      },
+      {
+        "path": "web/e2e/conversation.spec.ts",
+        "mode": "100644",
+        "object_id": "b1fc72c3b5133321090e9cce3b48781909557853"
       },
       {
         "path": "web/index.html",
@@ -322,17 +432,22 @@
       {
         "path": "web/package-lock.json",
         "mode": "100644",
-        "object_id": "51ccfec2bf73a9770dc657e0d765071a8cd6102d"
+        "object_id": "0d9f41f14333643b973774fe8209b972e7c8862b"
       },
       {
         "path": "web/package.json",
         "mode": "100644",
-        "object_id": "80d2ae38325cf2f4ed70a3d0bac87add57e02d24"
+        "object_id": "60ae46fe3f5529e6c3ed7dd684af6d079f3a52de"
+      },
+      {
+        "path": "web/playwright.config.ts",
+        "mode": "100644",
+        "object_id": "0ed0fe9bb6496f182abaec484fe88929ae2974f3"
       },
       {
         "path": "web/src/App.svelte",
         "mode": "100644",
-        "object_id": "f2c07d55918abe433c20f10e4bdedd6f46fb0211"
+        "object_id": "a175c7ee2ea1e3855f67f9b39204dc0417f6970d"
       },
       {
         "path": "web/src/api.test.ts",
@@ -343,6 +458,46 @@
         "path": "web/src/api.ts",
         "mode": "100644",
         "object_id": "754ac3b971721f61f8bce86c33fe411e34554170"
+      },
+      {
+        "path": "web/src/contextActions.test.ts",
+        "mode": "100644",
+        "object_id": "ffc158b82fd94eeab0d3fd031e6438ce44b7c658"
+      },
+      {
+        "path": "web/src/contextActions.ts",
+        "mode": "100644",
+        "object_id": "79b3aac9cd5230b0dcc51f35fb71be5fcf95916a"
+      },
+      {
+        "path": "web/src/contextModules.test.ts",
+        "mode": "100644",
+        "object_id": "81a99bcba7447fade3daeb644e05871a80e7e11e"
+      },
+      {
+        "path": "web/src/contextModules.ts",
+        "mode": "100644",
+        "object_id": "0f4ddf90c9f24d623029b80e75203f8f9868b04c"
+      },
+      {
+        "path": "web/src/executionRoutes.test.ts",
+        "mode": "100644",
+        "object_id": "0003be85a6ca43edfcc5f978fcaadcef2dab6b6a"
+      },
+      {
+        "path": "web/src/executionRoutes.ts",
+        "mode": "100644",
+        "object_id": "bade1f1ad8701b6be86fe3013f0f6999328e38c4"
+      },
+      {
+        "path": "web/src/invocationBatch.test.ts",
+        "mode": "100644",
+        "object_id": "89866e3d6f3f24aaca864a39ba88b8764220c680"
+      },
+      {
+        "path": "web/src/invocationBatch.ts",
+        "mode": "100644",
+        "object_id": "bdece42796a3e5b9648184da3415e2395a432420"
       },
       {
         "path": "web/src/main.ts",
@@ -362,12 +517,12 @@
       {
         "path": "web/src/style.css",
         "mode": "100644",
-        "object_id": "d4815f082d1d77787d9efca0cdad598a1699fa3e"
+        "object_id": "0c356c31bef8f5b75d8575f291ec806a4c613f79"
       },
       {
         "path": "web/src/types.ts",
         "mode": "100644",
-        "object_id": "4aa20aab9e2fd5a144e63be668c9dbb85e112ceb"
+        "object_id": "dd98b6c974b0b59dc7fe5afd2c9f56201bb848ee"
       },
       {
         "path": "web/src/workflowPresentation.test.ts",
@@ -398,14 +553,9 @@
         "path": "workflow_packs/platform-foundry/pack.json",
         "mode": "100644",
         "object_id": "ba8357a4a2c1626342bbbe1864b1e990e2fb7a75"
-      },
-      {
-        "path": "workflow_packs/quaternary/pack.json",
-        "mode": "100644",
-        "object_id": "897ee0714cc37babdedf8bcb8901d136e1b440d6"
       }
     ],
-    "entries_sha256": "8c28d8c269477cba39563202eb31c7467b8ec1af3b243aa89206d827f12d463f",
+    "entries_sha256": "c880e5b2960bf2efc147b7ae652557243306fc9ba89ab87b58e74a865121bc9a",
     "mappings": [
       {
         "path": ".gitignore",
@@ -413,10 +563,17 @@
         "item_ids": [
           "item:20cc4b37-8c07-5063-afff-b3ab3031c1f7"
         ],
-        "node_ids": [
-          "node:9db167ff-3831-52f8-9313-9858090362cc"
+        "node_ids": [],
+        "reason": "Workframe policy, product contract, or active-plan state distributed over substantive modules."
+      },
+      {
+        "path": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
+        "disposition": "decoration",
+        "item_ids": [
+          "item:ac819482-0272-54e2-b539-2c26679a3926"
         ],
-        "reason": "README supplies product contract and .gitignore supplies local-state boundaries."
+        "node_ids": [],
+        "reason": "Workframe policy, product contract, or active-plan state distributed over substantive modules."
       },
       {
         "path": "README.md",
@@ -424,10 +581,41 @@
         "item_ids": [
           "item:987075b1-a3a6-58b2-9fec-872d881e8424"
         ],
-        "node_ids": [
-          "node:9db167ff-3831-52f8-9313-9858090362cc"
+        "node_ids": [],
+        "reason": "Workframe policy, product contract, or active-plan state distributed over substantive modules."
+      },
+      {
+        "path": "assurance/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:34219bca-adba-5a25-8cbc-963610319c47"
         ],
-        "reason": "README supplies product contract and .gitignore supplies local-state boundaries."
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "assurance/baseline.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:06ad3779-81c6-5122-bce6-083a924bb7b7"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "assurance/findings.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:46a2470a-36cd-5dda-91e6-560d2e6f5afe"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260818T140529-initial-system/AUDIT.json",
@@ -438,7 +626,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260818T140529-initial-system/AUDIT.md",
@@ -449,7 +637,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260818T140529-initial-system/audit.validation.json",
@@ -460,7 +648,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260818T140529-initial-system/evidence/reproductions.txt",
@@ -471,7 +659,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260820T121500-closure-system/AUDIT.json",
@@ -482,7 +670,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260820T121500-closure-system/AUDIT.md",
@@ -493,7 +681,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260820T121500-closure-system/README.md",
@@ -504,7 +692,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260820T121500-closure-system/audit.validation.json",
@@ -515,7 +703,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260820T121500-closure-system/evidence/README.md",
@@ -526,7 +714,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260820T121500-closure-system/evidence/verification.txt",
@@ -537,7 +725,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/AUDIT.json",
@@ -548,7 +736,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/AUDIT.md",
@@ -559,7 +747,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/README.md",
@@ -570,7 +758,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/audit.validation.json",
@@ -581,7 +769,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/evidence/README.md",
@@ -592,7 +780,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
@@ -603,7 +791,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The immutable immediate-parent generation makes the final Surface attestation independently resolvable."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/20260821T223204-pagani-remediation/evidence/verification.txt",
@@ -614,7 +802,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The immutable post-remediation audit belongs to the packaging-and-assurance subsystem."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "audit/README.md",
@@ -625,7 +813,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "Audit evidence belongs to the packaging-and-assurance subsystem; its validity is assessed independently of the product code."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "lattice/__init__.py",
@@ -636,7 +824,7 @@
         "node_ids": [
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
-        "reason": "The entry contributes to durable lattice kernel."
+        "reason": "Primary source for the kernel capability boundary."
       },
       {
         "path": "lattice/asgi.py",
@@ -647,7 +835,7 @@
         "node_ids": [
           "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
         ],
-        "reason": "The entry contributes to execution and authority boundary."
+        "reason": "Primary source for the execution capability boundary."
       },
       {
         "path": "lattice/blob_store.py",
@@ -658,7 +846,7 @@
         "node_ids": [
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
-        "reason": "The entry contributes to durable lattice kernel."
+        "reason": "Primary source for the kernel capability boundary."
       },
       {
         "path": "lattice/canonical.py",
@@ -669,7 +857,18 @@
         "node_ids": [
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
-        "reason": "The entry contributes to durable lattice kernel."
+        "reason": "Primary source for the kernel capability boundary."
+      },
+      {
+        "path": "lattice/cli.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:c95600b3-9933-5e33-84b6-1f762b6a1586"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution capability boundary."
       },
       {
         "path": "lattice/compositor.py",
@@ -680,7 +879,7 @@
         "node_ids": [
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
-        "reason": "The entry contributes to durable lattice kernel."
+        "reason": "Primary source for the kernel capability boundary."
       },
       {
         "path": "lattice/config.py",
@@ -691,7 +890,7 @@
         "node_ids": [
           "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
         ],
-        "reason": "The entry contributes to execution and authority boundary."
+        "reason": "Primary source for the execution capability boundary."
       },
       {
         "path": "lattice/context_modules.py",
@@ -702,7 +901,7 @@
         "node_ids": [
           "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
         ],
-        "reason": "The entry contributes to evidence and workflow integrations."
+        "reason": "Primary source for the integration capability boundary."
       },
       {
         "path": "lattice/contracts.py",
@@ -713,7 +912,29 @@
         "node_ids": [
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
-        "reason": "The entry contributes to durable lattice kernel."
+        "reason": "Primary source for the kernel capability boundary."
+      },
+      {
+        "path": "lattice/diagnostics.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:7ba502fc-ca1e-5d9a-9321-e37b23dd046e"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution capability boundary."
+      },
+      {
+        "path": "lattice/durability.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:37dfd09e-dfdb-59c8-8cfc-d4ce10e05766"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "Primary source for the kernel capability boundary."
       },
       {
         "path": "lattice/http_boundary.py",
@@ -724,7 +945,7 @@
         "node_ids": [
           "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
         ],
-        "reason": "The entry contributes directly to the named operational subsystem."
+        "reason": "Primary source for the execution capability boundary."
       },
       {
         "path": "lattice/manifest_reader.py",
@@ -735,7 +956,7 @@
         "node_ids": [
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
-        "reason": "The entry contributes to durable lattice kernel."
+        "reason": "Primary source for the kernel capability boundary."
       },
       {
         "path": "lattice/octopus_import.py",
@@ -746,7 +967,7 @@
         "node_ids": [
           "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
         ],
-        "reason": "The entry contributes to evidence and workflow integrations."
+        "reason": "Primary source for the integration capability boundary."
       },
       {
         "path": "lattice/operations.py",
@@ -757,7 +978,18 @@
         "node_ids": [
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
-        "reason": "The entry contributes to durable lattice kernel."
+        "reason": "Primary source for the kernel capability boundary."
+      },
+      {
+        "path": "lattice/outport.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:c17bc2c0-f5d1-5655-88f6-4dc37136775a"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution capability boundary."
       },
       {
         "path": "lattice/platform_foundry.py",
@@ -768,7 +1000,7 @@
         "node_ids": [
           "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
         ],
-        "reason": "This source contributes directly to the named operational subsystem."
+        "reason": "Primary source for the integration capability boundary."
       },
       {
         "path": "lattice/quaternary.py",
@@ -779,7 +1011,7 @@
         "node_ids": [
           "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
         ],
-        "reason": "The entry contributes to evidence and workflow integrations."
+        "reason": "Primary source for the integration capability boundary."
       },
       {
         "path": "lattice/security.py",
@@ -790,7 +1022,7 @@
         "node_ids": [
           "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
         ],
-        "reason": "The entry contributes to execution and authority boundary."
+        "reason": "Primary source for the execution capability boundary."
       },
       {
         "path": "lattice/server.py",
@@ -801,7 +1033,18 @@
         "node_ids": [
           "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
         ],
-        "reason": "The entry contributes to execution and authority boundary."
+        "reason": "Primary source for the execution capability boundary."
+      },
+      {
+        "path": "lattice/snapshot.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:cb39cb4b-0675-5a7e-91e4-f8fd8afacab9"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution capability boundary."
       },
       {
         "path": "lattice/store.py",
@@ -812,7 +1055,7 @@
         "node_ids": [
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
-        "reason": "The entry contributes to durable lattice kernel."
+        "reason": "Primary source for the kernel capability boundary."
       },
       {
         "path": "lattice/supervisor.py",
@@ -823,7 +1066,7 @@
         "node_ids": [
           "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
         ],
-        "reason": "The entry contributes to execution and authority boundary."
+        "reason": "Primary source for the execution capability boundary."
       },
       {
         "path": "lattice/workflow_template_reader.py",
@@ -834,7 +1077,7 @@
         "node_ids": [
           "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
         ],
-        "reason": "The entry contributes directly to the named operational subsystem."
+        "reason": "Primary source for the integration capability boundary."
       },
       {
         "path": "lattice/workflows.py",
@@ -845,7 +1088,40 @@
         "node_ids": [
           "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
         ],
-        "reason": "The entry contributes to evidence and workflow integrations."
+        "reason": "Primary source for the integration capability boundary."
+      },
+      {
+        "path": "ops/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b6e7abba-6ca0-507d-9286-9261e0a1b814"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "ops/authenticated_acceptance.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1590001f-182d-50e8-a22c-cb260eca2322"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "ops/install.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3f817ad8-02d6-5fed-80cb-54dafab69444"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "pyproject.toml",
@@ -856,337 +1132,7 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "tests/conftest.py",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:b47fe7af-b676-5398-936c-8c959a38f1e0"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "tests/test_api.py",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "tests/test_kernel.py",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:3950ee5a-7ee6-551a-b8c9-82ff94f70582"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "tests/test_octopus_import.py",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:5379b5ce-b9d8-58dc-a8b4-00eaead251e6"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "tests/test_operations.py",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:cba1d1ea-e741-5eb5-a02e-b54245ceca0e"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "tests/test_supervisor.py",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:515300a2-aa71-5244-9946-3116181f8143"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "tests/test_workflows.py",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "uv.lock",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:91ab609d-be36-5d49-b80c-c1ee31f92be5"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry contributes to packaging and assurance."
-      },
-      {
-        "path": "web/dist/assets/index-BIUp4R_f.js",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:49e5a8d6-913b-58b3-bfc7-eeb380273031"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes directly to the named operational subsystem."
-      },
-      {
-        "path": "web/dist/assets/index-DYXbQRUy.css",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:0dbe4915-4154-5a76-96df-7b22a339e5fe"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes directly to the named operational subsystem."
-      },
-      {
-        "path": "web/dist/index.html",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:9b90b33e-e89d-5643-a7d2-823bebe8b707"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/index.html",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:f489ef36-55ac-5d04-850a-4789bf396db6"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/package-lock.json",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:8eb8c30a-bf3c-5d38-8c95-5fad641a6968"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/package.json",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:e29eb786-55fe-5fec-b54b-3c22c3d98243"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/src/App.svelte",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:578f69de-c56c-5b30-939e-2385d80c074d"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/src/api.test.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:b8724d3a-a21f-5349-a81a-22b66dec084e"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes directly to the named operational subsystem."
-      },
-      {
-        "path": "web/src/api.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:d281d945-c739-5cc8-9617-c07d9dd220c5"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/src/main.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:de0467eb-480d-5697-8baa-e18610d381ab"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/src/renderMarkdown.test.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
-      },
-      {
-        "path": "web/src/renderMarkdown.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "This generated cockpit asset is hash-bound to the production build."
-      },
-      {
-        "path": "web/src/style.css",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:5d44d1b5-155a-55ad-8a81-b5ab7eb2999a"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/src/types.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:507eccda-e353-5be2-b317-241a9e5f03df"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/src/workflowPresentation.test.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:f9d0e3d3-d167-516e-b470-db34f083d4e1"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes directly to the named operational subsystem."
-      },
-      {
-        "path": "web/src/workflowPresentation.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:fd33ca72-9b0a-5137-b696-020de5329411"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes directly to the named operational subsystem."
-      },
-      {
-        "path": "web/tsconfig.json",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:da06c3e5-4840-5fc2-991f-64a2e2b9b11c"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "web/vite.config.ts",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:a2acf806-fb54-5f79-9d0c-a6f61c760446"
-        ],
-        "node_ids": [
-          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
-        ],
-        "reason": "The entry contributes to response-first cockpit."
-      },
-      {
-        "path": "workflow_packs/platform-foundry/README.md",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297"
-        ],
-        "node_ids": [
-          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
-        ],
-        "reason": "This source contributes directly to the named operational subsystem."
-      },
-      {
-        "path": "workflow_packs/platform-foundry/pack.json",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:ab0af34a-e096-54d5-bf5e-a862b1a26515"
-        ],
-        "node_ids": [
-          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
-        ],
-        "reason": "This source contributes directly to the named operational subsystem."
-      },
-      {
-        "path": "workflow_packs/quaternary/pack.json",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:376ff270-2112-5298-8e09-88c7f6399508"
-        ],
-        "node_ids": [
-          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
-        ],
-        "reason": "The entry contributes to evidence and workflow integrations."
-      },
-      {
-        "path": "surface-history/README.md",
-        "disposition": "mapped",
-        "item_ids": [
-          "item:327bcb35-d3eb-5906-a962-b858c5229a19"
-        ],
-        "node_ids": [
-          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-        ],
-        "reason": "The entry preserves locally resolvable generated-object lineage inside the packaging and assurance boundary."
+        "reason": "Primary source for the assurance capability boundary."
       },
       {
         "path": "surface-history/20260821T225026.json",
@@ -1197,13 +1143,541 @@
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
-        "reason": "The entry preserves locally resolvable generated-object lineage inside the packaging and assurance boundary."
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "surface-history/20260823T173404.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:55c69407-f462-5c3c-b06f-84f23272f5b4"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "surface-history/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:327bcb35-d3eb-5906-a962-b858c5229a19"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/conftest.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b47fe7af-b676-5398-936c-8c959a38f1e0"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/fixtures/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:8da8cf3b-61d0-5edd-b7ef-a589f33ad59f"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/fixtures/workflow_packs/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:fd5cab4a-7465-5afe-865f-2e33e910c0f4"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/fixtures/workflow_packs/quaternary/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2739bb1d-48ad-565c-b565-a8eed81c22bc"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/fixtures/workflow_packs/quaternary/pack.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:28bb19a3-327f-5dae-bfb9-064c7868d514"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_api.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_authenticated_acceptance.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:7a1f99ee-8ae0-5648-9322-19daa7270156"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_conversation_kernel.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5fc79186-a2b2-5a01-a924-b7fec27a1e78"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_invocation_batches.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:cc78e4be-295b-5798-9bc9-7ef028129ac3"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_kernel.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3950ee5a-7ee6-551a-b8c9-82ff94f70582"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_octopus_import.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5379b5ce-b9d8-58dc-a8b4-00eaead251e6"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_operations.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:cba1d1ea-e741-5eb5-a02e-b54245ceca0e"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_reliability.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:65cab222-6dd6-5862-8340-18d305313dcc"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_supervisor.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:515300a2-aa71-5244-9946-3116181f8143"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_workflows.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "uv.lock",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:91ab609d-be36-5d49-b80c-c1ee31f92be5"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "web/dist/assets/index-BgfOII1L.js",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2053748b-aecc-551a-8e9d-95b0eadea0b6"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/dist/assets/index-DWKh4nZB.css",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:028ba948-6dc8-5feb-b1d4-a2243e5b8802"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/dist/index.html",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:9b90b33e-e89d-5643-a7d2-823bebe8b707"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/e2e/conversation.spec.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3a98cd18-2ab0-54f0-a89c-3f25fdc3cc73"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/index.html",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f489ef36-55ac-5d04-850a-4789bf396db6"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/package-lock.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:8eb8c30a-bf3c-5d38-8c95-5fad641a6968"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/package.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e29eb786-55fe-5fec-b54b-3c22c3d98243"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/playwright.config.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f40de292-475c-504e-842d-3fd7aa692eef"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/App.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:578f69de-c56c-5b30-939e-2385d80c074d"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/api.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b8724d3a-a21f-5349-a81a-22b66dec084e"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/api.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:d281d945-c739-5cc8-9617-c07d9dd220c5"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/contextActions.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ee180c8b-0960-5c9a-b8af-689d547c67ae"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/contextActions.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a04866ef-8a38-599b-8a74-ee44d27a96c9"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/contextModules.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:52a9c018-0526-5ae6-a03d-cbb48dda68d4"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/contextModules.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:12a7c532-6aed-523e-b528-a038cbf7b84e"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/executionRoutes.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:804abf6b-0684-5b82-9882-c48104164790"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/executionRoutes.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e951c922-e622-5a28-9667-e0eaaeb44026"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/invocationBatch.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:af6365db-4107-5b01-9818-2493d05e6d86"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/invocationBatch.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2d7cf609-1e77-5b75-864d-d42315aa4e11"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/main.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:de0467eb-480d-5697-8baa-e18610d381ab"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/renderMarkdown.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/renderMarkdown.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/style.css",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5d44d1b5-155a-55ad-8a81-b5ab7eb2999a"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/types.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:507eccda-e353-5be2-b317-241a9e5f03df"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/workflowPresentation.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f9d0e3d3-d167-516e-b470-db34f083d4e1"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/workflowPresentation.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:fd33ca72-9b0a-5137-b696-020de5329411"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/tsconfig.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:da06c3e5-4840-5fc2-991f-64a2e2b9b11c"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/vite.config.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a2acf806-fb54-5f79-9d0c-a6f61c760446"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "workflow_packs/platform-foundry/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "Primary source for the integration capability boundary."
+      },
+      {
+        "path": "workflow_packs/platform-foundry/pack.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ab0af34a-e096-54d5-bf5e-a862b1a26515"
+        ],
+        "node_ids": [
+          "node:0123f24e-b8ff-544d-959a-444272f7d0ff"
+        ],
+        "reason": "Primary source for the integration capability boundary."
       }
     ]
   },
   "evidence_census": {
-    "method": "declared-inputs",
-    "scope": "The frozen post-remediation audit is retained as historical materialized assurance beyond the tracked-file census.",
+    "method": "combined",
+    "scope": "Historical audit attestation plus the two exact-current operational proofs required by the remediation ledger.",
     "entries": [
       {
         "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
@@ -1211,7 +1685,23 @@
         "state_token": "78e11f89f86c81ea07fd102edbb526ace18c1b9352fe395e4ecaf2f36915f72b",
         "disposition": "included",
         "source_id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
-        "reason": "The attestation independently establishes audit closure at its frozen pre-rename revision and is explicitly marked stale for current-revision assurance."
+        "reason": "The attestation independently establishes historical closure at its frozen pre-conversation-first revision and is explicitly marked stale for current-revision assurance."
+      },
+      {
+        "ref": "acceptance:authenticated-claude-codex-current-source",
+        "kind": "materialized_state",
+        "state_token": "3e3988e82e9e24338a1896b52906dd202e96554d",
+        "disposition": "unresolved",
+        "source_id": null,
+        "reason": "Three bounded authenticated attempts did not produce a successful report for the exact current source revision."
+      },
+      {
+        "ref": "installation:current-source-generation",
+        "kind": "materialized_state",
+        "state_token": "3e3988e82e9e24338a1896b52906dd202e96554d",
+        "disposition": "unresolved",
+        "source_id": null,
+        "reason": "The supervised service is healthy but remains bound to an earlier verified runtime generation after three publication attempts rolled back."
       }
     ]
   },
@@ -1224,7 +1714,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The store implements hash-chained append-only events, derived-state reconciliation, exact seal preconditions, bounded slices and neighborhoods, workflow templates, and stable streaming blob rebuilds."
+      "observation": "The store and compositor implement direct or role-bound actors, atomic invocation batches, exact derived blocks, overlapping episodes, concern navigation, immutable sealing, and append-only graph history."
     },
     {
       "id": "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -1234,7 +1724,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The supervisor enforces leased execution, restart reconciliation, bounded journal and provider output, exact route manifests, and typed terminal failure."
+      "observation": "The supervisor and route contracts implement leased fresh, workspace-agent, and guarded native-continuation execution with typed terminal failure; exact-current authenticated qualification remains outstanding."
     },
     {
       "id": "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -1254,17 +1744,18 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The cockpit exposes response-first manual routing, exact context preflight and reconstruction, bounded lineage, workflow live views, and reusable path extraction."
+      "observation": "The cockpit foregrounds response and composer, exposes inline multi-provider routing and exact selection actions, and isolates optional graph, episode, workflow, navigation, and Slate failures."
     },
     {
       "id": "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-      "ref": "tests/test_kernel.py",
+      "ref": "tests/test_reliability.py",
       "kind": "code",
       "provenance": "observed",
       "mode_affinity": [
-        "is"
+        "is",
+        "doing"
       ],
-      "observation": "The test suite carries independently authored oracles, properties, regressions, contracts, concurrency checks, and deliberately failing negative siblings across the remediation surface."
+      "observation": "The assurance suite carries independent oracles and false mutations for migration, batches, exact context, episodes, Outport identity, snapshots, restore, installed-runtime isolation, and browser failure isolation."
     },
     {
       "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
@@ -1295,11 +1786,21 @@
         "is"
       ],
       "observation": "The independent Audit Planes validator establishes closure over 39 findings at its frozen pre-rename revision; it remains historical assurance rather than a current-revision audit."
+    },
+    {
+      "id": "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
+      "ref": "assurance/findings.json",
+      "kind": "ledger",
+      "provenance": "observed",
+      "mode_affinity": [
+        "doing"
+      ],
+      "observation": "The active remediation ledger leaves exact-current authenticated continuation and current-source supervised publication pending independent verification."
     }
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
+    "artifact_id": "carve:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
     "subject": "Lattice conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -1323,12 +1824,56 @@
         ]
       },
       {
+        "id": "item:ac819482-0272-54e2-b539-2c26679a3926",
+        "label": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
+        "role": "decoration",
+        "evidence": [
+          {
+            "ref": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:987075b1-a3a6-58b2-9fec-872d881e8424",
         "label": "README.md",
         "role": "decoration",
         "evidence": [
           {
             "ref": "README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:34219bca-adba-5a25-8cbc-963610319c47",
+        "label": "assurance/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:06ad3779-81c6-5122-bce6-083a924bb7b7",
+        "label": "assurance/baseline.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/baseline.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:46a2470a-36cd-5dda-91e6-560d2e6f5afe",
+        "label": "assurance/findings.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/findings.json",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -1576,6 +2121,17 @@
         ]
       },
       {
+        "id": "item:c95600b3-9933-5e33-84b6-1f762b6a1586",
+        "label": "lattice/cli.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/cli.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:34434f6c-f2ab-59cd-9b06-e2f5ed87d8fb",
         "label": "lattice/compositor.py",
         "role": "constituent",
@@ -1615,6 +2171,28 @@
         "evidence": [
           {
             "ref": "lattice/contracts.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:7ba502fc-ca1e-5d9a-9321-e37b23dd046e",
+        "label": "lattice/diagnostics.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/diagnostics.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:37dfd09e-dfdb-59c8-8cfc-d4ce10e05766",
+        "label": "lattice/durability.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/durability.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -1664,6 +2242,17 @@
         ]
       },
       {
+        "id": "item:c17bc2c0-f5d1-5655-88f6-4dc37136775a",
+        "label": "lattice/outport.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/outport.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:5dd439c9-a654-559c-b1e5-f88d4a7359fb",
         "label": "lattice/platform_foundry.py",
         "role": "constituent",
@@ -1703,6 +2292,17 @@
         "evidence": [
           {
             "ref": "lattice/server.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:cb39cb4b-0675-5a7e-91e4-f8fd8afacab9",
+        "label": "lattice/snapshot.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/snapshot.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -1752,12 +2352,78 @@
         ]
       },
       {
+        "id": "item:b6e7abba-6ca0-507d-9286-9261e0a1b814",
+        "label": "ops/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1590001f-182d-50e8-a22c-cb260eca2322",
+        "label": "ops/authenticated_acceptance.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/authenticated_acceptance.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:3f817ad8-02d6-5fed-80cb-54dafab69444",
+        "label": "ops/install.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/install.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
         "label": "pyproject.toml",
         "role": "constituent",
         "evidence": [
           {
             "ref": "pyproject.toml",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ed83afee-c94a-5588-a774-2f6b4ca14249",
+        "label": "surface-history/20260821T225026.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260821T225026.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:55c69407-f462-5c3c-b06f-84f23272f5b4",
+        "label": "surface-history/20260823T173404.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260823T173404.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:327bcb35-d3eb-5906-a962-b858c5229a19",
+        "label": "surface-history/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/README.md",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -1774,12 +2440,89 @@
         ]
       },
       {
+        "id": "item:8da8cf3b-61d0-5edd-b7ef-a589f33ad59f",
+        "label": "tests/fixtures/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/fixtures/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:fd5cab4a-7465-5afe-865f-2e33e910c0f4",
+        "label": "tests/fixtures/workflow_packs/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/fixtures/workflow_packs/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:2739bb1d-48ad-565c-b565-a8eed81c22bc",
+        "label": "tests/fixtures/workflow_packs/quaternary/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/fixtures/workflow_packs/quaternary/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:28bb19a3-327f-5dae-bfb9-064c7868d514",
+        "label": "tests/fixtures/workflow_packs/quaternary/pack.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/fixtures/workflow_packs/quaternary/pack.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd",
         "label": "tests/test_api.py",
         "role": "constituent",
         "evidence": [
           {
             "ref": "tests/test_api.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:7a1f99ee-8ae0-5648-9322-19daa7270156",
+        "label": "tests/test_authenticated_acceptance.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_authenticated_acceptance.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5fc79186-a2b2-5a01-a924-b7fec27a1e78",
+        "label": "tests/test_conversation_kernel.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_conversation_kernel.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:cc78e4be-295b-5798-9bc9-7ef028129ac3",
+        "label": "tests/test_invocation_batches.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_invocation_batches.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -1818,6 +2561,17 @@
         ]
       },
       {
+        "id": "item:65cab222-6dd6-5862-8340-18d305313dcc",
+        "label": "tests/test_reliability.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_reliability.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:515300a2-aa71-5244-9946-3116181f8143",
         "label": "tests/test_supervisor.py",
         "role": "constituent",
@@ -1851,23 +2605,23 @@
         ]
       },
       {
-        "id": "item:49e5a8d6-913b-58b3-bfc7-eeb380273031",
-        "label": "web/dist/assets/index-BIUp4R_f.js",
+        "id": "item:2053748b-aecc-551a-8e9d-95b0eadea0b6",
+        "label": "web/dist/assets/index-BgfOII1L.js",
         "role": "constituent",
         "evidence": [
           {
-            "ref": "web/dist/assets/index-BIUp4R_f.js",
+            "ref": "web/dist/assets/index-BgfOII1L.js",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
       },
       {
-        "id": "item:0dbe4915-4154-5a76-96df-7b22a339e5fe",
-        "label": "web/dist/assets/index-DYXbQRUy.css",
+        "id": "item:028ba948-6dc8-5feb-b1d4-a2243e5b8802",
+        "label": "web/dist/assets/index-DWKh4nZB.css",
         "role": "constituent",
         "evidence": [
           {
-            "ref": "web/dist/assets/index-DYXbQRUy.css",
+            "ref": "web/dist/assets/index-DWKh4nZB.css",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -1879,6 +2633,17 @@
         "evidence": [
           {
             "ref": "web/dist/index.html",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:3a98cd18-2ab0-54f0-a89c-3f25fdc3cc73",
+        "label": "web/e2e/conversation.spec.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/e2e/conversation.spec.ts",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -1917,6 +2682,17 @@
         ]
       },
       {
+        "id": "item:f40de292-475c-504e-842d-3fd7aa692eef",
+        "label": "web/playwright.config.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/playwright.config.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:578f69de-c56c-5b30-939e-2385d80c074d",
         "label": "web/src/App.svelte",
         "role": "constituent",
@@ -1945,6 +2721,94 @@
         "evidence": [
           {
             "ref": "web/src/api.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ee180c8b-0960-5c9a-b8af-689d547c67ae",
+        "label": "web/src/contextActions.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/contextActions.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:a04866ef-8a38-599b-8a74-ee44d27a96c9",
+        "label": "web/src/contextActions.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/contextActions.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:52a9c018-0526-5ae6-a03d-cbb48dda68d4",
+        "label": "web/src/contextModules.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/contextModules.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:12a7c532-6aed-523e-b528-a038cbf7b84e",
+        "label": "web/src/contextModules.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/contextModules.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:804abf6b-0684-5b82-9882-c48104164790",
+        "label": "web/src/executionRoutes.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/executionRoutes.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:e951c922-e622-5a28-9667-e0eaaeb44026",
+        "label": "web/src/executionRoutes.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/executionRoutes.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:af6365db-4107-5b01-9818-2493d05e6d86",
+        "label": "web/src/invocationBatch.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/invocationBatch.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:2d7cf609-1e77-5b75-864d-d42315aa4e11",
+        "label": "web/src/invocationBatch.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/invocationBatch.ts",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2069,39 +2933,6 @@
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
-      },
-      {
-        "id": "item:376ff270-2112-5298-8e09-88c7f6399508",
-        "label": "workflow_packs/quaternary/pack.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "workflow_packs/quaternary/pack.json",
-            "note": "Tracked source entry in the frozen Lattice workframe census."
-          }
-        ]
-      },
-      {
-        "id": "item:327bcb35-d3eb-5906-a962-b858c5229a19",
-        "label": "surface-history/README.md",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "surface-history/README.md",
-            "note": "Tracked source entry in the frozen Lattice workframe census."
-          }
-        ]
-      },
-      {
-        "id": "item:ed83afee-c94a-5588-a774-2f6b4ca14249",
-        "label": "surface-history/20260821T225026.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "surface-history/20260821T225026.json",
-            "note": "Tracked source entry in the frozen Lattice workframe census."
-          }
-        ]
       }
     ],
     "relations": [
@@ -2146,9 +2977,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:655e2f46-8de9-5768-bc8c-858c0015ce37",
+      "parent_artifact_id": "carve:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
       "reconciliation_scope": "global",
-      "decision": "The product, package, and source-root rename requires a global census and semantic reconciliation; the five capability owners remain the same continuing modules.",
+      "decision": "Conversation-first direct actors, runtime reliability, and cockpit graph actions changed several capability boundaries while the operational-ownership root and five continuing modules still outperform lifecycle- or directory-based challengers.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -2172,7 +3003,7 @@
           "id": "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
           "label": "Durable lattice kernel",
           "kind": "Lattice capability subsystem",
-          "gloss": "Versioned contracts, append-only events, content-addressed context, graph operations, and independent manifest reconstruction.",
+          "gloss": "Direct and role-bound actors, atomic invocation batches, exact content-addressed context, overlapping episodes, graph operations, and independent manifest reconstruction.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
             "item:8f0bedcb-63e7-563c-8e38-6f1ff64c1400",
@@ -2180,6 +3011,7 @@
             "item:aa65e2ad-5b28-5d97-b70d-d0e05e222702",
             "item:34434f6c-f2ab-59cd-9b06-e2f5ed87d8fb",
             "item:7d949ae0-5f7a-515b-beab-e515aed4feb0",
+            "item:37dfd09e-dfdb-59c8-8cfc-d4ce10e05766",
             "item:305d0545-4542-5571-a900-fd0b0e544812",
             "item:a1f86371-bc4a-5c37-b9ed-6f0cf0aba8d8",
             "item:38b5a658-5270-588e-a412-d22b6a1f6bec"
@@ -2191,14 +3023,18 @@
           "id": "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
           "label": "Execution and authority boundary",
           "kind": "Lattice capability subsystem",
-          "gloss": "Loopback API authority and leased subscription-CLI execution with durable failure state.",
+          "gloss": "Outport-addressed loopback authority, snapshot recovery, and leased subscription-CLI execution with explicit profile qualification and durable failure state.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
             "item:667e8f08-47d4-5599-a31f-54d653203c03",
+            "item:c95600b3-9933-5e33-84b6-1f762b6a1586",
             "item:c15f664b-9be0-5b00-8fec-cc58406cd59f",
+            "item:7ba502fc-ca1e-5d9a-9321-e37b23dd046e",
             "item:2c8e13ec-128f-5ac0-917b-2311d641634b",
+            "item:c17bc2c0-f5d1-5655-88f6-4dc37136775a",
             "item:f6509f49-cb38-56ab-a1ba-dc340bb9e0d2",
             "item:f1534b56-d009-59f3-b06a-0a51b13d8e4f",
+            "item:cb39cb4b-0675-5a7e-91e4-f8fd8afacab9",
             "item:bd25b5f7-343e-5dff-b2dd-c3202cdc1f3b"
           ],
           "children": [],
@@ -2208,7 +3044,7 @@
           "id": "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
           "label": "Evidence and workflow integrations",
           "kind": "Lattice capability subsystem",
-          "gloss": "Octopus exact-source import, governed context modules, workflow packs, and the quaternary boundary.",
+          "gloss": "Octopus exact-source import, governed context modules, workflow packs, live Slate concern slices, and Axial projections.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
             "item:63fe6fab-9f4f-5d5f-8c24-7b2f04407bb2",
@@ -2218,8 +3054,7 @@
             "item:d13e2534-4e7f-5670-98df-a60e4424aec3",
             "item:02efb420-ccb5-59a9-bbb8-f9e0b426db21",
             "item:ecb1d7a3-b7c4-593d-97c1-6ae31fe19297",
-            "item:ab0af34a-e096-54d5-bf5e-a862b1a26515",
-            "item:376ff270-2112-5298-8e09-88c7f6399508"
+            "item:ab0af34a-e096-54d5-bf5e-a862b1a26515"
           ],
           "children": [],
           "facets": []
@@ -2228,18 +3063,28 @@
           "id": "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
           "label": "Response-first cockpit",
           "kind": "Lattice capability subsystem",
-          "gloss": "The Svelte conversational surface and its compiled same-origin assets.",
+          "gloss": "The response-first Svelte conversation surface, exact selection actions, inline routing, progressive graph authorship, and isolated secondary drawers.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
-            "item:49e5a8d6-913b-58b3-bfc7-eeb380273031",
-            "item:0dbe4915-4154-5a76-96df-7b22a339e5fe",
+            "item:2053748b-aecc-551a-8e9d-95b0eadea0b6",
+            "item:028ba948-6dc8-5feb-b1d4-a2243e5b8802",
             "item:9b90b33e-e89d-5643-a7d2-823bebe8b707",
+            "item:3a98cd18-2ab0-54f0-a89c-3f25fdc3cc73",
             "item:f489ef36-55ac-5d04-850a-4789bf396db6",
             "item:8eb8c30a-bf3c-5d38-8c95-5fad641a6968",
             "item:e29eb786-55fe-5fec-b54b-3c22c3d98243",
+            "item:f40de292-475c-504e-842d-3fd7aa692eef",
             "item:578f69de-c56c-5b30-939e-2385d80c074d",
             "item:b8724d3a-a21f-5349-a81a-22b66dec084e",
             "item:d281d945-c739-5cc8-9617-c07d9dd220c5",
+            "item:ee180c8b-0960-5c9a-b8af-689d547c67ae",
+            "item:a04866ef-8a38-599b-8a74-ee44d27a96c9",
+            "item:52a9c018-0526-5ae6-a03d-cbb48dda68d4",
+            "item:12a7c532-6aed-523e-b528-a038cbf7b84e",
+            "item:804abf6b-0684-5b82-9882-c48104164790",
+            "item:e951c922-e622-5a28-9667-e0eaaeb44026",
+            "item:af6365db-4107-5b01-9818-2493d05e6d86",
+            "item:2d7cf609-1e77-5b75-864d-d42315aa4e11",
             "item:de0467eb-480d-5697-8baa-e18610d381ab",
             "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637",
             "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9",
@@ -2255,11 +3100,14 @@
         },
         {
           "id": "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-          "label": "Packaging and assurance",
+          "label": "Operations and assurance",
           "kind": "Lattice capability subsystem",
-          "gloss": "Install metadata, dependency locks, and truth-typed regression, property, contract, and oracle tests.",
+          "gloss": "Pinned installation, launchd supervision, backup and restore, dependency locks, finding ledger, historical audits, and truth-typed regression suites.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
+            "item:34219bca-adba-5a25-8cbc-963610319c47",
+            "item:06ad3779-81c6-5122-bce6-083a924bb7b7",
+            "item:46a2470a-36cd-5dda-91e6-560d2e6f5afe",
             "item:a324bf89-7b74-5dea-8ded-a88f2c33826e",
             "item:0313971f-2a3f-57f5-a79f-37f39d6f729c",
             "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef",
@@ -2278,17 +3126,29 @@
             "item:b6318a80-64c4-55c9-8bb8-80752984b0bb",
             "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1",
             "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
+            "item:b6e7abba-6ca0-507d-9286-9261e0a1b814",
+            "item:1590001f-182d-50e8-a22c-cb260eca2322",
+            "item:3f817ad8-02d6-5fed-80cb-54dafab69444",
             "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
+            "item:ed83afee-c94a-5588-a774-2f6b4ca14249",
+            "item:55c69407-f462-5c3c-b06f-84f23272f5b4",
+            "item:327bcb35-d3eb-5906-a962-b858c5229a19",
             "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
+            "item:8da8cf3b-61d0-5edd-b7ef-a589f33ad59f",
+            "item:fd5cab4a-7465-5afe-865f-2e33e910c0f4",
+            "item:2739bb1d-48ad-565c-b565-a8eed81c22bc",
+            "item:28bb19a3-327f-5dae-bfb9-064c7868d514",
             "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd",
+            "item:7a1f99ee-8ae0-5648-9322-19daa7270156",
+            "item:5fc79186-a2b2-5a01-a924-b7fec27a1e78",
+            "item:cc78e4be-295b-5798-9bc9-7ef028129ac3",
             "item:3950ee5a-7ee6-551a-b8c9-82ff94f70582",
             "item:5379b5ce-b9d8-58dc-a8b4-00eaead251e6",
             "item:cba1d1ea-e741-5eb5-a02e-b54245ceca0e",
+            "item:65cab222-6dd6-5862-8340-18d305313dcc",
             "item:515300a2-aa71-5244-9946-3116181f8143",
             "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265",
-            "item:91ab609d-be36-5d49-b80c-c1ee31f92be5",
-            "item:327bcb35-d3eb-5906-a962-b858c5229a19",
-            "item:ed83afee-c94a-5588-a774-2f6b4ca14249"
+            "item:91ab609d-be36-5d49-b80c-c1ee31f92be5"
           ],
           "children": [],
           "facets": []
@@ -2319,31 +3179,34 @@
         },
         "one_ply_lookahead": {
           "status": "passed",
-          "claim": "Each top-level child terminates in a coherent artifact set without repeated child-level crossings.",
+          "claim": "Direct cognition, execution authority, integrations, cockpit interaction, and operational assurance retain coherent artifact sets after the conversation-first and reliability additions.",
           "evidence": [
             "lattice/",
             "web/",
-            "tests/",
             "workflow_packs/",
-            "audit/"
+            "ops/",
+            "tests/"
           ]
         },
         "kind_homogeneity": {
           "status": "passed",
-          "claim": "All five children are positive operational subsystems; packaging and assurance is the weakest but remains the independent ship-and-proof boundary.",
+          "claim": "All five children remain positive operational capability subsystems; operations and assurance is weakest but owns the distinct install-recover-prove lifecycle.",
           "evidence": [
-            "pyproject.toml",
-            "tests/test_kernel.py",
-            "web/package.json"
+            "lattice/store.py",
+            "lattice/supervisor.py",
+            "web/src/App.svelte",
+            "ops/install.py",
+            "tests/test_reliability.py"
           ]
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "Parent-generation preservation belongs to the proof boundary rather than a peer product subsystem; the five operational owners remain semantically stable.",
+          "claim": "A lifecycle carve would scatter conversation truth across stages and a directory carve would confuse packaging with ownership; the incumbent operational-ownership root still minimizes crossings.",
           "evidence": [
-            "audit/20260821T223204-pagani-remediation/evidence/SURFACE.parent.json",
-            "audit/20260821T223204-pagani-remediation/audit.validation.json",
-            "tests/test_kernel.py"
+            "lattice/operations.py",
+            "lattice/server.py",
+            "web/src/App.svelte",
+            "ops/install.py"
           ]
         }
       }
@@ -2352,14 +3215,21 @@
       "excluded_decorations": [
         {
           "item_id": "item:20cc4b37-8c07-5063-afff-b3ab3031c1f7",
-          "distributed_as": "README supplies product contract and .gitignore supplies local-state boundaries.",
+          "distributed_as": "Local-state and build-residue policy distributed across every module.",
           "evidence": [
             ".gitignore"
           ]
         },
         {
+          "item_id": "item:ac819482-0272-54e2-b539-2c26679a3926",
+          "distributed_as": "Active remediation state distributed through module overlays and the finding ledger.",
+          "evidence": [
+            "CONVERSATION-FIRST-REMEDIATION-PLAN.md"
+          ]
+        },
+        {
           "item_id": "item:987075b1-a3a6-58b2-9fec-872d881e8424",
-          "distributed_as": "README supplies product contract and .gitignore supplies local-state boundaries.",
+          "distributed_as": "Canonical product and architecture contract distributed across every module.",
           "evidence": [
             "README.md"
           ]
@@ -2403,7 +3273,7 @@
           "id": "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
           "mode": "is",
           "state": "shipped",
-          "summary": "Lattice durably stores a hash-chained append-only lattice, seals immutable context manifests with compare-and-swap, reconstructs locally observable context independently, and exposes bounded replay, diff, slice, and neighborhood operations.",
+          "summary": "Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and reconstructs every observable context block independently.",
           "detail": null,
           "source_ids": [
             "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
@@ -2421,8 +3291,8 @@
         {
           "id": "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
           "mode": "is",
-          "state": "shipped",
-          "summary": "Qualified subscription CLIs execute through leased, restart-safe attempts with bounded journaled I/O, authority-bound manifests, typed failures, and explicit provider-owned opacity.",
+          "state": "partial",
+          "summary": "Outport-addressed authority, leased attempts, fresh and workspace profiles, guarded native continuation, snapshots, restore, and typed failures execute; exact-current authenticated continuation remains unproven.",
           "detail": null,
           "source_ids": [
             "source:1bed9604-7f0c-589c-a954-1508e9e796f2"
@@ -2441,7 +3311,7 @@
           "id": "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
           "mode": "is",
           "state": "partial",
-          "summary": "Octopus exact-source import, declarative governed workflows, quaternary and Platform Foundry live projections, Slate slices, and Axial projection execute; complete authenticated German native-role acceptance remains unproven.",
+          "summary": "Octopus exact-source import, declarative governed workflows, context modules, live concern-backed Slate slices, and Axial projection execute; complete authenticated German native-role acceptance remains unproven.",
           "detail": null,
           "source_ids": [
             "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -2461,7 +3331,7 @@
           "id": "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
           "mode": "is",
           "state": "shipped",
-          "summary": "The same-origin cockpit supports manual one-edge routing, fork and join trailheads, exact preflight and manifest views, governed live views, reusable path discovery, and explicit partial, empty, unavailable, and failure states.",
+          "summary": "The same-origin cockpit supports direct Claude, Codex, or dual routing, side quests, exact grafts, compare, return, cross-feed, joins, dormant trailheads, continuously visible context deltas, and failure-isolated secondary drawers.",
           "detail": null,
           "source_ids": [
             "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
@@ -2480,7 +3350,7 @@
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
           "state": "partial",
-          "summary": "The 0.1.0 wheel includes the Lattice package, cockpit, and workflow packs, with truth-typed Python and web assurance; the frozen whole-system audit predates the rename and therefore remains historical rather than current-revision assurance.",
+          "summary": "The source contains pinned installation, launchd supervision, backup and restore, truth-typed Python and web suites, browser acceptance, and a finding ledger; current-source publication and authenticated acceptance remain pending.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
@@ -2490,42 +3360,75 @@
           "owner_confirmed": null,
           "awaiting_disposition": null,
           "blocked_on": []
+        },
+        {
+          "id": "claim:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
+          "mode": "doing",
+          "state": "open",
+          "summary": "Close exact-current authenticated Claude/Codex acceptance, publish the verified source generation into the supervised runtime, then run the fresh immutable-revision audit.",
+          "detail": null,
+          "source_ids": [
+            "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
+            "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": [
+            "authenticated acceptance receipt",
+            "verified runtime publication"
+          ]
         }
       ]
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:655e2f46-8de9-5768-bc8c-858c0015ce37",
+    "parent_surface_id": "surface:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
     "preserved_claim_ids": [
+      "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
       "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
       "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
-      "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
-      "claim:151818d8-6f73-5756-bc91-66146c2bfea7"
+      "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328"
     ],
-    "added_claim_ids": [],
+    "added_claim_ids": [
+      "claim:4c954f2b-fdd4-5a86-b879-0303d39b26fe"
+    ],
     "retired_claim_ids": [],
     "preserved_source_ids": [
-      "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
-      "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
       "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
-      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
-      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
+      "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
       "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
+      "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
       "source:f333a39f-3890-565c-82cb-93805cfab6c6"
     ],
-    "added_source_ids": [],
+    "added_source_ids": [
+      "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe"
+    ],
     "retired_source_ids": []
   },
   "surface_residuals": {
     "source_gaps": [],
-    "evidence_gaps": [],
+    "evidence_gaps": [
+      {
+        "ref": "acceptance:authenticated-claude-codex-current-source",
+        "reason": "No successful authenticated report binds the exact current source revision.",
+        "next_evidence": "Run the bounded authenticated acceptance once provider execution is available and retain its content-bound report."
+      },
+      {
+        "ref": "installation:current-source-generation",
+        "reason": "The selected supervised runtime predates this conversation-first source revision.",
+        "next_evidence": "Publish from a clean immutable source revision and require doctor plus rollback checks to bind the selected runtime."
+      }
+    ],
     "mode_judgments": [],
     "staleness": [
       {
         "source_id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
-        "reason": "The whole-system audit is bound to the pre-rename source revision; current rename assurance comes from the tracked regression suite, build checks, and package inspection rather than a replacement architectural audit."
+        "reason": "The whole-system audit is bound to the pre-conversation-first revision and remains historical assurance only."
       }
     ],
     "legacy_unresolved": []
