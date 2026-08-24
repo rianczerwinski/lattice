@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
+  "surface_id": "surface:5323f32b-8379-46f1-b136-17c17ad57b24",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
-    "generated_at": "20260824T100100",
+    "artifact_id": "artifact:5323f32b-8379-46f1-b136-17c17ad57b24",
+    "generated_at": "20260824T171458",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "3e3988e82e9e24338a1896b52906dd202e96554d",
+        "revision": "f8dcac4e566f7c6e1c526a2e908768bd8ec9e524",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:01d9da84-55f0-4df1-8282-9bc3f19b4b18"
+    "parent_artifact_id": "artifact:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4"
   },
   "workframe": {
     "name": "Lattice",
@@ -31,18 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260824T100100",
-    "source_revision": "3e3988e82e9e24338a1896b52906dd202e96554d",
+    "at": "20260824T171458",
+    "source_revision": "f8dcac4e566f7c6e1c526a2e908768bd8ec9e524",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "3e3988e82e9e24338a1896b52906dd202e96554d",
-    "excluded_paths": [
-      "SURFACE.json",
-      "SURFACE.md",
-      "surface.validation.json"
-    ],
+    "revision": "f8dcac4e566f7c6e1c526a2e908768bd8ec9e524",
     "entries": [
       {
         "path": ".gitignore",
@@ -57,12 +52,12 @@
       {
         "path": "README.md",
         "mode": "100644",
-        "object_id": "07ac4abc36e41c57992e68e25c6a3956344b232b"
+        "object_id": "d33cb21335436aa7a6149a8d21fe7e1c84ba4850"
       },
       {
         "path": "assurance/README.md",
         "mode": "100644",
-        "object_id": "f7860802f387dd3e7b1e193541ffd3095d3072a1"
+        "object_id": "6e5f8eee5de7a259dcc1df3851d5f1f5dd9a43d9"
       },
       {
         "path": "assurance/baseline.json",
@@ -72,7 +67,7 @@
       {
         "path": "assurance/findings.json",
         "mode": "100644",
-        "object_id": "b621e9f6602cb1e12763aa568d71ab0d87d4ae9b"
+        "object_id": "2890fc0e7d2140b8c60abee9ba73700f652f8a2a"
       },
       {
         "path": "audit/20260818T140529-initial-system/AUDIT.json",
@@ -160,14 +155,49 @@
         "object_id": "99c7ab44251c34b9e614686424f25746b6fae294"
       },
       {
+        "path": "audit/20260824T100820-conversation-first-remediation/AUDIT.json",
+        "mode": "100644",
+        "object_id": "6b7002c19efcde55542c754324ac7af109daeae4"
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/AUDIT.md",
+        "mode": "100644",
+        "object_id": "1ec3f4a87b36f3a3ba8735505b119d7021b2d5dd"
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/README.md",
+        "mode": "100644",
+        "object_id": "48aef0eead6778e7651f3d904f5d72e8abc127b0"
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/audit.validation.json",
+        "mode": "100644",
+        "object_id": "a2666c8b329a42e0a08a04e751a8b6aa8e0054fa"
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/evidence/README.md",
+        "mode": "100644",
+        "object_id": "f4b9d619e078ff691ac893bc7b5a36b03cb2b495"
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
+        "mode": "100644",
+        "object_id": "d851164a3a5e51c060fac8760c434d9c71508950"
+      },
+      {
         "path": "audit/README.md",
         "mode": "100644",
-        "object_id": "7b6e883312478a523b3a81edaf6bdaccce35763c"
+        "object_id": "4cd3e5d4a5b73781d265b1a58bbe2da2a3806205"
+      },
+      {
+        "path": "lattice/__about__.py",
+        "mode": "100644",
+        "object_id": "13bfa6f045e3390c778320c8388392f34f1b9b69"
       },
       {
         "path": "lattice/__init__.py",
         "mode": "100644",
-        "object_id": "8ed4e2c787f338a630765880bbdf5fdbbdc97cfa"
+        "object_id": "bec1a9017a7670f92510476747dfcc486d91dca4"
       },
       {
         "path": "lattice/asgi.py",
@@ -182,12 +212,12 @@
       {
         "path": "lattice/canonical.py",
         "mode": "100644",
-        "object_id": "e98a30d3939f7faf2fa018e109b8ce972141092c"
+        "object_id": "80fbbbd674bddaa4e96c1c0d8cafe37dd1fdeaa4"
       },
       {
         "path": "lattice/cli.py",
         "mode": "100644",
-        "object_id": "5f3d27c6b1bdc4155ab8af8cf5f08cfc1daa2c1e"
+        "object_id": "b6243f76e4eab5754b8f1695d3eb48949b1fb243"
       },
       {
         "path": "lattice/compositor.py",
@@ -255,6 +285,11 @@
         "object_id": "d4a3a14d39bdff82f710855cc3111184fefc5669"
       },
       {
+        "path": "lattice/runtime_attestation.py",
+        "mode": "100644",
+        "object_id": "f7fbd9fa9198258f7c1bbfb9966892e7852e3ca7"
+      },
+      {
         "path": "lattice/security.py",
         "mode": "100644",
         "object_id": "1a27c74db5e9150fc25605d40411de40b748b829"
@@ -262,12 +297,12 @@
       {
         "path": "lattice/server.py",
         "mode": "100644",
-        "object_id": "8fc2cc490d6b28622c76855145e817a47360015c"
+        "object_id": "aaf84dcf1e2c6ce6cac8ad94963fef4ee089726a"
       },
       {
         "path": "lattice/snapshot.py",
         "mode": "100644",
-        "object_id": "d5a8c83dc6269c41b1ed76926e2bafd2ef064938"
+        "object_id": "46cb2895fdc9b12948054cb3396dc756d354a9b9"
       },
       {
         "path": "lattice/store.py",
@@ -302,12 +337,12 @@
       {
         "path": "ops/install.py",
         "mode": "100755",
-        "object_id": "fa0bcf0bbced62932db2c11de785c1f99da1e2c8"
+        "object_id": "a7895413aa06a7a90874e29838b7d12fc210e6e6"
       },
       {
         "path": "pyproject.toml",
         "mode": "100644",
-        "object_id": "a3ac28f21edba1608e16dbcff46fcd84bf55f78a"
+        "object_id": "26bc6f9155924a1cd88fc1a78c8430a8bbb14275"
       },
       {
         "path": "surface-history/20260821T225026.json",
@@ -318,6 +353,11 @@
         "path": "surface-history/20260823T173404.json",
         "mode": "100644",
         "object_id": "7e4b94c4a46b506bb174c0f1791dbcae254e0cac"
+      },
+      {
+        "path": "surface-history/20260824T100100.json",
+        "mode": "100644",
+        "object_id": "662619a07f40526e6685638171d4b647de160ddb"
       },
       {
         "path": "surface-history/README.md",
@@ -387,7 +427,7 @@
       {
         "path": "tests/test_reliability.py",
         "mode": "100644",
-        "object_id": "3683d4f5fa52143367477d086da1d42bf8b8a62c"
+        "object_id": "317efd5ddf3efd9f65176ea097a0d4e46adc9914"
       },
       {
         "path": "tests/test_supervisor.py",
@@ -402,7 +442,7 @@
       {
         "path": "uv.lock",
         "mode": "100644",
-        "object_id": "39bebe3c1e4fedd323f6009e4d0d042e5c00535a"
+        "object_id": "81eb24fe6f3f90a6ec741fc3a377858100e82d76"
       },
       {
         "path": "web/dist/assets/index-BgfOII1L.js",
@@ -555,7 +595,12 @@
         "object_id": "ba8357a4a2c1626342bbbe1864b1e990e2fb7a75"
       }
     ],
-    "entries_sha256": "c880e5b2960bf2efc147b7ae652557243306fc9ba89ab87b58e74a865121bc9a",
+    "entries_sha256": "790548ab17f15bc6eef27acbc47274f937bd01d5c74802b174982835f66f08e2",
+    "excluded_paths": [
+      "SURFACE.json",
+      "SURFACE.md",
+      "surface.validation.json"
+    ],
     "mappings": [
       {
         "path": ".gitignore",
@@ -805,10 +850,87 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "audit/20260824T100820-conversation-first-remediation/AUDIT.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:cdc4027f-92c6-55d0-84c3-23804ee84d17"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/AUDIT.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:aeea4586-e68e-570c-b7f6-71e9058b5202"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ca67de37-7ea7-5e29-88ca-be3357ab5da0"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/audit.validation.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b849589e-57ef-515b-bb24-6758d9f6e294"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/evidence/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:6d7a61ab-3c0e-5105-8694-d996e9846dfb"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:01eaaddc-8f51-5b47-867a-e6a712006613"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
         "path": "audit/README.md",
         "disposition": "mapped",
         "item_ids": [
           "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "lattice/__about__.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0d248e77-fc58-5cd1-b6cf-b11920126a39"
         ],
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
@@ -1014,6 +1136,17 @@
         "reason": "Primary source for the integration capability boundary."
       },
       {
+        "path": "lattice/runtime_attestation.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:95069f87-d56f-52bf-b4f6-61d2d3ac8318"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
         "path": "lattice/security.py",
         "disposition": "mapped",
         "item_ids": [
@@ -1150,6 +1283,17 @@
         "disposition": "mapped",
         "item_ids": [
           "item:55c69407-f462-5c3c-b06f-84f23272f5b4"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "surface-history/20260824T100100.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:dd419047-4a7b-56f6-a904-8957cb720509"
         ],
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
@@ -1677,7 +1821,7 @@
   },
   "evidence_census": {
     "method": "combined",
-    "scope": "Historical audit attestation plus the two exact-current operational proofs required by the remediation ledger.",
+    "scope": "Historical audit attestation plus exact installed-runtime, authenticated-provider, and recovery proofs for the conversation-first release.",
     "entries": [
       {
         "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
@@ -1685,23 +1829,31 @@
         "state_token": "78e11f89f86c81ea07fd102edbb526ace18c1b9352fe395e4ecaf2f36915f72b",
         "disposition": "included",
         "source_id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
-        "reason": "The attestation independently establishes historical closure at its frozen pre-conversation-first revision and is explicitly marked stale for current-revision assurance."
+        "reason": "The attestation independently establishes historical closure at its frozen pre-conversation-first revision and remains explicitly stale for current-revision assurance."
       },
       {
-        "ref": "acceptance:authenticated-claude-codex-current-source",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T170628-0e255354-991.json",
         "kind": "materialized_state",
-        "state_token": "3e3988e82e9e24338a1896b52906dd202e96554d",
-        "disposition": "unresolved",
-        "source_id": null,
-        "reason": "Three bounded authenticated attempts did not produce a successful report for the exact current source revision."
+        "state_token": "artifact:0e255354-9911-4681-90e2-e1498064608a",
+        "disposition": "included",
+        "source_id": "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+        "reason": "The immutable authenticated report proves the exact manual lattice and provider-profile acceptance path without storing response text in the Surface."
       },
       {
-        "ref": "installation:current-source-generation",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-0c231103830f-87f5299a9d22/runtime.json",
         "kind": "materialized_state",
-        "state_token": "3e3988e82e9e24338a1896b52906dd202e96554d",
-        "disposition": "unresolved",
-        "source_id": null,
-        "reason": "The supervised service is healthy but remains bound to an earlier verified runtime generation after three publication attempts rolled back."
+        "state_token": "artifact:b2c8a29a-032e-4db9-a070-263c0121a5b6",
+        "disposition": "included",
+        "source_id": "source:adb769f3-7122-41ed-992f-92182a32bcc4",
+        "reason": "The installed-runtime generation resolves the exact executable source and byte inventories selected by launchd."
+      },
+      {
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T170655-068be392-a77/snapshot.json",
+        "kind": "materialized_state",
+        "state_token": "artifact:068be392-a775-4188-bf9a-1fc541352094",
+        "disposition": "included",
+        "source_id": "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
+        "reason": "The verified snapshot and isolated restore provide the independent recovery denominator for the accepted state."
       }
     ]
   },
@@ -1724,7 +1876,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The supervisor and route contracts implement leased fresh, workspace-agent, and guarded native-continuation execution with typed terminal failure; exact-current authenticated qualification remains outstanding."
+      "observation": "The supervisor and route contracts implement leased fresh, workspace-agent, and authority-guarded native-continuation execution; authenticated Claude and Codex fork, resume, and portable fallback all passed on the installed v0.2.0 runtime."
     },
     {
       "id": "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -1755,7 +1907,7 @@
         "is",
         "doing"
       ],
-      "observation": "The assurance suite carries independent oracles and false mutations for migration, batches, exact context, episodes, Outport identity, snapshots, restore, installed-runtime isolation, and browser failure isolation."
+      "observation": "The truth-typed assurance suite rejects migration, batch, context, episode, Outport, snapshot, installed-runtime, provider-drift, and browser-failure mutations before publication."
     },
     {
       "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
@@ -1765,7 +1917,7 @@
       "mode_affinity": [
         "constraints"
       ],
-      "observation": "The canonical workframe contract states Lattice's telos, boundaries, 0.1.0 identity, current acceptance, and known incomplete German workflow."
+      "observation": "The canonical workframe contract states Lattice's conversation-first telos, architectural boundaries, v0.2.0 release identity, real-data-ready manual acceptance, and unavailable German Gemini qualification."
     },
     {
       "id": "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
@@ -1793,14 +1945,44 @@
       "kind": "ledger",
       "provenance": "observed",
       "mode_affinity": [
-        "doing"
+        "is"
       ],
-      "observation": "The active remediation ledger leaves exact-current authenticated continuation and current-source supervised publication pending independent verification."
+      "observation": "The canonical remediation ledger closes all 19 discriminated findings against exact runtime, provider, restart, browser, and restore receipts while preserving provider-opacity and Gemini limits."
+    },
+    {
+      "id": "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T170628-0e255354-991.json",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "A content-bound authenticated report records 57 passed assertions across 18 immutable Claude and Codex invocations, two rejected authority mutations, provider failure recovery, and a launchd restart with dormant-branch continuation."
+    },
+    {
+      "id": "source:adb769f3-7122-41ed-992f-92182a32bcc4",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-0c231103830f-87f5299a9d22/runtime.json",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The selected non-editable runtime binds Lattice 0c231103830f and model-runner 87f5299a9d22 to exact source and installed module-tree inventories under Outport and launchd."
+    },
+    {
+      "id": "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T170655-068be392-a77/snapshot.json",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The post-acceptance snapshot restored into an isolated nonexistent root and reproduced state digest 1973335d34e5e4119bd948977231b6cb35782d375ecb08129603d3e7dd4e1439."
     }
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
+    "artifact_id": "carve:5323f32b-8379-46f1-b136-17c17ad57b24",
     "subject": "Lattice conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -2933,6 +3115,105 @@
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
+      },
+      {
+        "id": "item:cdc4027f-92c6-55d0-84c3-23804ee84d17",
+        "label": "audit/20260824T100820-conversation-first-remediation/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/AUDIT.json",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:aeea4586-e68e-570c-b7f6-71e9058b5202",
+        "label": "audit/20260824T100820-conversation-first-remediation/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/AUDIT.md",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:ca67de37-7ea7-5e29-88ca-be3357ab5da0",
+        "label": "audit/20260824T100820-conversation-first-remediation/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/README.md",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:b849589e-57ef-515b-bb24-6758d9f6e294",
+        "label": "audit/20260824T100820-conversation-first-remediation/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/audit.validation.json",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:6d7a61ab-3c0e-5105-8694-d996e9846dfb",
+        "label": "audit/20260824T100820-conversation-first-remediation/evidence/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/evidence/README.md",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:01eaaddc-8f51-5b47-867a-e6a712006613",
+        "label": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:0d248e77-fc58-5cd1-b6cf-b11920126a39",
+        "label": "lattice/__about__.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/__about__.py",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:95069f87-d56f-52bf-b4f6-61d2d3ac8318",
+        "label": "lattice/runtime_attestation.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/runtime_attestation.py",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:dd419047-4a7b-56f6-a904-8957cb720509",
+        "label": "surface-history/20260824T100100.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260824T100100.json",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
       }
     ],
     "relations": [
@@ -2977,9 +3258,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
-      "reconciliation_scope": "global",
-      "decision": "Conversation-first direct actors, runtime reliability, and cockpit graph actions changed several capability boundaries while the operational-ownership root and five continuing modules still outperform lifecycle- or directory-based challengers.",
+      "parent_artifact_id": "carve:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
+      "reconciliation_scope": "local",
+      "decision": "Release identity, installed-byte attestation, authenticated provider receipts, and closure evidence deepen the existing operations-and-assurance module without changing the operational-ownership root or any sibling boundary.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -3148,7 +3429,16 @@
             "item:65cab222-6dd6-5862-8340-18d305313dcc",
             "item:515300a2-aa71-5244-9946-3116181f8143",
             "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265",
-            "item:91ab609d-be36-5d49-b80c-c1ee31f92be5"
+            "item:91ab609d-be36-5d49-b80c-c1ee31f92be5",
+            "item:cdc4027f-92c6-55d0-84c3-23804ee84d17",
+            "item:aeea4586-e68e-570c-b7f6-71e9058b5202",
+            "item:ca67de37-7ea7-5e29-88ca-be3357ab5da0",
+            "item:b849589e-57ef-515b-bb24-6758d9f6e294",
+            "item:6d7a61ab-3c0e-5105-8694-d996e9846dfb",
+            "item:01eaaddc-8f51-5b47-867a-e6a712006613",
+            "item:0d248e77-fc58-5cd1-b6cf-b11920126a39",
+            "item:95069f87-d56f-52bf-b4f6-61d2d3ac8318",
+            "item:dd419047-4a7b-56f6-a904-8957cb720509"
           ],
           "children": [],
           "facets": []
@@ -3179,18 +3469,17 @@
         },
         "one_ply_lookahead": {
           "status": "passed",
-          "claim": "Direct cognition, execution authority, integrations, cockpit interaction, and operational assurance retain coherent artifact sets after the conversation-first and reliability additions.",
+          "claim": "Package versioning, installed-tree attestation, authenticated acceptance, backup recovery, and audit lineage remain one install-recover-prove capability rather than crossing into cognition, workflow integration, or cockpit ownership.",
           "evidence": [
-            "lattice/",
-            "web/",
-            "workflow_packs/",
-            "ops/",
-            "tests/"
+            "lattice/__about__.py",
+            "lattice/runtime_attestation.py",
+            "ops/install.py",
+            "assurance/findings.json"
           ]
         },
         "kind_homogeneity": {
           "status": "passed",
-          "claim": "All five children remain positive operational capability subsystems; operations and assurance is weakest but owns the distinct install-recover-prove lifecycle.",
+          "claim": "All five children remain operational capability subsystems; operations and assurance continues to own release, supervision, recovery, and proof without becoming a lifecycle decoration bucket.",
           "evidence": [
             "lattice/store.py",
             "lattice/supervisor.py",
@@ -3201,11 +3490,11 @@
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "A lifecycle carve would scatter conversation truth across stages and a directory carve would confuse packaging with ownership; the incumbent operational-ownership root still minimizes crossings.",
+          "claim": "A release-lifecycle challenger would scatter one conversation capability across build stages, while the incumbent operational-ownership carve keeps each enduring state owner intact and confines this reconciliation to assurance.",
           "evidence": [
             "lattice/operations.py",
             "lattice/server.py",
-            "web/src/App.svelte",
+            "lattice/runtime_attestation.py",
             "ops/install.py"
           ]
         }
@@ -3291,11 +3580,14 @@
         {
           "id": "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
           "mode": "is",
-          "state": "partial",
-          "summary": "Outport-addressed authority, leased attempts, fresh and workspace profiles, guarded native continuation, snapshots, restore, and typed failures execute; exact-current authenticated continuation remains unproven.",
+          "state": "shipped",
+          "summary": "Outport authority, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, snapshots, restore, and provider-drift diagnosis execute; exact-current Claude and Codex fork, resume, fallback, failure recovery, and restart continuation passed.",
           "detail": null,
           "source_ids": [
-            "source:1bed9604-7f0c-589c-a954-1508e9e796f2"
+            "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
+            "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+            "source:adb769f3-7122-41ed-992f-92182a32bcc4",
+            "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3"
           ],
           "origin": null,
           "owner_confirmed": null,
@@ -3349,41 +3641,26 @@
         {
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
-          "state": "partial",
-          "summary": "The source contains pinned installation, launchd supervision, backup and restore, truth-typed Python and web suites, browser acceptance, and a finding ledger; current-source publication and authenticated acceptance remain pending.",
+          "state": "shipped",
+          "summary": "Lattice 0.2.0 runs from a source- and byte-attested pinned environment under launchd, with verified backup and restore, exact-current browser and authenticated provider acceptance, and all 19 remediation findings closed.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-            "source:f333a39f-3890-565c-82cb-93805cfab6c6"
+            "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
+            "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+            "source:adb769f3-7122-41ed-992f-92182a32bcc4",
+            "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3"
           ],
           "origin": null,
           "owner_confirmed": null,
           "awaiting_disposition": null,
           "blocked_on": []
-        },
-        {
-          "id": "claim:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
-          "mode": "doing",
-          "state": "open",
-          "summary": "Close exact-current authenticated Claude/Codex acceptance, publish the verified source generation into the supervised runtime, then run the fresh immutable-revision audit.",
-          "detail": null,
-          "source_ids": [
-            "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
-            "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
-          ],
-          "origin": null,
-          "owner_confirmed": null,
-          "awaiting_disposition": null,
-          "blocked_on": [
-            "authenticated acceptance receipt",
-            "verified runtime publication"
-          ]
         }
       ]
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:01d9da84-55f0-4df1-8282-9bc3f19b4b18",
+    "parent_surface_id": "surface:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
     "preserved_claim_ids": [
       "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
@@ -3391,44 +3668,36 @@
       "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
       "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328"
     ],
-    "added_claim_ids": [
+    "added_claim_ids": [],
+    "retired_claim_ids": [
       "claim:4c954f2b-fdd4-5a86-b879-0303d39b26fe"
     ],
-    "retired_claim_ids": [],
     "preserved_source_ids": [
       "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
       "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
       "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
       "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+      "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
       "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
       "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
       "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
       "source:f333a39f-3890-565c-82cb-93805cfab6c6"
     ],
     "added_source_ids": [
-      "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe"
+      "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+      "source:adb769f3-7122-41ed-992f-92182a32bcc4",
+      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3"
     ],
     "retired_source_ids": []
   },
   "surface_residuals": {
     "source_gaps": [],
-    "evidence_gaps": [
-      {
-        "ref": "acceptance:authenticated-claude-codex-current-source",
-        "reason": "No successful authenticated report binds the exact current source revision.",
-        "next_evidence": "Run the bounded authenticated acceptance once provider execution is available and retain its content-bound report."
-      },
-      {
-        "ref": "installation:current-source-generation",
-        "reason": "The selected supervised runtime predates this conversation-first source revision.",
-        "next_evidence": "Publish from a clean immutable source revision and require doctor plus rollback checks to bind the selected runtime."
-      }
-    ],
+    "evidence_gaps": [],
     "mode_judgments": [],
     "staleness": [
       {
         "source_id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
-        "reason": "The whole-system audit is bound to the pre-conversation-first revision and remains historical assurance only."
+        "reason": "The earlier whole-system audit remains historical assurance at its frozen pre-conversation-first revision; a new immutable-revision audit is published separately from this Surface generation."
       }
     ],
     "legacy_unresolved": []
