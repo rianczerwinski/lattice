@@ -186,7 +186,8 @@ CREATE TABLE IF NOT EXISTS block_status(
 CREATE TABLE IF NOT EXISTS drafts(
     draft_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(project_id),
-    role_session_id TEXT NOT NULL REFERENCES role_sessions(role_session_id),
+    actor_kind TEXT NOT NULL CHECK(actor_kind IN ('direct','role-session')),
+    role_session_id TEXT REFERENCES role_sessions(role_session_id),
     prompt_block_id TEXT NOT NULL REFERENCES context_blocks(block_id),
     route_json TEXT NOT NULL CHECK(json_valid(route_json)),
     selections_json TEXT NOT NULL CHECK(json_valid(selections_json)),
@@ -198,13 +199,15 @@ CREATE TABLE IF NOT EXISTS drafts(
     state TEXT NOT NULL,
     invocation_id TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    CHECK((actor_kind='direct' AND role_session_id IS NULL) OR (actor_kind='role-session' AND role_session_id IS NOT NULL))
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS invocations(
     invocation_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(project_id),
-    role_session_id TEXT NOT NULL REFERENCES role_sessions(role_session_id),
+    actor_kind TEXT NOT NULL CHECK(actor_kind IN ('direct','role-session')),
+    role_session_id TEXT REFERENCES role_sessions(role_session_id),
     draft_id TEXT REFERENCES drafts(draft_id),
     manifest_artifact_id TEXT NOT NULL UNIQUE,
     manifest_sha256 TEXT NOT NULL CHECK(length(manifest_sha256)=64),
@@ -216,7 +219,8 @@ CREATE TABLE IF NOT EXISTS invocations(
     output_block_id TEXT REFERENCES context_blocks(block_id),
     terminal_kind TEXT,
     created_at TEXT NOT NULL,
-    completed_at TEXT
+    completed_at TEXT,
+    CHECK((actor_kind='direct' AND role_session_id IS NULL) OR (actor_kind='role-session' AND role_session_id IS NOT NULL))
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS edges(
@@ -441,6 +445,7 @@ class LatticeStore:
             role_columns = {row[1] for row in conn.execute("PRAGMA table_info(roles)")}
             trigger_columns = {row[1] for row in conn.execute("PRAGMA table_info(workflow_triggers)")}
             draft_columns = {row[1] for row in conn.execute("PRAGMA table_info(drafts)")}
+            invocation_columns = {row[1] for row in conn.execute("PRAGMA table_info(invocations)")}
             slice_columns = {row[1] for row in conn.execute("PRAGMA table_info(slices)")}
             workflow_columns = {row[1] for row in conn.execute("PRAGMA table_info(workflow_instances)")}
             transition_columns = {row[1] for row in conn.execute("PRAGMA table_info(workflow_transitions)")}
@@ -451,7 +456,8 @@ class LatticeStore:
                 "attempts": ({"runtime_receipt_json"}, attempt_columns),
                 "roles": ({"workflow_role_key", "route_policy_json"}, role_columns),
                 "workflow_triggers": ({"error_text", "pack_canonical_sha256", "action_sha256", "action_json"}, trigger_columns),
-                "drafts": ({"context_mode"}, draft_columns),
+                "drafts": ({"context_mode", "actor_kind"}, draft_columns),
+                "invocations": ({"actor_kind"}, invocation_columns),
                 "slices": ({"scope"}, slice_columns),
                 "workflow_instances": ({"selector_json", "pack_canonical_sha256", "pack_definition_sha256", "current_blackboard_block_id", "state_entry_seq"}, workflow_columns),
                 "workflow_transitions": ({"pack_canonical_sha256"}, transition_columns),
@@ -507,6 +513,8 @@ class LatticeStore:
                 conn.execute("ALTER TABLE conversation_imports ADD COLUMN proof_limit_block_id TEXT REFERENCES context_blocks(block_id)")
             if "response_state" not in import_turn_columns:
                 conn.execute("ALTER TABLE conversation_import_turns ADD COLUMN response_state TEXT NOT NULL DEFAULT 'present' CHECK(response_state IN ('present','absent'))")
+            if "actor_kind" not in draft_columns or "actor_kind" not in invocation_columns:
+                self._migrate_actor_bindings(conn)
             self._install_change_triggers(conn)
             conn.execute("UPDATE slices SET scope='global' WHERE external_ref IS NOT NULL AND scope<>'global'")
             if conn.execute("SELECT 1 FROM schema_migrations WHERE version=4").fetchone() is None:
@@ -549,8 +557,115 @@ class LatticeStore:
             if conn.execute("SELECT 1 FROM schema_migrations WHERE version=7").fetchone() is None:
                 self._baseline_current_views(conn)
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(7,?)", (stamp(),))
+            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(8,?)", (stamp(),))
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
+
+    def _migrate_actor_bindings(self, conn: sqlite3.Connection) -> None:
+        """Atomically add direct actors without rewriting any sealed manifest bytes."""
+
+        draft_columns = {row[1] for row in conn.execute("PRAGMA table_info(drafts)")}
+        invocation_columns = {row[1] for row in conn.execute("PRAGMA table_info(invocations)")}
+        if ("actor_kind" in draft_columns) != ("actor_kind" in invocation_columns):
+            raise OSError("Lattice actor-binding migration is partially applied")
+        if "actor_kind" in draft_columns:
+            return
+        if conn.execute("SELECT 1 FROM schema_migrations WHERE version=8").fetchone() is not None:
+            raise OSError("Lattice schema claims actor bindings without actor-bound tables")
+
+        draft_count = conn.execute("SELECT COUNT(*) FROM drafts").fetchone()[0]
+        invocation_count = conn.execute("SELECT COUNT(*) FROM invocations").fetchone()[0]
+        manifest_bytes = [(row["invocation_id"], row["manifest_json"]) for row in conn.execute("SELECT invocation_id,manifest_json FROM invocations ORDER BY invocation_id")]
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.execute("BEGIN EXCLUSIVE")
+        try:
+            for table in ("drafts", "invocations"):
+                for operation in ("insert", "update", "delete"):
+                    conn.execute(f'DROP TRIGGER IF EXISTS "ledger_{table}_{operation}"')
+            conn.execute(
+                """CREATE TABLE drafts_v8(
+                    draft_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(project_id),
+                    actor_kind TEXT NOT NULL CHECK(actor_kind IN ('direct','role-session')),
+                    role_session_id TEXT REFERENCES role_sessions(role_session_id),
+                    prompt_block_id TEXT NOT NULL REFERENCES context_blocks(block_id),
+                    route_json TEXT NOT NULL CHECK(json_valid(route_json)),
+                    selections_json TEXT NOT NULL CHECK(json_valid(selections_json)),
+                    parents_json TEXT NOT NULL CHECK(json_valid(parents_json)),
+                    relation TEXT NOT NULL,
+                    context_mode TEXT NOT NULL DEFAULT 'standard',
+                    response_schema_json TEXT NOT NULL CHECK(json_valid(response_schema_json)),
+                    revision INTEGER NOT NULL DEFAULT 1,
+                    state TEXT NOT NULL,
+                    invocation_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    CHECK((actor_kind='direct' AND role_session_id IS NULL) OR (actor_kind='role-session' AND role_session_id IS NOT NULL))
+                ) STRICT"""
+            )
+            conn.execute(
+                """CREATE TABLE invocations_v8(
+                    invocation_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(project_id),
+                    actor_kind TEXT NOT NULL CHECK(actor_kind IN ('direct','role-session')),
+                    role_session_id TEXT REFERENCES role_sessions(role_session_id),
+                    draft_id TEXT REFERENCES drafts(draft_id),
+                    manifest_artifact_id TEXT NOT NULL UNIQUE,
+                    manifest_sha256 TEXT NOT NULL CHECK(length(manifest_sha256)=64),
+                    manifest_json TEXT NOT NULL CHECK(json_valid(manifest_json)),
+                    compiled_prompt_sha256 TEXT NOT NULL CHECK(length(compiled_prompt_sha256)=64),
+                    route_json TEXT NOT NULL CHECK(json_valid(route_json)),
+                    response_schema_json TEXT NOT NULL CHECK(json_valid(response_schema_json)),
+                    state TEXT NOT NULL,
+                    output_block_id TEXT REFERENCES context_blocks(block_id),
+                    terminal_kind TEXT,
+                    created_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    CHECK((actor_kind='direct' AND role_session_id IS NULL) OR (actor_kind='role-session' AND role_session_id IS NOT NULL))
+                ) STRICT"""
+            )
+            conn.execute(
+                """INSERT INTO drafts_v8(
+                    draft_id,project_id,actor_kind,role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,context_mode,response_schema_json,revision,state,invocation_id,created_at,updated_at
+                ) SELECT draft_id,project_id,'role-session',role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,context_mode,response_schema_json,revision,state,invocation_id,created_at,updated_at FROM drafts"""
+            )
+            conn.execute(
+                """INSERT INTO invocations_v8(
+                    invocation_id,project_id,actor_kind,role_session_id,draft_id,manifest_artifact_id,manifest_sha256,manifest_json,compiled_prompt_sha256,route_json,response_schema_json,state,output_block_id,terminal_kind,created_at,completed_at
+                ) SELECT invocation_id,project_id,'role-session',role_session_id,draft_id,manifest_artifact_id,manifest_sha256,manifest_json,compiled_prompt_sha256,route_json,response_schema_json,state,output_block_id,terminal_kind,created_at,completed_at FROM invocations"""
+            )
+            conn.execute("DROP TABLE invocations")
+            conn.execute("DROP TABLE drafts")
+            conn.execute("ALTER TABLE drafts_v8 RENAME TO drafts")
+            conn.execute("ALTER TABLE invocations_v8 RENAME TO invocations")
+            conn.execute("CREATE INDEX invocations_project_created ON invocations(project_id,created_at)")
+            self._install_change_triggers(conn)
+            for table in ("drafts", "invocations"):
+                _columns, primary = self._table_contract(conn, table)
+                for row in conn.execute(f'SELECT * FROM "{table}"'):
+                    value = dict(row)
+                    conn.execute(
+                        "INSERT INTO ledger_changes(change_id,table_name,operation,primary_key_json,row_json,occurred_at) VALUES(?,?,'baseline',?,?,?)",
+                        (opaque_id("change"), table, canonical_bytes({key: value[key] for key in primary}).decode(), canonical_bytes(value).decode(), stamp()),
+                    )
+            if conn.execute("SELECT COUNT(*) FROM drafts").fetchone()[0] != draft_count or conn.execute("SELECT COUNT(*) FROM invocations").fetchone()[0] != invocation_count:
+                raise OSError("Lattice actor-binding migration changed row counts")
+            migrated_manifests = [(row["invocation_id"], row["manifest_json"]) for row in conn.execute("SELECT invocation_id,manifest_json FROM invocations ORDER BY invocation_id")]
+            if migrated_manifests != manifest_bytes:
+                raise OSError("Lattice actor-binding migration changed sealed manifest bytes")
+            foreign_key_errors = [tuple(row) for row in conn.execute("PRAGMA foreign_key_check")]
+            if foreign_key_errors:
+                raise OSError(f"Lattice actor-binding migration broke foreign keys: {foreign_key_errors[:5]}")
+            self._verify_integrity_chain(conn)
+            self._verify_current_views_against_change_ledger(conn)
+            conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(8,?)", (stamp(),))
+        except BaseException:
+            conn.rollback()
+            raise
+        else:
+            conn.commit()
+        finally:
+            conn.execute("PRAGMA foreign_keys=ON")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.config.database, timeout=30, isolation_level=None)
@@ -811,17 +926,25 @@ class LatticeStore:
             return {"kind": "non-model", "provider": spec["provider"]}
         return {"kind": "model", "provider": spec["provider"], "harness": spec["harness"], "allowed_models": spec.get("allowed_models", [])}
 
-    def _assert_route_authorized(self, role_session_id: str, route: dict[str, Any]) -> None:
-        session = self.get_role_session(role_session_id)
-        role = self.get_role(session["role_id"])
-        policy = role["route_policy"]
-        if policy["kind"] == "non-model":
-            raise LatticeConflict(f"{role['name']} is not a model-execution role")
-        if policy["kind"] == "model":
-            if route["provider"] != policy["provider"] or route["harness"] != policy["harness"]:
-                raise LatticeConflict(f"{role['name']} is bound to {policy['provider']} through {policy['harness']}")
-            if policy["allowed_models"] and route["model"] not in policy["allowed_models"]:
-                raise LatticeConflict(f"{role['name']} does not authorize model {route['model']}")
+    def _assert_actor_route_authorized(self, actor_kind: str, role_session_id: str | None, route: dict[str, Any]) -> None:
+        if actor_kind == "direct":
+            if role_session_id is not None:
+                raise LatticeConflict("direct actor bindings cannot carry a role session")
+        elif actor_kind == "role-session":
+            if role_session_id is None:
+                raise LatticeConflict("role-session actor bindings require a role session")
+            session = self.get_role_session(role_session_id)
+            role = self.get_role(session["role_id"])
+            policy = role["route_policy"]
+            if policy["kind"] == "non-model":
+                raise LatticeConflict(f"{role['name']} is not a model-execution role")
+            if policy["kind"] == "model":
+                if route["provider"] != policy["provider"] or route["harness"] != policy["harness"]:
+                    raise LatticeConflict(f"{role['name']} is bound to {policy['provider']} through {policy['harness']}")
+                if policy["allowed_models"] and route["model"] not in policy["allowed_models"]:
+                    raise LatticeConflict(f"{role['name']} does not authorize model {route['model']}")
+        else:
+            raise LatticeConflict(f"unsupported actor binding: {actor_kind}")
         adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
         if adapter is None:
             raise LatticeConflict("provider and official CLI route are not qualified together")
@@ -864,7 +987,7 @@ class LatticeStore:
                     trigger["action"] = json.loads(trigger.pop("action_json")) if trigger.get("action_json") else None
                 blackboard_id = project["workflow"].get("current_blackboard_block_id")
             project["trailheads"] = [dict(row) for row in conn.execute(
-                """SELECT i.invocation_id,i.project_id,i.role_session_id,i.state,i.manifest_sha256,i.output_block_id,i.terminal_kind,i.created_at,i.completed_at FROM invocations i
+                """SELECT i.invocation_id,i.project_id,i.actor_kind,i.role_session_id,i.state,i.manifest_sha256,i.output_block_id,i.terminal_kind,i.created_at,i.completed_at FROM invocations i
                    WHERE i.project_id=? AND NOT EXISTS(
                      SELECT 1 FROM edges e WHERE e.source_type='invocation'
                      AND e.target_type='invocation' AND e.target_id=i.invocation_id)
@@ -1165,10 +1288,14 @@ class LatticeStore:
             return self._row(conn.execute("SELECT * FROM role_sessions WHERE role_session_id=?", (session_id,)).fetchone(), session_id)
 
     def create_draft(self, value: DraftCreate, *, prompt_block_id: str | None = None, import_turn: tuple[str, int] | None = None, retarget_current_prompt_selections: bool = False, source_artifact: tuple[str, str, str] | None = None) -> dict[str, Any]:
-        session = self.get_role_session(value.role_session_id)
-        if session["project_id"] != value.project_id:
-            raise LatticeConflict("role session does not belong to project")
-        self._assert_route_authorized(value.role_session_id, value.route.model_dump(mode="json"))
+        actor_binding = value.actor_binding.model_dump(mode="json")
+        actor_kind = actor_binding["kind"]
+        role_session_id = actor_binding.get("role_session_id")
+        if role_session_id is not None:
+            session = self.get_role_session(role_session_id)
+            if session["project_id"] != value.project_id:
+                raise LatticeConflict("role session does not belong to project")
+        self._assert_actor_route_authorized(actor_kind, role_session_id, value.route.model_dump(mode="json"))
         for parent_id in value.parent_invocation_ids:
             parent = self.get_invocation(parent_id)
             if parent["project_id"] != value.project_id:
@@ -1192,9 +1319,9 @@ class LatticeStore:
             if prompt_value is not None:
                 self._insert_context_block(conn, prompt_value, block_id=prompt_block_id, content=prompt_content, digest=prompt_digest, now=now)
             conn.execute(
-                """INSERT INTO drafts(draft_id,project_id,role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,context_mode,response_schema_json,revision,state,created_at,updated_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?,?)""",
-                (draft_id, value.project_id, value.role_session_id, prompt_block_id,
+                """INSERT INTO drafts(draft_id,project_id,actor_kind,role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,context_mode,response_schema_json,revision,state,created_at,updated_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)""",
+                (draft_id, value.project_id, actor_kind, role_session_id, prompt_block_id,
                  canonical_bytes(value.route.model_dump(mode="json")).decode(), canonical_bytes(selections).decode(),
                  canonical_bytes(value.parent_invocation_ids).decode(), value.relation.value, value.context_mode, canonical_bytes(value.response_schema).decode(),
                  DraftState.editable.value, now, now),
@@ -1218,6 +1345,7 @@ class LatticeStore:
             row = self._row(conn.execute("SELECT * FROM drafts WHERE draft_id=?", (draft_id,)).fetchone(), draft_id)
         for key in ("route_json", "selections_json", "parents_json", "response_schema_json"):
             row[key.removesuffix("_json")] = json.loads(row.pop(key))
+        row["actor_binding"] = {"kind": row["actor_kind"], **({"role_session_id": row["role_session_id"]} if row["role_session_id"] is not None else {})}
         return row
 
     def patch_draft(self, draft_id: str, patch: DraftPatch) -> dict[str, Any]:
@@ -1234,7 +1362,7 @@ class LatticeStore:
             prompt_digest = self.blobs.put(prompt_content)
             prompt_block_id = opaque_id("block")
         route = patch.route.model_dump(mode="json") if patch.route else current["route"]
-        self._assert_route_authorized(current["role_session_id"], route)
+        self._assert_actor_route_authorized(current["actor_kind"], current["role_session_id"], route)
         selections = [item.model_dump(mode="json") for item in patch.selections] if patch.selections is not None else current["selections"]
         parents = patch.parent_invocation_ids if patch.parent_invocation_ids is not None else current["parents"]
         for parent_id in parents:
@@ -1262,7 +1390,7 @@ class LatticeStore:
         return self.get_draft(draft_id)
 
     def insert_invocation(self, draft: dict[str, Any], manifest: dict[str, Any], manifest_sha: str, compiled_prompt_sha: str, *, trigger_id: str | None = None, import_turn: tuple[str, int] | None = None) -> dict[str, Any]:
-        self._assert_route_authorized(draft["role_session_id"], draft["route"])
+        self._assert_actor_route_authorized(draft["actor_kind"], draft["role_session_id"], draft["route"])
         invocation_id = manifest["invocation_id"]
         now = stamp()
         with self.transaction() as conn:
@@ -1270,9 +1398,9 @@ class LatticeStore:
             if current["state"] != DraftState.editable.value or current["revision"] != draft["revision"]:
                 raise LatticeConflict("draft changed before sealing")
             conn.execute(
-                """INSERT INTO invocations(invocation_id,project_id,role_session_id,draft_id,manifest_artifact_id,manifest_sha256,manifest_json,compiled_prompt_sha256,route_json,response_schema_json,state,created_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (invocation_id, draft["project_id"], draft["role_session_id"], draft["draft_id"], manifest["generated_object"]["artifact_id"], manifest_sha,
+                """INSERT INTO invocations(invocation_id,project_id,actor_kind,role_session_id,draft_id,manifest_artifact_id,manifest_sha256,manifest_json,compiled_prompt_sha256,route_json,response_schema_json,state,created_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (invocation_id, draft["project_id"], draft["actor_kind"], draft["role_session_id"], draft["draft_id"], manifest["generated_object"]["artifact_id"], manifest_sha,
                  canonical_bytes(manifest).decode(), compiled_prompt_sha, canonical_bytes(draft["route"]).decode(), canonical_bytes(draft["response_schema"]).decode(), InvocationState.sealed.value, now),
             )
             conn.execute("UPDATE drafts SET state='sealed',invocation_id=?,updated_at=? WHERE draft_id=?", (invocation_id, now, draft["draft_id"]))
@@ -1332,9 +1460,12 @@ class LatticeStore:
         row["manifest"] = json.loads(row.pop("manifest_json"))
         row["route"] = json.loads(row.pop("route_json"))
         row["response_schema"] = json.loads(row.pop("response_schema_json"))
+        row["actor_binding"] = {"kind": row["actor_kind"], **({"role_session_id": row["role_session_id"]} if row["role_session_id"] is not None else {})}
         if row["manifest"].get("invocation_id") != row["invocation_id"] or row["manifest"].get("manifest_sha256") != row["manifest_sha256"] or row["manifest"].get("generated_object", {}).get("artifact_id") != row["manifest_artifact_id"] or row["manifest"].get("compilation", {}).get("compiled_prompt_sha256") != row["compiled_prompt_sha256"] or row["manifest"].get("execution") != row["route"]:
             raise LatticeConflict("stored invocation columns disagree with its immutable manifest")
-        if row["manifest"].get("contract_version") in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} and row["manifest"].get("response_contract") != row["response_schema"]:
+        if row["manifest"].get("contract_version") == "LatticeContextManifest/4.0" and row["manifest"].get("actor_binding") != row["actor_binding"]:
+            raise LatticeConflict("stored invocation actor binding disagrees with its immutable manifest")
+        if row["manifest"].get("contract_version") in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} and row["manifest"].get("response_contract") != row["response_schema"]:
             raise LatticeConflict("stored invocation response contract disagrees with its immutable manifest")
         for attempt in row["attempts"]:
             attempt["runtime_receipt"] = json.loads(attempt.pop("runtime_receipt_json")) if attempt.get("runtime_receipt_json") else None
@@ -1381,7 +1512,7 @@ class LatticeStore:
 
     def list_invocations(self, project_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
-            return [dict(row) for row in conn.execute("SELECT invocation_id,project_id,role_session_id,state,manifest_sha256,output_block_id,terminal_kind,created_at,completed_at FROM invocations WHERE project_id=? ORDER BY created_at,invocation_id", (project_id,))]
+            return [dict(row) for row in conn.execute("SELECT invocation_id,project_id,actor_kind,role_session_id,state,manifest_sha256,output_block_id,terminal_kind,created_at,completed_at FROM invocations WHERE project_id=? ORDER BY created_at,invocation_id", (project_id,))]
 
     def page_invocations(
         self,
@@ -1403,7 +1534,7 @@ class LatticeStore:
         parameters.append(limit + 1)
         with self._connect() as conn:
             rows = [dict(row) for row in conn.execute(
-                f"""SELECT invocation_id,project_id,role_session_id,state,manifest_sha256,output_block_id,terminal_kind,created_at,completed_at
+                f"""SELECT invocation_id,project_id,actor_kind,role_session_id,state,manifest_sha256,output_block_id,terminal_kind,created_at,completed_at
                     FROM invocations WHERE {' AND '.join(predicates)}
                     ORDER BY created_at DESC,invocation_id DESC LIMIT ?""",
                 parameters,
@@ -2471,7 +2602,7 @@ class LatticeStore:
             nodes: list[dict[str, Any]] = []
             for object_type, object_id in sorted(seen):
                 if object_type == "invocation":
-                    row = conn.execute("SELECT invocation_id AS object_id,state,role_session_id,output_block_id,created_at FROM invocations WHERE invocation_id=?", (object_id,)).fetchone()
+                    row = conn.execute("SELECT invocation_id AS object_id,state,actor_kind,role_session_id,output_block_id,created_at FROM invocations WHERE invocation_id=?", (object_id,)).fetchone()
                 elif object_type == "context-block":
                     row = conn.execute("SELECT block_id AS object_id,semantic_type,content_sha256,created_at FROM context_blocks WHERE block_id=?", (object_id,)).fetchone()
                 elif object_type == "artifact":

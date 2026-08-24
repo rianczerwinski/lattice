@@ -9,7 +9,9 @@ from typing import Any
 from .canonical import canonical_bytes, generated_object, opaque_id, sha256_bytes, sha256_json
 from .compositor import ContextCompositor
 from .contracts import (
+    ActorBindingV1,
     ContextSelection,
+    DirectActorBinding,
     DraftCreate,
     EdgeRelation,
     ProviderRoute,
@@ -62,19 +64,22 @@ class Lattice:
         self,
         invocation_id: str,
         *,
-        role_session_id: str,
+        role_session_id: str | None = None,
+        actor_binding: ActorBindingV1 | None = None,
         prompt: str,
         route: ProviderRoute,
         selections: list[ContextSelection] | None = None,
     ) -> dict[str, Any]:
         parent = self.store.get_invocation(invocation_id)
-        return self.store.create_draft(DraftCreate(project_id=parent["project_id"], role_session_id=role_session_id, prompt=prompt, route=route, selections=selections or [], parent_invocation_ids=[invocation_id], relation=EdgeRelation.inherited_context_from))
+        binding = actor_binding or (None if role_session_id is not None else DirectActorBinding())
+        return self.store.create_draft(DraftCreate(project_id=parent["project_id"], actor_binding=binding, role_session_id=role_session_id, prompt=prompt, route=route, selections=selections or [], parent_invocation_ids=[invocation_id], relation=EdgeRelation.inherited_context_from))
 
     def join(
         self,
         invocation_ids: list[str],
         *,
-        role_session_id: str,
+        role_session_id: str | None = None,
+        actor_binding: ActorBindingV1 | None = None,
         prompt: str,
         route: ProviderRoute,
         selections: list[ContextSelection] | None = None,
@@ -84,7 +89,8 @@ class Lattice:
         parents = [self.store.get_invocation(item) for item in invocation_ids]
         if len({parent["project_id"] for parent in parents}) != 1:
             raise LatticeConflict("join parents must belong to one project")
-        return self.store.create_draft(DraftCreate(project_id=parents[0]["project_id"], role_session_id=role_session_id, prompt=prompt, route=route, selections=selections or [], parent_invocation_ids=invocation_ids, relation=EdgeRelation.inherited_context_from))
+        binding = actor_binding or (None if role_session_id is not None else DirectActorBinding())
+        return self.store.create_draft(DraftCreate(project_id=parents[0]["project_id"], actor_binding=binding, role_session_id=role_session_id, prompt=prompt, route=route, selections=selections or [], parent_invocation_ids=invocation_ids, relation=EdgeRelation.inherited_context_from))
 
     def seal(self, draft_id: str, *, trigger_id: str | None = None, import_turn: tuple[str, int] | None = None, expected_revision: int | None = None, expected_preflight_sha256: str | None = None) -> dict[str, Any]:
         if (expected_revision is None) != (expected_preflight_sha256 is None):
@@ -189,7 +195,7 @@ class Lattice:
         draft = self.store.create_draft(
             DraftCreate(
                 project_id=original["project_id"],
-                role_session_id=original["role_session_id"],
+                actor_binding=original["actor_binding"],
                 prompt=replay_prompt,
                 route=route or ProviderRoute.model_validate(original["route"]),
                 selections=explicit,

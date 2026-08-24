@@ -28,7 +28,7 @@ def test_oracle_manifest_compiles_the_hand_authored_context_bytes(lattice_env) -
     manifest = invocation["manifest"]
     blocks = {item["label"]: store.get_block(item["block_id"]) for item in manifest["segments"]}
     expected = b"".join(
-        canonical_bytes({"kind": "lattice-context-segment-v3", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "block_id": item["block_id"], "content_sha256": item["sha256"], "semantic_type": item["semantic_type"], "status": item["status"], "authority": blocks[item["label"]]["authority"], "evidence_level": blocks[item["label"]]["evidence_level"], "sensitivity": blocks[item["label"]]["sensitivity"], "source_ref": blocks[item["label"]]["source_ref"], "source_sha256": blocks[item["label"]]["source_sha256"], "producing_invocation_id": blocks[item["label"]]["producing_invocation_id"], "transformation": json.loads(blocks[item["label"]]["transformation_json"]) if blocks[item["label"]]["transformation_json"] else None, "disposition": item["disposition"], "derived_from_block_ids": item["derived_from_block_ids"], "reason": item["reason"], "content": blocks[item["label"]]["content"]}) + b"\n"
+        canonical_bytes({"kind": "lattice-context-segment-v4", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "block_id": item["block_id"], "content_sha256": item["sha256"], "semantic_type": item["semantic_type"], "status": item["status"], "authority": blocks[item["label"]]["authority"], "evidence_level": blocks[item["label"]]["evidence_level"], "sensitivity": blocks[item["label"]]["sensitivity"], "source_ref": blocks[item["label"]]["source_ref"], "source_sha256": blocks[item["label"]]["source_sha256"], "producing_invocation_id": blocks[item["label"]]["producing_invocation_id"], "transformation": json.loads(blocks[item["label"]]["transformation_json"]) if blocks[item["label"]]["transformation_json"] else None, "disposition": item["disposition"], "derived_from_block_ids": item["derived_from_block_ids"], "reason": item["reason"], "content": blocks[item["label"]]["content"]}) + b"\n"
         for item in manifest["segments"]
     )
 
@@ -86,6 +86,7 @@ def test_manifest_reader_preserves_v1_history_after_v3_compiler_cutover(lattice_
     legacy["contract_version"] = "LatticeContextManifest/1.0"
     legacy["generated_object"]["schema"]["version"] = 1
     legacy["capabilities"] = {key: legacy["execution"][key] for key in ("network_policy", "permissions", "tools", "workspace")}
+    legacy.pop("actor_binding")
     legacy.pop("context_mode")
     legacy.pop("response_contract")
     legacy["manifest_sha256"] = sha256_json({key: value for key, value in legacy.items() if key != "manifest_sha256"})
@@ -107,8 +108,10 @@ def test_manifest_reader_preserves_pre_rename_context_history(lattice_env) -> No
     legacy["compilation"].update({"format": "loom-context-jsonl-v3", "compiled_prompt_ref": f"loom:blob/{digest}", "compiled_prompt_sha256": digest, "byte_count": len(compiled)})
     legacy["generated_object"]["kind"] = "loom-context-manifest"
     legacy["generated_object"]["schema"]["name"] = "loom-context-manifest"
+    legacy["generated_object"]["schema"]["version"] = 3
     legacy["generated_object"]["producer"]["name"] = "axis-loom"
     legacy["generated_object"]["subject"] = f"loom-invocation:{legacy['invocation_id']}"
+    legacy.pop("actor_binding")
     for source in legacy["generated_object"]["sources"]:
         source["ref"] = source["ref"].replace("lattice:block/", "loom:block/", 1)
     for source in legacy["source_bindings"]:

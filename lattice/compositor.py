@@ -18,7 +18,7 @@ MAX_COMPILED_CONTEXT_BYTES = 64 * 1024 * 1024
 
 def _segment_bytes(segment: dict[str, Any], content: str) -> bytes:
     record = {
-        "kind": "lattice-context-segment-v3",
+        "kind": "lattice-context-segment-v4",
         "ordinal": segment["ordinal"],
         "plane": segment["plane"],
         "label": segment["label"],
@@ -46,11 +46,14 @@ class ContextCompositor:
         self.store = store
 
     def _implicit_selections(self, draft: dict[str, Any]) -> list[ContextSelection]:
-        session = self.store.get_role_session(draft["role_session_id"])
-        role = self.store.get_role(session["role_id"])
-        selections = [ContextSelection(block_id=role["instructions_block_id"], disposition=BlockDisposition.selected, plane="instruction", label=f"role:{role['name']}")]
-        for default in self.store.list_role_context_defaults(role["role_id"]):
-            selections.append(ContextSelection(block_id=default["block_id"], disposition=BlockDisposition.selected, plane="state", label=f"module:{default['module_id']}"))
+        selections: list[ContextSelection] = []
+        actor_binding = draft["actor_binding"]
+        if actor_binding["kind"] == "role-session":
+            session = self.store.get_role_session(actor_binding["role_session_id"])
+            role = self.store.get_role(session["role_id"])
+            selections.append(ContextSelection(block_id=role["instructions_block_id"], disposition=BlockDisposition.selected, plane="instruction", label=f"role:{role['name']}"))
+            for default in self.store.list_role_context_defaults(role["role_id"]):
+                selections.append(ContextSelection(block_id=default["block_id"], disposition=BlockDisposition.selected, plane="state", label=f"module:{default['module_id']}"))
         for parent_id in draft["parents"]:
             parent = self.store.get_invocation(parent_id)
             if not parent.get("output_block_id"):
@@ -155,9 +158,10 @@ class ContextCompositor:
         invocation_id = f"invocation_{invocation_identity[:32]}"
         manifest_artifact_id = f"artifact:{uuid.uuid5(uuid.NAMESPACE_URL, f'lattice-manifest:{invocation_identity}')}"
         preflight: dict[str, Any] = {
-            "contract_version": "LatticeContextPreflight/1.0",
+            "contract_version": "LatticeContextPreflight/2.0",
             "invocation_id": invocation_id,
             "project_id": draft["project_id"],
+            "actor_binding": draft["actor_binding"],
             "role_session_id": draft["role_session_id"],
             "draft_id": draft["draft_id"],
             "draft_revision": draft["revision"],
@@ -172,7 +176,7 @@ class ContextCompositor:
             "execution": route,
             "response_contract": draft["response_schema"],
             "compilation": {
-                "format": "lattice-context-jsonl-v3",
+                "format": "lattice-context-jsonl-v4",
                 "compiled_prompt_ref": f"lattice:blob/{prompt_sha}",
                 "compiled_prompt_sha256": prompt_sha,
                 "byte_count": len(compiled_prompt),
@@ -190,8 +194,8 @@ class ContextCompositor:
 
         manifest: dict[str, Any] = {
             **preflight,
-            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=3, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
-            "contract_version": "LatticeContextManifest/3.0",
+            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=4, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
+            "contract_version": "LatticeContextManifest/4.0",
             "result": {"state": "pending", "attempts_ref": f"lattice:invocation/{invocation_id}/attempts"},
         }
         manifest["manifest_sha256"] = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})

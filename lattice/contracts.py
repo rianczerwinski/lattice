@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -84,6 +84,18 @@ class ProviderRoute(StrictModel):
         if expected[self.provider] != self.harness:
             raise ValueError(f"{self.provider} is qualified only through {expected[self.provider]}")
         return self
+
+
+class DirectActorBinding(StrictModel):
+    kind: Literal["direct"] = "direct"
+
+
+class RoleSessionActorBinding(StrictModel):
+    kind: Literal["role-session"] = "role-session"
+    role_session_id: str = Field(min_length=1)
+
+
+ActorBindingV1 = Annotated[DirectActorBinding | RoleSessionActorBinding, Field(discriminator="kind")]
 
 
 class ProjectCreate(StrictModel):
@@ -176,7 +188,8 @@ def standard_response_contract() -> dict[str, Any]:
 
 class DraftCreate(StrictModel):
     project_id: str
-    role_session_id: str
+    actor_binding: ActorBindingV1 | None = None
+    role_session_id: str | None = None
     # Context-only invocations and exact historical imports can legitimately carry
     # an empty visible prompt. Presence is represented by the block, not its length.
     prompt: str = Field(max_length=1_000_000)
@@ -196,6 +209,17 @@ class DraftCreate(StrictModel):
 
     @model_validator(mode="after")
     def explicit_context_is_complete(self) -> "DraftCreate":
+        if self.actor_binding is None:
+            if self.role_session_id is None:
+                raise ValueError("drafts require an explicit direct or role-session actor binding")
+            self.actor_binding = RoleSessionActorBinding(role_session_id=self.role_session_id)
+        elif isinstance(self.actor_binding, DirectActorBinding):
+            if self.role_session_id is not None:
+                raise ValueError("direct actor bindings cannot carry a role session")
+        else:
+            if self.role_session_id is not None and self.role_session_id != self.actor_binding.role_session_id:
+                raise ValueError("role session compatibility field disagrees with actor binding")
+            self.role_session_id = self.actor_binding.role_session_id
         if self.context_mode == "explicit":
             prompts = [item for item in self.selections if item.plane == "current_prompt"]
             if len(prompts) != 1 or prompts[0].disposition != BlockDisposition.selected:
