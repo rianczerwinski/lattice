@@ -16,10 +16,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-import rfc8785
-
 
 TERMINAL_STATES = {"succeeded", "failed", "interrupted", "imported"}
+SOURCE_PYTHON = Path(__file__).resolve().parents[1] / ".venv" / "bin" / "python"
 
 
 def stamp() -> str:
@@ -30,6 +29,15 @@ def sha256_bytes(content: bytes) -> str:
     import hashlib
 
     return hashlib.sha256(content).hexdigest()
+
+
+def reexec_in_source_environment() -> None:
+    if not SOURCE_PYTHON.is_file():
+        raise AcceptanceFailure(f"Lattice source environment is unavailable: {SOURCE_PYTHON}")
+    target = SOURCE_PYTHON.resolve()
+    if Path(sys.executable).resolve() == target:
+        return
+    os.execv(str(target), [str(target), str(Path(__file__).resolve()), *sys.argv[1:]])
 
 
 class AcceptanceFailure(RuntimeError):
@@ -352,6 +360,8 @@ class AcceptanceRun:
             "proof_limits": ["Provider-owned system context remains observable only through the adapter's declared proof limits.", "Browser rendering is a separate acceptance plane and is not inferred from this API run."],
         }
         path = report_root / f"{value['completed_at']}-{artifact_id.removeprefix('artifact:')[:12]}.json"
+        import rfc8785
+
         path.write_bytes(rfc8785.dumps(value))
         os.chmod(path, 0o600)
         return {"path": str(path), "artifact_id": artifact_id, "status": status, "project_id": self.project_id}
@@ -395,4 +405,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    reexec_in_source_environment()
     raise SystemExit(main())

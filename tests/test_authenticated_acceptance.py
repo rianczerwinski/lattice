@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from ops import authenticated_acceptance
 from ops.authenticated_acceptance import AcceptanceFailure, LatticeAPI, assembly, route, specification
 
 
@@ -27,3 +28,23 @@ def test_negative_control_acceptance_rejection_must_match_the_expected_boundary(
 
     with pytest.raises(AcceptanceFailure, match="did not contain"):
         api.expect_rejected("/preview", {}, contains="authority boundaries")
+
+
+@pytest.mark.regression
+def test_acceptance_driver_reexecs_before_optional_dependencies(monkeypatch, tmp_path) -> None:
+    source = tmp_path / "python"
+    source.write_text("", encoding="utf-8")
+    observed = {}
+
+    def fake_execv(executable, arguments):
+        observed.update({"executable": executable, "arguments": arguments})
+        raise RuntimeError("exec boundary")
+
+    monkeypatch.setattr(authenticated_acceptance, "SOURCE_PYTHON", source)
+    monkeypatch.setattr(authenticated_acceptance.sys, "executable", str(tmp_path / "system-python"))
+    monkeypatch.setattr(authenticated_acceptance.os, "execv", fake_execv)
+
+    with pytest.raises(RuntimeError, match="exec boundary"):
+        authenticated_acceptance.reexec_in_source_environment()
+
+    assert observed["executable"] == str(source.resolve())
