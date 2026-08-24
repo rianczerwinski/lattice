@@ -197,6 +197,8 @@ def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -
     assert f"export OUTPORT_BIN={deployment.required_binary('outport')}" in shim
     assert str(deployment.CURRENT_LINK / ".venv" / "bin" / "lattice") in shim
     assert str(deployment.SOURCE_ROOT / ".venv") not in shim
+    assert deployment.managed_shim(deployment.shim_payload()) is True
+    assert deployment.managed_shim(b"#!/bin/sh\nexec something-else\n") is False
 
 
 @pytest.mark.regression

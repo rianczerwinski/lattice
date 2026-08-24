@@ -331,7 +331,7 @@ def install_links(target: Path) -> Path | None:
         replace_symlink(PREVIOUS_LINK, old)
     replace_symlink(CURRENT_LINK, target)
     SHIM.parent.mkdir(parents=True, exist_ok=True)
-    if SHIM.exists() and not SHIM.is_symlink():
+    if SHIM.exists() and not SHIM.is_symlink() and not managed_shim(SHIM.read_bytes()):
         raise RuntimeError(f"refusing to replace non-symlink CLI path: {SHIM}")
     write_atomic(SHIM, shim_payload(), mode=0o755)
     return old
@@ -341,8 +341,14 @@ def shim_payload() -> bytes:
     """Bind the personal AXISVI deployment while keeping the active runtime swappable."""
 
     executable = CURRENT_LINK / ".venv" / "bin" / "lattice"
-    script = f"#!/bin/sh\nexport AXISVI_ROOT={shlex.quote(str(AXISVI_ROOT))}\nexport OUTPORT_BIN={shlex.quote(str(required_binary('outport')))}\nexec {shlex.quote(str(executable))} \"$@\"\n"
+    script = f"#!/bin/sh\n# managed-by: lattice-installer-v1\nexport AXISVI_ROOT={shlex.quote(str(AXISVI_ROOT))}\nexport OUTPORT_BIN={shlex.quote(str(required_binary('outport')))}\nexec {shlex.quote(str(executable))} \"$@\"\n"
     return script.encode("utf-8")
+
+
+def managed_shim(content: bytes) -> bool:
+    executable = CURRENT_LINK / ".venv" / "bin" / "lattice"
+    legacy = f"#!/bin/sh\nexport AXISVI_ROOT={shlex.quote(str(AXISVI_ROOT))}\nexec {shlex.quote(str(executable))} \"$@\"\n".encode("utf-8")
+    return content in {legacy, shim_payload()}
 
 
 def plist_payload(label: str, *, backup: bool) -> dict:
