@@ -1900,6 +1900,53 @@ class LatticeStore:
             row["content"] = self.blobs.get(row["content_sha256"]).decode("utf-8")
         return row
 
+    def create_artifact_context_block(self, artifact_id: str) -> dict[str, Any]:
+        """Expose exact UTF-8 artifact bytes as a reusable block without copying their identity."""
+
+        artifact = self.get_artifact(artifact_id, include_content=False)
+        content = self.blobs.get(artifact["content_sha256"])
+        try:
+            content.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as error:
+            raise LatticeConflict("only UTF-8 artifacts can enter text context") from error
+        generated = artifact["generated"]
+        transformation = {
+            "kind": "exact-artifact-graft-v1",
+            "source_artifact_id": artifact_id,
+            "source_sha256": artifact["content_sha256"],
+            "name": generated.get("name"),
+            "media_type": generated.get("media_type"),
+        }
+        value = ContextBlockCreate(
+            project_id=artifact["project_id"],
+            semantic_type="exact-artifact-graft",
+            content=content.decode("utf-8"),
+            producing_invocation_id=generated.get("producing_invocation_id"),
+            source_ref=f"lattice:artifact/{artifact_id}",
+            source_sha256=artifact["content_sha256"],
+            authority="operator-derived",
+            evidence_level="exact-artifact",
+            sensitivity="private",
+            transformation=transformation,
+        )
+        block_id = opaque_id("block")
+        now = stamp()
+        with self.transaction() as conn:
+            self._insert_context_block(conn, value, block_id=block_id, content=content, digest=artifact["content_sha256"], now=now)
+            self._insert_edge(
+                conn,
+                project_id=artifact["project_id"],
+                relation=EdgeRelation.derived_from,
+                source_type="context-block",
+                source_id=block_id,
+                source_revision=artifact["content_sha256"],
+                target_type="artifact",
+                target_id=artifact_id,
+                target_revision=artifact["content_sha256"],
+                metadata={"transformation": transformation},
+            )
+        return self.get_block(block_id, include_content=False)
+
     def create_attempt(self, invocation_id: str, idempotency_key: str, boot_id: str, expires_at: int) -> dict[str, Any]:
         with self.transaction() as conn:
             prior = conn.execute("SELECT * FROM attempts WHERE idempotency_key=?", (idempotency_key,)).fetchone()

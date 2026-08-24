@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from dataclasses import replace
 
@@ -230,10 +231,35 @@ def test_oracle_artifact_inspector_returns_exact_content_bytes(lattice_env) -> N
     artifact_id = result["artifacts"][0]["artifact_id"]
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
+        session = client.get("/api/session")
+        mutation_headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
         inspected = client.get(f"/api/v1/artifacts/{artifact_id}")
+        grafted = client.post(f"/api/v1/artifacts/{artifact_id}/context-blocks", headers=mutation_headers, json={})
+        exact_block = client.get(f"/api/v1/context-blocks/{grafted.json()['block_id']}")
 
     assert inspected.status_code == 200
     assert inspected.json()["content"] == "EXACT_ARTIFACT_CONTENT"
+    assert grafted.status_code == 200
+    assert exact_block.json()["content"] == "EXACT_ARTIFACT_CONTENT"
+    assert exact_block.json()["source_ref"] == f"lattice:artifact/{artifact_id}"
+    assert exact_block.json()["source_sha256"] == inspected.json()["content_sha256"]
+    assert json.loads(exact_block.json()["transformation_json"])["kind"] == "exact-artifact-graft-v1"
+
+
+@pytest.mark.regression
+def test_negative_control_artifact_graft_rejects_bytes_that_drift_from_identity(lattice_env) -> None:
+    store = lattice_env["store"]
+    draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="artifact", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    attempt = store.create_attempt(invocation["invocation_id"], "artifact-drift-attempt", "test-boot", 9_999_999_999)
+    store.mark_attempt_running(attempt["attempt_id"])
+    result = store.finish_successful_attempt(attempt["attempt_id"], response="done", artifacts=[{"name": "proof.txt", "media_type": "text/plain", "content": "BOUND_BYTES"}], journal_path="fixture:journal", runtime_receipt={"fixture": True})
+    artifact_id = result["artifacts"][0]["artifact_id"]
+    artifact = store.get_artifact(artifact_id, include_content=False)
+    store.blobs.path_for(artifact["content_sha256"]).write_text("DRIFTED", encoding="utf-8")
+
+    with pytest.raises(OSError, match="do not match identity"):
+        store.create_artifact_context_block(artifact_id)
 
 
 @pytest.mark.oracle

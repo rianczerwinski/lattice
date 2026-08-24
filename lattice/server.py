@@ -432,6 +432,10 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     async def inspect_artifact(artifact_id: str):
         return store.get_artifact(artifact_id)
 
+    @app.post("/api/v1/artifacts/{artifact_id}/context-blocks")
+    async def graft_artifact(artifact_id: str):
+        return store.create_artifact_context_block(artifact_id)
+
     @app.get("/api/v1/invocations/{invocation_id}/neighborhood")
     async def neighborhood(
         invocation_id: str,

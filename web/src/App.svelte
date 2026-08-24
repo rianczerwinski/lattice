@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api, beginSession, extractWorkflow, post } from './api';
-  import { batchIdempotencyKey } from './invocationBatch';
+  import { batchIdempotencyKey, reciprocalCrossFeedParents } from './invocationBatch';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
   import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
@@ -162,10 +162,10 @@
     pendingBatchRequest = null;
   }
 
-  function makeBatchRequest() {
-    if (!project || !prompt.trim() || !routeChoices.length) throw new Error('Write a prompt and choose an available route.');
+  function makeBatchRequest(routesToUse: Route[] = routeChoices, parentIdsByProvider?: Record<'anthropic' | 'openai', string[]>) {
+    if (!project || !prompt.trim() || !routesToUse.length) throw new Error('Write a prompt and choose an available route.');
     const batchId = `batch_${crypto.randomUUID().replaceAll('-', '')}`;
-    const assembly = {
+    const sharedAssembly = {
       project_id: project.project_id,
       actor_binding: selectedSession ? { kind: 'role-session', role_session_id: selectedSession } : { kind: 'direct' },
       prompt,
@@ -176,8 +176,20 @@
     };
     return {
       batch_id: batchId,
-      specifications: routeChoices.map((route) => ({ spec_id: route.provider_code, assembly, route: routePayload(route), concern_refs: currentEpisode ? [currentEpisode.concern_ref] : [] })),
+      specifications: routesToUse.map((route) => {
+        const routeParents = parentIdsByProvider?.[route.provider_code as 'anthropic' | 'openai'];
+        const assembly = routeParents
+          ? { ...sharedAssembly, parent_invocation_ids: routeParents, relation: 'inherited_context_from' }
+          : sharedAssembly;
+        return { spec_id: route.provider_code, assembly, route: routePayload(route), concern_refs: currentEpisode ? [currentEpisode.concern_ref] : [] };
+      }),
     };
+  }
+
+  async function previewBatch(request: Record<string, unknown>, executeWhenClear: boolean) {
+    pendingBatchRequest = request;
+    preview = await post<BatchPreview>('/api/v1/invocation-batches/preview', request);
+    if (executeWhenClear && preview.confirmation_reasons.length === 0) await executePreparedBatch([]);
   }
 
   async function prepare(executeWhenClear = false) {
@@ -185,9 +197,26 @@
     working = true;
     error = '';
     try {
-      pendingBatchRequest = makeBatchRequest();
-      preview = await post<BatchPreview>('/api/v1/invocation-batches/preview', pendingBatchRequest);
-      if (executeWhenClear && preview.confirmation_reasons.length === 0) await executePreparedBatch([]);
+      await previewBatch(makeBatchRequest(), executeWhenClear);
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : String(cause);
+    } finally { working = false; }
+  }
+
+  async function prepareReciprocalCrossFeed() {
+    if (!project || selectedParents.size !== 2 || !prompt.trim()) return;
+    working = true;
+    error = '';
+    try {
+      const sources = await Promise.all([...selectedParents].map((invocationId) => api<Invocation>(`/api/v1/invocations/${invocationId}`)));
+      const parentIdsByProvider = reciprocalCrossFeedParents(sources);
+      const crossFeedRoutes = ['anthropic', 'openai'].map((provider) => installedRoutes.find((route) => route.provider_code === provider)).filter((route): route is Route => Boolean(route));
+      if (crossFeedRoutes.length !== 2) throw new Error('Both qualified Claude and Codex routes are required for reciprocal cross-feed.');
+      routeMode = 'both';
+      selectedSession = '';
+      executionProfile = 'compiled-fresh';
+      continuationSource = null;
+      await previewBatch(makeBatchRequest(crossFeedRoutes, parentIdsByProvider), true);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally { working = false; }
@@ -309,16 +338,17 @@
     document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
   }
 
-  async function beginSideQuest(mode: 'anthropic' | 'openai' | 'both' = routeMode) {
+  async function beginSideQuest(mode: 'anthropic' | 'openai' | 'both' = routeMode, anchor?: { type: 'invocation' | 'context-block' | 'artifact'; id: string }) {
     if (!selected || !project) return;
     working = true;
     error = '';
     try {
+      const exactAnchor = anchor ?? { type: 'invocation' as const, id: selected.invocation_id };
       let parent = currentEpisode;
       if (!parent) {
         parent = await post<Episode>('/api/v1/episodes', { project_id: project.project_id, name: 'Main trail', anchor_type: 'invocation', anchor_id: selected.invocation_id });
       }
-      const child = await post<Episode>('/api/v1/episodes', { project_id: project.project_id, name: `Side quest · ${selected.invocation_id.slice(-8)}`, parent_episode_id: parent.slice_id, anchor_type: 'invocation', anchor_id: selected.invocation_id });
+      const child = await post<Episode>('/api/v1/episodes', { project_id: project.project_id, name: `Side quest · ${exactAnchor.id.slice(-8)}`, parent_episode_id: parent.slice_id, anchor_type: exactAnchor.type, anchor_id: exactAnchor.id });
       episodes = await api<Episode[]>(`/api/v1/projects/${project.project_id}/episodes`);
       currentEpisode = episodes.find((episode) => episode.slice_id === child.slice_id) ?? child;
       routeMode = mode;
@@ -372,9 +402,30 @@
         start_byte: selectedExcerpt.startByte,
         end_byte: selectedExcerpt.endByte,
       });
-      if (sideQuest) await beginSideQuest();
+      if (sideQuest) await beginSideQuest(routeMode, { type: 'context-block', id: block.block_id });
       explicitSelections = [...explicitSelections, { block_id: block.block_id, plane: 'knowledge', label: `graft:${block.block_id.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [selected.output_block_id] }];
       selectedExcerpt = null;
+      resetPreview();
+      document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    finally { working = false; }
+  }
+
+  async function graftResponseBlock(sideQuest: boolean) {
+    if (!selected?.output_block_id) return;
+    if (sideQuest) await beginSideQuest(routeMode, { type: 'context-block', id: selected.output_block_id });
+    explicitSelections = [...explicitSelections, { block_id: selected.output_block_id, plane: 'knowledge', label: `response:${selected.output_block_id.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [] }];
+    resetPreview();
+    document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+  }
+
+  async function graftArtifact(artifactId: string, sideQuest: boolean) {
+    working = true;
+    error = '';
+    try {
+      const block = await post<{ block_id: string }>(`/api/v1/artifacts/${artifactId}/context-blocks`, {});
+      if (sideQuest) await beginSideQuest(routeMode, { type: 'artifact', id: artifactId });
+      explicitSelections = [...explicitSelections, { block_id: block.block_id, plane: 'knowledge', label: `artifact:${artifactId.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [] }];
       resetPreview();
       document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
@@ -793,6 +844,7 @@
                 <button class="quiet" on:click={() => beginSideQuest('anthropic')}>Ask Claude</button>
                 <button class="quiet" on:click={() => beginSideQuest('openai')}>Ask Codex</button>
                 <button class="quiet" on:click={() => beginSideQuest('both')}>Ask both</button>
+                {#if selected.output_block_id}<button class="quiet" disabled={working} on:click={() => graftResponseBlock(true)}>Side quest on response</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock(false)}>Bring response here</button>{/if}
                 {#if selectedNativeEligible}<button class="quiet native" on:click={() => configureNativeContinuation('resume')}>Continue native session</button><button class="quiet native" on:click={() => configureNativeContinuation('fork')}>Fork native session</button>{/if}
                 {#if currentEpisode?.parent_episode_id}<button class="quiet return" on:click={returnToParentEpisode}>Return to {parentEpisode?.name ?? 'parent trail'}</button>{/if}
                 {#if selectedExcerpt}<button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(true)}>Side quest on “{selectedExcerpt.text.slice(0, 36)}{selectedExcerpt.text.length > 36 ? '…' : ''}”</button><button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(false)}>Bring selection here</button>{/if}
@@ -841,6 +893,7 @@
             {#if explicitSelections.length}<div class="graft-strip">{explicitSelections.length} exact graft{explicitSelections.length === 1 ? '' : 's'} selected</div>{/if}
             <div class="composer-actions">
               {#if selectedParents.size === 2}<button class="quiet" on:click={compareSelected}>Compare branches</button>{/if}
+              {#if selectedParents.size === 2}<button class="quiet" disabled={working || !prompt.trim()} on:click={prepareReciprocalCrossFeed}>Reciprocal cross-feed</button>{/if}
               {#if selectedParents.size}<button class="quiet" disabled={working} on:click={extractSelectedPath}>Extract reusable path</button>{/if}
               <details class="role-binding"><summary>{selectedSession ? 'Role-bound' : 'Direct'}</summary><select bind:value={selectedSession} on:change={resetPreview} aria-label="Optional role session"><option value="">Direct conversation</option>{#each project.sessions ?? [] as session}<option value={session.role_session_id}>{session.label}</option>{/each}</select></details>
               <button class="quiet" disabled={working || !prompt.trim()} on:click={() => prepare(false)}>Inspect context</button>
@@ -877,7 +930,7 @@
           <details><summary>Tools & authority</summary><pre>{JSON.stringify(selected.manifest.capabilities, null, 2)}</pre></details>
           <details><summary>Proof limits</summary>{#each selected.manifest.provider_boundary.proof_limits as limit}<p>{limit}</p>{/each}</details>
           <details><summary>Attempts ({selected.attempts.length})</summary><pre>{JSON.stringify(selected.attempts, null, 2)}</pre></details>
-          {#if selected.artifacts.length}<details><summary>Artifacts ({selected.artifacts.length})</summary>{#each selected.artifacts as artifact}<details on:toggle={(event) => event.currentTarget.open && loadArtifact(artifact.artifact_id)}><summary>{artifact.artifact_id}</summary><pre>{artifactContents[artifact.artifact_id] ?? 'Loading exact bytes…'}</pre></details>{/each}</details>{/if}
+          {#if selected.artifacts.length}<details><summary>Artifacts ({selected.artifacts.length})</summary>{#each selected.artifacts as artifact}<details on:toggle={(event) => event.currentTarget.open && loadArtifact(artifact.artifact_id)}><summary>{artifact.artifact_id}</summary><pre>{artifactContents[artifact.artifact_id] ?? 'Loading exact bytes…'}</pre><div class="response-actions"><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, true)}>Side quest on artifact</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, false)}>Bring artifact here</button></div></details>{/each}</details>{/if}
           {#if neighborhood}<details><summary>Local graph{neighborhood.coverage.state === 'partial' ? ' partial' : ''} · {neighborhood.nodes.length} nodes</summary>{#if neighborhood.coverage.state === 'partial'}<p class="muted">This bounded view reached its node or edge limit at depth {neighborhood.coverage.completed_depth} of {neighborhood.coverage.requested_depth}.</p>{/if}<pre>{JSON.stringify(neighborhood.edges, null, 2)}</pre></details>{/if}
         {:else}<p class="muted">Prepare an edge to inspect its exact world before execution.</p>{/if}
 
