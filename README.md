@@ -218,6 +218,8 @@ Send, side quest, fan-out, cross-feed, and return are cockpit gestures over the 
 
 Automation may execute several already-authorized edges, but it must remain possible to see the currently executing action, its context delta, and why it became eligible.
 
+Each edge also chooses one of three explicit harness profiles. `compiled-fresh` is the correctness baseline: exact compiled context, no tools, no workspace, and no persistent provider session. `workspace-agent` starts a recorded Claude or Codex session with the workspace, tools, sandbox, permissions, approval policy, and network boundary visible in the composer. `native-continuation` resumes or forks one explicitly selected provider-backed parent only after Lattice resolves its observed session receipt and proves that provider, model, workspace, and authority are unchanged. Portable graph ancestry remains available regardless of native-session eligibility.
+
 ## The canonical blackboard and role views
 
 The lattice must not coordinate agents through one ever-growing communal Markdown document. It also must not create one editable “truth” document per agent. Both shapes produce drift, duplication, and accidental authority.

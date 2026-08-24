@@ -31,8 +31,8 @@
       "severity": "S1",
       "statement": "Native continuation was specified while model-runner rejected every session policy except fresh execution.",
       "route": [6],
-      "status": "open",
-      "implementation_receipts": [],
+      "status": "implemented-pending-verification",
+      "implementation_receipts": ["axis/tools/model-runner/axis_model_runner/adapters.py:validate_execution_policy", "axis/tools/model-runner/axis_model_runner/adapters.py:build_command", "lattice/contracts.py:ProviderRoute", "lattice/store.py:_assert_actor_route_authorized", "lattice/supervisor.py:ExecutionSupervisor._run", "web/src/executionRoutes.ts:buildRoutePayload", "tests/test_supervisor.py:test_oracle_native_continuation_uses_the_selected_parent_receipt_and_exact_authority", "axis/tools/model-runner/tests/test_model_runner.py:test_contract_native_resume_and_fork_require_an_observed_session"],
       "independent_oracle": "Authenticated provider acceptance proves a session ID, a qualified resume or fork command, and rejection across model, workspace, or authority changes.",
       "false_mutation": "Reuse a native session after changing workspace or permissions and require eligibility to fail."
     },

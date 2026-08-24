@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, beginSession, extractWorkflow, post } from './api';
   import { renderMarkdown } from './renderMarkdown';
+  import { buildRoutePayload } from './executionRoutes';
   import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
 
@@ -10,6 +11,13 @@
   let workflowPacks: WorkflowPack[] = [];
   let selectedRoute = '';
   let routeMode: 'anthropic' | 'openai' | 'both' = 'anthropic';
+  let executionProfile: 'compiled-fresh' | 'workspace-agent' | 'native-continuation' = 'compiled-fresh';
+  let continuationMode: 'resume' | 'fork' = 'resume';
+  let continuationSource: Invocation | null = null;
+  let workspacePath = '';
+  let workspaceAuthority: 'read-only' | 'workspace-write' = 'read-only';
+  let claudeShell = false;
+  let effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max' = 'high';
   let selectedSession = '';
   let prompt = '';
   let title = '';
@@ -60,6 +68,8 @@
   $: workflowPackCurrent = Boolean(project?.workflow?.pack_canonical_sha256 && project.workflow.pack_canonical_sha256 === activeWorkflowPack?.canonical_sha256);
   $: nextWorkflowTransitions = activeWorkflowPack?.definition.allowed_transitions.filter((transition) => transition.from === project?.workflow?.state) ?? [];
   $: parentEpisode = episodes.find((episode) => episode.slice_id === currentEpisode?.parent_episode_id) ?? null;
+  $: selectedNativeSession = selected?.attempts.slice().reverse().find((attempt) => attempt.state === 'succeeded' && (attempt.runtime_receipt as { native_session?: { id?: string } } | undefined)?.native_session?.id);
+  $: selectedNativeEligible = Boolean(selectedNativeSession && ['workspace-agent', 'native-continuation'].includes(String(selected?.route?.execution_profile ?? 'compiled-fresh')));
 
   async function boot() {
     loading = true;
@@ -113,22 +123,14 @@
     armedAutomation = '';
     armedTransition = '';
     extractedTemplateId = '';
+    executionProfile = 'compiled-fresh';
+    continuationSource = null;
     if (project.invocations?.length) await inspect(project.invocations[project.invocations.length - 1].invocation_id);
     else selected = null;
   }
 
   function routePayload(route: Route) {
-    return {
-      provider: route.provider_code,
-      model: route.model_code,
-      harness: route.official_cli,
-      effort: 'high',
-      session_policy: 'fresh',
-      tools: [],
-      permissions: [],
-      workspace: null,
-      network_policy: 'disabled',
-    };
+    return buildRoutePayload(route, { executionProfile, continuationMode, continuationSource, workspacePath, workspaceAuthority, claudeShell, effort });
   }
 
   function terminalFailure(invocation: Invocation): string {
@@ -259,7 +261,31 @@
   function chooseRoute(mode: 'anthropic' | 'openai' | 'both') {
     routeMode = mode;
     selectedSession = '';
+    executionProfile = 'compiled-fresh';
+    continuationSource = null;
     resetPreview();
+  }
+
+  function chooseWorkspaceProfile() {
+    executionProfile = 'workspace-agent';
+    continuationSource = null;
+    resetPreview();
+  }
+
+  function configureNativeContinuation(mode: 'resume' | 'fork') {
+    if (!selected || !selectedNativeEligible) return;
+    const provider = String(selected.route.provider);
+    if (provider !== 'anthropic' && provider !== 'openai') return;
+    routeMode = provider;
+    executionProfile = 'native-continuation';
+    continuationMode = mode;
+    continuationSource = selected;
+    selectedParents = new Set([selected.invocation_id]);
+    selectedSession = '';
+    workspacePath = String(selected.route.workspace ?? '');
+    workspaceAuthority = selected.route.sandbox === 'workspace-write' ? 'workspace-write' : 'read-only';
+    resetPreview();
+    document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
   }
 
   async function beginSideQuest(mode: 'anthropic' | 'openai' | 'both' = routeMode) {
@@ -276,6 +302,8 @@
       currentEpisode = episodes.find((episode) => episode.slice_id === child.slice_id) ?? child;
       routeMode = mode;
       selectedSession = '';
+      executionProfile = 'compiled-fresh';
+      continuationSource = null;
       selectedParents = new Set([selected.invocation_id]);
       prompt = '';
       explicitSelections = [];
@@ -724,6 +752,7 @@
                 <button class="quiet" on:click={() => beginSideQuest('anthropic')}>Ask Claude</button>
                 <button class="quiet" on:click={() => beginSideQuest('openai')}>Ask Codex</button>
                 <button class="quiet" on:click={() => beginSideQuest('both')}>Ask both</button>
+                {#if selectedNativeEligible}<button class="quiet native" on:click={() => configureNativeContinuation('resume')}>Continue native session</button><button class="quiet native" on:click={() => configureNativeContinuation('fork')}>Fork native session</button>{/if}
                 {#if currentEpisode?.parent_episode_id}<button class="quiet return" on:click={returnToParentEpisode}>Return to {parentEpisode?.name ?? 'parent trail'}</button>{/if}
                 {#if selectedExcerpt}<button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(true)}>Side quest on “{selectedExcerpt.text.slice(0, 36)}{selectedExcerpt.text.length > 36 ? '…' : ''}”</button><button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(false)}>Bring selection here</button>{/if}
               </div>
@@ -751,6 +780,20 @@
                 <button class:active={routeMode === 'both'} disabled={!['anthropic', 'openai'].every((provider) => installedRoutes.some((route) => route.provider_code === provider))} on:click={() => chooseRoute('both')}>both</button>
               </div>
               <span class="parent-count">{selectedParents.size ? `${selectedParents.size} parent${selectedParents.size === 1 ? '' : 's'}` : 'fresh edge'}</span>
+            </div>
+            <div class="session-strip">
+              <div class="profile-chips" aria-label="Execution profile">
+                <button class:active={executionProfile === 'compiled-fresh'} on:click={() => { executionProfile = 'compiled-fresh'; continuationSource = null; resetPreview(); }}>fresh</button>
+                <button class:active={executionProfile === 'workspace-agent'} disabled={routeChoices.some((route) => !route.qualified_profiles.includes('workspace-agent'))} on:click={chooseWorkspaceProfile}>workspace</button>
+                {#if executionProfile === 'native-continuation'}<span>{continuationMode} · {continuationSource?.invocation_id.slice(-8)}</span>{/if}
+              </div>
+              <label>effort<select bind:value={effort} on:change={resetPreview}><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
+              {#if executionProfile === 'workspace-agent'}
+                <label class="workspace-path">workspace<input bind:value={workspacePath} on:input={resetPreview} placeholder="/absolute/project/folder" /></label>
+                <label>authority<select bind:value={workspaceAuthority} on:change={resetPreview}><option value="read-only">read only</option><option value="workspace-write">edit workspace</option></select></label>
+                {#if routeChoices.some((route) => route.provider_code === 'anthropic')}<label class="shell-toggle"><input type="checkbox" bind:checked={claudeShell} on:change={resetPreview} />Claude shell + provider network</label>{/if}
+              {/if}
+              <small>{executionProfile === 'compiled-fresh' ? 'Exact context, no tools, no persistent provider session.' : executionProfile === 'workspace-agent' ? 'Starts a recorded provider session with the authority shown here.' : `Uses only ${continuationSource?.invocation_id.slice(-8)} under its exact prior authority.`}</small>
             </div>
             <textarea bind:value={prompt} rows="5" placeholder={selectedParents.size > 1 ? 'Bring these branches together…' : selectedParents.size === 1 ? 'Continue here or take a side quest…' : 'Say what should happen next…'} on:input={resetPreview}></textarea>
             {#if explicitSelections.length}<div class="graft-strip">{explicitSelections.length} exact graft{explicitSelections.length === 1 ? '' : 's'} selected</div>{/if}

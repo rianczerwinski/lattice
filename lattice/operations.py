@@ -68,6 +68,8 @@ class Lattice:
         baseline_permissions = set().union(*(set(item.get("permissions", [])) for item in previous)) if previous else set()
         baseline_workspaces = {item.get("workspace") for item in previous}
         baseline_network = {item.get("network_policy", "disabled") for item in previous}
+        baseline_sandboxes = {item.get("sandbox", "read-only") for item in previous}
+        baseline_approvals = {item.get("approval_policy", "never") for item in previous}
         reasons: list[dict[str, Any]] = []
 
         def add(code: str, detail: dict[str, Any]) -> None:
@@ -78,6 +80,8 @@ class Lattice:
         permissions = set(capabilities.get("permissions", []))
         workspace = capabilities.get("workspace")
         network = capabilities.get("network_policy", "disabled")
+        sandbox = capabilities.get("sandbox", "read-only")
+        approval = capabilities.get("approval_policy", "never")
         if tools - baseline_tools:
             add("authority.tools-expanded", {"added": sorted(tools - baseline_tools)})
         if permissions - baseline_permissions:
@@ -86,6 +90,10 @@ class Lattice:
             add("authority.workspace-expanded", {"workspace": workspace})
         if network != "disabled" and network not in baseline_network:
             add("authority.network-expanded", {"network_policy": network})
+        if sandbox == "workspace-write" and sandbox not in baseline_sandboxes:
+            add("authority.sandbox-expanded", {"sandbox": sandbox})
+        if approval != "never" and approval not in baseline_approvals:
+            add("authority.approval-expanded", {"approval_policy": approval})
         for item in preflight.get("omitted", []):
             if str(item.get("reason") or "").startswith("automatic:"):
                 add("context.automatic-omission", {"block_id": item["block_id"], "reason": item["reason"]})
@@ -93,10 +101,10 @@ class Lattice:
             transformation = item.get("transformation")
             if isinstance(transformation, dict) and transformation.get("initiated_by") not in {None, "operator"}:
                 add("context.automatic-transformation", {"block_id": item["block_id"], "transformation": transformation})
-        previous_isolation = {item.get("isolation") for item in previous if item.get("isolation") is not None}
-        current_isolation = capabilities.get("isolation")
-        if previous_isolation and current_isolation not in previous_isolation:
-            add("execution.isolation-changed", {"before": sorted(previous_isolation), "after": current_isolation})
+        previous_profiles = {item.get("execution_profile", "compiled-fresh") for item in previous}
+        current_profile = capabilities.get("execution_profile", "compiled-fresh")
+        if previous_profiles and current_profile not in previous_profiles and current_profile == "workspace-agent":
+            add("execution.isolation-changed", {"before": sorted(previous_profiles), "after": current_profile})
         return reasons
 
     def preview_invocation_batch(self, value: InvocationBatchPreviewV1) -> dict[str, Any]:
@@ -106,7 +114,7 @@ class Lattice:
         all_reasons: dict[str, dict[str, Any]] = {}
         for spec in value.specifications:
             assembly = spec.assembly
-            self.store.validate_invocation_intent(assembly, spec.route)
+            resolved_route = self.store.validate_invocation_intent(assembly, spec.route)
             assembly_sha = sha256_json(assembly.model_dump(mode="json"))
             prompt_block_id, prompt_block, _prompt_bytes = self._batch_prompt_block(assembly)
             draft_identity = sha256_bytes(canonical_bytes({"batch_id": value.batch_id, "spec_id": spec.spec_id}))
@@ -121,7 +129,7 @@ class Lattice:
                 "actor_binding": actor,
                 "role_session_id": actor.get("role_session_id"),
                 "prompt_block_id": prompt_block_id,
-                "route": spec.route.model_dump(mode="json"),
+                "route": resolved_route,
                 "selections": selections,
                 "parents": assembly.parent_invocation_ids,
                 "relation": assembly.relation.value,

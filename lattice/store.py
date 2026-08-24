@@ -32,6 +32,7 @@ from .contracts import (
     EpisodeCreate,
     EpisodeMemberCreate,
     InvocationState,
+    model_runner_policy,
     ProjectCreate,
     RoleCreate,
     RoleSessionCreate,
@@ -961,7 +962,13 @@ class LatticeStore:
             return {"kind": "non-model", "provider": spec["provider"]}
         return {"kind": "model", "provider": spec["provider"], "harness": spec["harness"], "allowed_models": spec.get("allowed_models", [])}
 
-    def _assert_actor_route_authorized(self, actor_kind: str, role_session_id: str | None, route: dict[str, Any]) -> None:
+    def _assert_actor_route_authorized(
+        self,
+        actor_kind: str,
+        role_session_id: str | None,
+        route: dict[str, Any],
+        parent_invocation_ids: list[str] | tuple[str, ...] = (),
+    ) -> dict[str, Any]:
         if actor_kind == "direct":
             if role_session_id is not None:
                 raise LatticeConflict("direct actor bindings cannot carry a role session")
@@ -983,25 +990,51 @@ class LatticeStore:
         adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
         if adapter is None:
             raise LatticeConflict("provider and official CLI route are not qualified together")
+        normalized = dict(route)
+        execution_profile = normalized.get("execution_profile", "native-continuation" if normalized.get("session_policy") == "visible_native_continuation" else "compiled-fresh")
+        native_parent = None
+        if execution_profile == "native-continuation":
+            native_parent_id = normalized.get("native_parent_invocation_id")
+            if native_parent_id not in parent_invocation_ids:
+                raise LatticeConflict("native continuation parent must be explicitly selected as invocation ancestry")
+            native_parent = self.get_invocation(native_parent_id)
+            if native_parent["state"] != InvocationState.succeeded.value:
+                raise LatticeConflict("native continuation parent must have a successful terminal result")
+            successful_attempts = [attempt for attempt in native_parent["attempts"] if attempt["state"] == AttemptState.succeeded.value and attempt.get("runtime_receipt")]
+            receipt = successful_attempts[-1]["runtime_receipt"] if successful_attempts else None
+            native_session = receipt.get("native_session") if isinstance(receipt, dict) else None
+            observed_session_id = native_session.get("id") if isinstance(native_session, dict) else None
+            if not isinstance(observed_session_id, str):
+                raise LatticeConflict("native continuation parent has no observed provider session identity")
+            supplied_session_id = normalized.get("native_session_id")
+            if supplied_session_id is not None and supplied_session_id != observed_session_id:
+                raise LatticeConflict("caller-supplied native session identity disagrees with the parent receipt")
+            normalized["native_session_id"] = observed_session_id
         try:
-            validate_execution_policy(
-                adapter,
-                session_policy=route["session_policy"],
-                tools=route["tools"],
-                permissions=route["permissions"],
-                workspace=route["workspace"],
-                network_policy=route["network_policy"],
-            )
+            effective_policy = validate_execution_policy(adapter, **model_runner_policy(normalized))
         except SubscriptionRouteUnavailable as error:
             raise LatticeConflict(str(error)) from error
+        for key in ("execution_profile", "session_policy", "continuation_mode", "native_session_id", "tools", "permissions", "workspace", "sandbox", "approval_policy", "network_policy"):
+            normalized[key] = effective_policy[key]
+        if native_parent is not None:
+            if any(normalized[key] != native_parent["route"].get(key) for key in ("provider", "model", "harness")):
+                raise LatticeConflict("native continuation cannot cross provider, model, or harness boundaries")
+            if native_parent["route"].get("execution_profile", "compiled-fresh") not in {"workspace-agent", "native-continuation"}:
+                raise LatticeConflict("native continuation parent did not create persistent provider state")
+            authority_keys = ("tools", "permissions", "workspace", "sandbox", "approval_policy", "network_policy")
+            parent_capabilities = native_parent["manifest"].get("capabilities", {})
+            changed = [key for key in authority_keys if effective_policy.get(key) != parent_capabilities.get(key)]
+            if changed:
+                raise LatticeConflict(f"native continuation cannot cross authority boundaries: {', '.join(changed)}")
+        return normalized
 
-    def validate_invocation_intent(self, assembly: Any, route: Any) -> None:
+    def validate_invocation_intent(self, assembly: Any, route: Any) -> dict[str, Any]:
         """Validate a stateless preflight without creating any ledger objects."""
 
         project = self.get_project(assembly.project_id)
         actor = assembly.actor_binding.model_dump(mode="json")
         role_session_id = actor.get("role_session_id")
-        self._assert_actor_route_authorized(actor["kind"], role_session_id, route.model_dump(mode="json"))
+        normalized_route = self._assert_actor_route_authorized(actor["kind"], role_session_id, route.model_dump(mode="json"), assembly.parent_invocation_ids)
         if project["workflow_pack"] is not None and actor["kind"] == "direct":
             # Direct conversation may coexist with a workflow project, but it
             # cannot impersonate a named workflow actor or satisfy role gates.
@@ -1018,6 +1051,7 @@ class LatticeStore:
             block = self.get_block(selection.block_id, include_content=False)
             if block["project_id"] != assembly.project_id:
                 raise LatticeConflict("context block belongs to another project")
+        return normalized_route
 
     def create_project(self, value: ProjectCreate) -> dict[str, Any]:
         project_id = opaque_id("project")
@@ -1441,11 +1475,11 @@ class LatticeStore:
             session = self.get_role_session(role_session_id)
             if session["project_id"] != value.project_id:
                 raise LatticeConflict("role session does not belong to project")
-        self._assert_actor_route_authorized(actor_kind, role_session_id, value.route.model_dump(mode="json"))
         for parent_id in value.parent_invocation_ids:
             parent = self.get_invocation(parent_id)
             if parent["project_id"] != value.project_id:
                 raise LatticeConflict("parent invocation does not belong to project")
+        route = self._assert_actor_route_authorized(actor_kind, role_session_id, value.route.model_dump(mode="json"), value.parent_invocation_ids)
         prompt_value = None
         prompt_content = value.prompt.encode("utf-8")
         if prompt_block_id is None:
@@ -1468,7 +1502,7 @@ class LatticeStore:
                 """INSERT INTO drafts(draft_id,project_id,actor_kind,role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,context_mode,response_schema_json,revision,state,created_at,updated_at)
                    VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)""",
                 (draft_id, value.project_id, actor_kind, role_session_id, prompt_block_id,
-                 canonical_bytes(value.route.model_dump(mode="json")).decode(), canonical_bytes(selections).decode(),
+                 canonical_bytes(route).decode(), canonical_bytes(selections).decode(),
                  canonical_bytes(value.parent_invocation_ids).decode(), value.relation.value, value.context_mode, canonical_bytes(value.response_schema).decode(),
                  DraftState.editable.value, now, now),
             )
@@ -1508,13 +1542,13 @@ class LatticeStore:
             prompt_digest = self.blobs.put(prompt_content)
             prompt_block_id = opaque_id("block")
         route = patch.route.model_dump(mode="json") if patch.route else current["route"]
-        self._assert_actor_route_authorized(current["actor_kind"], current["role_session_id"], route)
         selections = [item.model_dump(mode="json") for item in patch.selections] if patch.selections is not None else current["selections"]
         parents = patch.parent_invocation_ids if patch.parent_invocation_ids is not None else current["parents"]
         for parent_id in parents:
             parent = self.get_invocation(parent_id)
             if parent["project_id"] != current["project_id"]:
                 raise LatticeConflict("parent invocation does not belong to project")
+        route = self._assert_actor_route_authorized(current["actor_kind"], current["role_session_id"], route, parents)
         if patch.prompt is not None:
             selections = [{**item, "block_id": prompt_block_id} if item["plane"] == "current_prompt" else item for item in selections]
         if current["context_mode"] == "explicit":
@@ -1536,7 +1570,7 @@ class LatticeStore:
         return self.get_draft(draft_id)
 
     def insert_invocation(self, draft: dict[str, Any], manifest: dict[str, Any], manifest_sha: str, compiled_prompt_sha: str, *, trigger_id: str | None = None, import_turn: tuple[str, int] | None = None) -> dict[str, Any]:
-        self._assert_actor_route_authorized(draft["actor_kind"], draft["role_session_id"], draft["route"])
+        self._assert_actor_route_authorized(draft["actor_kind"], draft["role_session_id"], draft["route"], draft["parents"])
         invocation_id = manifest["invocation_id"]
         now = stamp()
         with self.transaction() as conn:
@@ -1716,9 +1750,9 @@ class LatticeStore:
         row["actor_binding"] = {"kind": row["actor_kind"], **({"role_session_id": row["role_session_id"]} if row["role_session_id"] is not None else {})}
         if row["manifest"].get("invocation_id") != row["invocation_id"] or row["manifest"].get("manifest_sha256") != row["manifest_sha256"] or row["manifest"].get("generated_object", {}).get("artifact_id") != row["manifest_artifact_id"] or row["manifest"].get("compilation", {}).get("compiled_prompt_sha256") != row["compiled_prompt_sha256"] or row["manifest"].get("execution") != row["route"]:
             raise LatticeConflict("stored invocation columns disagree with its immutable manifest")
-        if row["manifest"].get("contract_version") == "LatticeContextManifest/4.0" and row["manifest"].get("actor_binding") != row["actor_binding"]:
+        if row["manifest"].get("contract_version") in {"LatticeContextManifest/4.0", "LatticeContextManifest/5.0"} and row["manifest"].get("actor_binding") != row["actor_binding"]:
             raise LatticeConflict("stored invocation actor binding disagrees with its immutable manifest")
-        if row["manifest"].get("contract_version") in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} and row["manifest"].get("response_contract") != row["response_schema"]:
+        if row["manifest"].get("contract_version") in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} and row["manifest"].get("response_contract") != row["response_schema"]:
             raise LatticeConflict("stored invocation response contract disagrees with its immutable manifest")
         for attempt in row["attempts"]:
             attempt["runtime_receipt"] = json.loads(attempt.pop("runtime_receipt_json")) if attempt.get("runtime_receipt_json") else None

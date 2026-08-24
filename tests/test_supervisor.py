@@ -7,15 +7,23 @@ from pathlib import Path
 
 import pytest
 
-from lattice.contracts import DraftCreate, ExecuteRequest
+from lattice.contracts import (
+    ContextAssemblyV1,
+    DirectActorBinding,
+    DraftCreate,
+    ExecuteRequest,
+    InvocationBatchPreviewV1,
+    InvocationSpecV1,
+    ProviderRoute,
+)
 from lattice.supervisor import ExecutionSupervisor
 
 
-def fake_journal(tmp_path: Path) -> Path:
+def fake_journal(tmp_path: Path, *, native_session_id: str | None = None) -> Path:
     journal = tmp_path / "journal"
     journal.mkdir(exist_ok=True)
     (journal / "request.json").write_text('{"driver":"codex","model":"test","metadata":{"cli_version":"test-cli 1","binary":"/test/codex","isolation":{"working_directory":"fresh-temporary"}}}', encoding="utf-8")
-    (journal / "checkpoint.json").write_text('{"native_session":{"strategy":"codex","id":null,"state_dir":null},"observed":{"stdout_bytes":0}}', encoding="utf-8")
+    (journal / "checkpoint.json").write_text(__import__("json").dumps({"native_session": {"strategy": "codex", "id": native_session_id, "state_dir": None}, "observed": {"stdout_bytes": 0}}), encoding="utf-8")
     (journal / "terminal.json").write_text('{"status":"success"}', encoding="utf-8")
     return journal
 
@@ -88,3 +96,102 @@ async def test_oracle_provider_artifacts_are_content_addressed_and_linked(monkey
     assert any(edge["target_id"] == artifact["artifact_id"] and edge["relation"] == "produced" for edge in result["edges"])
     assert result["attempts"][0]["runtime_receipt"]["cli_version"] == "test-cli 1"
     assert result["attempts"][0]["runtime_receipt"]["native_session"]["strategy"] == "codex"
+
+
+@pytest.mark.oracle
+@pytest.mark.asyncio
+@pytest.mark.parametrize("continuation_mode", ["resume", "fork"])
+async def test_oracle_native_continuation_uses_the_selected_parent_receipt_and_exact_authority(monkeypatch, lattice_env, tmp_path, continuation_mode) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    parent_route = ProviderRoute(
+        provider="openai",
+        model="gpt-5.6-sol",
+        harness="codex",
+        execution_profile="workspace-agent",
+        tools=["shell"],
+        workspace=str(workspace),
+        sandbox="read-only",
+    )
+    parent_draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="start durable session", route=parent_route))
+    parent = lattice_env["lattice"].seal(parent_draft["draft_id"])
+    session_id = "11111111-1111-4111-8111-111111111111"
+
+    def start_session(*args, **kwargs):
+        return {"response": "persistent result", "artifacts": []}, fake_journal(tmp_path, native_session_id=session_id)
+
+    monkeypatch.setattr("lattice.supervisor.invoke_subscription", start_session)
+    supervisor = ExecutionSupervisor(lattice_env["store"])
+    await supervisor.start()
+    await supervisor.execute(parent["invocation_id"], ExecuteRequest(idempotency_key=f"workspace-parent-{continuation_mode}"))
+    await asyncio.gather(*list(supervisor._tasks.values()))
+
+    continuation_route = ProviderRoute(
+        provider="openai",
+        model="gpt-5.6-sol",
+        harness="codex",
+        execution_profile="native-continuation",
+        session_policy="visible_native_continuation",
+        continuation_mode=continuation_mode,
+        native_parent_invocation_id=parent["invocation_id"],
+        tools=["shell"],
+        workspace=str(workspace),
+        sandbox="read-only",
+    )
+    assembly = ContextAssemblyV1(
+        project_id=lattice_env["project"]["project_id"],
+        prompt="continue exactly",
+        parent_invocation_ids=[parent["invocation_id"]],
+    )
+    preview = lattice_env["lattice"].preview_invocation_batch(InvocationBatchPreviewV1(
+        batch_id="batch_" + (("1" if continuation_mode == "resume" else "2") * 32),
+        specifications=[InvocationSpecV1(spec_id="codex", assembly=assembly, route=continuation_route)],
+    ))
+
+    execution = preview["members"][0]["preflight"]["execution"]
+    assert execution["native_session_id"] == session_id
+    assert execution["native_parent_invocation_id"] == parent["invocation_id"]
+    assert preview["members"][0]["preflight"]["capabilities"]["workspace"] == str(workspace.resolve())
+
+
+@pytest.mark.contract
+@pytest.mark.asyncio
+async def test_negative_control_native_continuation_cannot_cross_workspace_or_invent_session(monkeypatch, lattice_env, tmp_path) -> None:
+    workspace = tmp_path / "workspace"
+    other_workspace = tmp_path / "other"
+    workspace.mkdir()
+    other_workspace.mkdir()
+    route = ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex", execution_profile="workspace-agent", tools=["shell"], workspace=str(workspace))
+    draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="start", route=route))
+    parent = lattice_env["lattice"].seal(draft["draft_id"])
+
+    monkeypatch.setattr("lattice.supervisor.invoke_subscription", lambda *args, **kwargs: ({"response": "done", "artifacts": []}, fake_journal(tmp_path, native_session_id="11111111-1111-4111-8111-111111111111")))
+    supervisor = ExecutionSupervisor(lattice_env["store"])
+    await supervisor.start()
+    await supervisor.execute(parent["invocation_id"], ExecuteRequest(idempotency_key="native-negative-parent"))
+    await asyncio.gather(*list(supervisor._tasks.values()))
+
+    for mutation in (
+        {"workspace": str(other_workspace)},
+        {"native_session_id": "22222222-2222-4222-8222-222222222222"},
+    ):
+        child_route = ProviderRoute(
+            provider="openai",
+            model="gpt-5.6-sol",
+            harness="codex",
+            execution_profile="native-continuation",
+            session_policy="visible_native_continuation",
+            continuation_mode="resume",
+            native_parent_invocation_id=parent["invocation_id"],
+            tools=["shell"],
+            workspace=mutation.get("workspace", str(workspace)),
+            native_session_id=mutation.get("native_session_id"),
+        )
+        with pytest.raises(Exception, match="authority boundaries|disagrees with the parent receipt"):
+            lattice_env["store"].create_draft(DraftCreate(
+                project_id=lattice_env["project"]["project_id"],
+                actor_binding=DirectActorBinding(),
+                prompt="smuggle",
+                route=child_route,
+                parent_invocation_ids=[parent["invocation_id"]],
+            ))

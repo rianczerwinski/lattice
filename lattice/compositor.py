@@ -8,7 +8,7 @@ from typing import Any
 from axis_model_runner import DEFAULT_ADAPTERS, validate_execution_policy
 
 from .canonical import canonical_bytes, generated_object, sha256_bytes, sha256_json
-from .contracts import BlockDisposition, ContextSelection
+from .contracts import BlockDisposition, ContextSelection, model_runner_policy
 from .store import LatticeConflict, LatticeStore
 
 
@@ -18,7 +18,7 @@ MAX_COMPILED_CONTEXT_BYTES = 64 * 1024 * 1024
 
 def _segment_bytes(segment: dict[str, Any], content: str) -> bytes:
     record = {
-        "kind": "lattice-context-segment-v4",
+        "kind": "lattice-context-segment-v5",
         "ordinal": segment["ordinal"],
         "plane": segment["plane"],
         "label": segment["label"],
@@ -183,19 +183,16 @@ class ContextCompositor:
         route = draft["route"]
         adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
         proof_limits = list(adapter.proof_limits) if adapter else ["provider route has not been qualified"]
-        effective_policy = validate_execution_policy(
-            adapter,
-            session_policy=route["session_policy"],
-            tools=route["tools"],
-            permissions=route["permissions"],
-            workspace=route["workspace"],
-            network_policy=route["network_policy"],
-        ) if adapter else None
+        effective_policy = validate_execution_policy(adapter, **model_runner_policy(route)) if adapter else None
+        if effective_policy and effective_policy["execution_profile"] != "compiled-fresh":
+            proof_limits.append("workspace execution exposes only the authority the official harness reports; provider-owned tool internals remain opaque")
+        if effective_policy and effective_policy["network_policy"] == "provider_managed":
+            proof_limits.append("network access is provider-managed and is not an exact host allowlist")
         invocation_identity = sha256_bytes(f"{draft['draft_id']}:{draft['revision']}".encode("utf-8"))
         invocation_id = f"invocation_{invocation_identity[:32]}"
         manifest_artifact_id = f"artifact:{uuid.uuid5(uuid.NAMESPACE_URL, f'lattice-manifest:{invocation_identity}')}"
         preflight: dict[str, Any] = {
-            "contract_version": "LatticeContextPreflight/2.0",
+            "contract_version": "LatticeContextPreflight/3.0",
             "invocation_id": invocation_id,
             "project_id": draft["project_id"],
             "actor_binding": draft["actor_binding"],
@@ -213,7 +210,7 @@ class ContextCompositor:
             "execution": route,
             "response_contract": draft["response_schema"],
             "compilation": {
-                "format": "lattice-context-jsonl-v4",
+                "format": "lattice-context-jsonl-v5",
                 "compiled_prompt_ref": f"lattice:blob/{prompt_sha}",
                 "compiled_prompt_sha256": prompt_sha,
                 "byte_count": len(compiled_prompt),
@@ -231,8 +228,8 @@ class ContextCompositor:
 
         manifest: dict[str, Any] = {
             **preflight,
-            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=4, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
-            "contract_version": "LatticeContextManifest/4.0",
+            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=5, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
+            "contract_version": "LatticeContextManifest/5.0",
             "result": {"state": "pending", "attempts_ref": f"lattice:invocation/{invocation_id}/attempts"},
         }
         manifest["manifest_sha256"] = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})

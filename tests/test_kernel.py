@@ -28,7 +28,7 @@ def test_oracle_manifest_compiles_the_hand_authored_context_bytes(lattice_env) -
     manifest = invocation["manifest"]
     blocks = {item["label"]: store.get_block(item["block_id"]) for item in manifest["segments"]}
     expected = b"".join(
-        canonical_bytes({"kind": "lattice-context-segment-v4", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "block_id": item["block_id"], "content_sha256": item["sha256"], "semantic_type": item["semantic_type"], "status": item["status"], "authority": blocks[item["label"]]["authority"], "evidence_level": blocks[item["label"]]["evidence_level"], "sensitivity": blocks[item["label"]]["sensitivity"], "source_ref": blocks[item["label"]]["source_ref"], "source_sha256": blocks[item["label"]]["source_sha256"], "producing_invocation_id": blocks[item["label"]]["producing_invocation_id"], "transformation": json.loads(blocks[item["label"]]["transformation_json"]) if blocks[item["label"]]["transformation_json"] else None, "disposition": item["disposition"], "derived_from_block_ids": item["derived_from_block_ids"], "reason": item["reason"], "content": blocks[item["label"]]["content"]}) + b"\n"
+        canonical_bytes({"kind": "lattice-context-segment-v5", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "block_id": item["block_id"], "content_sha256": item["sha256"], "semantic_type": item["semantic_type"], "status": item["status"], "authority": blocks[item["label"]]["authority"], "evidence_level": blocks[item["label"]]["evidence_level"], "sensitivity": blocks[item["label"]]["sensitivity"], "source_ref": blocks[item["label"]]["source_ref"], "source_sha256": blocks[item["label"]]["source_sha256"], "producing_invocation_id": blocks[item["label"]]["producing_invocation_id"], "transformation": json.loads(blocks[item["label"]]["transformation_json"]) if blocks[item["label"]]["transformation_json"] else None, "disposition": item["disposition"], "derived_from_block_ids": item["derived_from_block_ids"], "reason": item["reason"], "content": blocks[item["label"]]["content"]}) + b"\n"
         for item in manifest["segments"]
     )
 
@@ -112,6 +112,7 @@ def test_manifest_reader_preserves_pre_rename_context_history(lattice_env) -> No
     legacy["generated_object"]["producer"]["name"] = "axis-loom"
     legacy["generated_object"]["subject"] = f"loom-invocation:{legacy['invocation_id']}"
     legacy.pop("actor_binding")
+    legacy["capabilities"] = {key: legacy["capabilities"][key] for key in ("session_policy", "tools", "permissions", "workspace", "network_policy", "enforcement")}
     for source in legacy["generated_object"]["sources"]:
         source["ref"] = source["ref"].replace("lattice:block/", "loom:block/", 1)
     for source in legacy["source_bindings"]:
@@ -366,7 +367,7 @@ def test_default_response_schema_is_strict_for_nested_artifacts(lattice_env) -> 
 @pytest.mark.contract
 def test_negative_control_manifest_cannot_claim_execution_authority_the_runner_does_not_enforce(lattice_env) -> None:
     unsupported = ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex", tools=["shell"])
-    with pytest.raises(Exception, match="declared tools"):
+    with pytest.raises(Exception, match="compiled-fresh cannot receive tools"):
         lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="do work", route=unsupported))
 
     baseline = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="answer", route=lattice_env["route"]))

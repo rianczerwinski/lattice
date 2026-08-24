@@ -72,10 +72,16 @@ class ProviderRoute(StrictModel):
     model: str = Field(min_length=1)
     harness: Literal["claude", "codex", "gemini", "grok"]
     effort: Literal["low", "medium", "high", "xhigh", "max", "ultra"] = "high"
+    execution_profile: Literal["compiled-fresh", "workspace-agent", "native-continuation"] = "compiled-fresh"
     session_policy: Literal["fresh", "visible_native_continuation"] = "fresh"
+    continuation_mode: Literal["resume", "fork"] | None = None
+    native_parent_invocation_id: str | None = None
+    native_session_id: str | None = Field(default=None, pattern=r"^[0-9a-fA-F-]{36}$")
     tools: list[str] = Field(default_factory=list)
     permissions: list[str] = Field(default_factory=list)
     workspace: str | None = None
+    sandbox: Literal["read-only", "workspace-write", "provider-permissions"] = "read-only"
+    approval_policy: Literal["never", "on-request"] = "never"
     network_policy: Literal["disabled", "provider_managed", "declared_allowlist"] = "disabled"
 
     @model_validator(mode="after")
@@ -83,7 +89,33 @@ class ProviderRoute(StrictModel):
         expected = {"anthropic": "claude", "openai": "codex", "google": "gemini", "xai": "grok"}
         if expected[self.provider] != self.harness:
             raise ValueError(f"{self.provider} is qualified only through {expected[self.provider]}")
+        native = self.execution_profile == "native-continuation"
+        if native:
+            if self.session_policy != "visible_native_continuation":
+                raise ValueError("native continuation requires visible_native_continuation session policy")
+            if self.continuation_mode is None or self.native_parent_invocation_id is None:
+                raise ValueError("native continuation requires an explicit parent and resume or fork mode")
+        elif self.session_policy != "fresh" or self.continuation_mode is not None or self.native_parent_invocation_id is not None or self.native_session_id is not None:
+            raise ValueError("only native continuation may carry provider-session ancestry")
         return self
+
+
+def model_runner_policy(route: dict[str, Any]) -> dict[str, Any]:
+    """Project a stored Lattice route into model-runner's enforceable policy surface."""
+
+    execution_profile = route.get("execution_profile", "native-continuation" if route.get("session_policy") == "visible_native_continuation" else "compiled-fresh")
+    return {
+        "execution_profile": execution_profile,
+        "session_policy": route.get("session_policy", "visible_native_continuation" if execution_profile == "native-continuation" else "fresh"),
+        "continuation_mode": route.get("continuation_mode"),
+        "native_session_id": route.get("native_session_id"),
+        "tools": route.get("tools", []),
+        "permissions": route.get("permissions", []),
+        "workspace": route.get("workspace"),
+        "sandbox": route.get("sandbox", "read-only"),
+        "approval_policy": route.get("approval_policy", "never"),
+        "network_policy": route.get("network_policy", "disabled"),
+    }
 
 
 class DirectActorBinding(StrictModel):
