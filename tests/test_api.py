@@ -714,6 +714,21 @@ def test_axial_projection_is_bounded_source_bound_and_contains_enduring_concerns
     assert all("manifest_json" not in item and "compiled_prompt_sha256" not in item for item in project["trailheads"])
 
 
+@pytest.mark.contract
+def test_invocation_navigation_endpoint_exposes_live_identifiers_without_private_bytes(lattice_env) -> None:
+    invocation = completed_invocation(lattice_env, "private navigation prompt", "private navigation response")
+    lattice_env["lattice"].tag(invocation["invocation_id"], TagRequest(concern_ref="slate:navigation", label="Navigation"))
+    app = create_app(lattice_env["config"])
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/invocations/{invocation['invocation_id']}/navigation")
+
+    assert response.status_code == 200
+    assert response.json()["slate_topics"][0]["external_ref"] == "slate:navigation"
+    assert "private navigation prompt" not in response.text
+    assert "private navigation response" not in response.text
+
+
 @pytest.mark.regression
 def test_negative_control_axial_projection_is_bounded_at_its_authoritative_source(lattice_env, monkeypatch) -> None:
     invocation = completed_invocation(lattice_env, "bounded projection", "bounded result")

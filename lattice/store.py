@@ -2160,6 +2160,36 @@ class LatticeStore:
             )]
         return [self.get_episode(slice_id) for slice_id in rows]
 
+    def invocation_navigation(self, invocation_id: str) -> dict[str, Any]:
+        """Resolve the live concern path without copying invocation or response bytes."""
+
+        invocation = self.get_invocation(invocation_id)
+        with self._connect() as conn:
+            project = self._row(
+                conn.execute("SELECT project_id,title FROM projects WHERE project_id=?", (invocation["project_id"],)).fetchone(),
+                invocation["project_id"],
+            )
+            bindings: list[tuple[str, str]] = [("invocation", invocation_id)]
+            if invocation.get("output_block_id"):
+                bindings.append(("context-block", invocation["output_block_id"]))
+            clauses = " OR ".join("(e.source_type=? AND e.source_id=?)" for _item in bindings)
+            params = [value for binding in bindings for value in binding]
+            topics = [dict(row) for row in conn.execute(
+                f"""SELECT DISTINCT s.slice_id,s.external_ref,s.name,s.scope
+                    FROM edges e JOIN slices s ON s.external_ref=e.target_id
+                    WHERE e.relation='concerns' AND e.target_type='external-concern'
+                      AND s.external_ref GLOB 'slate:*' AND ({clauses})
+                    ORDER BY s.name,s.external_ref""",
+                params,
+            )]
+        return {
+            "contract_version": "LatticeInvocationNavigation/1.0",
+            "invocation": {"invocation_id": invocation_id},
+            "episodes": self.list_invocation_episodes(invocation_id),
+            "project": project,
+            "slate_topics": topics,
+        }
+
     def tag_invocation(self, invocation_id: str, value: TagRequest) -> dict[str, Any]:
         """Commit the concern edge and its globally addressable live slice as one fact."""
         target_revision = sha256_bytes(value.concern_ref.encode("utf-8"))

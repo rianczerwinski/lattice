@@ -1,10 +1,12 @@
 <script lang="ts">
   import { api, beginSession, extractWorkflow, post } from './api';
   import { batchIdempotencyKey, reciprocalCrossFeedParents, resolveExactSelection } from './invocationBatch';
+  import { contextActionIntent } from './contextActions';
+  import type { ContextAction } from './contextActions';
   import { buildContextModuleDefinition } from './contextModules';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
-  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
+  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, Episode, Invocation, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
 
   let projects: Project[] = [];
@@ -53,6 +55,8 @@
   let pinRoleSessionLabel = '';
   let pinRoleReceipt = '';
   let selected: Invocation | null = null;
+  let selectedNavigation: InvocationNavigation | null = null;
+  let selectedSlateSlice: LiveSlice | null = null;
   let comparison: Record<string, unknown> | null = null;
   let neighborhood: { nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } } | null = null;
   let loading = true;
@@ -315,10 +319,12 @@
   async function inspect(id: string) {
     error = '';
     try {
-      [selected, neighborhood] = await Promise.all([
+      [selected, neighborhood, selectedNavigation] = await Promise.all([
         api<Invocation>(`/api/v1/invocations/${id}`),
         api<{ nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } }>(`/api/v1/invocations/${id}/neighborhood?depth=2`),
+        api<InvocationNavigation>(`/api/v1/invocations/${id}/navigation`),
       ]);
+      selectedSlateSlice = null;
       armedTransition = '';
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
   }
@@ -363,7 +369,7 @@
   }
 
   async function beginSideQuest(mode: 'anthropic' | 'openai' | 'both' = routeMode, anchor?: { type: 'invocation' | 'context-block' | 'artifact'; id: string }) {
-    if (!selected || !project) return;
+    if (!selected || !project) return false;
     working = true;
     error = '';
     try {
@@ -385,7 +391,8 @@
       selectedExcerpt = null;
       resetPreview();
       document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
-    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+      return true;
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); return false; }
     finally { working = false; }
   }
 
@@ -419,8 +426,9 @@
     selectionProofLimit = '';
   }
 
-  async function graftSelectedExcerpt(sideQuest: boolean) {
+  async function graftSelectedExcerpt(action: ContextAction) {
     if (!project || !selected?.output_block_id || !selectedExcerpt) return;
+    const intent = contextActionIntent(action, routeMode, 'selected excerpt');
     working = true;
     error = '';
     try {
@@ -430,8 +438,9 @@
         start_byte: selectedExcerpt.startByte,
         end_byte: selectedExcerpt.endByte,
       });
-      if (sideQuest) await beginSideQuest(routeMode, { type: 'context-block', id: block.block_id });
+      if (intent.sideQuest && !await beginSideQuest(intent.route, { type: 'context-block', id: block.block_id })) return;
       explicitSelections = [...explicitSelections, { block_id: block.block_id, plane: 'knowledge', label: `graft:${block.block_id.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [selected.output_block_id] }];
+      if (intent.promptSeed) prompt = intent.promptSeed;
       selectedExcerpt = null;
       resetPreview();
       document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
@@ -439,21 +448,25 @@
     finally { working = false; }
   }
 
-  async function graftResponseBlock(sideQuest: boolean) {
+  async function graftResponseBlock(action: ContextAction) {
     if (!selected?.output_block_id) return;
-    if (sideQuest) await beginSideQuest(routeMode, { type: 'context-block', id: selected.output_block_id });
+    const intent = contextActionIntent(action, routeMode, 'response block');
+    if (intent.sideQuest && !await beginSideQuest(intent.route, { type: 'context-block', id: selected.output_block_id })) return;
     explicitSelections = [...explicitSelections, { block_id: selected.output_block_id, plane: 'knowledge', label: `response:${selected.output_block_id.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [] }];
+    if (intent.promptSeed) prompt = intent.promptSeed;
     resetPreview();
     document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
   }
 
-  async function graftArtifact(artifactId: string, sideQuest: boolean) {
+  async function graftArtifact(artifactId: string, action: ContextAction) {
+    const intent = contextActionIntent(action, routeMode, 'artifact');
     working = true;
     error = '';
     try {
       const block = await post<{ block_id: string }>(`/api/v1/artifacts/${artifactId}/context-blocks`, {});
-      if (sideQuest) await beginSideQuest(routeMode, { type: 'artifact', id: artifactId });
+      if (intent.sideQuest && !await beginSideQuest(intent.route, { type: 'artifact', id: artifactId })) return;
       explicitSelections = [...explicitSelections, { block_id: block.block_id, plane: 'knowledge', label: `artifact:${artifactId.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [] }];
+      if (intent.promptSeed) prompt = intent.promptSeed;
       resetPreview();
       document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
@@ -470,8 +483,15 @@
     try {
       const result = await post<{ edge_id: string; slice: { slice_id: string } }>(path, { concern_ref: identity, label: slateLabel });
       slateTagReceipt = `${result.slice.slice_id} · ${result.edge_id}`;
+      selectedNavigation = await api<InvocationNavigation>(`/api/v1/invocations/${selected.invocation_id}/navigation`);
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
     finally { working = false; }
+  }
+
+  async function openSlateSlice(sliceId: string) {
+    error = '';
+    try { selectedSlateSlice = await api<LiveSlice>(`/api/v1/slices/${sliceId}`); }
+    catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
   }
 
   async function pinSelectedAsRole() {
@@ -855,7 +875,7 @@
               </details>
             </div>
           </div>
-          {#if currentEpisode}<nav class="episode-breadcrumb" aria-label="Current episode">{#if parentEpisode}<button on:click={() => currentEpisode = parentEpisode}>{parentEpisode.name}</button><span>›</span>{/if}<strong>{currentEpisode.name}</strong><small>{currentEpisode.items.length} member{currentEpisode.items.length === 1 ? '' : 's'}</small></nav>{/if}
+          {#if selectedNavigation}<nav class="lineage-breadcrumb" aria-label="Invocation concern navigation"><code>{selectedNavigation.invocation.invocation_id.slice(-8)}</code>{#each selectedNavigation.episodes as episode}<span>›</span><button on:click={() => currentEpisode = episodes.find((item) => item.slice_id === episode.slice_id) ?? episode}>{episode.name}</button>{/each}<span>›</span><strong>{selectedNavigation.project.title}</strong>{#each selectedNavigation.slate_topics as topic}<span>›</span><button class="slate" on:click={() => openSlateSlice(topic.slice_id)}>{topic.name}</button>{/each}</nav>{:else if currentEpisode}<nav class="episode-breadcrumb" aria-label="Current episode">{#if parentEpisode}<button on:click={() => currentEpisode = parentEpisode}>{parentEpisode.name}</button><span>›</span>{/if}<strong>{currentEpisode.name}</strong><small>{currentEpisode.items.length} member{currentEpisode.items.length === 1 ? '' : 's'}</small></nav>{/if}
 
           {#if project.workflow}
             <details class="workflow-control">
@@ -935,10 +955,10 @@
                 <button class="quiet" on:click={() => beginSideQuest('anthropic')}>Ask Claude</button>
                 <button class="quiet" on:click={() => beginSideQuest('openai')}>Ask Codex</button>
                 <button class="quiet" on:click={() => beginSideQuest('both')}>Ask both</button>
-                {#if selected.output_block_id}<button class="quiet" disabled={working} on:click={() => graftResponseBlock(true)}>Side quest on response</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock(false)}>Bring response here</button>{/if}
+                {#if selected.output_block_id}<details class="context-actions"><summary>Use exact response</summary><div><button class="quiet" disabled={working} on:click={() => graftResponseBlock('side-quest')}>Side quest</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('ask-claude')}>Ask Claude</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('ask-codex')}>Ask Codex</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('ask-both')}>Ask both</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('bring-here')}>Bring here</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('compare')}>Compare</button></div></details>{/if}
                 {#if selectedNativeEligible}<button class="quiet native" on:click={() => configureNativeContinuation('resume')}>Continue native session</button><button class="quiet native" on:click={() => configureNativeContinuation('fork')}>Fork native session</button>{/if}
                 {#if currentEpisode?.parent_episode_id}<button class="quiet return" on:click={returnToParentEpisode}>Return to {parentEpisode?.name ?? 'parent trail'}</button>{/if}
-                {#if selectedExcerpt}<button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(true)}>Side quest on “{selectedExcerpt.text.slice(0, 36)}{selectedExcerpt.text.length > 36 ? '…' : ''}”</button><button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(false)}>Bring selection here</button>{/if}
+                {#if selectedExcerpt}<details class="context-actions selected-text"><summary>Use “{selectedExcerpt.text.slice(0, 36)}{selectedExcerpt.text.length > 36 ? '…' : ''}”</summary><div><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('side-quest')}>Side quest</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('ask-claude')}>Ask Claude</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('ask-codex')}>Ask Codex</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('ask-both')}>Ask both</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('bring-here')}>Bring here</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('compare')}>Compare</button></div></details>{/if}
                 {#if selectionProofLimit}<small class="selection-proof-limit">{selectionProofLimit}</small>{/if}
               </div>
             {:else}
@@ -1022,11 +1042,12 @@
           <details><summary>Tools & authority</summary><pre>{JSON.stringify(selected.manifest.capabilities, null, 2)}</pre></details>
           <details><summary>Proof limits</summary>{#each selected.manifest.provider_boundary.proof_limits as limit}<p>{limit}</p>{/each}</details>
           <details><summary>Attempts ({selected.attempts.length})</summary><pre>{JSON.stringify(selected.attempts, null, 2)}</pre></details>
-          {#if selected.artifacts.length}<details><summary>Artifacts ({selected.artifacts.length})</summary>{#each selected.artifacts as artifact}<details on:toggle={(event) => event.currentTarget.open && loadArtifact(artifact.artifact_id)}><summary>{artifact.artifact_id}</summary><pre>{artifactContents[artifact.artifact_id] ?? 'Loading exact bytes…'}</pre><div class="response-actions"><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, true)}>Side quest on artifact</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, false)}>Bring artifact here</button></div></details>{/each}</details>{/if}
+          {#if selected.artifacts.length}<details><summary>Artifacts ({selected.artifacts.length})</summary>{#each selected.artifacts as artifact}<details on:toggle={(event) => event.currentTarget.open && loadArtifact(artifact.artifact_id)}><summary>{artifact.artifact_id}</summary><pre>{artifactContents[artifact.artifact_id] ?? 'Loading exact bytes…'}</pre><div class="response-actions"><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'side-quest')}>Side quest</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'ask-claude')}>Ask Claude</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'ask-codex')}>Ask Codex</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'ask-both')}>Ask both</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'bring-here')}>Bring here</button><button class="quiet" disabled={working} on:click={() => graftArtifact(artifact.artifact_id, 'compare')}>Compare</button></div></details>{/each}</details>{/if}
           {#if neighborhood}<details><summary>Local graph{neighborhood.coverage.state === 'partial' ? ' partial' : ''} · {neighborhood.nodes.length} nodes</summary>{#if neighborhood.coverage.state === 'partial'}<p class="muted">This bounded view reached its node or edge limit at depth {neighborhood.coverage.completed_depth} of {neighborhood.coverage.requested_depth}.</p>{/if}<pre>{JSON.stringify(neighborhood.edges, null, 2)}</pre></details>{/if}
         {:else}<p class="muted">Prepare an edge to inspect its exact world before execution.</p>{/if}
 
         {#if comparison}<div class="comparison"><h3>Branch delta</h3><pre>{JSON.stringify(comparison, null, 2)}</pre></div>{/if}
+        {#if selectedSlateSlice}<div class="slate-slice"><h3>{selectedSlateSlice.name}</h3><small>{selectedSlateSlice.external_ref} · {selectedSlateSlice.coverage.state}</small>{#if selectedSlateSlice.items.length}<div>{#each selectedSlateSlice.items as item}<button class="quiet" disabled={item.object_type !== 'invocation'} on:click={() => item.object_type === 'invocation' && inspect(item.object_id)}>{item.object_type} · {item.object_id.slice(-8)}</button>{/each}</div>{:else}<p class="muted">This live Slate slice is empty.</p>{/if}</div>{/if}
         <details class="context-modules">
           <summary>Context modules</summary>
           <p>Resolve exact local or read-only source bytes for this edge, or keep a removable project default.</p>

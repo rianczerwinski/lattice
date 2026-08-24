@@ -343,3 +343,33 @@ def test_invocation_and_response_block_share_one_live_slate_slice_without_copyin
     with lattice_env["store"]._connect() as conn:
         stored = conn.execute("SELECT query_json FROM slices WHERE slice_id=?", (block_result["slice"]["slice_id"],)).fetchone()[0]
     assert "private prompt" not in stored and "source-bound response" not in stored
+
+
+@pytest.mark.oracle
+def test_invocation_navigation_resolves_overlapping_episodes_project_and_live_slate_topics(lattice_env) -> None:
+    invocation = completed_invocation(lattice_env, "navigate", "exact response")
+    episode = lattice_env["store"].create_episode(EpisodeCreate(project_id=lattice_env["project"]["project_id"], name="Investigation", anchor_type="invocation", anchor_id=invocation["invocation_id"]))
+    lattice_env["store"].tag_invocation(invocation["invocation_id"], TagRequest(concern_ref="slate:invocation-topic", label="Invocation topic"))
+    lattice_env["store"].tag_context_block(invocation["output_block_id"], TagRequest(concern_ref="slate:response-topic", label="Response topic"))
+
+    navigation = lattice_env["store"].invocation_navigation(invocation["invocation_id"])
+
+    assert navigation["contract_version"] == "LatticeInvocationNavigation/1.0"
+    assert navigation["invocation"] == {"invocation_id": invocation["invocation_id"]}
+    assert navigation["project"] == {"project_id": lattice_env["project"]["project_id"], "title": lattice_env["project"]["title"]}
+    assert [item["slice_id"] for item in navigation["episodes"]] == [episode["slice_id"]]
+    assert {(item["external_ref"], item["name"]) for item in navigation["slate_topics"]} == {
+        ("slate:invocation-topic", "Invocation topic"),
+        ("slate:response-topic", "Response topic"),
+    }
+
+
+@pytest.mark.regression
+def test_invocation_navigation_does_not_absorb_unrelated_project_topics(lattice_env) -> None:
+    selected = completed_invocation(lattice_env, "selected", "selected response")
+    unrelated = completed_invocation(lattice_env, "unrelated", "unrelated response")
+    lattice_env["store"].tag_invocation(unrelated["invocation_id"], TagRequest(concern_ref="slate:unrelated", label="Unrelated"))
+
+    navigation = lattice_env["store"].invocation_navigation(selected["invocation_id"])
+
+    assert navigation["slate_topics"] == []

@@ -502,6 +502,10 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     async def invocation_episodes(invocation_id: str):
         return store.list_invocation_episodes(invocation_id)
 
+    @app.get("/api/v1/invocations/{invocation_id}/navigation")
+    async def invocation_navigation(invocation_id: str):
+        return store.invocation_navigation(invocation_id)
+
     @app.post("/api/v1/episodes/{episode_id}/members")
     async def add_episode_member(episode_id: str, value: EpisodeMemberCreate):
         return store.add_episode_member(episode_id, value)
