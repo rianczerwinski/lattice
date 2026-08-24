@@ -1,0 +1,215 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "canonical",
+    "kind": "lattice-remediation-findings",
+    "schema": {"name": "lattice-remediation-findings", "version": 1},
+    "artifact_id": "artifact:1c019874-1b3b-4f23-a8b5-d30834fbab0b",
+    "generated_at": "20260824T171018",
+    "parent_artifact_id": "artifact:9519c266-323c-4f6c-867f-26967c2ce6b2",
+    "producer": {"name": "lattice-remediation", "version": "1.1.0"},
+    "subject": "lattice:conversation-first-remediation-findings",
+    "sources": [
+      {"ref": "git:/Users/rian/AXISVI/axis/chariots/lattice/assurance/findings.json", "revision": "0c231103830feff5e3b1d555ae8205c05f2cc0ac", "sha256": "3d835709b0c56c9b6b14c4e946e38abb548d44f57645bfff0e09ef6641baf09f"},
+      {"ref": "file:/Users/rian/AXISVI/axis/chariots/lattice/CONVERSATION-FIRST-REMEDIATION-PLAN.md", "revision": null, "sha256": "b37e608c107a478e327d55fdc9a022e88d198f26f7a0be7cd3e14e049c6b9217"},
+      {"ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T170628-0e255354-991.json", "revision": "artifact:0e255354-9911-4681-90e2-e1498064608a", "sha256": "40588eb9040633865f11e0063747fea1c1dcac0f2117aae3633961618b5da478"},
+      {"ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-0c231103830f-87f5299a9d22/runtime.json", "revision": "artifact:b2c8a29a-032e-4db9-a070-263c0121a5b6", "sha256": "819565907379db7201ac73c216bcffc3308ddabe41fa86fafd9e9b97404a85fe"},
+      {"ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T170655-068be392-a77/snapshot.json", "revision": "artifact:068be392-a775-4188-bf9a-1fc541352094", "sha256": "a3f786e6daab984348e02cff5695c052609861c747470724c46a9a0e555d574c"}
+    ]
+  },
+  "contract_version": "LatticeRemediationFindings/1.0",
+  "status_vocabulary": ["open", "implemented-pending-verification", "closed"],
+  "proof_limit": "The v0.2.0 Lattice source revision completed synthetic, independent-reader, workflow, reliability, frontend, exact-current browser, authenticated Claude/Codex, provider-failure, launchd-restart, and separate-root restore acceptance in an installed byte-attested runtime. Provider-owned system context remains observable only through each adapter's declared proof limits. No personal corpus was imported. The governed German workflow machinery remains implemented but its authenticated Gemini native lane is unavailable because the installed official CLI cannot satisfy the consumer-subscription and exact-context boundary.",
+  "findings": [
+    {
+      "finding_id": "41abd11e-7163-421a-8efb-8f6dbe0dc623",
+      "severity": "S1",
+      "statement": "A Lattice-owned port allocator or resurrected portctl CLI would contradict Outport's sole service-authority contract.",
+      "route": [8],
+      "status": "closed",
+      "implementation_receipts": ["lattice/outport.py:resolve_lattice_service", "lattice/cli.py:doctor", "tests/test_reliability.py:test_outport_is_the_only_lattice_service_identity", "tests/test_reliability.py:test_negative_control_doctor_rejects_running_port_that_disagrees_with_outport", "operational:lattice doctor --json passed Outport, launchd, and listener agreement"],
+      "independent_oracle": "Outport JSON resolution, launchd process ownership, and the bound listener agree on one Lattice identity and port.",
+      "false_mutation": "Run Lattice on a port different from Outport's lattice allocation and require doctor plus acceptance to fail."
+    },
+    {
+      "finding_id": "c8a20b55-6ead-45b5-9328-29d6e9a92ffd",
+      "severity": "S1",
+      "statement": "Native continuation was specified while model-runner rejected every session policy except fresh execution.",
+      "route": [6],
+      "status": "closed",
+      "implementation_receipts": ["axis/tools/model-runner/axis_model_runner/adapters.py:validate_execution_policy", "axis/tools/model-runner/axis_model_runner/adapters.py:build_command", "lattice/contracts.py:ProviderRoute", "lattice/store.py:_assert_actor_route_authorized", "lattice/supervisor.py:ExecutionSupervisor._run", "web/src/executionRoutes.ts:buildRoutePayload", "tests/test_supervisor.py:test_oracle_native_continuation_uses_the_selected_parent_receipt_and_exact_authority", "axis/tools/model-runner/tests/test_model_runner.py:test_contract_native_resume_and_fork_require_an_observed_session", "acceptance:artifact:0e255354-9911-4681-90e2-e1498064608a proves Claude and Codex workspace, native fork, native resume, portable fallback, and cross-authority rejection"],
+      "independent_oracle": "Authenticated provider acceptance proves a session ID, a qualified resume or fork command, and rejection across model, workspace, or authority changes.",
+      "false_mutation": "Reuse a native session after changing workspace or permissions and require eligibility to fail."
+    },
+    {
+      "finding_id": "dedd3baf-d4cb-49fa-9ebd-54e4ff0c7298",
+      "severity": "S1",
+      "statement": "Making roles optional without a typed actor contract and restartable migration would corrupt existing role-bound drafts and invocations.",
+      "route": [1, 7],
+      "status": "closed",
+      "implementation_receipts": ["lattice/contracts.py:ActorBindingV1", "lattice/store.py:_migrate_actor_bindings", "lattice/compositor.py:ContextCompositor._implicit_selections", "lattice/manifest_reader.py:verify_and_reconstruct", "tests/test_conversation_kernel.py"],
+      "independent_oracle": "A hand-authored direct context contains no role bytes; an exact copy of the schema-7 runtime database migrates with identical manifest bytes, row counts, append chain, and foreign keys.",
+      "false_mutation": "Attach a role session to a direct actor or mutate a direct v4 manifest into a role-bound invocation and require both storage and the independent reader to reject it."
+    },
+    {
+      "finding_id": "aef79414-8fd8-480c-8cf2-eb227d10f2e4",
+      "severity": "S2",
+      "statement": "Freestyle UI verbs would become divergent kernel state machines, and fan-out cannot truthfully share one route-specific manifest.",
+      "route": [2, 4],
+      "status": "closed",
+      "implementation_receipts": ["lattice/contracts.py:ContextAssemblyV1", "lattice/contracts.py:InvocationBatchPreviewV1", "lattice/store.py:insert_invocation_batch", "lattice/operations.py:preview_invocation_batch", "lattice/operations.py:create_invocation_batch", "tests/test_invocation_batches.py"],
+      "independent_oracle": "Every gesture compiles to one generic batch contract while each child retains its own capability and compiled-request manifest.",
+      "false_mutation": "Remove one fan-out child's capability record or give siblings different semantic assemblies and require the batch oracle to fail."
+    },
+    {
+      "finding_id": "c74c32e7-911e-4118-854c-1687a58de468",
+      "severity": "S2",
+      "statement": "The remediation could duplicate already-working context delta, Slate slices, route selection, and trailhead machinery instead of exposing it coherently.",
+      "route": [4, 5],
+      "status": "closed",
+      "implementation_receipts": ["web/src/App.svelte:loadOlderInvocations", "web/src/App.svelte:Context truth", "web/src/App.svelte:tagSelectedToSlate", "lattice/store.py:page_invocations", "lattice/store.py:get_slice", "lattice/store.py:tag_context_block"],
+      "independent_oracle": "The cockpit and Slate acceptance paths resolve through the existing ledger identities and endpoints without copied transcript state or a second projection authority.",
+      "false_mutation": "Replace a saved Slate query with copied transcript bytes or make an older trailhead unreachable and require acceptance to fail."
+    },
+    {
+      "finding_id": "c2bda17f-c612-4bc6-ac61-5f73aa55c376",
+      "severity": "S2",
+      "statement": "Generic contradiction or provider-opacity warnings are not deterministic execution boundaries and would produce arbitrary interruption ceremony.",
+      "route": [3, 4],
+      "status": "closed",
+      "implementation_receipts": ["lattice/operations.py:_confirmation_reasons", "tests/test_invocation_batches.py"],
+      "independent_oracle": "Confirmation reasons derive only from exact authority expansion, operator-uninitiated loss or transformation, or a weakened qualified isolation profile.",
+      "false_mutation": "Plant a hidden omission or new write authority and require one-action execution to stop while an explicitly selected provider route proceeds without redundant confirmation."
+    },
+    {
+      "finding_id": "panel-conversation-foreground",
+      "severity": "product",
+      "statement": "Ordinary use must open into response and composer; roles, workflows, and raw graph configuration are secondary tools rather than prerequisites.",
+      "route": [1, 4, 7],
+      "status": "closed",
+      "implementation_receipts": ["web/src/App.svelte:createProject", "web/src/App.svelte:route-chips", "web/src/App.svelte:role-binding", "tests/test_api.py:test_blank_project_batch_api_fans_out_without_role_bootstrap"],
+      "independent_oracle": "Browser acceptance completes the freestyle path from a blank project without opening a role, workflow, graph, or manifest panel.",
+      "false_mutation": "Require role creation before first send and require browser acceptance to fail."
+    },
+    {
+      "finding_id": "panel-progressive-lattice",
+      "severity": "product",
+      "statement": "Side quests, fan-out, fan-in, cross-feed, and return must be available one edge at a time without preplotting the graph.",
+      "route": [2, 4, 5],
+      "status": "closed",
+      "implementation_receipts": ["web/src/App.svelte:beginSideQuest", "web/src/App.svelte:graftSelectedExcerpt", "web/src/App.svelte:route-chips", "lattice/operations.py:create_invocation_batch"],
+      "independent_oracle": "A browser operator authors the complete freestyle lattice conversationally and resumes any dormant trailhead after restart.",
+      "false_mutation": "Hide a dormant branch after pagination or require a predefined workflow for a side quest and require acceptance to fail."
+    },
+    {
+      "finding_id": "panel-context-truth",
+      "severity": "product",
+      "statement": "Exact observable context and its delta must remain continuously inspectable without turning every ordinary send into a mandatory preflight ceremony.",
+      "route": [2, 3, 4],
+      "status": "closed",
+      "implementation_receipts": ["lattice/contracts.py:DerivedTextBlockCreate", "lattice/store.py:create_derived_text_block", "lattice/manifest_reader.py:verify_and_reconstruct", "web/src/App.svelte:Context truth", "tests/test_invocation_batches.py"],
+      "independent_oracle": "Independent reconstruction matches provider bytes and the tray distinguishes added, removed, transformed, omitted, unchanged, and provider-opaque material.",
+      "false_mutation": "Relabel a summary as verbatim or hide an omission and require the independent reader or browser oracle to fail."
+    },
+    {
+      "finding_id": "panel-overlapping-episodes",
+      "severity": "product",
+      "statement": "Side-quest episodes and Slate topics are overlapping concern-backed slices, never exclusive containers or copied conversations.",
+      "route": [5],
+      "status": "closed",
+      "implementation_receipts": ["lattice/store.py:create_episode", "lattice/store.py:add_episode_member", "lattice/store.py:list_invocation_episodes", "web/src/App.svelte:beginSideQuest", "web/src/App.svelte:returnToParentEpisode", "tests/test_invocation_batches.py:test_episodes_are_overlapping_live_slices_and_returned_work_is_new_history", "tests/test_invocation_batches.py:test_invocation_and_response_block_share_one_live_slate_slice_without_copying"],
+      "independent_oracle": "One invocation participates in several episodes and a live Slate slice updates through concern edges while every claim resolves to its canonical object.",
+      "false_mutation": "Make an episode own an invocation exclusively or persist transcript bytes in Slate and require the slice oracle to fail."
+    },
+    {
+      "finding_id": "panel-independent-repositories",
+      "severity": "architecture",
+      "statement": "Lattice and AXISVI remain independent nested repositories without gitmodule or parent-pointer bookkeeping.",
+      "route": [8],
+      "status": "closed",
+      "implementation_receipts": ["tests/test_reliability.py:test_lattice_remains_an_independent_ignored_nested_repository", "operational:AXISVI excludes axis/chariots/lattice as an ordinary ignored nested repository and declares no gitmodule"],
+      "independent_oracle": "Git topology reports an ignored ordinary nested repository and no Lattice gitlink or .gitmodules entry in AXISVI.",
+      "false_mutation": "Add a Lattice gitlink or submodule declaration and require the topology contract to fail."
+    },
+    {
+      "finding_id": "panel-bios-reliability",
+      "severity": "product",
+      "statement": "Lattice must remain recoverable when Panels, the browser UI, a provider, or a development checkout fails.",
+      "route": [8],
+      "status": "closed",
+      "implementation_receipts": ["lattice/cli.py:doctor", "lattice/snapshot.py:create_snapshot", "lattice/snapshot.py:restore_snapshot", "ops/install.py:publish", "tests/test_reliability.py", "runtime:artifact:b2c8a29a-032e-4db9-a070-263c0121a5b6", "acceptance:artifact:0e255354-9911-4681-90e2-e1498064608a proves launchd restart and post-restart continuation", "backup:artifact:068be392-a775-4188-bf9a-1fc541352094 restored to an isolated root with state digest 1973335d34e5e4119bd948977231b6cb35782d375ecb08129603d3e7dd4e1439"],
+      "independent_oracle": "Outport resolution, launchd restart, pinned runtime upgrade rollback, database and blob diagnosis, snapshot restore, and post-restore continuation all pass independently.",
+      "false_mutation": "Remove a referenced blob from a snapshot or break the active runtime symlink and require doctor or restore to report failure rather than success."
+    },
+    {
+      "finding_id": "op-python-runtime-drift",
+      "severity": "S2",
+      "statement": "The generated pytest launcher still points at the removed loom checkout, and uv can panic before test admission on the current machine.",
+      "route": [8],
+      "status": "closed",
+      "implementation_receipts": ["ops/install.py:create_environment", "tests/test_reliability.py:test_contract_installed_package_does_not_infer_repository_paths_from_site_packages", "operational:local virtual-environment launchers repaired from the retired loom path and pytest/uvicorn entrypoints execute"],
+      "independent_oracle": "A clean pinned installation runs the CLI, unit suite, and browser suite without editable paths or pre-rename shebangs.",
+      "false_mutation": "Embed the removed axis/chariots/loom path in an installed launcher and require doctor plus installation acceptance to fail."
+    },
+    {
+      "finding_id": "op-root-lfs-filter",
+      "severity": "S2",
+      "statement": "AXISVI root status cannot currently complete because the Git LFS clean filter cannot create its temporary file.",
+      "route": [0, 8],
+      "status": "closed",
+      "implementation_receipts": ["operational:AXISVI git status completed unchanged under repository-authorized execution"],
+      "independent_oracle": "Root git status and an LFS clean-filter round trip succeed without changing tracked bytes.",
+      "false_mutation": "Deny writes to the LFS temporary directory and require the operational check to report degraded rather than clean."
+    },
+    {
+      "finding_id": "ui-exact-selection-persistence",
+      "severity": "S2",
+      "statement": "Clicking an exact-selection action could erase the browser selection before the action compiled, making the central side-quest and graft interaction nondeterministically unavailable.",
+      "route": [3, 4],
+      "status": "closed",
+      "implementation_receipts": ["web/src/App.svelte:captureResponseSelection", "web/src/invocationBatch.ts:resolveRenderedSelection", "web/src/invocationBatch.test.ts", "web/e2e/conversation.spec.ts:conversation-first manual lattice"],
+      "independent_oracle": "A browser-created DOM range survives the action-menu click and compiles to the exact UTF-8 source bytes and hash-bound excerpt.",
+      "false_mutation": "Clear selection on any document mouseup and require the browser acceptance to fail before creating the side quest."
+    },
+    {
+      "finding_id": "ui-secondary-surface-failure-isolation",
+      "severity": "S2",
+      "statement": "Failure or late completion of an optional graph, episode, workflow, navigation, or Slate request could erase or stale-mutate the primary conversation surface.",
+      "route": [4, 5],
+      "status": "closed",
+      "implementation_receipts": ["web/src/App.svelte:inspect", "web/src/App.svelte:inspectGeneration", "web/e2e/conversation.spec.ts:browser regression: secondary surface outages do not erase the conversation"],
+      "independent_oracle": "Planted 503 responses on every secondary surface render typed local failures while the selected response and composer remain usable.",
+      "false_mutation": "Couple a secondary request to the primary response state and require the degraded-surface browser regression to fail."
+    },
+    {
+      "finding_id": "df38214d-acfe-45ba-ae03-0ac7206afe94",
+      "severity": "S1",
+      "statement": "A published runtime could bind the current source revision while uv reused a cached local wheel containing older application bytes, making provenance and rollback claims materially false.",
+      "route": [8],
+      "status": "closed",
+      "implementation_receipts": ["lattice/runtime_attestation.py:tree_inventory", "ops/install.py:install_runtime", "ops/install.py:verify_installed_runtime", "tests/test_reliability.py:test_oracle_installer_rejects_stale_cached_local_package", "tests/test_reliability.py:test_negative_control_runtime_manifest_requires_exact_application_trees", "runtime:artifact:b2c8a29a-032e-4db9-a070-263c0121a5b6"],
+      "independent_oracle": "The installer forcibly rebuilds both local packages, independently inventories their source and installed module trees, and the installed doctor rehashes those bytes before reporting the runtime healthy.",
+      "false_mutation": "Install a stale local wheel or remove one attested file from the runtime manifest and require publication or doctor to fail before activation."
+    },
+    {
+      "finding_id": "1cb3eb76-a875-47d1-a222-f5236e3d5b2b",
+      "severity": "S2",
+      "statement": "The installed doctor's first complete execution could fail on an unimported token helper even though mocked diagnostic tests passed.",
+      "route": [8],
+      "status": "closed",
+      "implementation_receipts": ["lattice/cli.py:ensure_cli_token", "tests/test_reliability.py:test_contract_doctor_passes_with_healthy_installed_dependencies", "operational:/Users/rian/.local/bin/lattice doctor --json passed from installed runtime 0.2.0-0c231103830f-87f5299a9d22"],
+      "independent_oracle": "A positive installed-doctor contract and the non-editable installed CLI both traverse the healthy branch to a passing terminal report.",
+      "false_mutation": "Remove the token-helper import and require the positive doctor contract to fail rather than relying only on negative-path mocks."
+    },
+    {
+      "finding_id": "d7893887-f5e3-43ad-9ce4-53d0c3c76033",
+      "severity": "S2",
+      "statement": "Codex CLI removed the isolation keys used by the qualified route, while adapter health checked only the binary version and therefore remained falsely ready until a sealed invocation failed.",
+      "route": [6, 8],
+      "status": "closed",
+      "implementation_receipts": ["axis/tools/model-runner/axis_model_runner/adapters.py:CODEX_DISABLED_FEATURES", "axis/tools/model-runner/axis_model_runner/adapters.py:_codex_capability_probe", "axis/tools/model-runner/tests/test_model_runner.py:test_oracle_codex_control_surface_probe_rejects_removed_isolation_control", "acceptance:artifact:0e255354-9911-4681-90e2-e1498064608a"],
+      "independent_oracle": "The installed route probe requires every qualified Codex feature gate and exec option, while authenticated acceptance proves the same generated command executes through fresh, workspace, resume, and fork profiles.",
+      "false_mutation": "Remove or rename one required Codex isolation feature and require doctor to mark the route unavailable before any invocation is sealed."
+    }
+  ]
+}
