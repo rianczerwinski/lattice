@@ -10,11 +10,16 @@ The active implementation and assurance program is [`CONVERSATION-FIRST-REMEDIAT
 
 ## Run it
 
+Install or upgrade the supervised runtime from a clean committed Lattice revision:
+
 ```bash
-node ~/AXISVI/axis/tools/portctl/service.js start lattice
+./.venv/bin/python ops/install.py
+lattice status
+lattice open
+lattice doctor
 ```
 
-Lattice opens at `http://127.0.0.1:9010` and appears in Panels. The service stores private runtime state under `axis/psyche/recollection/lattice/data/`; that directory is local and ignored by Git. The source layout is:
+Outport owns Lattice's `lattice.axisvi.test` identity and current port allocation; launchd keeps the installed, version-pinned runtime alive across crashes and login. `lattice` works from any shell directory. Canonical private state and verified backups live under `~/Library/Application Support/Lattice/`; logs live under `~/Library/Logs/Lattice/`. The legacy repository-local store is retained untouched until the cutover proves it can be retired. The source layout is:
 
 ```text
 lattice/          backend contracts, ledger, compositor, execution, imports, workflow adapters
@@ -22,6 +27,7 @@ tests/            truth-typed kernel, API, supervisor, workflow, and mutation ch
 web/              response-first Svelte cockpit and production build
 workflow_packs/   bundled definitions owned by Lattice itself; project packs load from explicit external roots
 assurance/        frozen remediation baseline and permanent finding-to-proof ledger
+ops/              verified runtime installation, launchd supervision, upgrades, backups, and recovery
 ```
 
 Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additional pack roots in a standalone installation. Inside AXISVI, the existing Canon adapter adds `sui/mission/projects/canon/dev/quaternary-exhaustion/workflows/` automatically. A duplicate `pack_id` across roots is a startup error, so an external project can never be silently shadowed by a bundled definition.

@@ -8,6 +8,7 @@ import os
 import secrets
 import stat
 import time
+from urllib.parse import urlparse
 from collections import OrderedDict
 from pathlib import Path
 from typing import Callable
@@ -134,12 +135,19 @@ class OperatorSessions:
 
 
 class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, *, cli_token: str, sessions: OperatorSessions, port: int) -> None:
+    def __init__(self, app, *, cli_token: str, sessions: OperatorSessions, port: int, public_url: str | None = None, frame_origins: tuple[str, ...] = ()) -> None:
         super().__init__(app)
         self.cli_token = cli_token
         self.sessions = sessions
         self.allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", "testserver"}
         self.allowed_origins = {f"http://127.0.0.1:{port}", f"http://localhost:{port}", "http://testserver"}
+        if public_url:
+            parsed = urlparse(public_url)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+                raise ValueError("Lattice public URL is not an exact HTTP origin")
+            self.allowed_hosts.add(parsed.netloc)
+            self.allowed_origins.add(public_url.rstrip("/"))
+        self.frame_origins = ("'self'", "http://127.0.0.1:9000", "http://localhost:9000", *(origin.rstrip("/") for origin in frame_origins))
         configured_dev = configured_development_origin()
         if configured_dev:
             self.allowed_origins.add(configured_dev)
@@ -166,5 +174,5 @@ class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self' http://127.0.0.1:9000 http://localhost:9000"
+        response.headers["Content-Security-Policy"] = f"default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors {' '.join(self.frame_origins)}"
         return response

@@ -30,13 +30,13 @@ def discover_axisvi_root(start: Path = PACKAGE_ROOT, environ: Mapping[str, str] 
 
 def user_data_root(environ: Mapping[str, str] = os.environ) -> Path:
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "AXISVI" / "Lattice"
+        return Path.home() / "Library" / "Application Support" / "Lattice"
     base = Path(environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")).expanduser()
     return base / "axisvi" / "lattice"
 
 
 AXIS_ROOT = discover_axisvi_root()
-DEFAULT_DATA_ROOT = AXIS_ROOT / "axis" / "psyche" / "recollection" / "lattice" / "data" if AXIS_ROOT else user_data_root()
+DEFAULT_DATA_ROOT = user_data_root()
 
 
 @dataclass(frozen=True)
@@ -49,11 +49,13 @@ class LatticeConfig:
     axisvi_root: Path | None = AXIS_ROOT
     quaternary_root_override: Path | None = None
     workflow_pack_roots_extra: tuple[Path, ...] = ()
+    public_url: str | None = None
+    frame_origins: tuple[str, ...] = ()
 
     @classmethod
     def from_environment(cls) -> "LatticeConfig":
         axisvi_root = discover_axisvi_root()
-        default_data = axisvi_root / "axis" / "psyche" / "recollection" / "lattice" / "data" if axisvi_root else user_data_root()
+        default_data = user_data_root()
         extra_pack_roots = tuple(Path(value).expanduser().resolve() for value in os.environ.get("LATTICE_WORKFLOW_PACK_ROOTS", "").split(os.pathsep) if value)
         return cls(
             data_root=Path(os.environ.get("LATTICE_DATA_DIR", default_data)).expanduser(),
@@ -63,6 +65,8 @@ class LatticeConfig:
             axisvi_root=axisvi_root,
             quaternary_root_override=Path(os.environ["LATTICE_QUATERNARY_ROOT"]).expanduser().resolve() if os.environ.get("LATTICE_QUATERNARY_ROOT") else None,
             workflow_pack_roots_extra=extra_pack_roots,
+            public_url=os.environ.get("LATTICE_PUBLIC_URL"),
+            frame_origins=tuple(value.rstrip("/") for value in os.environ.get("LATTICE_FRAME_ORIGINS", "").split(",") if value),
         )
 
     @property
@@ -80,6 +84,10 @@ class LatticeConfig:
     @property
     def operator_token(self) -> Path:
         return self.data_root / "operator-token"
+
+    @property
+    def backups(self) -> Path:
+        return self.data_root / "backups"
 
     @property
     def quaternary_root(self) -> Path | None:

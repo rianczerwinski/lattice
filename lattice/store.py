@@ -19,6 +19,7 @@ from axis_model_runner import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, va
 from .blob_store import BlobStore
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, stamp
 from .config import LatticeConfig
+from .snapshot import pre_migration_snapshot_if_needed
 from .contracts import (
     AttemptState,
     BlockDisposition,
@@ -46,6 +47,7 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
+SCHEMA_VERSION = 9
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
 
@@ -473,6 +475,7 @@ class LatticeStore:
         self.config = config
         self.config.data_root.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.config.data_root, 0o700)
+        pre_migration_snapshot_if_needed(self.config.data_root, target_schema_version=SCHEMA_VERSION)
         self.blobs = BlobStore(config.blobs)
         self._write_lock = threading.RLock()
         with self._connect() as conn:
@@ -594,7 +597,7 @@ class LatticeStore:
                 self._baseline_current_views(conn)
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(7,?)", (stamp(),))
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(8,?)", (stamp(),))
-            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(9,?)", (stamp(),))
+            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(?,?)", (SCHEMA_VERSION, stamp()))
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
 
@@ -828,12 +831,12 @@ class LatticeStore:
             previous = chain["entry_sha256"]
 
     @classmethod
-    def _verify_current_views_against_change_ledger(cls, conn: sqlite3.Connection) -> None:
-        contracts = {table: cls._table_contract(conn, table) for table in CHANGE_TABLES}
-        unsupported = conn.execute("SELECT DISTINCT table_name FROM ledger_changes WHERE table_name NOT IN ({})".format(",".join("?" for _ in CHANGE_TABLES)), CHANGE_TABLES).fetchone()
+    def _verify_current_views_against_change_ledger(cls, conn: sqlite3.Connection, tables: tuple[str, ...] = CHANGE_TABLES) -> None:
+        contracts = {table: cls._table_contract(conn, table) for table in tables}
+        unsupported = conn.execute("SELECT DISTINCT table_name FROM ledger_changes WHERE table_name NOT IN ({})".format(",".join("?" for _ in tables)), tables).fetchone()
         if unsupported is not None:
             raise OSError(f"Lattice change ledger names unsupported table: {unsupported[0]}")
-        for table in CHANGE_TABLES:
+        for table in tables:
             _columns, primary_columns = contracts[table]
             expected_count = 0
             changes = conn.execute(

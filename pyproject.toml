@@ -16,6 +16,9 @@ dependencies = [
     "uvicorn>=0.30,<1.0",
 ]
 
+[project.scripts]
+lattice = "lattice.cli:main"
+
 [tool.uv.sources]
 axis-model-runner = { path = "../../tools/model-runner", editable = true }
 

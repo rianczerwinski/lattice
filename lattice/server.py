@@ -242,7 +242,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     app.state.lattice = lattice
     app.state.supervisor = supervisor
     app.state.workflows = workflows
-    app.add_middleware(OperatorBoundaryMiddleware, cli_token=cli_token, sessions=sessions, port=config.port)
+    app.add_middleware(OperatorBoundaryMiddleware, cli_token=cli_token, sessions=sessions, port=config.port, public_url=config.public_url, frame_origins=config.frame_origins)
 
     @app.exception_handler(LatticeNotFound)
     async def missing(_request: Request, error: LatticeNotFound):
@@ -258,12 +258,17 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
-        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id}
+        import importlib.metadata
+        try:
+            version = importlib.metadata.version("lattice")
+        except importlib.metadata.PackageNotFoundError:
+            version = "0.1.0+source"
+        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": version}
 
     @app.get("/api/session")
     async def create_session(response: Response) -> dict[str, str]:
         session, csrf = sessions.issue()
-        response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=False, path="/", max_age=sessions.ttl_seconds)
+        response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=bool(config.public_url and config.public_url.startswith("https://")), path="/", max_age=sessions.ttl_seconds)
         return {"csrf": csrf}
 
     @app.get("/api/v1/routes")
