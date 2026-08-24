@@ -47,7 +47,7 @@ export type Manifest = {
   compilation: { byte_count: number; compiled_prompt_sha256: string };
 };
 export type ContextPreflight = Omit<Manifest, 'manifest_sha256'> & { preflight_sha256: string };
-export type ContextDelta = { invocation_id: string; manifest_sha256: string; added: ManifestSegment[]; removed: ManifestSegment[]; unchanged_count: number };
+export type ContextDelta = { invocation_id: string; manifest_sha256: string; added: ManifestSegment[]; removed: ManifestSegment[]; transformed: ManifestSegment[]; omitted: ManifestSegment[]; provider_opaque: ManifestSegment[]; unchanged_count: number };
 export type ConfirmationReason = { code: string; detail: Record<string, unknown>; reason_sha256: string };
 export type BatchMemberPreview = { spec_id: string; assembly_sha256: string; preflight: ContextPreflight; parent_deltas: ContextDelta[]; compiled_prompt_preview: string };
 export type BatchPreview = { contract_version: 'InvocationBatchPreviewV1'; batch_id: string; project_id: string; request_sha256: string; preview_sha256: string; members: BatchMemberPreview[]; confirmation_reasons: ConfirmationReason[] };

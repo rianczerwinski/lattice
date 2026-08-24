@@ -248,8 +248,9 @@ class Lattice:
 
         def entries(manifest: dict[str, Any]) -> list[dict[str, Any]]:
             values = []
-            for item in manifest.get("segments", []) + manifest.get("omitted", []):
-                values.append({key: value for key, value in item.items() if key != "ordinal"})
+            for surface, items in (("supplied", manifest.get("segments", [])), ("omitted", manifest.get("omitted", []))):
+                for item in items:
+                    values.append({**{key: value for key, value in item.items() if key != "ordinal"}, "surface_state": surface})
             return values
 
         before = entries(previous)
@@ -268,9 +269,20 @@ class Lattice:
                     result.append(item)
             return result
 
-        added = difference(after, before_counts)
+        newly_observed = difference(after, before_counts)
         removed = difference(before, after_counts)
-        return {"added": added, "removed": removed, "unchanged_count": len(after) - len(added)}
+        provider_opaque = [item for item in newly_observed if item.get("disposition") == "provider_opaque"]
+        omitted = [item for item in newly_observed if item["surface_state"] == "omitted" and item not in provider_opaque]
+        transformed = [item for item in newly_observed if item["surface_state"] == "supplied" and item not in provider_opaque and (item.get("transformation") is not None or item.get("derived_from_block_ids"))]
+        added = [item for item in newly_observed if item not in provider_opaque and item not in omitted and item not in transformed]
+        return {
+            "added": added,
+            "removed": removed,
+            "transformed": transformed,
+            "omitted": omitted,
+            "provider_opaque": provider_opaque,
+            "unchanged_count": len(after) - len(newly_observed),
+        }
 
     def fork(
         self,

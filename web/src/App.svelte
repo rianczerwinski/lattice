@@ -2,7 +2,7 @@
   import { api, beginSession, extractWorkflow, post } from './api';
   import { batchIdempotencyKey } from './invocationBatch';
   import { renderMarkdown } from './renderMarkdown';
-  import { buildRoutePayload } from './executionRoutes';
+  import { applyModelOverride, buildRoutePayload } from './executionRoutes';
   import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
 
@@ -19,6 +19,7 @@
   let workspaceAuthority: 'read-only' | 'workspace-write' = 'read-only';
   let claudeShell = false;
   let effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max' = 'high';
+  let modelOverrides: Record<string, string> = {};
   let selectedSession = '';
   let prompt = '';
   let title = '';
@@ -82,6 +83,7 @@
     try {
       await beginSession();
       [projects, routes, workflowPacks] = await Promise.all([api<Project[]>('/api/v1/projects'), api<Route[]>('/api/v1/routes'), api<WorkflowPack[]>('/api/v1/workflow-packs')]);
+      modelOverrides = Object.fromEntries(routes.map((route) => [route.provider_code, route.model_code]));
       const firstRoute = routes.find((route) => route.qualified && route.provider_code === 'anthropic') ?? routes.find((route) => route.qualified && route.provider_code === 'openai');
       if (firstRoute) {
         selectedRoute = `${firstRoute.provider_code}:${firstRoute.model_code}`;
@@ -139,7 +141,15 @@
   }
 
   function routePayload(route: Route) {
-    return buildRoutePayload(route, { executionProfile, continuationMode, continuationSource, workspacePath, workspaceAuthority, claudeShell, effort });
+    const exactRoute = executionProfile === 'native-continuation' && continuationSource
+      ? { ...route, model_code: String(continuationSource.route.model) }
+      : applyModelOverride(route, modelOverrides[route.provider_code]);
+    return buildRoutePayload(exactRoute, { executionProfile, continuationMode, continuationSource, workspacePath, workspaceAuthority, claudeShell, effort });
+  }
+
+  function setModelOverride(provider: string, value: string) {
+    modelOverrides = { ...modelOverrides, [provider]: value };
+    resetPreview();
   }
 
   function terminalFailure(invocation: Invocation): string {
@@ -287,6 +297,7 @@
     const provider = String(selected.route.provider);
     if (provider !== 'anthropic' && provider !== 'openai') return;
     routeMode = provider;
+    modelOverrides = { ...modelOverrides, [provider]: String(selected.route.model) };
     executionProfile = 'native-continuation';
     continuationMode = mode;
     continuationSource = selected;
@@ -818,6 +829,7 @@
                 {#if executionProfile === 'native-continuation'}<span>{continuationMode} · {continuationSource?.invocation_id.slice(-8)}</span>{/if}
               </div>
               <label>effort<select bind:value={effort} on:change={resetPreview}><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
+              <details class="advanced-models"><summary>models</summary>{#each routeChoices as route}<label>{route.provider_code}<input value={modelOverrides[route.provider_code] ?? route.model_code} on:input={(event) => setModelOverride(route.provider_code, event.currentTarget.value)} /></label>{/each}</details>
               {#if executionProfile === 'workspace-agent'}
                 <label class="workspace-path">workspace<input bind:value={workspacePath} on:input={resetPreview} placeholder="/absolute/project/folder" /></label>
                 <label>authority<select bind:value={workspaceAuthority} on:change={resetPreview}><option value="read-only">read only</option><option value="workspace-write">edit workspace</option></select></label>
@@ -851,7 +863,7 @@
             {#each primaryPreview.preflight.segments as segment}<div class="segment"><i class={`plane ${segment.plane}`}></i><div><strong>{segment.label}</strong><small>{segment.plane} · {segment.status}</small><code>{segment.sha256.slice(0, 12)}</code></div></div>{/each}
           </div>
           {#if primaryPreview.preflight.omitted.length}<h3>Explicitly absent</h3>{#each primaryPreview.preflight.omitted as segment}<div class="omitted">{segment.label} · {segment.disposition}</div>{/each}{/if}
-          {#if primaryPreview.parent_deltas.length}<h3>Delta from selected trail</h3>{#each primaryPreview.parent_deltas as delta}<details><summary>{delta.invocation_id.slice(-8)} · +{delta.added.length} / −{delta.removed.length} · {delta.unchanged_count} unchanged</summary>{#each delta.added as segment}<div class="segment delta-added"><i class={`plane ${segment.plane}`}></i><div><strong>+ {segment.label}</strong><small>{segment.plane} · {segment.disposition}</small></div></div>{/each}{#each delta.removed as segment}<div class="omitted">− {segment.label} · {segment.disposition}</div>{/each}</details>{/each}{/if}
+          {#if primaryPreview.parent_deltas.length}<h3>Delta from selected trail</h3>{#each primaryPreview.parent_deltas as delta}<details><summary>{delta.invocation_id.slice(-8)} · +{delta.added.length} / −{delta.removed.length} / ↻{delta.transformed.length} / ∅{delta.omitted.length} / ?{delta.provider_opaque.length} · {delta.unchanged_count} unchanged</summary>{#each delta.added as segment}<div class="segment delta-added"><i class={`plane ${segment.plane}`}></i><div><strong>+ {segment.label}</strong><small>{segment.plane} · added</small></div></div>{/each}{#each delta.transformed as segment}<div class="segment delta-transformed"><i class={`plane ${segment.plane}`}></i><div><strong>↻ {segment.label}</strong><small>{segment.plane} · transformed with exact receipt</small></div></div>{/each}{#each delta.omitted as segment}<div class="omitted">∅ {segment.label} · {segment.disposition}</div>{/each}{#each delta.provider_opaque as segment}<div class="omitted provider-opaque">? {segment.label} · provider opaque</div>{/each}{#each delta.removed as segment}<div class="omitted">− {segment.label} · removed</div>{/each}</details>{/each}{/if}
           <details><summary>Exact compiled context</summary><pre>{primaryPreview.compiled_prompt_preview}</pre></details>
           {#each preview.members as member}<details><summary>{member.preflight.execution.provider} route, tools & proof limits</summary><pre>{JSON.stringify(member.preflight.capabilities, null, 2)}</pre>{#each member.preflight.provider_boundary.proof_limits as limit}<p>{limit}</p>{/each}</details>{/each}
         {:else if selected}

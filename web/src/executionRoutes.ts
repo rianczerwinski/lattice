@@ -15,6 +15,11 @@ export type RouteDraft = {
   effort: Effort;
 };
 
+export function applyModelOverride(route: Route, configured: string | undefined): Route {
+  const model = configured?.trim();
+  return model ? { ...route, model_code: model } : route;
+}
+
 export function buildRoutePayload(route: Route, draft: RouteDraft): Record<string, unknown> {
   if (draft.executionProfile === 'native-continuation') {
     if (!draft.continuationSource) throw new Error('Choose a provider-backed response to continue or fork.');

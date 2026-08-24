@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRoutePayload, type RouteDraft } from './executionRoutes';
+import { applyModelOverride, buildRoutePayload, type RouteDraft } from './executionRoutes';
 import type { Invocation, Route } from './types';
 
 const codex: Route = { provider_code: 'openai', model_code: 'gpt-5.6-sol', official_cli: 'codex', installed: true, qualified: true, operational: true, proof_limits: [], qualified_profiles: ['compiled-fresh', 'workspace-agent', 'native-continuation'] };
@@ -26,5 +26,11 @@ describe('execution route construction', () => {
   it('binds native continuation to the exact visible parent without trusting a supplied session id', () => {
     const source = { invocation_id: 'invocation_source', route: { provider: 'openai', model: 'gpt-5.6-sol', harness: 'codex', execution_profile: 'workspace-agent', workspace: '/project', tools: ['shell'], sandbox: 'read-only' } } as unknown as Invocation;
     expect(buildRoutePayload(codex, { ...baseline, executionProfile: 'native-continuation', continuationMode: 'fork', continuationSource: source })).toMatchObject({ execution_profile: 'native-continuation', continuation_mode: 'fork', native_parent_invocation_id: 'invocation_source', native_session_id: null, workspace: '/project' });
+  });
+
+  it('makes an explicit advanced model choice part of the route bytes', () => {
+    const configured = applyModelOverride(codex, 'gpt-5.6-codex');
+    expect(buildRoutePayload(configured, baseline)).toMatchObject({ provider: 'openai', model: 'gpt-5.6-codex', harness: 'codex' });
+    expect(applyModelOverride(codex, '   ')).toBe(codex);
   });
 });

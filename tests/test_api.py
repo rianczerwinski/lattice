@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from lattice.server import create_app
 from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, DraftCreate, ProviderRoute, TagRequest
+from lattice.operations import Lattice
 from lattice.security import OperatorSessions, ensure_cli_token
 from lattice.store import LatticeConflict
 from lattice.workflows import WorkflowRegistry
@@ -192,6 +193,30 @@ def test_context_preview_exposes_exact_delta_from_each_selected_parent(lattice_e
     assert delta["invocation_id"] == parent["invocation_id"]
     assert any(item["plane"] == "current_prompt" for item in delta["added"])
     assert any(item["plane"] == "current_prompt" for item in delta["removed"])
+
+
+@pytest.mark.oracle
+def test_context_delta_discriminates_transformed_omitted_and_provider_opaque() -> None:
+    supplied = {"block_id": "block_source", "plane": "knowledge", "label": "source", "disposition": "selected", "sha256": "a" * 64, "transformation": None, "derived_from_block_ids": []}
+    transformed = {"block_id": "block_excerpt", "plane": "knowledge", "label": "excerpt", "disposition": "selected", "sha256": "b" * 64, "transformation": {"kind": "utf8-byte-range-v1"}, "derived_from_block_ids": ["block_source"]}
+    omitted = {"block_id": "block_muted", "plane": "knowledge", "label": "muted", "disposition": "omitted", "sha256": "c" * 64, "transformation": None, "derived_from_block_ids": []}
+    opaque = {"block_id": "block_opaque", "plane": "state", "label": "unknown", "disposition": "provider_opaque", "sha256": "d" * 64, "transformation": None, "derived_from_block_ids": []}
+
+    delta = Lattice.context_delta({"segments": [supplied], "omitted": []}, {"segments": [supplied, transformed], "omitted": [omitted, opaque]})
+
+    assert [item["block_id"] for item in delta["transformed"]] == ["block_excerpt"]
+    assert [item["block_id"] for item in delta["omitted"]] == ["block_muted"]
+    assert [item["block_id"] for item in delta["provider_opaque"]] == ["block_opaque"]
+    assert delta["unchanged_count"] == 1
+
+
+@pytest.mark.regression
+def test_negative_control_context_delta_never_relables_opaque_context_as_ordinary_omission() -> None:
+    opaque = {"block_id": "block_opaque", "plane": "state", "label": "unknown", "disposition": "provider_opaque", "sha256": "d" * 64, "transformation": None, "derived_from_block_ids": []}
+    delta = Lattice.context_delta({"segments": [], "omitted": []}, {"segments": [], "omitted": [opaque]})
+
+    assert delta["omitted"] == []
+    assert delta["provider_opaque"][0]["block_id"] == "block_opaque"
 
 
 @pytest.mark.oracle
