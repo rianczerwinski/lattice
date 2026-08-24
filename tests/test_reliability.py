@@ -468,6 +468,32 @@ def test_negative_control_doctor_reports_quarantined_workflow_pack(monkeypatch, 
 
 
 @pytest.mark.contract
+def test_doctor_qualifies_the_live_daemon_with_operator_authority(monkeypatch, tmp_path, capsys) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    token_path = tmp_path / "operator-token"
+    token_path.write_text("x" * 64 + "\n", encoding="utf-8")
+    token_path.chmod(0o600)
+    monkeypatch.setattr(cli, "_service", lambda _config: service)
+    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime", "version": "0.2.0", "startup_recovery_failures": [], "workflow_pack_failures": []})
+    monkeypatch.setattr(cli, "_launchd_status", lambda: {"service": {"loaded": True, "running": True}, "backup": {"loaded": True, "running": False}})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime", "version": "0.2.0"})
+    monkeypatch.setattr(cli, "_service_routes", lambda _service, token: [
+        {"provider_code": "anthropic", "official_cli": "claude", "model_code": "opus", "qualified": True, "operational": token == "x" * 64, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
+        {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "operational": token == "x" * 64, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
+    ])
+    monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
+
+    status = cli.command_doctor(argparse.Namespace(json=True))
+    output = json.loads(capsys.readouterr().out)
+
+    assert status == 0
+    assert output["status"] == "pass"
+    assert all(check["state"] == "pass" for check in output["checks"])
+
+
+@pytest.mark.contract
 def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -> None:
     service = deployment.plist_payload(deployment.SERVICE_LABEL, backup=False, runtime_id="test-runtime")
     backup = deployment.plist_payload(deployment.BACKUP_LABEL, backup=True, runtime_id="test-runtime")

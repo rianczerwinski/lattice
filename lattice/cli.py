@@ -25,6 +25,7 @@ from .__about__ import __version__
 from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
 from .outport import OutportService, outport_executable, resolve_lattice_service
+from .security import ensure_cli_token
 from .server import create_app
 from .snapshot import create_snapshot, restore_snapshot
 
