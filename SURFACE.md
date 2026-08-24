@@ -1,8 +1,8 @@
 # Lattice — Surface
 
-surface-id: surface:5323f32b-8379-46f1-b136-17c17ad57b24 · source-revision: f8dcac4e566f7c6e1c526a2e908768bd8ec9e524 · generated: 20260824T171458
-view-artifact: artifact:d3ed60f3-fd2d-5823-a7e3-2931e0b1bde2 · role: derived-view · parent-artifact: artifact:5323f32b-8379-46f1-b136-17c17ad57b24
-source-surface: SURFACE.json · parent-sha256: a30c490228bf1c9fcb6b20d2259b0891a16ccb26e1c9e14761d05b9d1e7512c7 · renderer: surface-renderer/2.0.1
+surface-id: surface:f1256753-ad54-4902-a884-eab47bed6b42 · source-revision: c40cca706580d2c58df51a0e9f7a063596b7fcb1 · generated: 20260824T172412
+view-artifact: artifact:22db4de1-1da0-5db5-8d9f-77383590e99a · role: derived-view · parent-artifact: artifact:f1256753-ad54-4902-a884-eab47bed6b42
+source-surface: SURFACE.json · parent-sha256: 9187235e9dde3919ac7fa0f1e4930fd51538462393626089ba783e829888347d · renderer: surface-renderer/2.0.1
 
 ## 1 · Durable lattice kernel — Direct and role-bound actors, atomic invocation batches, exact content-addressed context, overlapping episodes, graph operations, and independent manifest reconstruction. [1✓]
 - ✓ **shipped** — Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and reconstructs every observable context block independently. _(sources: lattice/store.py)_

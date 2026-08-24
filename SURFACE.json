@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:5323f32b-8379-46f1-b136-17c17ad57b24",
+  "surface_id": "surface:f1256753-ad54-4902-a884-eab47bed6b42",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:5323f32b-8379-46f1-b136-17c17ad57b24",
-    "generated_at": "20260824T171458",
+    "artifact_id": "artifact:f1256753-ad54-4902-a884-eab47bed6b42",
+    "generated_at": "20260824T172412",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "f8dcac4e566f7c6e1c526a2e908768bd8ec9e524",
+        "revision": "c40cca706580d2c58df51a0e9f7a063596b7fcb1",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4"
+    "parent_artifact_id": "artifact:5323f32b-8379-46f1-b136-17c17ad57b24"
   },
   "workframe": {
     "name": "Lattice",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260824T171458",
-    "source_revision": "f8dcac4e566f7c6e1c526a2e908768bd8ec9e524",
+    "at": "20260824T172412",
+    "source_revision": "c40cca706580d2c58df51a0e9f7a063596b7fcb1",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "f8dcac4e566f7c6e1c526a2e908768bd8ec9e524",
+    "revision": "c40cca706580d2c58df51a0e9f7a063596b7fcb1",
     "entries": [
       {
         "path": ".gitignore",
@@ -217,7 +217,7 @@
       {
         "path": "lattice/cli.py",
         "mode": "100644",
-        "object_id": "b6243f76e4eab5754b8f1695d3eb48949b1fb243"
+        "object_id": "ac6be9a230e1e12a79914848fe7f7fdd32261f4b"
       },
       {
         "path": "lattice/compositor.py",
@@ -360,6 +360,11 @@
         "object_id": "662619a07f40526e6685638171d4b647de160ddb"
       },
       {
+        "path": "surface-history/20260824T171458.json",
+        "mode": "100644",
+        "object_id": "13d81dcaaec7a1e11263a91812837afaf8bb9a55"
+      },
+      {
         "path": "surface-history/README.md",
         "mode": "100644",
         "object_id": "c530e42e32d979b62062b44b6577a0ff3ac5c847"
@@ -427,7 +432,7 @@
       {
         "path": "tests/test_reliability.py",
         "mode": "100644",
-        "object_id": "317efd5ddf3efd9f65176ea097a0d4e46adc9914"
+        "object_id": "a2bd1cc3ee2c5a3a954d6aad50f8ce99d0be0bac"
       },
       {
         "path": "tests/test_supervisor.py",
@@ -595,7 +600,7 @@
         "object_id": "ba8357a4a2c1626342bbbe1864b1e990e2fb7a75"
       }
     ],
-    "entries_sha256": "790548ab17f15bc6eef27acbc47274f937bd01d5c74802b174982835f66f08e2",
+    "entries_sha256": "418cb4eb04bcd432a1a040df5e2e870622dd8fcd3afb0c27bb497d55b8411f81",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -1301,6 +1306,17 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "surface-history/20260824T171458.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2ecfc994-868b-54b7-9791-d2b9faf113fb"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
         "path": "surface-history/README.md",
         "disposition": "mapped",
         "item_ids": [
@@ -1982,7 +1998,7 @@
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:5323f32b-8379-46f1-b136-17c17ad57b24",
+    "artifact_id": "carve:f1256753-ad54-4902-a884-eab47bed6b42",
     "subject": "Lattice conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -3214,6 +3230,17 @@
             "note": "Tracked source at the reconciled committed revision."
           }
         ]
+      },
+      {
+        "id": "item:2ecfc994-868b-54b7-9791-d2b9faf113fb",
+        "label": "surface-history/20260824T171458.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260824T171458.json",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
       }
     ],
     "relations": [
@@ -3258,7 +3285,7 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
+      "parent_artifact_id": "carve:5323f32b-8379-46f1-b136-17c17ad57b24",
       "reconciliation_scope": "local",
       "decision": "Release identity, installed-byte attestation, authenticated provider receipts, and closure evidence deepen the existing operations-and-assurance module without changing the operational-ownership root or any sibling boundary.",
       "preserved_node_ids": [
@@ -3438,7 +3465,8 @@
             "item:01eaaddc-8f51-5b47-867a-e6a712006613",
             "item:0d248e77-fc58-5cd1-b6cf-b11920126a39",
             "item:95069f87-d56f-52bf-b4f6-61d2d3ac8318",
-            "item:dd419047-4a7b-56f6-a904-8957cb720509"
+            "item:dd419047-4a7b-56f6-a904-8957cb720509",
+            "item:2ecfc994-868b-54b7-9791-d2b9faf113fb"
           ],
           "children": [],
           "facets": []
@@ -3660,7 +3688,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:5ba1d0c3-f5f0-4921-ac1d-93d4aeab8ca4",
+    "parent_surface_id": "surface:5323f32b-8379-46f1-b136-17c17ad57b24",
     "preserved_claim_ids": [
       "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
@@ -3669,25 +3697,22 @@
       "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328"
     ],
     "added_claim_ids": [],
-    "retired_claim_ids": [
-      "claim:4c954f2b-fdd4-5a86-b879-0303d39b26fe"
-    ],
+    "retired_claim_ids": [],
     "preserved_source_ids": [
       "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
       "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
       "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
       "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
       "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
+      "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+      "source:adb769f3-7122-41ed-992f-92182a32bcc4",
       "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
       "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
       "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
       "source:f333a39f-3890-565c-82cb-93805cfab6c6"
     ],
-    "added_source_ids": [
-      "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
-      "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3"
-    ],
+    "added_source_ids": [],
     "retired_source_ids": []
   },
   "surface_residuals": {
