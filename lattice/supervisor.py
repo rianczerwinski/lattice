@@ -79,7 +79,13 @@ class ExecutionSupervisor:
     async def start(self) -> int:
         attempts = await asyncio.to_thread(self.store.reconcile_orphans, self.boot_id)
         commands = await asyncio.to_thread(self.store.reconcile_workflow_commands, self.boot_id)
-        return attempts + commands
+        undispatched = await asyncio.to_thread(self.store.list_undispatched_batch_members)
+        for member in undispatched:
+            await self.execute(
+                member["invocation_id"],
+                ExecuteRequest(idempotency_key=f"batch:{member['batch_id']}:{member['spec_id']}"),
+            )
+        return attempts + commands + len(undispatched)
 
     async def stop(self) -> None:
         for cancel in self._cancellations.values():

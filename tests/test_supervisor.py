@@ -12,10 +12,12 @@ from lattice.contracts import (
     DirectActorBinding,
     DraftCreate,
     ExecuteRequest,
+    InvocationBatchCreateV1,
     InvocationBatchPreviewV1,
     InvocationSpecV1,
     ProviderRoute,
 )
+from lattice.canonical import opaque_id
 from lattice.supervisor import ExecutionSupervisor
 
 
@@ -52,6 +54,59 @@ async def test_concurrency_idempotent_execution_produces_one_attempt(monkeypatch
     assert len(result["attempts"]) == 1
     assert result["state"] == "succeeded"
     assert result["output_block"]["content"] == "finished"
+
+
+@pytest.mark.asyncio
+@pytest.mark.regression
+async def test_restart_dispatches_only_batch_members_that_never_received_an_attempt(monkeypatch, lattice_env, tmp_path) -> None:
+    assembly = ContextAssemblyV1(
+        project_id=lattice_env["project"]["project_id"],
+        actor_binding=DirectActorBinding(),
+        prompt="fan out durably",
+    )
+    request = InvocationBatchPreviewV1(
+        batch_id=opaque_id("batch"),
+        specifications=[
+            InvocationSpecV1(spec_id="codex", assembly=assembly, route=lattice_env["route"]),
+            InvocationSpecV1(
+                spec_id="claude",
+                assembly=assembly,
+                route=ProviderRoute(provider="anthropic", model="claude-sonnet-4-6", harness="claude"),
+            ),
+        ],
+    )
+    preview = lattice_env["lattice"].preview_invocation_batch(request)
+    batch = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **request.model_dump(mode="json"),
+        idempotency_key="batch-restart-create-0001",
+        expected_preview_sha256=preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
+    ))
+    first, second = batch["members"]
+    first_attempt = lattice_env["store"].create_attempt(
+        first["invocation_id"],
+        f"batch:{request.batch_id}:{first['spec_id']}",
+        "dead-boot",
+        2_000_000_000,
+    )
+
+    monkeypatch.setattr(
+        "lattice.supervisor.invoke_subscription",
+        lambda *args, **kwargs: ({"response": "recovered sibling", "artifacts": []}, fake_journal(tmp_path)),
+    )
+    supervisor = ExecutionSupervisor(lattice_env["store"])
+    reconciled = await supervisor.start()
+    await asyncio.gather(*list(supervisor._tasks.values()))
+
+    first_after = lattice_env["store"].get_invocation(first["invocation_id"])
+    second_after = lattice_env["store"].get_invocation(second["invocation_id"])
+    assert reconciled == 2
+    assert len(first_after["attempts"]) == 1
+    assert first_after["attempts"][0]["attempt_id"] == first_attempt["attempt_id"]
+    assert first_after["attempts"][0]["state"] == "orphaned"
+    assert len(second_after["attempts"]) == 1
+    assert second_after["attempts"][0]["idempotency_key"] == f"batch:{request.batch_id}:{second['spec_id']}"
+    assert second_after["state"] == "succeeded"
 
 
 @pytest.mark.asyncio

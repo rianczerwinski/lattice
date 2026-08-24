@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api, beginSession, extractWorkflow, post } from './api';
+  import { batchIdempotencyKey } from './invocationBatch';
   import { renderMarkdown } from './renderMarkdown';
   import { buildRoutePayload } from './executionRoutes';
   import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
@@ -189,7 +190,7 @@
     try {
       const batch = await post<InvocationBatch>('/api/v1/invocation-batches', {
         ...pendingBatchRequest,
-        idempotency_key: crypto.randomUUID(),
+        idempotency_key: batchIdempotencyKey(String(pendingBatchRequest.batch_id)),
         expected_preview_sha256: preview.preview_sha256,
         confirmed_reason_sha256s: confirmedReasonSha256s,
       });

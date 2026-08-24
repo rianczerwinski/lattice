@@ -1671,6 +1671,20 @@ class LatticeStore:
             raise LatticeConflict("stored invocation batch receipt disagrees with its immutable identity")
         return {**receipt, "members": members}
 
+    def list_undispatched_batch_members(self) -> list[dict[str, str]]:
+        """Return atomically sealed batch members that never crossed the dispatch boundary."""
+
+        with self._connect() as conn:
+            return [dict(row) for row in conn.execute(
+                """SELECT b.batch_id,m.spec_id,m.invocation_id
+                   FROM invocation_batches b
+                   JOIN invocation_batch_members m USING(batch_id)
+                   JOIN invocations i USING(invocation_id)
+                   WHERE i.state='sealed'
+                     AND NOT EXISTS (SELECT 1 FROM attempts a WHERE a.invocation_id=m.invocation_id)
+                   ORDER BY b.created_at,b.batch_id,m.ordinal"""
+            )]
+
     def insert_invocation_batch(
         self,
         *,
