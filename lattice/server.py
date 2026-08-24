@@ -274,7 +274,14 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.get("/api/v1/routes")
     async def routes(probe: bool = Query(default=False)) -> list[dict[str, Any]]:
         from axis_model_runner import installed_adapter_status
-        return await asyncio.to_thread(installed_adapter_status, probe_versions=probe)
+        if probe:
+            raise HTTPException(status_code=405, detail="provider probes require an authenticated POST")
+        return await asyncio.to_thread(installed_adapter_status, probe_versions=False)
+
+    @app.post("/api/v1/routes/probe")
+    async def probe_routes() -> list[dict[str, Any]]:
+        from axis_model_runner import installed_adapter_status
+        return await asyncio.to_thread(installed_adapter_status, probe_versions=True)
 
     async def resolve_trigger_route(project_id: str, action: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         project = store.get_project(project_id)

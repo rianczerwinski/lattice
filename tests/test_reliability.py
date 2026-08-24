@@ -162,7 +162,7 @@ def test_negative_control_doctor_rejects_running_port_that_disagrees_with_outpor
     monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9011, "data_root": str(tmp_path)})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
-    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None: {"anthropic": {}, "openai": {}})
+    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
@@ -182,7 +182,7 @@ def test_negative_control_doctor_rejects_stale_schema_generation(monkeypatch, tm
     monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime"})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
-    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None: {"anthropic": {}, "openai": {}})
+    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"schema_version": 8, "expected_schema_version": 9})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
@@ -203,7 +203,7 @@ def test_negative_control_doctor_rejects_service_from_unselected_runtime(monkeyp
     monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "prior-runtime"})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "candidate-runtime"})
-    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None: {"anthropic": {}, "openai": {}})
+    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
@@ -453,25 +453,34 @@ def test_negative_control_required_binary_preserves_the_public_entrypoint(monkey
 @pytest.mark.regression
 def test_negative_control_doctor_uses_the_daemon_provider_view(monkeypatch) -> None:
     service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
-    monkeypatch.setattr(cli, "_service_routes", lambda _service: [
+    monkeypatch.setattr(cli, "_service_routes", lambda _service, _token: [
         {"provider_code": "anthropic", "official_cli": "claude", "model_code": "opus", "qualified": False, "operational": False, "qualified_profiles": []},
         {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "operational": True, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
     ])
 
     with pytest.raises(RuntimeError, match=r"unavailable=\['anthropic'\]"):
-        cli._adapter_status(service)
+        cli._adapter_status(service, "operator-capability")
 
 
 @pytest.mark.regression
 def test_negative_control_doctor_rejects_an_installed_but_hung_provider(monkeypatch) -> None:
     service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
-    monkeypatch.setattr(cli, "_service_routes", lambda _service: [
+    monkeypatch.setattr(cli, "_service_routes", lambda _service, _token: [
         {"provider_code": "anthropic", "official_cli": "claude", "model_code": "opus", "qualified": True, "operational": False, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
         {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "operational": True, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
     ])
 
     with pytest.raises(RuntimeError, match=r"unavailable=\['anthropic'\]"):
-        cli._adapter_status(service)
+        cli._adapter_status(service, "operator-capability")
+
+
+@pytest.mark.regression
+def test_negative_control_doctor_check_does_not_swallow_operator_interrupt() -> None:
+    def interrupted():
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        cli._check("interruptible", interrupted)
 
 
 @pytest.mark.regression

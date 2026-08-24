@@ -50,6 +50,28 @@ def test_contract_mutations_require_same_origin_operator_session(lattice_env) ->
     assert "access-control-allow-origin" not in allowed.headers
 
 
+@pytest.mark.regression
+def test_negative_control_provider_process_probe_requires_operator_authority(monkeypatch, lattice_env) -> None:
+    calls: list[bool] = []
+
+    def fake_status(*, probe_versions: bool):
+        calls.append(probe_versions)
+        return []
+
+    monkeypatch.setattr("axis_model_runner.installed_adapter_status", fake_status)
+    app = create_app(lattice_env["config"])
+    with TestClient(app) as client:
+        denied_get = client.get("/api/v1/routes?probe=true")
+        denied_post = client.post("/api/v1/routes/probe", json={})
+        session = client.get("/api/session")
+        allowed_post = client.post("/api/v1/routes/probe", headers={"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}, json={})
+
+    assert denied_get.status_code == 405
+    assert denied_post.status_code == 403
+    assert allowed_post.status_code == 200
+    assert calls == [True]
+
+
 @pytest.mark.contract
 def test_manual_project_endpoint_cannot_bypass_atomic_workflow_installation(lattice_env) -> None:
     app = create_app(lattice_env["config"])
