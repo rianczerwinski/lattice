@@ -9,6 +9,7 @@ import shutil
 import sqlite3
 import tempfile
 import threading
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -713,6 +714,12 @@ class LatticeStore:
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=FULL")
+        if sys.platform == "darwin":
+            conn.execute("PRAGMA fullfsync=ON")
+            conn.execute("PRAGMA checkpoint_fullfsync=ON")
+            if conn.execute("PRAGMA fullfsync").fetchone()[0] != 1 or conn.execute("PRAGMA checkpoint_fullfsync").fetchone()[0] != 1:
+                conn.close()
+                raise OSError("SQLite could not enable macOS full-drive synchronization")
         conn.execute("PRAGMA busy_timeout=30000")
         conn.create_function("lattice_stamp", 0, stamp)
         conn.create_function("lattice_replaying", 0, lambda: 0)

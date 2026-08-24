@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-import fcntl
 import os
 import shutil
 import sqlite3
 import stat
-import sys
 import tempfile
 import uuid
 from contextlib import contextmanager
@@ -16,32 +14,14 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .canonical import canonical_bytes, generated_object, sha256_bytes, stamp, strict_json_loads, validate_generated_object_envelope
+from .durability import sync_directory as _sync_directory
+from .durability import sync_file as _sync_file
+from .durability import sync_tree_directories as _sync_tree_directories
 
 
 SNAPSHOT_MANIFEST = "snapshot.json"
 SNAPSHOT_CONTENT_ROOTS = ("acceptance", "blobs", "model-runs")
 SNAPSHOT_CONTENT_FILES = ("lattice.sqlite3", "operator-token")
-
-
-def _sync_file(descriptor: int) -> None:
-    os.fsync(descriptor)
-    if sys.platform == "darwin":
-        fcntl.fcntl(descriptor, fcntl.F_FULLFSYNC)
-
-
-def _sync_directory(path: Path) -> None:
-    descriptor = os.open(path, os.O_RDONLY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
-
-
-def _sync_tree_directories(root: Path) -> None:
-    directories = [path for path in root.rglob("*") if path.is_dir()]
-    for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
-        _sync_directory(directory)
-    _sync_directory(root)
 
 
 def _sha256_file(path: Path) -> tuple[str, int]:

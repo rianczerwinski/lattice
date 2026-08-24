@@ -18,6 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from .http_boundary import HTTPBoundaryError, canonical_origin
+from .durability import sync_directory, sync_file
 
 
 SAFE_METHODS = {"GET", "HEAD"}
@@ -95,9 +96,10 @@ def ensure_cli_token(path: Path) -> str:
     descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
         os.write(descriptor, (token + "\n").encode("utf-8"))
-        os.fsync(descriptor)
+        sync_file(descriptor)
     finally:
         os.close(descriptor)
+    sync_directory(path.parent)
     return token
 
 

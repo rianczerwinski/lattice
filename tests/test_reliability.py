@@ -11,6 +11,7 @@ from axis_model_runner import bind_request, create_run_journal
 from fastapi.testclient import TestClient
 
 from lattice import cli
+from lattice import durability
 from lattice.canonical import canonical_bytes, generated_object
 from lattice.config import LatticeConfig, user_data_root
 from lattice.contracts import DraftCreate, ProjectCreate
@@ -36,6 +37,27 @@ def outport_payload(*, port: int = 9010, url: str = "https://lattice.axisvi.test
             },
         },
     }).encode()
+
+
+@pytest.mark.regression
+def test_darwin_strict_sync_flushes_kernel_and_drive(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(durability.sys, "platform", "darwin")
+    monkeypatch.setattr(durability.os, "fsync", lambda descriptor: calls.append(("fsync", descriptor)))
+    monkeypatch.setattr(durability.fcntl, "fcntl", lambda descriptor, operation: calls.append(("fcntl", descriptor, operation)))
+
+    durability.sync_file(41)
+
+    assert calls == [("fsync", 41), ("fcntl", 41, durability.fcntl.F_FULLFSYNC)]
+
+
+@pytest.mark.regression
+def test_darwin_ledger_connections_enable_full_drive_sync(lattice_env) -> None:
+    if durability.sys.platform != "darwin":
+        pytest.skip("SQLite fullfsync is a macOS durability contract")
+    with lattice_env["store"]._connect() as connection:
+        assert connection.execute("PRAGMA fullfsync").fetchone()[0] == 1
+        assert connection.execute("PRAGMA checkpoint_fullfsync").fetchone()[0] == 1
 
 
 @pytest.mark.contract

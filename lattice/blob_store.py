@@ -8,13 +8,18 @@ import tempfile
 from pathlib import Path
 
 from .canonical import sha256_bytes
+from .durability import sync_directory, sync_file
 
 
 class BlobStore:
     def __init__(self, root: Path) -> None:
         self.root = root
+        created = not self.root.exists()
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.root, 0o700)
+        if created:
+            sync_directory(self.root.parent)
+        sync_directory(self.root)
 
     def path_for(self, digest: str) -> Path:
         if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
@@ -27,7 +32,10 @@ class BlobStore:
     def put(self, content: bytes) -> str:
         digest = sha256_bytes(content)
         path = self.path_for(digest)
+        shard_created = not path.parent.exists()
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if shard_created:
+            sync_directory(self.root)
         if path.exists():
             if path.read_bytes() != content:
                 raise OSError(f"content-address conflict for {digest}")
@@ -43,7 +51,7 @@ class BlobStore:
                     if written <= 0:
                         raise OSError("blob write made no progress")
                     view = view[written:]
-                os.fsync(descriptor)
+                sync_file(descriptor)
             finally:
                 os.close(descriptor)
             try:
@@ -51,13 +59,12 @@ class BlobStore:
             except FileExistsError:
                 if path.read_bytes() != content:
                     raise OSError(f"content-address conflict for {digest}")
-            directory = os.open(path.parent, os.O_RDONLY)
-            try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
+            sync_directory(path.parent)
         finally:
+            existed = temporary.exists()
             temporary.unlink(missing_ok=True)
+            if existed:
+                sync_directory(temporary.parent)
         return digest
 
     @staticmethod
@@ -97,7 +104,7 @@ class BlobStore:
                             if written <= 0:
                                 raise OSError("blob write made no progress")
                             view = view[written:]
-                os.fsync(descriptor)
+                sync_file(descriptor)
             finally:
                 os.close(descriptor)
             after = source.stat()
@@ -105,7 +112,10 @@ class BlobStore:
                 raise OSError(f"blob source changed while being ingested: {source}")
             content_sha256 = digest.hexdigest()
             path = self.path_for(content_sha256)
+            shard_created = not path.parent.exists()
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            if shard_created:
+                sync_directory(self.root)
             if path.exists():
                 if not self._files_equal(path, temporary):
                     raise OSError(f"content-address conflict for {content_sha256}")
@@ -115,14 +125,13 @@ class BlobStore:
                 except FileExistsError:
                     if not self._files_equal(path, temporary):
                         raise OSError(f"content-address conflict for {content_sha256}")
-                directory = os.open(path.parent, os.O_RDONLY)
-                try:
-                    os.fsync(directory)
-                finally:
-                    os.close(directory)
+                sync_directory(path.parent)
             return content_sha256, byte_count
         finally:
+            existed = temporary.exists()
             temporary.unlink(missing_ok=True)
+            if existed:
+                sync_directory(temporary.parent)
 
     def verify_file(self, digest: str) -> tuple[Path, int]:
         """Verify one CAS object by streaming it through SHA-256 under a stable stat."""

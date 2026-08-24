@@ -191,6 +191,17 @@ def test_blob_store_removes_private_partial_files_after_write_failure(lattice_en
     assert list(lattice_env["store"].blobs.root.rglob("*.pending")) == []
 
 
+@pytest.mark.regression
+def test_blob_publication_requires_a_strict_file_sync(lattice_env, monkeypatch) -> None:
+    synced = []
+    monkeypatch.setattr("lattice.blob_store.sync_file", lambda descriptor: synced.append(descriptor))
+
+    digest = lattice_env["store"].blobs.put(b"strictly synced canonical payload")
+
+    assert lattice_env["store"].blobs.get(digest) == b"strictly synced canonical payload"
+    assert len(synced) == 1
+
+
 @pytest.mark.oracle
 def test_negative_control_removed_context_cannot_pass_manifest_oracle(lattice_env) -> None:
     draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="truth", route=lattice_env["route"]))

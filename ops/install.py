@@ -308,7 +308,9 @@ def migrate_legacy_data(legacy_root: Path) -> None:
         if target_report["schema_version"] != SCHEMA_VERSION:
             raise OSError(f"staged Lattice migration ended at schema {target_report['schema_version']}, expected {SCHEMA_VERSION}")
         verify_migration_baseline(staged_root, baseline)
+        sync_tree(staged_root)
         os.replace(staged_root, DEFAULT_DATA_ROOT)
+        sync_directory(DEFAULT_DATA_ROOT.parent)
     finally:
         shutil.rmtree(temporary_backup)
         shutil.rmtree(migration_wrapper)
