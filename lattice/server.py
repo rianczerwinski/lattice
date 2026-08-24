@@ -641,6 +641,8 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             raise HTTPException(422, "workflow evidence block IDs must be unique")
         if len(value.evidence_block_ids) < declared["minimum_evidence_blocks"]:
             raise HTTPException(422, f"workflow transition requires at least {declared['minimum_evidence_blocks']} evidence block(s)")
+        if declared["maximum_evidence_blocks"] is not None and len(value.evidence_block_ids) > declared["maximum_evidence_blocks"]:
+            raise HTTPException(422, f"workflow transition permits at most {declared['maximum_evidence_blocks']} evidence block(s)")
         action = trigger_definition["action"] if trigger_definition else None
         excluded_block_id = None
         if action and action["type"] == "invoke_role" and action.get("exclude_payload_block_field"):
@@ -661,7 +663,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             automatic_grant = next((grant for grant in workflow["automatic_grants"] if isinstance(grant, dict) and grant.get("trigger") == trigger_definition["trigger"] and grant.get("pack_canonical_sha256") == loaded["canonical_sha256"] and grant.get("action_sha256") == action_sha), None)
         if trigger_definition and trigger_definition["automatic"] and automatic_grant and action["type"] == "invoke_role":
             trigger_plan = await resolve_trigger_route(value.project_id, action)
-        receipt = store.advance_workflow(project_id=value.project_id, pack_id=pack_id, expected_revision=value.expected_revision, from_state=value.from_state, to_state=value.to_state, evidence_block_ids=value.evidence_block_ids, payload=value.payload, trigger=trigger_definition, requires_completed_trigger=declared.get("requires_completed_trigger"), trigger_pack_sha256=loaded["canonical_sha256"] if trigger_definition else None, minimum_evidence_blocks=declared["minimum_evidence_blocks"], minimum_terminal_invocation_outputs=declared["minimum_terminal_invocation_outputs"], terminal_outputs_after_current_state_entry=declared["terminal_outputs_after_current_state_entry"], terminal_output_requirements=declared["terminal_output_requirements"], evidence_requirements=declared["evidence_requirements"], expected_pack_canonical_sha256=loaded["canonical_sha256"])
+        receipt = store.advance_workflow(project_id=value.project_id, pack_id=pack_id, expected_revision=value.expected_revision, from_state=value.from_state, to_state=value.to_state, evidence_block_ids=value.evidence_block_ids, payload=value.payload, trigger=trigger_definition, requires_completed_trigger=declared.get("requires_completed_trigger"), trigger_pack_sha256=loaded["canonical_sha256"] if trigger_definition else None, minimum_evidence_blocks=declared["minimum_evidence_blocks"], maximum_evidence_blocks=declared["maximum_evidence_blocks"], minimum_terminal_invocation_outputs=declared["minimum_terminal_invocation_outputs"], terminal_outputs_after_current_state_entry=declared["terminal_outputs_after_current_state_entry"], terminal_output_requirements=declared["terminal_output_requirements"], evidence_requirements=declared["evidence_requirements"], expected_pack_canonical_sha256=loaded["canonical_sha256"])
         trigger = receipt.get("trigger")
         if trigger and trigger_definition and trigger_definition["automatic"] and not automatic_grant and action["type"] == "invoke_role":
             receipt["activation_required"] = True

@@ -310,10 +310,10 @@ This is neither a static list of translated queries nor an unconstrained agent i
 | Function | Current route | Authority |
 |---|---|---|
 | Coverage orchestrator | GPT-5.6 Sol | Maintains mission scope, coverage model, search hypotheses, action economics, and candidate closure; cannot execute searches or verify its own closure |
-| Native bibliographic partner | Sealed per-language bake-off between Gemini 3.1 Pro and Gemini 3.7 | Proposes native genres, terms, headings, source semantics, literal query strings, and interpretation of native results; cannot validate its own terms or write searches directly |
+| Native bibliographic partner | Gemini 3.7 for German | Proposes native genres, terms, headings, source semantics, literal query strings, and interpretation of native results; cannot validate its own terms or write searches directly |
 | Searcher | Deterministic source adapters | Executes exact frozen query bytes, pagination, receipts, and result preservation; has no discretion to paraphrase intent |
 | Terminology surfacer | Deterministic extraction and local embeddings, followed by native interpretation | Detects recurring title constructions, headings, series, abbreviations, and neighboring vocabulary; cannot admit works or silently add semantic terms |
-| Countersearcher | The non-primary Gemini candidate in a fresh, deliberately opposed context | Searches for materially different routes and evidence against closure; cannot close the run |
+| Countersearcher | Claude Opus 5 in a fresh, deliberately opposed context | Receives only the compiled countersearch packet, searches for materially different routes and evidence against closure, and cannot close the run |
 | Verifier | Independent deterministic verifier plus sealed oracles | Recomputes contracts and closure evidence from base records; does not reuse producer classifications as authority |
 
 The model names are configuration, not engine branches. Another language may select different routes after equivalent qualification. “No Fable” is a current workflow constraint: Fable is not a participant in this model set.
@@ -399,11 +399,11 @@ When a source or provider is blocked by a login, membership action, CAPTCHA, or 
 
 An orchestrator’s inclination to say “continued searching has low ROI,” “this region seems exhausted,” “no new patterns remain,” or “the language may be complete” is not closure evidence. It is a trigger for opposition.
 
-The countersearcher receives the executed-query ledger, yields, coverage map, unresolved regions, source capabilities, and representative evidence, but not the incumbent orchestrator’s persuasive rationale or preferred conclusion. It must propose the strongest materially different search routes available, including neglected native genres, alternate controlled headings, source jurisdictions, title constructions, classification neighborhoods, or query decompositions.
+The countersearcher receives one bounded projection, `CountersearchPacket/1.0`, compiled from the executed-arm ledger, yields, coverage map, unresolved regions, source capabilities, validated native forms, and deterministic result patterns. It does not receive the transcript, raw result corpus, closure candidate, or incumbent orchestrator’s persuasive rationale. The transition can declare both a minimum and maximum evidence-block count; Canon sets both to one so the runtime rejects any extra context. From that packet, the countersearcher must propose the strongest materially different search routes available, including neglected native genres, alternate controlled headings, source jurisdictions, title constructions, classification neighborhoods, or query decompositions.
 
 Those proposals pass the same language validation and deterministic execution path as ordinary queries. If they reveal a new plausible work, a productive native naming family, or a previously unsearched region, the stopping claim is falsified and the main loop resumes. If the strongest distinct routes produce no such novelty, closure becomes better grounded.
 
-The challenger’s usefulness comes from different context and incentives, not merely from adding another model. A second model given the same summary and asked to agree is not independent. The current use of the non-winning Gemini candidate supplies a distinct persistent context; Sol versus Gemini supplies some provider-family diversity; neither fact by itself proves independence.
+The challenger’s usefulness comes from different context and incentives, not merely from adding another model. A second model given the same summary and asked to agree is not independent. The current Sol-versus-Opus split supplies provider-family diversity, while packet blindness and opposed authority supply the load-bearing independence; provider diversity by itself proves nothing.
 
 No token budget, call count, wall-clock duration, or conversational estimate may serve as the stopping rule. These are operating constraints, not evidence about a literature. The run closes only at the claim level authorized by the quaternary protocol. It may establish that the declared multilingual search process was executed, preserved, challenged, and independently verified. It cannot prove that no unknown publication exists.
 
@@ -549,7 +549,7 @@ Closure evidence:
 
 ### Phase C — Quaternary workflow pack
 
-Bind Sol as the coverage orchestrator, qualify Gemini 3.1 Pro versus Gemini 3.7 for the native role, attach deterministic source adapters, import the quaternary ledger as domain state, and implement the native sandwich, terminology surfacing, append-only adaptive queries, `peek`, and countersearch trigger.
+Bind Sol as the coverage orchestrator, Gemini 3.7 as the German native role, Claude Opus 5 as the blinded countersearcher, attach deterministic source adapters, import the quaternary ledger as domain state, and implement the native sandwich, terminology surfacing, append-only adaptive queries, `peek`, and countersearch trigger.
 
 German is the canary because it exercises genuine native-language separation without introducing script segmentation as the first confound. The canary must coexist with historical English and Korean state without rewriting it.
 

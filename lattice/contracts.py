@@ -537,6 +537,7 @@ class WorkflowTransitionDefinition(StrictModel):
     trigger: str | None = None
     requires_completed_trigger: str | None = None
     minimum_evidence_blocks: int = Field(default=0, ge=0, le=1000)
+    maximum_evidence_blocks: int | None = Field(default=None, ge=0, le=1000)
     minimum_terminal_invocation_outputs: int = Field(default=0, ge=0, le=1000)
     terminal_outputs_after_current_state_entry: bool = False
     terminal_output_requirements: list[WorkflowTerminalOutputRequirement] = Field(default_factory=list)
@@ -544,6 +545,8 @@ class WorkflowTransitionDefinition(StrictModel):
 
     @model_validator(mode="after")
     def terminal_outputs_are_part_of_evidence(self) -> "WorkflowTransitionDefinition":
+        if self.maximum_evidence_blocks is not None and self.maximum_evidence_blocks < self.minimum_evidence_blocks:
+            raise ValueError("maximum workflow evidence cannot be below minimum evidence")
         if self.minimum_terminal_invocation_outputs > self.minimum_evidence_blocks:
             raise ValueError("terminal invocation evidence cannot exceed total evidence")
         if self.evidence_requirements and self.minimum_evidence_blocks < max(item.minimum_count for item in self.evidence_requirements):

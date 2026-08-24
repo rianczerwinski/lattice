@@ -2744,11 +2744,13 @@ class LatticeStore:
             self.fail_workflow_command(command_id, error_text="Lattice restarted after dispatch; authoritative external outcome must be inspected before retry", outcome_unknown=True)
         return len(command_ids)
 
-    def advance_workflow(self, *, project_id: str, pack_id: str, expected_revision: int, from_state: str, to_state: str, evidence_block_ids: list[str], payload: dict[str, Any], trigger: dict[str, Any] | None, requires_completed_trigger: str | None = None, trigger_pack_sha256: str | None = None, minimum_evidence_blocks: int = 0, minimum_terminal_invocation_outputs: int = 0, terminal_outputs_after_current_state_entry: bool = False, terminal_output_requirements: list[dict[str, Any]] | None = None, evidence_requirements: list[dict[str, Any]] | None = None, expected_pack_canonical_sha256: str | None = None) -> dict[str, Any]:
+    def advance_workflow(self, *, project_id: str, pack_id: str, expected_revision: int, from_state: str, to_state: str, evidence_block_ids: list[str], payload: dict[str, Any], trigger: dict[str, Any] | None, requires_completed_trigger: str | None = None, trigger_pack_sha256: str | None = None, minimum_evidence_blocks: int = 0, maximum_evidence_blocks: int | None = None, minimum_terminal_invocation_outputs: int = 0, terminal_outputs_after_current_state_entry: bool = False, terminal_output_requirements: list[dict[str, Any]] | None = None, evidence_requirements: list[dict[str, Any]] | None = None, expected_pack_canonical_sha256: str | None = None) -> dict[str, Any]:
         if len(evidence_block_ids) != len(set(evidence_block_ids)):
             raise LatticeConflict("workflow evidence block IDs must be unique")
         if len(evidence_block_ids) < minimum_evidence_blocks:
             raise LatticeConflict(f"workflow transition requires at least {minimum_evidence_blocks} evidence block(s)")
+        if maximum_evidence_blocks is not None and len(evidence_block_ids) > maximum_evidence_blocks:
+            raise LatticeConflict(f"workflow transition permits at most {maximum_evidence_blocks} evidence block(s)")
         payload_bytes = canonical_bytes(payload)
         trigger_exact_bytes = None
         trigger_completed = False

@@ -744,6 +744,36 @@ def test_workflow_initial_state_and_trigger_binding_survive_transition_reorderin
         WorkflowPackDefinition.model_validate(noncausal)
 
 
+@pytest.mark.contract
+def test_workflow_transition_can_declare_an_exact_evidence_projection():
+    raw = json.loads(TEST_QUATERNARY_PACK.read_text())
+    transition = raw["allowed_transitions"][0]
+    transition["minimum_evidence_blocks"] = 1
+    transition["maximum_evidence_blocks"] = 1
+
+    definition = WorkflowPackDefinition.model_validate(raw)
+    assert definition.allowed_transitions[0].maximum_evidence_blocks == 1
+
+    transition["maximum_evidence_blocks"] = 0
+    with pytest.raises(ValueError, match="maximum workflow evidence cannot be below minimum evidence"):
+        WorkflowPackDefinition.model_validate(raw)
+
+
+@pytest.mark.property
+def test_workflow_store_rejects_context_beyond_the_declared_projection(lattice_env):
+    store = lattice_env["store"]
+    created = store.create_workflow_project_atomic(title="bounded projection", purpose="", workflow_pack="quaternary", initial_state="before", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
+    project_id = created["project"]["project_id"]
+    first = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="compiled-packet", content="packet", authority="compiler", evidence_level="compiled"))
+    extra = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="raw-corpus", content="forbidden", authority="producer", evidence_level="raw"))
+
+    with pytest.raises(Exception, match="permits at most 1 evidence block"):
+        store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="before", to_state="after", evidence_block_ids=[first["block_id"], extra["block_id"]], payload={}, trigger=None, minimum_evidence_blocks=1, maximum_evidence_blocks=1)
+
+    accepted = store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="before", to_state="after", evidence_block_ids=[first["block_id"]], payload={}, trigger=None, minimum_evidence_blocks=1, maximum_evidence_blocks=1)
+    assert accepted["workflow"]["state"] == "after"
+
+
 @pytest.mark.regression
 def test_terminal_workflow_output_sealed_before_state_entry_is_not_fresh(lattice_env):
     store = lattice_env["store"]
