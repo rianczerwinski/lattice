@@ -1,14 +1,14 @@
 # Lattice — Surface
 
-surface-id: surface:f1256753-ad54-4902-a884-eab47bed6b42 · source-revision: c40cca706580d2c58df51a0e9f7a063596b7fcb1 · generated: 20260824T172412
-view-artifact: artifact:22db4de1-1da0-5db5-8d9f-77383590e99a · role: derived-view · parent-artifact: artifact:f1256753-ad54-4902-a884-eab47bed6b42
-source-surface: SURFACE.json · parent-sha256: 9187235e9dde3919ac7fa0f1e4930fd51538462393626089ba783e829888347d · renderer: surface-renderer/2.0.1
+surface-id: surface:66dc92cf-0852-4a62-ad82-cc382ab87884 · source-revision: 38a8d053336c2c3c516876ad7c1cdd1f714c1d6a · generated: 20260824T182341
+view-artifact: artifact:48fd2afa-e538-5ae6-a18b-0649621179d3 · role: derived-view · parent-artifact: artifact:66dc92cf-0852-4a62-ad82-cc382ab87884
+source-surface: SURFACE.json · parent-sha256: 3730deca1677ab74ad7dc1354635d5958a57e65849dc83fe1d299c82b834a692 · renderer: surface-renderer/2.0.1
 
 ## 1 · Durable lattice kernel — Direct and role-bound actors, atomic invocation batches, exact content-addressed context, overlapping episodes, graph operations, and independent manifest reconstruction. [1✓]
-- ✓ **shipped** — Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and reconstructs every observable context block independently. _(sources: lattice/store.py)_
+- ✓ **shipped** — Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and independently reconstructs both full provenance and the provider-safe conversation bytes. _(sources: lattice/store.py)_
 
 ## 2 · Execution and authority boundary — Outport-addressed loopback authority, snapshot recovery, and leased subscription-CLI execution with explicit profile qualification and durable failure state. [1✓]
-- ✓ **shipped** — Outport authority, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, snapshots, restore, and provider-drift diagnosis execute; exact-current Claude and Codex fork, resume, fallback, failure recovery, and restart continuation passed. _(sources: lattice/supervisor.py, file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T170628-0e255354-991.json, file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-0c231103830f-87f5299a9d22/runtime.json, file:/Users/rian/Library/Application Support/Lattice/backups/20260824T170655-068be392-a77/snapshot.json)_
+- ✓ **shipped** — Outport authority, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, snapshots, restore, and provider-drift diagnosis execute; semantic Claude and Codex fork, resume, fallback, failure recovery, and restart continuation passed. _(sources: lattice/supervisor.py, file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T181329-e1b954b1-a7b.json, file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-95a67a0486c1-3888c1e62ca3/runtime.json, file:/Users/rian/Library/Application Support/Lattice/backups/20260824T181355-43d1db6a-700/snapshot.json)_
 
 ## 3 · Evidence and workflow integrations — Octopus exact-source import, governed context modules, workflow packs, live Slate concern slices, and Axial projections. [1✓]
 - ✓ **partial** — Octopus exact-source import, declarative governed workflows, context modules, live concern-backed Slate slices, and Axial projection execute; complete authenticated German native-role acceptance remains unproven. _(sources: lattice/octopus_import.py, tests/test_workflows.py)_
@@ -17,16 +17,16 @@ source-surface: SURFACE.json · parent-sha256: 9187235e9dde3919ac7fa0f1e4930fd51
 - ✓ **shipped** — The same-origin cockpit supports direct Claude, Codex, or dual routing, side quests, exact grafts, compare, return, cross-feed, joins, dormant trailheads, continuously visible context deltas, and failure-isolated secondary drawers. _(sources: web/src/App.svelte)_
 
 ## 5 · Operations and assurance — Pinned installation, launchd supervision, backup and restore, dependency locks, finding ledger, historical audits, and truth-typed regression suites. [1✓]
-- ✓ **shipped** — Lattice 0.2.0 runs from a source- and byte-attested pinned environment under launchd, with verified backup and restore, exact-current browser and authenticated provider acceptance, and all 19 remediation findings closed. _(sources: tests/test_reliability.py, assurance/findings.json, file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T170628-0e255354-991.json, file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-0c231103830f-87f5299a9d22/runtime.json, file:/Users/rian/Library/Application Support/Lattice/backups/20260824T170655-068be392-a77/snapshot.json)_
+- ✓ **shipped** — Lattice 0.2.0 runs from a source- and byte-attested pinned environment under launchd, with verified backup and restore, exact-current browser and semantic authenticated provider acceptance, and all 20 remediation findings closed. _(sources: tests/test_reliability.py, assurance/findings.json, file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T181329-e1b954b1-a7b.json, file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-95a67a0486c1-3888c1e62ca3/runtime.json, file:/Users/rian/Library/Application Support/Lattice/backups/20260824T181355-43d1db6a-700/snapshot.json)_
 
 ## Derived views
 
 ### is
-- 1 Durable lattice kernel — **shipped**: Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and reconstructs every observable context block independently.
-- 2 Execution and authority boundary — **shipped**: Outport authority, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, snapshots, restore, and provider-drift diagnosis execute; exact-current Claude and Codex fork, resume, fallback, failure recovery, and restart continuation passed.
+- 1 Durable lattice kernel — **shipped**: Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and independently reconstructs both full provenance and the provider-safe conversation bytes.
+- 2 Execution and authority boundary — **shipped**: Outport authority, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, snapshots, restore, and provider-drift diagnosis execute; semantic Claude and Codex fork, resume, fallback, failure recovery, and restart continuation passed.
 - 3 Evidence and workflow integrations — **partial**: Octopus exact-source import, declarative governed workflows, context modules, live concern-backed Slate slices, and Axial projection execute; complete authenticated German native-role acceptance remains unproven.
 - 4 Response-first cockpit — **shipped**: The same-origin cockpit supports direct Claude, Codex, or dual routing, side quests, exact grafts, compare, return, cross-feed, joins, dormant trailheads, continuously visible context deltas, and failure-isolated secondary drawers.
-- 5 Operations and assurance — **shipped**: Lattice 0.2.0 runs from a source- and byte-attested pinned environment under launchd, with verified backup and restore, exact-current browser and authenticated provider acceptance, and all 19 remediation findings closed.
+- 5 Operations and assurance — **shipped**: Lattice 0.2.0 runs from a source- and byte-attested pinned environment under launchd, with verified backup and restore, exact-current browser and semantic authenticated provider acceptance, and all 20 remediation findings closed.
 
 ### doing
 - None.

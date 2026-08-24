@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:f1256753-ad54-4902-a884-eab47bed6b42",
+  "surface_id": "surface:66dc92cf-0852-4a62-ad82-cc382ab87884",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:f1256753-ad54-4902-a884-eab47bed6b42",
-    "generated_at": "20260824T172412",
+    "artifact_id": "artifact:66dc92cf-0852-4a62-ad82-cc382ab87884",
+    "generated_at": "20260824T182341",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "c40cca706580d2c58df51a0e9f7a063596b7fcb1",
+        "revision": "38a8d053336c2c3c516876ad7c1cdd1f714c1d6a",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:5323f32b-8379-46f1-b136-17c17ad57b24"
+    "parent_artifact_id": "artifact:f1256753-ad54-4902-a884-eab47bed6b42"
   },
   "workframe": {
     "name": "Lattice",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260824T172412",
-    "source_revision": "c40cca706580d2c58df51a0e9f7a063596b7fcb1",
+    "at": "20260824T182341",
+    "source_revision": "38a8d053336c2c3c516876ad7c1cdd1f714c1d6a",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "c40cca706580d2c58df51a0e9f7a063596b7fcb1",
+    "revision": "38a8d053336c2c3c516876ad7c1cdd1f714c1d6a",
     "entries": [
       {
         "path": ".gitignore",
@@ -52,12 +52,12 @@
       {
         "path": "README.md",
         "mode": "100644",
-        "object_id": "d33cb21335436aa7a6149a8d21fe7e1c84ba4850"
+        "object_id": "bbab8b14f929fa92e11118e1e1d3ae775b4358bb"
       },
       {
         "path": "assurance/README.md",
         "mode": "100644",
-        "object_id": "6e5f8eee5de7a259dcc1df3851d5f1f5dd9a43d9"
+        "object_id": "814890fe002cf571efe1fbc7dd9304c0285522b8"
       },
       {
         "path": "assurance/baseline.json",
@@ -67,7 +67,17 @@
       {
         "path": "assurance/findings.json",
         "mode": "100644",
+        "object_id": "9ec6f33e30f4eb66b285af25f536c02caa660ade"
+      },
+      {
+        "path": "assurance/history/20260824T171018-findings.json",
+        "mode": "100644",
         "object_id": "2890fc0e7d2140b8c60abee9ba73700f652f8a2a"
+      },
+      {
+        "path": "assurance/history/README.md",
+        "mode": "100644",
+        "object_id": "483a20dad817349a0796d6fac076867b2407491f"
       },
       {
         "path": "audit/20260818T140529-initial-system/AUDIT.json",
@@ -222,7 +232,7 @@
       {
         "path": "lattice/compositor.py",
         "mode": "100644",
-        "object_id": "fc88f65b75dc4e393fa8c7456c222edbd33ee8eb"
+        "object_id": "aa12c495ccdc157b32cb6fee04eab67a3238ae94"
       },
       {
         "path": "lattice/config.py",
@@ -257,7 +267,7 @@
       {
         "path": "lattice/manifest_reader.py",
         "mode": "100644",
-        "object_id": "f0ff5cc73b801983d5e91689060ecc6b8c23a680"
+        "object_id": "b41e1ac40d424d50948186d458f44d1474f57049"
       },
       {
         "path": "lattice/octopus_import.py",
@@ -307,12 +317,12 @@
       {
         "path": "lattice/store.py",
         "mode": "100644",
-        "object_id": "00972dc84bc337f59c136abe5ddb8b6594af0762"
+        "object_id": "ee42f19f61ca5a1f0a89dbe46238c27abda2db85"
       },
       {
         "path": "lattice/supervisor.py",
         "mode": "100644",
-        "object_id": "39844ed44ee3a7a3e85e878e32c9120e44bd6771"
+        "object_id": "7fd878f261615d03ba700bec753e44c4ca7637cc"
       },
       {
         "path": "lattice/workflow_template_reader.py",
@@ -332,7 +342,7 @@
       {
         "path": "ops/authenticated_acceptance.py",
         "mode": "100755",
-        "object_id": "94efa5f166f4f8a8350c1511368cdd97419c82bc"
+        "object_id": "b8b017d6c1da78d9b740d417ae6678cea7ae25c8"
       },
       {
         "path": "ops/install.py",
@@ -363,6 +373,11 @@
         "path": "surface-history/20260824T171458.json",
         "mode": "100644",
         "object_id": "13d81dcaaec7a1e11263a91812837afaf8bb9a55"
+      },
+      {
+        "path": "surface-history/20260824T172412.json",
+        "mode": "100644",
+        "object_id": "8933bf50d1f7a8c9d26a6ed1d8a62c950ad907f7"
       },
       {
         "path": "surface-history/README.md",
@@ -402,22 +417,22 @@
       {
         "path": "tests/test_authenticated_acceptance.py",
         "mode": "100644",
-        "object_id": "e5a4a2b7da879841482b6a0d5bbca75572f83d6b"
+        "object_id": "7424749e10cc290576eb84586f316d78e85230f0"
       },
       {
         "path": "tests/test_conversation_kernel.py",
         "mode": "100644",
-        "object_id": "a82cf9b3439c202ddb500d728e9663a58d14aa9b"
+        "object_id": "18b0117aded9efaa48dc9e9659cf46c610df99ab"
       },
       {
         "path": "tests/test_invocation_batches.py",
         "mode": "100644",
-        "object_id": "50c5d85f74c961a893e6dc44b10f2c883e4b43b9"
+        "object_id": "5976c1f0e098af274759c1e092ae7729670505bc"
       },
       {
         "path": "tests/test_kernel.py",
         "mode": "100644",
-        "object_id": "0e8d42e5aac00da82e381c50736ba7a59d11c2b4"
+        "object_id": "1e27ceba2e4715823e7fa559514c839968b32c61"
       },
       {
         "path": "tests/test_octopus_import.py",
@@ -600,7 +615,7 @@
         "object_id": "ba8357a4a2c1626342bbbe1864b1e990e2fb7a75"
       }
     ],
-    "entries_sha256": "418cb4eb04bcd432a1a040df5e2e870622dd8fcd3afb0c27bb497d55b8411f81",
+    "entries_sha256": "6b22b4b0e182be39a6866bb39a02c72156b3de362aee954a6040299325f45c81",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -661,6 +676,28 @@
         "disposition": "mapped",
         "item_ids": [
           "item:46a2470a-36cd-5dda-91e6-560d2e6f5afe"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "assurance/history/20260824T171018-findings.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3cfd4b57-9e2f-59c3-a48f-e2fba97664a0"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "assurance/history/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:c5d0607e-d391-5974-aeab-aaf14991f3ab"
         ],
         "node_ids": [
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
@@ -1317,6 +1354,17 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "surface-history/20260824T172412.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e17834d5-a38e-5644-974b-df9c0aaf859a"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the assurance capability boundary."
+      },
+      {
         "path": "surface-history/README.md",
         "disposition": "mapped",
         "item_ids": [
@@ -1848,25 +1896,25 @@
         "reason": "The attestation independently establishes historical closure at its frozen pre-conversation-first revision and remains explicitly stale for current-revision assurance."
       },
       {
-        "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T170628-0e255354-991.json",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T181329-e1b954b1-a7b.json",
         "kind": "materialized_state",
-        "state_token": "artifact:0e255354-9911-4681-90e2-e1498064608a",
+        "state_token": "artifact:e1b954b1-a7b9-4a80-b88b-7f82f441019c",
         "disposition": "included",
         "source_id": "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
         "reason": "The immutable authenticated report proves the exact manual lattice and provider-profile acceptance path without storing response text in the Surface."
       },
       {
-        "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-0c231103830f-87f5299a9d22/runtime.json",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-95a67a0486c1-3888c1e62ca3/runtime.json",
         "kind": "materialized_state",
-        "state_token": "artifact:b2c8a29a-032e-4db9-a070-263c0121a5b6",
+        "state_token": "artifact:f109fb8d-9363-4b81-afb8-c26ce615c2c2",
         "disposition": "included",
         "source_id": "source:adb769f3-7122-41ed-992f-92182a32bcc4",
         "reason": "The installed-runtime generation resolves the exact executable source and byte inventories selected by launchd."
       },
       {
-        "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T170655-068be392-a77/snapshot.json",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T181355-43d1db6a-700/snapshot.json",
         "kind": "materialized_state",
-        "state_token": "artifact:068be392-a775-4188-bf9a-1fc541352094",
+        "state_token": "artifact:43d1db6a-7007-4051-a88c-3fe9fb458ca5",
         "disposition": "included",
         "source_id": "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
         "reason": "The verified snapshot and isolated restore provide the independent recovery denominator for the accepted state."
@@ -1882,7 +1930,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The store and compositor implement direct or role-bound actors, atomic invocation batches, exact derived blocks, overlapping episodes, concern navigation, immutable sealing, and append-only graph history."
+      "observation": "The store and compositor implement direct or role-bound actors, atomic invocation batches, exact derived blocks, overlapping episodes, immutable full-provenance manifests, and a separately reconstructed provider-safe conversational context."
     },
     {
       "id": "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -1892,7 +1940,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The supervisor and route contracts implement leased fresh, workspace-agent, and authority-guarded native-continuation execution; authenticated Claude and Codex fork, resume, and portable fallback all passed on the installed v0.2.0 runtime."
+      "observation": "The supervisor and route contracts implement leased fresh, workspace-agent, and authority-guarded native-continuation execution; semantically checked Claude and Codex fork, resume, portable fallback, failure recovery, and restart continuation all passed on the installed v0.2.0 runtime."
     },
     {
       "id": "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -1923,7 +1971,7 @@
         "is",
         "doing"
       ],
-      "observation": "The truth-typed assurance suite rejects migration, batch, context, episode, Outport, snapshot, installed-runtime, provider-drift, and browser-failure mutations before publication."
+      "observation": "The truth-typed assurance suite rejects migration, batch, context, forged provider metadata, semantic refusal, episode, Outport, snapshot, installed-runtime, provider-drift, and browser-failure mutations before publication."
     },
     {
       "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
@@ -1933,7 +1981,7 @@
       "mode_affinity": [
         "constraints"
       ],
-      "observation": "The canonical workframe contract states Lattice's conversation-first telos, architectural boundaries, v0.2.0 release identity, real-data-ready manual acceptance, and unavailable German Gemini qualification."
+      "observation": "The canonical workframe contract states Lattice's conversation-first telos, architectural boundaries, v0.2.0 release identity, semantically checked real-data-ready manual acceptance, and unavailable German Gemini qualification."
     },
     {
       "id": "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
@@ -1963,42 +2011,42 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The canonical remediation ledger closes all 19 discriminated findings against exact runtime, provider, restart, browser, and restore receipts while preserving provider-opacity and Gemini limits."
+      "observation": "The canonical remediation ledger closes all 20 discriminated findings against exact runtime, semantic provider, restart, browser, and restore receipts while preserving provider-opacity and Gemini limits."
     },
     {
       "id": "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
-      "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T170628-0e255354-991.json",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/reports/20260824T181329-e1b954b1-a7b.json",
       "kind": "materialized_state",
       "provenance": "observed",
       "mode_affinity": [
         "is"
       ],
-      "observation": "A content-bound authenticated report records 57 passed assertions across 18 immutable Claude and Codex invocations, two rejected authority mutations, provider failure recovery, and a launchd restart with dormant-branch continuation."
+      "observation": "A content-bound authenticated report records 74 passed assertions across 18 immutable Claude and Codex invocations, semantic response markers, two rejected authority mutations, provider failure recovery, and a launchd restart with dormant-branch continuation."
     },
     {
       "id": "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-      "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-0c231103830f-87f5299a9d22/runtime.json",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-95a67a0486c1-3888c1e62ca3/runtime.json",
       "kind": "materialized_state",
       "provenance": "observed",
       "mode_affinity": [
         "is"
       ],
-      "observation": "The selected non-editable runtime binds Lattice 0c231103830f and model-runner 87f5299a9d22 to exact source and installed module-tree inventories under Outport and launchd."
+      "observation": "The selected non-editable runtime binds Lattice 95a67a0486c1 and model-runner source revision 3888c1e62ca3 to exact source and installed module-tree inventories under Outport and launchd."
     },
     {
       "id": "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
-      "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T170655-068be392-a77/snapshot.json",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T181355-43d1db6a-700/snapshot.json",
       "kind": "materialized_state",
       "provenance": "observed",
       "mode_affinity": [
         "is"
       ],
-      "observation": "The post-acceptance snapshot restored into an isolated nonexistent root and reproduced state digest 1973335d34e5e4119bd948977231b6cb35782d375ecb08129603d3e7dd4e1439."
+      "observation": "The post-acceptance snapshot restored into an isolated nonexistent root and reproduced state digest 2c26e823728ccdaebea337262f6568a8cdee1d505a4ed5656c91703a20aa5c53."
     }
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:f1256753-ad54-4902-a884-eab47bed6b42",
+    "artifact_id": "carve:66dc92cf-0852-4a62-ad82-cc382ab87884",
     "subject": "Lattice conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -3241,6 +3289,39 @@
             "note": "Tracked source at the reconciled committed revision."
           }
         ]
+      },
+      {
+        "id": "item:3cfd4b57-9e2f-59c3-a48f-e2fba97664a0",
+        "label": "assurance/history/20260824T171018-findings.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/history/20260824T171018-findings.json",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:c5d0607e-d391-5974-aeab-aaf14991f3ab",
+        "label": "assurance/history/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/history/README.md",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
+      },
+      {
+        "id": "item:e17834d5-a38e-5644-974b-df9c0aaf859a",
+        "label": "surface-history/20260824T172412.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260824T172412.json",
+            "note": "Tracked source at the reconciled committed revision."
+          }
+        ]
       }
     ],
     "relations": [
@@ -3285,9 +3366,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:5323f32b-8379-46f1-b136-17c17ad57b24",
+      "parent_artifact_id": "carve:f1256753-ad54-4902-a884-eab47bed6b42",
       "reconciliation_scope": "local",
-      "decision": "Release identity, installed-byte attestation, authenticated provider receipts, and closure evidence deepen the existing operations-and-assurance module without changing the operational-ownership root or any sibling boundary.",
+      "decision": "Provider-safe conversational serialization deepens the existing durable-kernel boundary, while semantic authenticated receipts and final closure lineage deepen operations and assurance; neither change crosses the operational-ownership root or any sibling boundary.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -3466,7 +3547,10 @@
             "item:0d248e77-fc58-5cd1-b6cf-b11920126a39",
             "item:95069f87-d56f-52bf-b4f6-61d2d3ac8318",
             "item:dd419047-4a7b-56f6-a904-8957cb720509",
-            "item:2ecfc994-868b-54b7-9791-d2b9faf113fb"
+            "item:2ecfc994-868b-54b7-9791-d2b9faf113fb",
+            "item:3cfd4b57-9e2f-59c3-a48f-e2fba97664a0",
+            "item:c5d0607e-d391-5974-aeab-aaf14991f3ab",
+            "item:e17834d5-a38e-5644-974b-df9c0aaf859a"
           ],
           "children": [],
           "facets": []
@@ -3497,32 +3581,32 @@
         },
         "one_ply_lookahead": {
           "status": "passed",
-          "claim": "Package versioning, installed-tree attestation, authenticated acceptance, backup recovery, and audit lineage remain one install-recover-prove capability rather than crossing into cognition, workflow integration, or cockpit ownership.",
+          "claim": "Exact manifest provenance and provider-facing conversation bytes remain two views of one context-sealing capability; release identity, semantic acceptance, backup recovery, and audit lineage remain one install-recover-prove capability.",
           "evidence": [
-            "lattice/__about__.py",
-            "lattice/runtime_attestation.py",
-            "ops/install.py",
+            "lattice/compositor.py",
+            "lattice/manifest_reader.py",
+            "ops/authenticated_acceptance.py",
             "assurance/findings.json"
           ]
         },
         "kind_homogeneity": {
           "status": "passed",
-          "claim": "All five children remain operational capability subsystems; operations and assurance continues to own release, supervision, recovery, and proof without becoming a lifecycle decoration bucket.",
+          "claim": "All five children remain operational capability subsystems: context serialization belongs to the kernel, provider execution to authority, integrations to evidence, interaction to the cockpit, and release proof to operations and assurance.",
           "evidence": [
-            "lattice/store.py",
+            "lattice/compositor.py",
             "lattice/supervisor.py",
             "web/src/App.svelte",
             "ops/install.py",
-            "tests/test_reliability.py"
+            "tests/test_authenticated_acceptance.py"
           ]
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "A release-lifecycle challenger would scatter one conversation capability across build stages, while the incumbent operational-ownership carve keeps each enduring state owner intact and confines this reconciliation to assurance.",
+          "claim": "A format-version or release-stage challenger would scatter context truth and runtime proof across transient stages, while the incumbent operational-ownership carve keeps the manifest, provider payload, execution, and assurance owners intact.",
           "evidence": [
+            "lattice/compositor.py",
+            "lattice/manifest_reader.py",
             "lattice/operations.py",
-            "lattice/server.py",
-            "lattice/runtime_attestation.py",
             "ops/install.py"
           ]
         }
@@ -3590,7 +3674,7 @@
           "id": "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
           "mode": "is",
           "state": "shipped",
-          "summary": "Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and reconstructs every observable context block independently.",
+          "summary": "Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and independently reconstructs both full provenance and the provider-safe conversation bytes.",
           "detail": null,
           "source_ids": [
             "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
@@ -3609,7 +3693,7 @@
           "id": "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
           "mode": "is",
           "state": "shipped",
-          "summary": "Outport authority, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, snapshots, restore, and provider-drift diagnosis execute; exact-current Claude and Codex fork, resume, fallback, failure recovery, and restart continuation passed.",
+          "summary": "Outport authority, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, snapshots, restore, and provider-drift diagnosis execute; semantic Claude and Codex fork, resume, fallback, failure recovery, and restart continuation passed.",
           "detail": null,
           "source_ids": [
             "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -3670,7 +3754,7 @@
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
           "state": "shipped",
-          "summary": "Lattice 0.2.0 runs from a source- and byte-attested pinned environment under launchd, with verified backup and restore, exact-current browser and authenticated provider acceptance, and all 19 remediation findings closed.",
+          "summary": "Lattice 0.2.0 runs from a source- and byte-attested pinned environment under launchd, with verified backup and restore, exact-current browser and semantic authenticated provider acceptance, and all 20 remediation findings closed.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
@@ -3688,7 +3772,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:5323f32b-8379-46f1-b136-17c17ad57b24",
+    "parent_surface_id": "surface:f1256753-ad54-4902-a884-eab47bed6b42",
     "preserved_claim_ids": [
       "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
