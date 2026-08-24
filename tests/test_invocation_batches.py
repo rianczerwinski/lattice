@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from lattice.canonical import canonical_bytes, opaque_id, sha256_json
+from lattice.canonical import canonical_bytes, opaque_id, sha256_bytes, sha256_json
 from lattice.contracts import (
     ContextAssemblyV1,
     ContextBlockCreate,
@@ -57,6 +57,24 @@ def test_stateless_fanout_preview_shares_semantic_context_without_persistence(la
     assert len({item["preflight"]["compilation"]["compiled_prompt_sha256"] for item in preview["members"]}) == 1
     assert {item["preflight"]["execution"]["provider"] for item in preview["members"]} == {"openai", "anthropic"}
     assert all("capabilities" in item["preflight"] for item in preview["members"])
+
+
+@pytest.mark.regression
+def test_negative_control_fanout_rejects_route_specific_semantic_context(monkeypatch, lattice_env) -> None:
+    compositor = lattice_env["lattice"].compositor
+    real_compile = compositor.compile
+
+    def divergent_compile(draft, **kwargs):
+        manifest, compiled = real_compile(draft, **kwargs)
+        if draft["route"]["provider"] == "anthropic":
+            compiled += b"\nroute-specific semantic mutation"
+            manifest["compilation"]["compiled_prompt_sha256"] = sha256_bytes(compiled)
+        return manifest, compiled
+
+    monkeypatch.setattr(compositor, "compile", divergent_compile)
+
+    with pytest.raises(LatticeConflict, match="shared context assembly"):
+        lattice_env["lattice"].preview_invocation_batch(_preview_request(lattice_env))
 
 
 @pytest.mark.property

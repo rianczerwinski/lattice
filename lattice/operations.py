@@ -107,6 +107,18 @@ class Lattice:
             add("execution.isolation-changed", {"before": sorted(previous_profiles), "after": current_profile})
         return reasons
 
+    @staticmethod
+    def _assert_shared_assembly_context(members: list[dict[str, Any]]) -> None:
+        """One route-neutral assembly must compile to one exact semantic byte stream."""
+
+        compiled_by_assembly: dict[str, str] = {}
+        for member in members:
+            assembly_sha = member["assembly_sha256"]
+            compiled_sha = member.get("compiled_prompt_sha256") or member["preflight"]["compilation"]["compiled_prompt_sha256"]
+            existing = compiled_by_assembly.setdefault(assembly_sha, compiled_sha)
+            if existing != compiled_sha:
+                raise LatticeConflict("one shared context assembly compiled to different semantic bytes")
+
     def preview_invocation_batch(self, value: InvocationBatchPreviewV1) -> dict[str, Any]:
         """Compile a batch without persisting drafts, invocations, or events."""
 
@@ -157,6 +169,7 @@ class Lattice:
                 "compiled_prompt_preview": compiled.decode("utf-8"),
                 "parent_deltas": parent_deltas,
             })
+        self._assert_shared_assembly_context(members)
         material = {
             "contract_version": "InvocationBatchPreviewV1",
             "batch_id": value.batch_id,
@@ -210,6 +223,7 @@ class Lattice:
                 "manifest": manifest,
                 "compiled_prompt_sha256": manifest["compilation"]["compiled_prompt_sha256"],
             })
+        self._assert_shared_assembly_context(prepared)
 
         sources = [
             {"ref": f"lattice:invocation/{item['manifest']['invocation_id']}", "revision": None, "sha256": item["manifest"]["manifest_sha256"]}
