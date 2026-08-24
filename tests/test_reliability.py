@@ -189,6 +189,22 @@ def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -
     assert str(deployment.SOURCE_ROOT / ".venv") not in shim
 
 
+@pytest.mark.regression
+def test_negative_control_runtime_probe_executes_outside_the_source_checkout(monkeypatch, tmp_path) -> None:
+    observed = {}
+
+    def fake_run(arguments, *, cwd, capture):
+        observed.update({"arguments": arguments, "cwd": cwd, "capture": capture})
+        return argparse.Namespace(stdout=b'{"lattice":"/installed/lattice/__init__.py","model_runner":"/installed/axis_model_runner/__init__.py"}')
+
+    monkeypatch.setattr(deployment, "run", fake_run)
+    locations = deployment.probe_runtime(tmp_path)
+
+    assert observed["cwd"] == tmp_path
+    assert observed["capture"] is True
+    assert locations["lattice"].startswith("/installed/")
+
+
 @pytest.mark.property
 def test_negative_control_migration_baseline_rejects_invented_source_rows(lattice_env) -> None:
     baseline = deployment.capture_migration_baseline(lattice_env["config"].data_root)

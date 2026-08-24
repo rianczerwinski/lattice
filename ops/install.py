@@ -239,6 +239,18 @@ def backup_before_upgrade() -> None:
     assess_backup(snapshot)
 
 
+def probe_runtime(target: Path) -> dict[str, str]:
+    result = run([
+        str(target / ".venv" / "bin" / "python"),
+        "-c",
+        "import json,lattice,axis_model_runner; print(json.dumps({'lattice':lattice.__file__,'model_runner':axis_model_runner.__file__}))",
+    ], cwd=target, capture=True)
+    value = json.loads(result.stdout)
+    if not isinstance(value, dict) or set(value) != {"lattice", "model_runner"} or any(not isinstance(location, str) for location in value.values()):
+        raise RuntimeError(f"installed runtime probe returned invalid module locations: {value}")
+    return value
+
+
 def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
     version = "0.1.0"
     runtime_id = f"{version}-{lattice_revision[:12]}-{runner_revision[:12]}"
@@ -257,12 +269,7 @@ def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
         environment = dict(os.environ)
         environment["VIRTUAL_ENV"] = str(target / ".venv")
         run(["uv", "sync", "--project", str(SOURCE_ROOT), "--active", "--frozen", "--no-dev", "--no-editable"], env=environment)
-        probe = run([
-            str(target / ".venv" / "bin" / "python"),
-            "-c",
-            "import json,lattice,axis_model_runner; print(json.dumps({'lattice':lattice.__file__,'model_runner':axis_model_runner.__file__}))",
-        ], capture=True)
-        locations = json.loads(probe.stdout)
+        locations = probe_runtime(target)
         if any(str(SOURCE_ROOT) in location or str(MODEL_RUNNER_ROOT) in location for location in locations.values()):
             raise RuntimeError(f"installed runtime still imports a development checkout: {locations}")
         run([str(target / ".venv" / "bin" / "lattice"), "--help"])
