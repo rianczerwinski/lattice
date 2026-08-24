@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -19,9 +21,18 @@ class WorkflowAdapter(Protocol):
 
 class WorkflowRegistry:
     MAX_PACK_BYTES = 2 * 1024 * 1024
+    PACK_ID = re.compile(r"^[a-z][a-z0-9.-]*$")
 
-    def __init__(self, pack_root: Path):
-        self.pack_root = pack_root.resolve()
+    def __init__(self, pack_roots: Path | Iterable[Path]):
+        roots = (pack_roots,) if isinstance(pack_roots, Path) else tuple(pack_roots)
+        if not roots:
+            raise ValueError("workflow registry requires at least one pack root")
+        resolved = tuple(dict.fromkeys(path.resolve() for path in roots))
+        missing = [str(path) for path in resolved if not path.is_dir()]
+        if missing:
+            raise FileNotFoundError(f"workflow pack root is unavailable: {missing[0]}")
+        self.pack_roots = resolved
+        self.pack_root = resolved[0]
         self.adapters: dict[str, WorkflowAdapter] = {}
 
     def register(self, pack_id: str, adapter: WorkflowAdapter) -> None:
@@ -31,15 +42,13 @@ class WorkflowRegistry:
 
     def list(self) -> list[dict[str, Any]]:
         packs: list[dict[str, Any]] = []
-        for path in sorted(self.pack_root.glob("*/pack.json")):
-            loaded = self.load(path.parent.name)
-            packs.append({**loaded, "available": path.parent.name in self.adapters})
+        for pack_id in self._pack_ids():
+            loaded = self.load(pack_id)
+            packs.append({**loaded, "available": pack_id in self.adapters})
         return packs
 
     def load(self, pack_id: str) -> dict[str, Any]:
-        path = (self.pack_root / pack_id / "pack.json").resolve()
-        if not path.is_relative_to(self.pack_root):
-            raise ValueError("workflow pack escaped its root")
+        path = self._pack_path(pack_id)
         with path.open("rb") as handle:
             before = os.fstat(handle.fileno())
             if not stat.S_ISREG(before.st_mode):
@@ -57,6 +66,33 @@ class WorkflowRegistry:
             raise ValueError("workflow pack identity does not match its path")
         value = definition.model_dump(mode="json", by_alias=True)
         return {"definition": value, "source_sha256": sha256_bytes(raw), "canonical_sha256": sha256_bytes(canonical_bytes(value))}
+
+    def _pack_ids(self) -> list[str]:
+        identities: dict[str, list[Path]] = {}
+        for root in self.pack_roots:
+            for path in sorted(root.glob("*/pack.json")):
+                identities.setdefault(path.parent.name, []).append(path.resolve())
+        duplicate = next((pack_id for pack_id, paths in sorted(identities.items()) if len(set(paths)) > 1), None)
+        if duplicate is not None:
+            raise ValueError(f"workflow pack identity is declared by more than one root: {duplicate}")
+        return sorted(identities)
+
+    def _pack_path(self, pack_id: str) -> Path:
+        if not self.PACK_ID.fullmatch(pack_id):
+            raise ValueError("workflow pack identity is malformed")
+        paths = []
+        for root in self.pack_roots:
+            path = (root / pack_id / "pack.json").resolve()
+            if not path.is_relative_to(root):
+                raise ValueError("workflow pack escaped its root")
+            if path.is_file():
+                paths.append(path)
+        unique = tuple(dict.fromkeys(paths))
+        if not unique:
+            raise FileNotFoundError(f"workflow pack is unavailable: {pack_id}")
+        if len(unique) > 1:
+            raise ValueError(f"workflow pack identity is declared by more than one root: {pack_id}")
+        return unique[0]
 
     def inspect(self, pack_id: str, selector: dict[str, Any]) -> dict[str, Any]:
         selector = self.resolve_selector(pack_id, selector)

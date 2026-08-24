@@ -50,6 +50,11 @@ class QuaternaryAdapter:
         "create-gather",
         "stop-language-preparation",
         "record-language-authority",
+        "reclaim-expired-language-actions",
+        "start",
+        "reclaim-expired",
+        "request-finalization",
+        "stop",
     }
     ARGUMENTS = {
         "language": "--language",
@@ -68,6 +73,8 @@ class QuaternaryAdapter:
         "body_path": "--body",
         "media_type": "--media-type",
         "recorder": "--recorder",
+        "run_id": "--run-id",
+        "requester": "--requester",
     }
     MAX_CAPTURE_BYTES = 64 * 1024 * 1024
     MAX_INSPECT_ACTIONS = 100
@@ -115,6 +122,30 @@ class QuaternaryAdapter:
                     item["actions"] = None
                     item["action_coverage"] = None
                 item["readiness"] = self._one(conn, "SELECT state,dependency_set_sha256,proof_limits_json,verified_at,verifier FROM qe_language_readiness WHERE preparation_id=?", (prep_id,)) if "qe_language_readiness" in tables else None
+                if {"qe_run_generations", "qe_runs"}.issubset(tables):
+                    gather_rows = conn.execute(
+                        """
+                        SELECT r.run_id,r.manifest_id,r.language_code,r.state,r.token_telemetry,
+                               r.stop_reason,r.started_at,g.generation,g.run_kind
+                        FROM qe_run_generations g
+                        JOIN qe_runs r USING(run_id)
+                        WHERE g.preparation_id=?
+                        ORDER BY g.generation,r.run_id
+                        """,
+                        (prep_id,),
+                    ).fetchall()
+                    item["gather_runs"] = []
+                    for gather_row in gather_rows:
+                        gather = dict(gather_row)
+                        run_id = int(gather_row["run_id"])
+                        manifest_id = int(gather_row["manifest_id"])
+                        gather["query_counts"] = self._group_counts(conn, tables, "qe_planned_queries", "SELECT status,count(*) FROM qe_planned_queries WHERE manifest_id=? GROUP BY status", (manifest_id,))
+                        gather["lease_counts"] = self._group_counts(conn, tables, "qe_action_leases", "SELECT status,count(*) FROM qe_action_leases WHERE run_id=? GROUP BY status", (run_id,))
+                        gather["receipt_pages"] = self._count(conn, tables, "qe_response_receipts", "SELECT count(*) FROM qe_response_receipts receipt JOIN qe_action_leases lease USING(lease_id) WHERE lease.run_id=?", (run_id,))
+                        gather["screened_results"] = self._count(conn, tables, {"qe_screened_results", "qe_query_executions", "qe_action_leases"}, "SELECT count(*) FROM qe_screened_results result JOIN qe_query_executions execution USING(execution_id) JOIN qe_action_leases lease USING(lease_id) WHERE lease.run_id=?", (run_id,))
+                        item["gather_runs"].append(gather)
+                else:
+                    item["gather_runs"] = None
                 item["profile_counts"] = None if profile_id is None else {
                     "lanes": self._count(conn, tables, "qe_language_profile_lanes", "SELECT count(*) FROM qe_language_profile_lanes WHERE profile_id=?", (profile_id,)),
                     "forms": self._count(conn, tables, "qe_language_profile_forms", "SELECT count(*) FROM qe_language_profile_forms WHERE profile_id=?", (profile_id,)),
@@ -148,6 +179,12 @@ class QuaternaryAdapter:
                     "language_qualifications": self._rowset_receipt(conn, tables, "qe_language_qualifications", "t.preparation_id=?", (prep_id,)),
                     "preflight_receipts": self._rowset_receipt(conn, tables, "qe_preflight_receipts", "a.preparation_id=?", (prep_id,), join_sql="JOIN qe_preparation_actions a ON a.action_id=t.action_id", required={"qe_preflight_receipts", "qe_preparation_actions"}),
                     "preflight_results": self._rowset_receipt(conn, tables, "qe_preflight_results", "a.preparation_id=?", (prep_id,), join_sql="JOIN qe_preparation_actions a ON a.action_id=t.action_id", required={"qe_preflight_results", "qe_preparation_actions"}),
+                    "gather_generations": self._rowset_receipt(conn, tables, "qe_run_generations", "t.preparation_id=?", (prep_id,)),
+                    "gather_runs": self._rowset_receipt(conn, tables, "qe_runs", "g.preparation_id=?", (prep_id,), join_sql="JOIN qe_run_generations g ON g.run_id=t.run_id", required={"qe_runs", "qe_run_generations"}),
+                    "gather_queries": self._rowset_receipt(conn, tables, "qe_planned_queries", "g.preparation_id=?", (prep_id,), join_sql="JOIN qe_runs r ON r.manifest_id=t.manifest_id JOIN qe_run_generations g ON g.run_id=r.run_id", required={"qe_planned_queries", "qe_runs", "qe_run_generations"}),
+                    "gather_leases": self._rowset_receipt(conn, tables, "qe_action_leases", "g.preparation_id=?", (prep_id,), join_sql="JOIN qe_run_generations g ON g.run_id=t.run_id", required={"qe_action_leases", "qe_run_generations"}),
+                    "gather_response_receipts": self._rowset_receipt(conn, tables, "qe_response_receipts", "g.preparation_id=?", (prep_id,), join_sql="JOIN qe_action_leases l ON l.lease_id=t.lease_id JOIN qe_run_generations g ON g.run_id=l.run_id", required={"qe_response_receipts", "qe_action_leases", "qe_run_generations"}),
+                    "gather_screened_results": self._rowset_receipt(conn, tables, "qe_screened_results", "g.preparation_id=?", (prep_id,), join_sql="JOIN qe_query_executions e ON e.execution_id=t.execution_id JOIN qe_action_leases l ON l.lease_id=e.lease_id JOIN qe_run_generations g ON g.run_id=l.run_id", required={"qe_screened_results", "qe_query_executions", "qe_action_leases", "qe_run_generations"}),
                     "profile_lanes": self._rowset_receipt(conn, tables, "qe_language_profile_lanes", "t.profile_id=?", (profile_id,)) if profile_id is not None else None,
                     "profile_forms": self._rowset_receipt(conn, tables, "qe_language_profile_forms", "t.profile_id=?", (profile_id,)) if profile_id is not None else None,
                     "profile_lexemes": self._rowset_receipt(conn, tables, "qe_language_lexemes", "t.profile_id=?", (profile_id,)) if profile_id is not None else None,
@@ -155,7 +192,7 @@ class QuaternaryAdapter:
                     "profile_source_bindings": self._rowset_receipt(conn, tables, "qe_language_profile_source_bindings", "t.profile_id=?", (profile_id,)) if profile_id is not None else None,
                 }
                 preparations.append(item)
-            required_tables = {"qe_language_preparations", "qe_preparation_actions", "qe_language_readiness", "qe_authority_receipts", "qe_authority_language_evidence", "qe_preflight_receipts", "qe_preflight_results", "qe_language_readiness_checks", "qe_language_readiness_oracles", "qe_language_qualifications", "qe_validated_model_contributions", "qe_language_profile_lanes", "qe_language_profile_forms", "qe_language_lexemes", "qe_language_false_friends", "qe_language_profile_source_bindings"}
+            required_tables = {"qe_language_preparations", "qe_preparation_actions", "qe_language_readiness", "qe_authority_receipts", "qe_authority_language_evidence", "qe_preflight_receipts", "qe_preflight_results", "qe_language_readiness_checks", "qe_language_readiness_oracles", "qe_language_qualifications", "qe_validated_model_contributions", "qe_language_profile_lanes", "qe_language_profile_forms", "qe_language_lexemes", "qe_language_false_friends", "qe_language_profile_source_bindings", "qe_run_generations", "qe_runs", "qe_planned_queries", "qe_action_leases", "qe_response_receipts", "qe_query_executions", "qe_screened_results"}
             resolved_preparation_id = str(rows[0]["preparation_id"]) if rows else None
             state = {
                 "language": language,

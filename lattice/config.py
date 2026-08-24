@@ -48,11 +48,13 @@ class LatticeConfig:
     lease_seconds: int = 900
     axisvi_root: Path | None = AXIS_ROOT
     quaternary_root_override: Path | None = None
+    workflow_pack_roots_extra: tuple[Path, ...] = ()
 
     @classmethod
     def from_environment(cls) -> "LatticeConfig":
         axisvi_root = discover_axisvi_root()
         default_data = axisvi_root / "axis" / "psyche" / "recollection" / "lattice" / "data" if axisvi_root else user_data_root()
+        extra_pack_roots = tuple(Path(value).expanduser().resolve() for value in os.environ.get("LATTICE_WORKFLOW_PACK_ROOTS", "").split(os.pathsep) if value)
         return cls(
             data_root=Path(os.environ.get("LATTICE_DATA_DIR", default_data)).expanduser(),
             host=os.environ.get("LATTICE_HOST", "127.0.0.1"),
@@ -60,6 +62,7 @@ class LatticeConfig:
             octopus_base_url=os.environ.get("LATTICE_OCTOPUS_URL", "http://127.0.0.1:8000"),
             axisvi_root=axisvi_root,
             quaternary_root_override=Path(os.environ["LATTICE_QUATERNARY_ROOT"]).expanduser().resolve() if os.environ.get("LATTICE_QUATERNARY_ROOT") else None,
+            workflow_pack_roots_extra=extra_pack_roots,
         )
 
     @property
@@ -85,6 +88,10 @@ class LatticeConfig:
         if self.axisvi_root:
             return self.axisvi_root / "sui" / "mission" / "projects" / "canon" / "dev" / "quaternary-exhaustion"
         return None
+
+    @property
+    def workflow_pack_roots(self) -> tuple[Path, ...]:
+        return (WORKFLOW_PACK_ROOT, *(path.expanduser().resolve() for path in self.workflow_pack_roots_extra))
 
     @property
     def allowed_file_roots(self) -> tuple[Path, ...]:

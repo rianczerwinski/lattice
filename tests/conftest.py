@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from lattice import Lattice, LatticeConfig, LatticeStore
 from lattice.contracts import ProjectCreate, ProviderRoute, RoleCreate, RoleSessionCreate
 
 
+BUILTIN_WORKFLOW_PACK_ROOT = Path(__file__).parents[1] / "workflow_packs"
+TEST_WORKFLOW_PACK_ROOT = Path(__file__).parent / "fixtures" / "workflow_packs"
+TEST_WORKFLOW_PACK_ROOTS = (BUILTIN_WORKFLOW_PACK_ROOT, TEST_WORKFLOW_PACK_ROOT)
+TEST_QUATERNARY_PACK = TEST_WORKFLOW_PACK_ROOT / "quaternary" / "pack.json"
+
+
 @pytest.fixture
 def lattice_env(tmp_path):
-    config = LatticeConfig(data_root=tmp_path / "data", port=9010)
+    config = LatticeConfig(data_root=tmp_path / "data", port=9010, axisvi_root=None, workflow_pack_roots_extra=(TEST_WORKFLOW_PACK_ROOT,))
     store = LatticeStore(config)
     lattice = Lattice(store)
     project = store.create_project(ProjectCreate(title="Test lattice", purpose="Independent Lattice assurance"))

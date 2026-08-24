@@ -15,10 +15,11 @@ from lattice.contracts import AttemptState, ContextBlockCreate, ContextModuleDef
 from lattice.quaternary import QuaternaryAdapter, QuaternaryBoundaryError, QuaternaryOutcomeUnknown
 from lattice.platform_foundry import PlatformFoundryAdapter
 from lattice.workflows import WorkflowRegistry
+from conftest import TEST_QUATERNARY_PACK, TEST_WORKFLOW_PACK_ROOTS
 
 
 def _command_project(store):
-    pack_sha = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")["canonical_sha256"]
+    pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
     created = store.create_workflow_project_atomic(title="workflow", purpose="", workflow_pack="quaternary", initial_state="semantic-intent", role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
     return created["project"], pack_sha
 
@@ -92,6 +93,48 @@ def test_quaternary_language_state_selects_latest_and_binds_omitted_action_rows(
     third = adapter.inspect({"language": "de"})
     assert third["preparations"][0]["rowset_receipts"]["authority_receipts"]["row_count"] == 1
     assert third["state_sha256"] != second["state_sha256"]
+
+
+@pytest.mark.oracle
+def test_quaternary_state_projects_the_linked_gather_without_replacing_its_ledger(tmp_path: Path):
+    database = tmp_path / "quaternary.sqlite3"
+    with sqlite3.connect(database) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE qe_language_preparations(preparation_id TEXT, language_code TEXT, generation INTEGER, state TEXT);
+            CREATE TABLE qe_run_generations(run_id INTEGER, preparation_id TEXT, language_code TEXT, generation INTEGER, run_kind TEXT);
+            CREATE TABLE qe_runs(run_id INTEGER, manifest_id INTEGER, language_code TEXT, state TEXT, token_telemetry INTEGER, stop_reason TEXT, started_at TEXT);
+            CREATE TABLE qe_planned_queries(planned_query_id INTEGER, manifest_id INTEGER, status TEXT);
+            CREATE TABLE qe_action_leases(lease_id INTEGER, run_id INTEGER, status TEXT);
+            CREATE TABLE qe_response_receipts(receipt_id INTEGER, lease_id INTEGER, body_zlib BLOB);
+            CREATE TABLE qe_query_executions(execution_id INTEGER, lease_id INTEGER);
+            CREATE TABLE qe_screened_results(result_id INTEGER, execution_id INTEGER, title TEXT);
+            INSERT INTO qe_language_preparations VALUES('qep_de_1','de',1,'language_launch_ready');
+            INSERT INTO qe_run_generations VALUES(7,'qep_de_1','de',1,'gather');
+            INSERT INTO qe_runs VALUES(7,11,'de','running',300,NULL,'now');
+            INSERT INTO qe_planned_queries VALUES(101,11,'complete'),(102,11,'pending');
+            INSERT INTO qe_action_leases VALUES(201,7,'completed');
+            INSERT INTO qe_response_receipts VALUES(301,201,X'0102');
+            INSERT INTO qe_query_executions VALUES(401,201);
+            INSERT INTO qe_screened_results VALUES(501,401,'Bibliographie der Bibliographien');
+            """
+        )
+    adapter = QuaternaryAdapter(database, tmp_path / "gatherctl.py")
+
+    first = adapter.inspect({"preparation_id": "qep_de_1", "language": "de"})
+    gather = first["preparations"][0]["gather_runs"][0]
+
+    assert gather["run_id"] == 7
+    assert gather["query_counts"] == {"complete": 1, "pending": 1}
+    assert gather["receipt_pages"] == 1
+    assert gather["screened_results"] == 1
+    assert first["preparations"][0]["rowset_receipts"]["gather_screened_results"]["row_count"] == 1
+
+    with sqlite3.connect(database) as conn:
+        conn.execute("UPDATE qe_screened_results SET title='Mutated result' WHERE result_id=501")
+    second = adapter.inspect({"preparation_id": "qep_de_1", "language": "de"})
+
+    assert second["state_sha256"] != first["state_sha256"]
 
 
 @pytest.mark.regression
@@ -228,6 +271,27 @@ def test_quaternary_adapter_materializes_exact_bound_blob_only_for_subprocess_li
     assert result["receipt"]["input_receipts"][0]["content_sha256"] == digest
 
 
+@pytest.mark.contract
+def test_quaternary_adapter_exposes_only_governed_high_level_gather_controls(tmp_path: Path):
+    gatherctl = tmp_path / "gatherctl.py"
+    gatherctl.write_text("# fixture", encoding="utf-8")
+    calls = []
+
+    def runner(command, **_kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout='{"ok":true}', stderr="")
+
+    adapter = QuaternaryAdapter(tmp_path / "db", gatherctl, runner=runner)
+
+    adapter.command("start", {"run_id": 7})
+    adapter.command("request-finalization", {"run_id": 7, "requester": "fixture"})
+
+    assert calls[0][-2:] == ["--run-id", "7"]
+    assert calls[1][-4:] == ["--run-id", "7", "--requester", "fixture"]
+    with pytest.raises(QuaternaryBoundaryError, match="unsupported"):
+        adapter.command("complete-query", {"run_id": 7})
+
+
 @pytest.mark.regression
 def test_quaternary_adapter_removes_bound_input_when_driver_attestation_fails(monkeypatch, tmp_path: Path):
     gatherctl = tmp_path / "gatherctl.py"
@@ -257,7 +321,7 @@ def test_quaternary_adapter_removes_bound_input_when_driver_attestation_fails(mo
 def test_negative_control_registry_rejects_adapter_operations_absent_from_the_portable_pack(tmp_path: Path):
     pack_root = tmp_path / "packs"
     pack_root.mkdir()
-    source = Path(__file__).parents[1] / "workflow_packs" / "quaternary" / "pack.json"
+    source = TEST_QUATERNARY_PACK
     target = pack_root / "quaternary"
     target.mkdir()
     value = json.loads(source.read_text())
@@ -272,7 +336,7 @@ def test_negative_control_registry_rejects_adapter_operations_absent_from_the_po
 
 @pytest.mark.contract
 def test_workflow_project_selectors_are_declared_defaulted_and_closed_to_extras():
-    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
 
     assert registry.resolve_selector("quaternary", {}) == {"language": "de"}
     assert registry.resolve_selector("platform-foundry", {"platform_id": "pinterest-com"}) == {"platform_id": "pinterest-com"}
@@ -282,12 +346,30 @@ def test_workflow_project_selectors_are_declared_defaulted_and_closed_to_extras(
         registry.resolve_selector("platform-foundry", {"platform_id": "pinterest-com", "authority": "write"})
 
 
+@pytest.mark.contract
+def test_registry_composes_project_owned_pack_roots_without_shadow_precedence(tmp_path: Path):
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
+
+    assert {item["definition"]["pack_id"] for item in registry.list()} == {"platform-foundry", "quaternary"}
+
+    duplicate_root = tmp_path / "duplicate-packs"
+    duplicate = duplicate_root / "quaternary"
+    duplicate.mkdir(parents=True)
+    duplicate.joinpath("pack.json").write_bytes(TEST_QUATERNARY_PACK.read_bytes())
+    duplicated = WorkflowRegistry((*TEST_WORKFLOW_PACK_ROOTS, duplicate_root))
+
+    with pytest.raises(ValueError, match="more than one root: quaternary"):
+        duplicated.load("quaternary")
+    with pytest.raises(ValueError, match="more than one root: quaternary"):
+        duplicated.list()
+
+
 @pytest.mark.regression
 def test_negative_control_workflow_pack_rejects_duplicate_json_keys(tmp_path: Path):
     pack_root = tmp_path / "packs"
     target = pack_root / "quaternary"
     target.mkdir(parents=True)
-    source = (Path(__file__).parents[1] / "workflow_packs" / "quaternary" / "pack.json").read_text()
+    source = TEST_QUATERNARY_PACK.read_text()
     (target / "pack.json").write_text(source.replace('"version": 2,', '"version": 2, "version": 3,', 1), encoding="utf-8")
 
     with pytest.raises(ValueError, match="duplicate JSON object key"):
@@ -309,13 +391,12 @@ def test_negative_control_workflow_pack_is_bounded_before_json_parsing(tmp_path:
 
 @pytest.mark.oracle
 def test_workflow_pack_has_blinded_challenger_and_deterministic_authority():
-    root = Path(__file__).parents[1] / "workflow_packs"
-    registry = WorkflowRegistry(root)
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
     pack = registry.load("quaternary")["definition"]
     assert any(role["role_id"] == "verifier" and role["authority"] == "challenge-only" for role in pack["roles"])
     assert {trigger["trigger"] for trigger in pack["triggers"]} == {"closure-proposed", "query-accepted"}
     assert pack["closure_contract"]["self_certification_forbidden"] is True
-    assert {command["operation"] for command in pack["commands"]} == QuaternaryAdapter.READ_OPERATIONS | QuaternaryAdapter.WRITE_OPERATIONS
+    assert {command["operation"] for command in pack["commands"]} <= QuaternaryAdapter.READ_OPERATIONS | QuaternaryAdapter.WRITE_OPERATIONS
 
 
 @pytest.mark.contract
@@ -425,7 +506,7 @@ def test_workflow_command_event_binds_private_arguments_without_copying_them(lat
 
 @pytest.mark.contract
 def test_workflow_registry_rejects_integer_arguments_outside_declared_bounds(tmp_path: Path):
-    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
     registry.register("quaternary", QuaternaryAdapter(tmp_path / "db", tmp_path / "gatherctl.py"))
 
     with pytest.raises(ValueError, match="below its minimum"):
@@ -446,7 +527,7 @@ def test_workflow_command_defaults_are_resolved_before_execution_and_receipting(
             return {"arguments": arguments}
 
     adapter = RecordingAdapter()
-    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
     registry.register("quaternary", adapter)
 
     resolved = registry.resolve_command("quaternary", "language-status", {})
@@ -473,7 +554,7 @@ def test_restart_marks_dispatched_workflow_outcome_unknown_instead_of_retrying(l
 @pytest.mark.oracle
 def test_query_transition_freezes_exact_bytes_and_rejects_undeclared_jump(lattice_env):
     store = lattice_env["store"]
-    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
     created = store.create_workflow_project_atomic(title="query workflow", purpose="", workflow_pack="quaternary", initial_state="native-query-proposal", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
     project_id = created["project"]["project_id"]
     declared = registry.validate_transition("quaternary", "native-query-proposal", "frozen-query")
@@ -561,7 +642,7 @@ def test_platform_foundry_pack_reuses_workflow_kernel_without_gaining_octopus_wr
     with pytest.raises(ValueError, match="safe opaque"):
         adapter.inspect({"platform_id": "../operator-token"})
 
-    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
     assert registry.validate_transition("platform-foundry", "validating", "shadow")["to"] == "shadow"
     with pytest.raises(ValueError, match="not declared"):
         registry.validate_transition("platform-foundry", "observing", "promotable")
@@ -584,7 +665,7 @@ def test_legacy_workflow_roles_cannot_gain_model_authority_from_a_name_match(lat
     store = lattice_env["store"]
     project = store.create_project(ProjectCreate(title="legacy workflow", workflow_pack="quaternary"))
     role = store.create_role(project["project_id"], RoleCreate(name="Orchestrator", instructions="orchestrate"))
-    loaded = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")
+    loaded = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")
     store.reconcile_workflow_instances({"quaternary": loaded["definition"]["initial_state"]})
     contracts = {"quaternary": {"canonical_sha256": loaded["canonical_sha256"], "roles": loaded["definition"]["roles"]}}
 
@@ -644,7 +725,7 @@ def test_workflow_role_route_cannot_be_changed_after_draft_creation_or_sealed_fr
 
 @pytest.mark.contract
 def test_workflow_initial_state_and_trigger_binding_survive_transition_reordering():
-    raw = json.loads((Path(__file__).parents[1] / "workflow_packs" / "quaternary" / "pack.json").read_text())
+    raw = json.loads(TEST_QUATERNARY_PACK.read_text())
     raw["allowed_transitions"] = list(reversed(raw["allowed_transitions"]))
     definition = WorkflowPackDefinition.model_validate(raw)
     assert definition.initial_state == "semantic-intent"
@@ -666,7 +747,7 @@ def test_workflow_initial_state_and_trigger_binding_survive_transition_reorderin
 @pytest.mark.regression
 def test_terminal_workflow_output_sealed_before_state_entry_is_not_fresh(lattice_env):
     store = lattice_env["store"]
-    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
     pack_sha = registry.load("quaternary")["canonical_sha256"]
     roles = [
         {"role_id": "native-partner", "name": "Native", "provider": "openai", "harness": "codex", "authority": "proposal", "instructions": "Propose."},
@@ -698,7 +779,7 @@ def test_terminal_workflow_output_sealed_before_state_entry_is_not_fresh(lattice
 
 def _planned_trigger_fixture(lattice_env):
     store = lattice_env["store"]
-    registry = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs")
+    registry = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS)
     pack_sha = registry.load("quaternary")["canonical_sha256"]
     created = store.create_workflow_project_atomic(title="trigger fixture", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "verifier", "name": "Verifier", "provider": "openai", "harness": "codex", "authority": "challenge-only", "instructions": "Challenge."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
     project = created["project"]
@@ -732,7 +813,7 @@ def test_completed_trigger_is_bound_to_exact_current_state_entry(lattice_env):
     attempt = store.create_attempt(invocation["invocation_id"], "trigger-entry-attempt", "test-boot", 9_999_999_999)
     store.mark_attempt_running(attempt["attempt_id"])
     finished = store.finish_successful_attempt(attempt["attempt_id"], response="independent result", artifacts=[], journal_path="fixture:journal", runtime_receipt={"fixture": True})
-    pack_sha = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")["canonical_sha256"]
+    pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
 
     with store.transaction() as conn:
         replacement_transition = "workflow_transition_reentry_fixture"

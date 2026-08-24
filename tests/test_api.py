@@ -14,7 +14,7 @@ from lattice.security import OperatorSessions, ensure_cli_token
 from lattice.store import LatticeConflict
 from lattice.workflows import WorkflowRegistry
 
-from conftest import completed_invocation
+from conftest import TEST_WORKFLOW_PACK_ROOTS, completed_invocation
 
 
 def _terminal_workflow_output(lattice_env, created, response: str, *, workflow_role_key: str | None = None):
@@ -214,7 +214,7 @@ def test_oracle_artifact_inspector_returns_exact_content_bytes(lattice_env) -> N
 @pytest.mark.oracle
 def test_closure_transition_automatically_seals_dispatches_and_blinds_challenger(monkeypatch, lattice_env) -> None:
     store = lattice_env["store"]
-    pack_sha = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")["canonical_sha256"]
+    pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
     created = store.create_workflow_project_atomic(title="closure workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose bounded closure."}, {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
     project_id = created["project"]["project_id"]
     evidence = _terminal_workflow_output(lattice_env, created, "INDEPENDENT_BASE_EVIDENCE", workflow_role_key="sol")
@@ -255,7 +255,7 @@ def test_closure_transition_automatically_seals_dispatches_and_blinds_challenger
 @pytest.mark.regression
 def test_trigger_planning_failure_is_visible_retriable_and_does_not_lie_about_committed_state(monkeypatch, lattice_env) -> None:
     store = lattice_env["store"]
-    loaded = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")
+    loaded = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")
     created = store.create_workflow_project_atomic(title="retry workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose bounded closure."}, {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=loaded["canonical_sha256"])
     project_id = created["project"]["project_id"]
     evidence = _terminal_workflow_output(lattice_env, created, "independent", workflow_role_key="sol")
@@ -298,7 +298,7 @@ def test_trigger_planning_failure_is_visible_retriable_and_does_not_lie_about_co
 @pytest.mark.regression
 def test_trigger_dispatch_failure_is_retriable_but_never_under_a_changed_pack(monkeypatch, lattice_env) -> None:
     store = lattice_env["store"]
-    loaded = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")
+    loaded = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")
     created = store.create_workflow_project_atomic(title="dispatch retry", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose bounded closure."}, {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=loaded["canonical_sha256"])
     project_id = created["project"]["project_id"]
     evidence = _terminal_workflow_output(lattice_env, created, "independent", workflow_role_key="sol")
@@ -344,7 +344,7 @@ def test_trigger_dispatch_failure_is_retriable_but_never_under_a_changed_pack(mo
 @pytest.mark.oracle
 def test_negative_control_automatic_trigger_requires_exact_project_grant_and_pack_generation(monkeypatch, lattice_env) -> None:
     store = lattice_env["store"]
-    pack_sha = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")["canonical_sha256"]
+    pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
     created = store.create_workflow_project_atomic(title="manual activation", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose."}, {"role_id": "verifier", "name": "Verifier", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Challenge."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
     project_id = created["project"]["project_id"]
     evidence = _terminal_workflow_output(lattice_env, created, "independent", workflow_role_key="sol")
@@ -403,7 +403,7 @@ def test_negative_control_stale_workflow_instance_cannot_execute_under_new_pack(
 @pytest.mark.oracle
 def test_workflow_file_command_review_binds_exact_bytes_and_idempotent_retry_needs_no_source_file(lattice_env) -> None:
     store = lattice_env["store"]
-    pack_sha = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")["canonical_sha256"]
+    pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
     created = store.create_workflow_project_atomic(title="bound file command", purpose="", workflow_pack="quaternary", initial_state="semantic-intent", role_specs=[{"name": "Operator", "authority": "write", "instructions": "Operate."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
     project_id = created["project"]["project_id"]
     quaternary_root = lattice_env["config"].data_root / "quaternary"
@@ -454,7 +454,7 @@ def test_workflow_file_command_review_binds_exact_bytes_and_idempotent_retry_nee
 @pytest.mark.regression
 def test_workflow_write_review_rejects_external_state_drift_before_dispatch(lattice_env) -> None:
     store = lattice_env["store"]
-    pack_sha = WorkflowRegistry(Path(__file__).parents[1] / "workflow_packs").load("quaternary")["canonical_sha256"]
+    pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
     initial_revision = "1" * 64
     created = store.create_workflow_project_atomic(title="state-bound command", purpose="", workflow_pack="quaternary", initial_state="semantic-intent", role_specs=[{"name": "Operator", "authority": "write", "instructions": "Operate."}], blackboard_content=(f'{{"state_sha256":"{initial_revision}"}}').encode(), blackboard_source_ref="fixture:initial-state", slice_external_ref=None, selector={"language": "de"}, pack_canonical_sha256=pack_sha)
     project_id = created["project"]["project_id"]

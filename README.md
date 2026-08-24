@@ -20,8 +20,10 @@ Lattice opens at `http://127.0.0.1:9010` and appears in Panels. The service stor
 lattice/          backend contracts, ledger, compositor, execution, imports, workflow adapters
 tests/            truth-typed kernel, API, supervisor, workflow, and mutation checks
 web/              response-first Svelte cockpit and production build
-workflow_packs/   versioned declarative first-party workflow definitions
+workflow_packs/   bundled definitions owned by Lattice itself; project packs load from explicit external roots
 ```
+
+Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additional pack roots in a standalone installation. Inside AXISVI, the existing Canon adapter adds `sui/mission/projects/canon/dev/quaternary-exhaustion/workflows/` automatically. A duplicate `pack_id` across roots is a startup error, so an external project can never be silently shadowed by a bundled definition.
 
 The manual Lattice acceptance path has been exercised through authenticated Claude and Codex subscriptions: independent prompts, a common-parent fork to both providers, reciprocal cross-feed, a two-parent join, exact manifest reconstruction, provider failure receipt, restart, and continuation. The governed German workflow machinery is implemented, but its authenticated native Gemini lane remains unavailable: the installed official CLI rejects the consumer tier and cannot presently meet Lattice's exact-context isolation contract. Lattice therefore does not claim the complete German acceptance path.
 
@@ -68,7 +70,7 @@ Lattice is therefore not reducible to “multi-model chat,” “agent orchestra
 
 ## Architectural boundaries
 
-Lattice owns the canonical conversational graph, context-manifest contract, routing semantics, role sessions, workflow packs, and operator experience. It composes existing AXISVI systems without collapsing their truth conditions.
+Lattice owns the canonical conversational graph, context-manifest contract, routing semantics, role sessions, workflow-pack contract and loader, and operator experience. A domain project owns the pack that defines its own semantics. Lattice composes these systems without collapsing their truth conditions.
 
 | Neighbor | What it owns | Lattice relation |
 |---|---|---|
@@ -79,7 +81,7 @@ Lattice owns the canonical conversational graph, context-manifest contract, rout
 | [Slate](https://github.com/rianczerwinski/AXISVI/tree/main/sui/console/slate) | Frictionless capture and browsable topic/project surfaces | Exposes tagged slices through Lattice’s lattice without copying conversations |
 | [Surface](https://github.com/rianczerwinski/AXISVI/tree/main/axis/soma/habits/surface) | Evidence-bound statements of what a workframe is, is doing, could become, and cannot presently do | Supplies project state as a versioned context module and receives provenance for material changes |
 | [Panels](https://github.com/rianczerwinski/AXISVI/tree/main/axis/panel) | Persistent host for project-specific control surfaces | Natural home for the Lattice cockpit and project-grown interfaces |
-| [Quaternary exhaustion](https://github.com/rianczerwinski/AXISVI/tree/main/sui/mission/projects/canon/dev/quaternary-exhaustion) | Domain protocol, source/search ledgers, corpus evidence, and closure claims | First workflow pack and end-to-end qualification case |
+| [Quaternary exhaustion](https://github.com/rianczerwinski/AXISVI/tree/main/sui/mission/projects/canon/dev/quaternary-exhaustion) | Domain protocol, source/search ledgers, corpus evidence, executable workflow pack, and closure claims | First externally owned workflow pack and end-to-end qualification case |
 
 Lattice does not fork Smithers by default, does not absorb the quaternary database, and does not make model-runner responsible for routing. These are seams, not unfinished mergers.
 
@@ -183,7 +185,7 @@ A slice is a saved query over the lattice, not a copy of its contents. A Slate t
 
 ### Workflow pack
 
-A workflow pack supplies domain semantics without changing the Lattice engine. It declares roles, view projections, artifact schemas, allowed transitions, evidence triggers, tool adapters, assurance rules, and closure language. The quaternary workflow is one pack; Platform Foundry and field-survey research should later become others.
+A workflow pack supplies domain semantics without changing the Lattice engine. It declares roles, view projections, artifact schemas, allowed transitions, evidence triggers, tool adapters, assurance rules, and closure language. The project whose meaning it encodes owns its editable pack; Lattice loads explicitly configured roots, refuses duplicate identities rather than applying precedence, and binds every installed generation to the pack's canonical hash. Canon's quaternary workflow is the first external pack; Platform Foundry is presently bundled because its adapter and definition are part of this repository's qualification surface.
 
 ## Execution grammar
 
@@ -437,7 +439,7 @@ bounded, evidence-typed closure
 
 Platform Foundry has the same shape: a platform hypothesis becomes a source-native probe, which produces evidence, which revises the hypothesis, which selects a discriminating probe, which supports a verified specification. Field-survey research likewise routes domain generation through source grounding, cross-model criticism, and promoted outputs.
 
-Lattice should therefore generalize the mechanics, not the domain semantics. The engine owns roles, nodes, edges, manifests, artifacts, triggers, routing, provenance, leases, recovery, and views. Workflow packs own what counts as evidence, which roles exist, which actions are permitted, and what closure means.
+Lattice should therefore generalize the mechanics, not the domain semantics. The engine owns roles, nodes, edges, manifests, artifacts, triggers, routing, provenance, leases, recovery, views, and the pack-loading contract. Project-owned workflow packs define what counts as evidence, which roles exist, which actions are permitted, and what closure means.
 
 ## Operator experience
 

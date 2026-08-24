@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
-from .config import WEB_DIST, WORKFLOW_PACK_ROOT, LatticeConfig
+from .config import WEB_DIST, LatticeConfig
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, strict_json_loads
 from .contracts import (
     ContextBlockCreate,
@@ -140,7 +140,10 @@ def _initialize_runtime(config: LatticeConfig):
         sessions = OperatorSessions()
         importer = OctopusImporter(store, lattice, config.octopus_base_url)
         context_modules = ContextModuleRunner(allowed_file_roots=config.allowed_file_roots, octopus_base_url=config.octopus_base_url)
-        workflows = WorkflowRegistry(WORKFLOW_PACK_ROOT)
+        pack_roots = list(config.workflow_pack_roots)
+        if config.quaternary_root and (config.quaternary_root / "workflows").is_dir():
+            pack_roots.append(config.quaternary_root / "workflows")
+        workflows = WorkflowRegistry(pack_roots)
         if config.quaternary_root and (config.quaternary_root / "quaternary.sqlite3").is_file() and (config.quaternary_root / "tools" / "gatherctl.py").is_file():
             workflows.register("quaternary", QuaternaryAdapter(config.quaternary_root / "quaternary.sqlite3", config.quaternary_root / "tools" / "gatherctl.py", allowed_input_roots=config.allowed_file_roots, blob_reader=store.blobs.get, blob_writer=store.blobs.put))
         workflows.register("platform-foundry", PlatformFoundryAdapter(config.octopus_base_url))
