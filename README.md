@@ -6,6 +6,8 @@ The graph is not primarily a workflow drawn in advance. It is the durable, inspe
 
 This document is the canonical product and architecture contract for Lattice. The current software version is `0.1.0`; publishing the repository does not imply a 1.0 stability claim. Lattice is an independent repository developed in place inside AXISVI, which supplies personal integrations without owning or pinning Lattice's source revision. The implementation is a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, subscription-authenticated Claude and Codex routes, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
 
+The active implementation and assurance program is [`CONVERSATION-FIRST-REMEDIATION-PLAN.md`](CONVERSATION-FIRST-REMEDIATION-PLAN.md).
+
 ## Run it
 
 ```bash
