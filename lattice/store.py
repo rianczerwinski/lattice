@@ -708,7 +708,7 @@ class LatticeStore:
         finally:
             conn.execute("PRAGMA foreign_keys=ON")
 
-    def _connect(self) -> sqlite3.Connection:
+    def _open_connection(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.config.database, timeout=30, isolation_level=None)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
@@ -731,6 +731,16 @@ class LatticeStore:
         conn.create_function("loom_replaying", 0, lambda: 0)
         conn.create_function("loom_integrity_hash", -1, self._integrity_hash, deterministic=True)
         return conn
+
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        """Own exactly one SQLite connection and close it at the lexical boundary."""
+
+        conn = self._open_connection()
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     @staticmethod
     def _integrity_hash(*values: Any) -> str:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import subprocess
 from pathlib import Path
 
@@ -59,6 +60,27 @@ def test_darwin_ledger_connections_enable_full_drive_sync(lattice_env) -> None:
     with lattice_env["store"]._connect() as connection:
         assert connection.execute("PRAGMA fullfsync").fetchone()[0] == 1
         assert connection.execute("PRAGMA checkpoint_fullfsync").fetchone()[0] == 1
+
+
+@pytest.mark.regression
+def test_store_closes_every_lexically_owned_sqlite_connection(monkeypatch, lattice_env) -> None:
+    store = lattice_env["store"]
+    opened = []
+    real_open = store._open_connection
+
+    def tracked_open():
+        connection = real_open()
+        opened.append(connection)
+        return connection
+
+    monkeypatch.setattr(store, "_open_connection", tracked_open)
+    for _ in range(12):
+        store.get_project(lattice_env["project"]["project_id"])
+
+    assert len(opened) >= 12
+    for connection in opened:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+            connection.execute("SELECT 1")
 
 
 @pytest.mark.contract
