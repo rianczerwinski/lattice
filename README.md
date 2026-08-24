@@ -9,7 +9,7 @@ This document is the canonical product and architecture contract for Lattice. Th
 ## Run it
 
 ```bash
-portctl start lattice
+node ~/AXISVI/axis/tools/portctl/service.js start lattice
 ```
 
 Lattice opens at `http://127.0.0.1:9010` and appears in Panels. The service stores private runtime state under `axis/psyche/recollection/lattice/data/`; that directory is local and ignored by Git. The source layout is:
