@@ -245,6 +245,22 @@ def test_negative_control_doctor_uses_the_daemon_provider_view(monkeypatch) -> N
         cli._adapter_status(service)
 
 
+@pytest.mark.regression
+def test_negative_control_launchd_reload_waits_out_removal_and_transient_eio(monkeypatch, tmp_path) -> None:
+    calls = []
+    results = iter((0, 0, 0, 1, 5, 0))
+
+    def fake_run(arguments, **_kwargs):
+        calls.append(arguments)
+        return argparse.Namespace(returncode=next(results), stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(deployment.subprocess, "run", fake_run)
+    monkeypatch.setattr(deployment.time, "sleep", lambda _seconds: None)
+    deployment.reload_job("com.axisvi.lattice", tmp_path / "lattice.plist")
+
+    assert [call[1] for call in calls] == ["print", "bootout", "print", "print", "bootstrap", "bootstrap"]
+
+
 @pytest.mark.property
 def test_negative_control_migration_baseline_rejects_invented_source_rows(lattice_env) -> None:
     baseline = deployment.capture_migration_baseline(lattice_env["config"].data_root)

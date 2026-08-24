@@ -392,10 +392,24 @@ def plist_payload(label: str, *, backup: bool) -> dict:
 
 def reload_job(label: str, path: Path) -> None:
     domain = f"gui/{os.getuid()}"
-    print_result = subprocess.run(["launchctl", "print", f"{domain}/{label}"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    service_target = f"{domain}/{label}"
+    print_result = subprocess.run(["launchctl", "print", service_target], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     if print_result.returncode == 0:
-        run(["launchctl", "bootout", f"{domain}/{label}"])
-    run(["launchctl", "bootstrap", domain, str(path)])
+        run(["launchctl", "bootout", service_target])
+        deadline = time.monotonic() + 5
+        while subprocess.run(["launchctl", "print", service_target], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode == 0:
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"launchd did not remove {service_target} within 5 seconds")
+            time.sleep(0.1)
+    deadline = time.monotonic() + 5
+    while True:
+        result = subprocess.run(["launchctl", "bootstrap", domain, str(path)], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if result.returncode == 0:
+            return
+        if result.returncode != 5 or time.monotonic() >= deadline:
+            detail = (result.stderr or result.stdout).decode("utf-8", errors="replace").strip()
+            raise RuntimeError(f"launchctl could not bootstrap {label}: {detail or f'exit {result.returncode}'}")
+        time.sleep(0.1)
 
 
 def install_launchd() -> None:
