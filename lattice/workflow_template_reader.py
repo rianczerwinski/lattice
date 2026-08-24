@@ -19,13 +19,13 @@ def _require_keys(value: Any, expected: set[str], label: str) -> dict[str, Any]:
     return value
 
 
-def _verify_envelope(template: dict[str, Any], artifact_id: str) -> list[dict[str, str]]:
+def _verify_envelope(template: dict[str, Any], artifact_id: str, *, schema_version: int) -> list[dict[str, str]]:
     envelope = _require_keys(template.get("generated_object"), {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}, "generated-object envelope")
     if envelope["contract_version"] != 1 or envelope["role"] != "canonical" or envelope["kind"] != "lattice-workflow-template" or envelope["artifact_id"] != artifact_id:
         raise LatticeConflict("workflow template generated-object identity is invalid")
     schema = _require_keys(envelope["schema"], {"name", "version"}, "schema")
     producer = _require_keys(envelope["producer"], {"name", "version"}, "producer")
-    if schema != {"name": "lattice-workflow-template", "version": 2} or producer.get("name") != "lattice" or not isinstance(producer.get("version"), str) or SEMVER.fullmatch(producer["version"]) is None:
+    if schema != {"name": "lattice-workflow-template", "version": schema_version} or producer.get("name") != "lattice" or not isinstance(producer.get("version"), str) or SEMVER.fullmatch(producer["version"]) is None:
         raise LatticeConflict("workflow template schema or producer is invalid")
     if ARTIFACT_ID.fullmatch(str(envelope["artifact_id"])) is None or TRACKING_TIMESTAMP.fullmatch(str(envelope["generated_at"])) is None or OPAQUE_WORKFLOW_SUBJECT.fullmatch(str(envelope["subject"])) is None:
         raise LatticeConflict("workflow template durable identity is invalid")
@@ -69,11 +69,13 @@ def verify_workflow_template(store: LatticeStore, stored: dict[str, Any]) -> dic
     if not isinstance(template, dict) or canonical_bytes(template) != raw or template != stored.get("generated"):
         raise LatticeConflict("workflow template database view disagrees with its canonical bytes")
     _require_keys(template, {"generated_object", "contract_version", "title", "roles", "parameters", "steps", "materialization", "evidence_policy"}, "body")
-    if template["contract_version"] != "LatticeWorkflowTemplate/2.0" or not isinstance(template["title"], str) or not template["title"]:
+    versions = {"LatticeWorkflowTemplate/2.0": 2, "LatticeWorkflowTemplate/3.0": 3}
+    schema_version = versions.get(template["contract_version"])
+    if schema_version is None or not isinstance(template["title"], str) or not template["title"]:
         raise LatticeConflict("workflow template contract or title is invalid")
     if template["materialization"] != {"mode": "one-edge-at-a-time", "endpoint": "/api/v1/workflow-templates/{artifact_id}/steps/{step_id}/drafts"} or template["evidence_policy"] != "prompt and project evidence bytes are required at materialization and are not copied into this template":
         raise LatticeConflict("workflow template execution policy is not supported")
-    sources = _verify_envelope(template, stored["artifact_id"])
+    sources = _verify_envelope(template, stored["artifact_id"], schema_version=schema_version)
 
     roles = template["roles"]
     parameters = template["parameters"]
@@ -127,25 +129,39 @@ def verify_workflow_template(store: LatticeStore, stored: dict[str, Any]) -> dic
         used_context_parameters.add(parameter_id)
 
     for step in steps:
-        _require_keys(step, {"step_id", "source_invocation_id", "role_parameter_id", "route_default", "relation", "response_contract", "parents", "context"}, "step")
+        if schema_version == 2:
+            _require_keys(step, {"step_id", "source_invocation_id", "role_parameter_id", "route_default", "relation", "response_contract", "parents", "context"}, "step")
+            actor_declaration = {"kind": "role-parameter", "parameter_id": step["role_parameter_id"]}
+        else:
+            _require_keys(step, {"step_id", "source_invocation_id", "actor_binding", "route_default", "relation", "response_contract", "parents", "context"}, "step")
+            actor_declaration = step["actor_binding"]
         invocation, _source = source_by_invocation[step["source_invocation_id"]]
         if step["route_default"] != invocation["route"] or step["response_contract"] != invocation["response_schema"] or step["relation"] != store.get_draft(invocation["draft_id"])["relation"]:
             raise LatticeConflict("workflow template changed source execution semantics")
         entries = sorted(invocation["manifest"]["segments"] + invocation["manifest"]["omitted"], key=lambda entry: entry["ordinal"])
         role_entry = next((entry for entry in entries if entry["plane"] == "instruction" and entry["semantic_type"] == "role-instruction" and entry["label"].startswith("role:")), None)
         role_block = store.get_block(role_entry["block_id"]) if role_entry else None
-        role_parameter = role_by_id.get(step["role_parameter_id"])
-        expected_role = {
-            "parameter_id": step["role_parameter_id"],
-            "kind": "role-session",
-            "source_role_label": role_entry["label"] if role_entry else None,
-            "source_role_contract": role_block["content"] if role_block else None,
-            "source_role_contract_sha256": role_block["content_sha256"] if role_block else None,
-            "proof_limit": None if role_block else "the source invocation did not include an observable role-instruction block",
-        }
-        if role_parameter != expected_role:
-            raise LatticeConflict("workflow template role contract is not source-bound")
-        used_role_parameters.add(step["role_parameter_id"])
+        if invocation["actor_kind"] == "direct":
+            if schema_version == 2 or actor_declaration != {"kind": "direct"} or role_entry is not None or invocation["role_session_id"] is not None:
+                raise LatticeConflict("workflow template changed the direct source actor")
+            role_block_id = ""
+        else:
+            if not isinstance(actor_declaration, dict) or set(actor_declaration) != {"kind", "parameter_id"} or actor_declaration["kind"] != "role-parameter":
+                raise LatticeConflict("workflow template changed the role-bound source actor")
+            role_parameter_id = actor_declaration["parameter_id"]
+            role_parameter = role_by_id.get(role_parameter_id)
+            expected_role = {
+                "parameter_id": role_parameter_id,
+                "kind": "role-session",
+                "source_role_label": role_entry["label"] if role_entry else None,
+                "source_role_contract": role_block["content"] if role_block else None,
+                "source_role_contract_sha256": role_block["content_sha256"] if role_block else None,
+                "proof_limit": None if role_block else "the source invocation did not include an observable role-instruction block",
+            }
+            if role_parameter != expected_role:
+                raise LatticeConflict("workflow template role contract is not source-bound")
+            used_role_parameters.add(role_parameter_id)
+            role_block_id = role_block["block_id"] if role_block else ""
         if not isinstance(step["context"], list) or len(step["context"]) != len(entries):
             raise LatticeConflict("workflow template context does not cover the exact source manifest")
         for declaration, entry in zip(step["context"], entries, strict=True):
@@ -153,9 +169,9 @@ def verify_workflow_template(store: LatticeStore, stored: dict[str, Any]) -> dic
             expected_selection = {key: entry.get(key) for key in ("disposition", "plane", "label", "reason")}
             if declaration["selection"] != expected_selection or not isinstance(declaration["derived_bindings"], list) or len(declaration["derived_bindings"]) != len(entry.get("derived_from_block_ids", [])):
                 raise LatticeConflict("workflow template changed source context selection semantics")
-            verify_binding(declaration["binding"], entry["block_id"], role_block["block_id"] if role_block else "")
+            verify_binding(declaration["binding"], entry["block_id"], role_block_id)
             for derived_binding, source_block_id in zip(declaration["derived_bindings"], entry.get("derived_from_block_ids", []), strict=True):
-                verify_binding(derived_binding, source_block_id, role_block["block_id"] if role_block else "")
+                verify_binding(derived_binding, source_block_id, role_block_id)
         expected_parents = []
         for parent in invocation["manifest"]["ancestry"]:
             parent_id = parent["invocation_id"]

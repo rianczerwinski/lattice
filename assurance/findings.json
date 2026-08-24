@@ -4,8 +4,9 @@
     "role": "canonical",
     "kind": "lattice-remediation-findings",
     "schema": {"name": "lattice-remediation-findings", "version": 1},
-    "artifact_id": "artifact:e086d197-4fae-5ff9-adf6-8795bf94fffd",
-    "generated_at": "20260824T041410",
+    "artifact_id": "artifact:9519c266-323c-4f6c-867f-26967c2ce6b2",
+    "generated_at": "20260824T052621",
+    "parent_artifact_id": "artifact:e086d197-4fae-5ff9-adf6-8795bf94fffd",
     "producer": {"name": "lattice-remediation", "version": "1.0.0"},
     "subject": "lattice:conversation-first-remediation-findings",
     "sources": [
@@ -51,7 +52,7 @@
       "severity": "S2",
       "statement": "Freestyle UI verbs would become divergent kernel state machines, and fan-out cannot truthfully share one route-specific manifest.",
       "route": [2, 4],
-      "status": "open",
+      "status": "implemented-pending-verification",
       "implementation_receipts": ["lattice/contracts.py:ContextAssemblyV1", "lattice/contracts.py:InvocationBatchPreviewV1", "lattice/store.py:insert_invocation_batch", "lattice/operations.py:preview_invocation_batch", "lattice/operations.py:create_invocation_batch", "tests/test_invocation_batches.py"],
       "independent_oracle": "Every gesture compiles to one generic batch contract while each child retains its own capability and compiled-request manifest.",
       "false_mutation": "Remove one fan-out child's capability record or give siblings different semantic assemblies and require the batch oracle to fail."
@@ -61,7 +62,7 @@
       "severity": "S2",
       "statement": "The remediation could duplicate already-working context delta, Slate slices, route selection, and trailhead machinery instead of exposing it coherently.",
       "route": [4, 5],
-      "status": "open",
+      "status": "implemented-pending-verification",
       "implementation_receipts": ["web/src/App.svelte:loadOlderInvocations", "web/src/App.svelte:Context truth", "web/src/App.svelte:tagSelectedToSlate", "lattice/store.py:page_invocations", "lattice/store.py:get_slice", "lattice/store.py:tag_context_block"],
       "independent_oracle": "The cockpit and Slate acceptance paths resolve through the existing ledger identities and endpoints without copied transcript state or a second projection authority.",
       "false_mutation": "Replace a saved Slate query with copied transcript bytes or make an older trailhead unreachable and require acceptance to fail."
@@ -71,7 +72,7 @@
       "severity": "S2",
       "statement": "Generic contradiction or provider-opacity warnings are not deterministic execution boundaries and would produce arbitrary interruption ceremony.",
       "route": [3, 4],
-      "status": "open",
+      "status": "implemented-pending-verification",
       "implementation_receipts": ["lattice/operations.py:_confirmation_reasons", "tests/test_invocation_batches.py"],
       "independent_oracle": "Confirmation reasons derive only from exact authority expansion, operator-uninitiated loss or transformation, or a weakened qualified isolation profile.",
       "false_mutation": "Plant a hidden omission or new write authority and require one-action execution to stop while an explicitly selected provider route proceeds without redundant confirmation."
@@ -81,7 +82,7 @@
       "severity": "product",
       "statement": "Ordinary use must open into response and composer; roles, workflows, and raw graph configuration are secondary tools rather than prerequisites.",
       "route": [1, 4, 7],
-      "status": "open",
+      "status": "implemented-pending-verification",
       "implementation_receipts": ["web/src/App.svelte:createProject", "web/src/App.svelte:route-chips", "web/src/App.svelte:role-binding", "tests/test_api.py:test_blank_project_batch_api_fans_out_without_role_bootstrap"],
       "independent_oracle": "Browser acceptance completes the freestyle path from a blank project without opening a role, workflow, graph, or manifest panel.",
       "false_mutation": "Require role creation before first send and require browser acceptance to fail."
@@ -91,7 +92,7 @@
       "severity": "product",
       "statement": "Side quests, fan-out, fan-in, cross-feed, and return must be available one edge at a time without preplotting the graph.",
       "route": [2, 4, 5],
-      "status": "open",
+      "status": "implemented-pending-verification",
       "implementation_receipts": ["web/src/App.svelte:beginSideQuest", "web/src/App.svelte:graftSelectedExcerpt", "web/src/App.svelte:route-chips", "lattice/operations.py:create_invocation_batch"],
       "independent_oracle": "A browser operator authors the complete freestyle lattice conversationally and resumes any dormant trailhead after restart.",
       "false_mutation": "Hide a dormant branch after pagination or require a predefined workflow for a side quest and require acceptance to fail."
@@ -101,7 +102,7 @@
       "severity": "product",
       "statement": "Exact observable context and its delta must remain continuously inspectable without turning every ordinary send into a mandatory preflight ceremony.",
       "route": [2, 3, 4],
-      "status": "open",
+      "status": "implemented-pending-verification",
       "implementation_receipts": ["lattice/contracts.py:DerivedTextBlockCreate", "lattice/store.py:create_derived_text_block", "lattice/manifest_reader.py:verify_and_reconstruct", "web/src/App.svelte:Context truth", "tests/test_invocation_batches.py"],
       "independent_oracle": "Independent reconstruction matches provider bytes and the tray distinguishes added, removed, transformed, omitted, unchanged, and provider-opaque material.",
       "false_mutation": "Relabel a summary as verbatim or hide an omission and require the independent reader or browser oracle to fail."
@@ -111,7 +112,7 @@
       "severity": "product",
       "statement": "Side-quest episodes and Slate topics are overlapping concern-backed slices, never exclusive containers or copied conversations.",
       "route": [5],
-      "status": "open",
+      "status": "implemented-pending-verification",
       "implementation_receipts": ["lattice/store.py:create_episode", "lattice/store.py:add_episode_member", "lattice/store.py:list_invocation_episodes", "web/src/App.svelte:beginSideQuest", "web/src/App.svelte:returnToParentEpisode", "tests/test_invocation_batches.py:test_episodes_are_overlapping_live_slices_and_returned_work_is_new_history", "tests/test_invocation_batches.py:test_invocation_and_response_block_share_one_live_slate_slice_without_copying"],
       "independent_oracle": "One invocation participates in several episodes and a live Slate slice updates through concern edges while every claim resolves to its canonical object.",
       "false_mutation": "Make an episode own an invocation exclusively or persist transcript bytes in Slate and require the slice oracle to fail."

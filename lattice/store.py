@@ -35,6 +35,7 @@ from .contracts import (
     model_runner_policy,
     ProjectCreate,
     RoleCreate,
+    RolePinCreate,
     RoleSessionCreate,
     SliceCreate,
     SliceQuery,
@@ -1421,28 +1422,67 @@ class LatticeStore:
             conn.execute("UPDATE block_status SET status=?,revision=?,event_id=? WHERE block_id=?", (status.value, revision, event_id, block_id))
         return self.get_block(block_id, include_content=False)
 
-    def create_role(self, project_id: str, value: RoleCreate) -> dict[str, Any]:
+    def _insert_operator_role(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        project_id: str,
+        value: RoleCreate,
+        now: str,
+        derived_from_invocation: dict[str, Any] | None = None,
+    ) -> tuple[str, str]:
         instructions = self._role_contract_bytes(name=value.name, instructions=value.instructions, incentives=value.incentives, authority_limits=value.authority_limits)
         instruction_sha = self.blobs.put(instructions)
         instruction_id = opaque_id("block")
         role_id = opaque_id("role")
-        now = stamp()
+        conn.execute(
+            """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
+               authority,evidence_level,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-or-operator','governing-instruction','private',?)""",
+            (instruction_id, project_id, "role-instruction", instruction_sha, len(instructions), now),
+        )
+        instruction_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=instruction_id, payload={"sha256": instruction_sha, "semantic_type": "role-instruction", "status": "active"})
+        conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (instruction_id, instruction_event))
+        conn.execute(
+            "INSERT INTO roles(role_id,project_id,name,instructions_block_id,incentives_json,authority_limits_json,workflow_role_key,route_policy_json,created_at) VALUES(?,?,?,?,?,?,NULL,?,?)",
+            (role_id, project_id, value.name, instruction_id, canonical_bytes(value.incentives).decode(), canonical_bytes(value.authority_limits).decode(), canonical_bytes({"kind": "operator-selectable"}).decode(), now),
+        )
+        payload: dict[str, Any] = {"name": value.name, "instructions_block_id": instruction_id}
+        if derived_from_invocation is not None:
+            payload["derived_from_invocation_id"] = derived_from_invocation["invocation_id"]
+            self._insert_edge(
+                conn,
+                project_id=project_id,
+                relation=EdgeRelation.derived_from,
+                source_type="context-block",
+                source_id=instruction_id,
+                source_revision=instruction_sha,
+                target_type="invocation",
+                target_id=derived_from_invocation["invocation_id"],
+                target_revision=derived_from_invocation["manifest_sha256"],
+                metadata={"kind": "role-demonstration"},
+            )
+        self._event(conn, project_id=project_id, event_type="role.created", subject_type="role", subject_id=role_id, payload=payload)
+        return role_id, instruction_id
+
+    def create_role(self, project_id: str, value: RoleCreate) -> dict[str, Any]:
         with self.transaction() as conn:
             if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (project_id,)).fetchone() is None:
                 raise LatticeNotFound(project_id)
-            conn.execute(
-                """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
-                   authority,evidence_level,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-or-operator','governing-instruction','private',?)""",
-                (instruction_id, project_id, "role-instruction", instruction_sha, len(instructions), now),
-            )
-            instruction_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=instruction_id, payload={"sha256": instruction_sha, "semantic_type": "role-instruction", "status": "active"})
-            conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (instruction_id, instruction_event))
-            conn.execute(
-                "INSERT INTO roles(role_id,project_id,name,instructions_block_id,incentives_json,authority_limits_json,workflow_role_key,route_policy_json,created_at) VALUES(?,?,?,?,?,?,NULL,?,?)",
-                (role_id, project_id, value.name, instruction_id, canonical_bytes(value.incentives).decode(), canonical_bytes(value.authority_limits).decode(), canonical_bytes({"kind": "operator-selectable"}).decode(), now),
-            )
-            self._event(conn, project_id=project_id, event_type="role.created", subject_type="role", subject_id=role_id, payload={"name": value.name, "instructions_block_id": instruction_id})
+            role_id, _instruction_id = self._insert_operator_role(conn, project_id=project_id, value=value, now=stamp())
         return self.get_role(role_id)
+
+    def pin_invocation_as_role(self, invocation_id: str, value: RolePinCreate) -> dict[str, Any]:
+        source = self.get_invocation(invocation_id)
+        if source["state"] not in {"succeeded", "imported"}:
+            raise LatticeConflict("only a completed invocation can demonstrate a role")
+        role_value = RoleCreate(name=value.name, instructions=value.instructions, incentives=value.incentives, authority_limits=value.authority_limits)
+        role_id = ""
+        session_id = opaque_id("session")
+        with self.transaction() as conn:
+            role_id, _instruction_id = self._insert_operator_role(conn, project_id=source["project_id"], value=role_value, now=stamp(), derived_from_invocation=source)
+            conn.execute("INSERT INTO role_sessions(role_session_id,project_id,role_id,label,created_at) VALUES(?,?,?,?,?)", (session_id, source["project_id"], role_id, value.session_label, stamp()))
+            self._event(conn, project_id=source["project_id"], event_type="role-session.created", subject_type="role-session", subject_id=session_id, payload={"project_id": source["project_id"], "role_id": role_id, "label": value.session_label, "derived_from_invocation_id": invocation_id})
+        return {"role": self.get_role(role_id), "session": self.get_role_session(session_id), "source_invocation_id": invocation_id}
 
     def get_role(self, role_id: str) -> dict[str, Any]:
         with self._connect() as conn:

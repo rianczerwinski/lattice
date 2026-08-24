@@ -492,8 +492,8 @@ class Lattice:
             invocation_parameters[parameter_id] = {"parameter_id": parameter_id, "kind": "invocation", "source_invocation_id": invocation_id}
             return parameter_id
 
-        def block_binding(block_id: str, *, role_instruction_block_id: str) -> dict[str, str]:
-            if block_id == role_instruction_block_id:
+        def block_binding(block_id: str, *, role_instruction_block_id: str | None) -> dict[str, str]:
+            if role_instruction_block_id is not None and block_id == role_instruction_block_id:
                 return {"kind": "role-instruction"}
             if block_id in output_to_step:
                 return {"kind": "step-output", "step_id": output_to_step[block_id]}
@@ -501,27 +501,33 @@ class Lattice:
 
         steps: list[dict[str, Any]] = []
         for item in ordered:
-            session = self.store.get_role_session(item["role_session_id"])
-            role = self.store.get_role(session["role_id"])
             entries = sorted(item["manifest"]["segments"] + item["manifest"]["omitted"], key=lambda entry: entry["ordinal"])
             source_role_entry = next((entry for entry in entries if entry["plane"] == "instruction" and entry["semantic_type"] == "role-instruction" and entry["label"].startswith("role:")), None)
             source_role_block = self.store.get_block(source_role_entry["block_id"]) if source_role_entry else None
-            role_source_key = (role["role_id"], source_role_block["content_sha256"] if source_role_block else None)
-            role_parameter_id = role_parameter_by_source_contract.get(role_source_key)
-            if role_parameter_id is None:
-                role_parameter_id = f"role-{len(role_parameters) + 1:03d}"
-                role_parameter_by_source_contract[role_source_key] = role_parameter_id
-                role_parameters[role_parameter_id] = {
-                    "parameter_id": role_parameter_id,
-                    "kind": "role-session",
-                    "source_role_label": source_role_entry["label"] if source_role_entry else None,
-                    "source_role_contract": source_role_block["content"] if source_role_block else None,
-                    "source_role_contract_sha256": source_role_block["content_sha256"] if source_role_block else None,
-                    "proof_limit": None if source_role_block else "the source invocation did not include an observable role-instruction block",
-                }
+            if item["actor_kind"] == "direct":
+                if source_role_block is not None or item["role_session_id"] is not None:
+                    raise LatticeConflict("direct source invocation carries hidden role context")
+                actor_binding = {"kind": "direct"}
+            else:
+                session = self.store.get_role_session(item["role_session_id"])
+                role = self.store.get_role(session["role_id"])
+                role_source_key = (role["role_id"], source_role_block["content_sha256"] if source_role_block else None)
+                role_parameter_id = role_parameter_by_source_contract.get(role_source_key)
+                if role_parameter_id is None:
+                    role_parameter_id = f"role-{len(role_parameters) + 1:03d}"
+                    role_parameter_by_source_contract[role_source_key] = role_parameter_id
+                    role_parameters[role_parameter_id] = {
+                        "parameter_id": role_parameter_id,
+                        "kind": "role-session",
+                        "source_role_label": source_role_entry["label"] if source_role_entry else None,
+                        "source_role_contract": source_role_block["content"] if source_role_block else None,
+                        "source_role_contract_sha256": source_role_block["content_sha256"] if source_role_block else None,
+                        "proof_limit": None if source_role_block else "the source invocation did not include an observable role-instruction block",
+                    }
+                actor_binding = {"kind": "role-parameter", "parameter_id": role_parameter_id}
             bindings = []
             for entry in entries:
-                role_instruction_block_id = source_role_block["block_id"] if source_role_block else ""
+                role_instruction_block_id = source_role_block["block_id"] if source_role_block else None
                 binding = block_binding(entry["block_id"], role_instruction_block_id=role_instruction_block_id)
                 derived_bindings = [block_binding(block_id, role_instruction_block_id=role_instruction_block_id) for block_id in entry.get("derived_from_block_ids", [])]
                 bindings.append({
@@ -539,7 +545,7 @@ class Lattice:
             steps.append({
                 "step_id": step_by_invocation[item["invocation_id"]],
                 "source_invocation_id": item["invocation_id"],
-                "role_parameter_id": role_parameter_id,
+                "actor_binding": actor_binding,
                 "route_default": item["route"],
                 "relation": self.store.get_draft(item["draft_id"])["relation"],
                 "response_contract": item["response_schema"],
@@ -549,8 +555,8 @@ class Lattice:
 
         sources = [{"ref": f"lattice:invocation/{item['invocation_id']}", "revision": item["manifest_sha256"], "sha256": item["manifest_sha256"]} for item in ordered]
         artifact = {
-            "generated_object": generated_object(kind="lattice-workflow-template", schema_name="lattice-workflow-template", schema_version=2, subject=f"lattice-workflow:{opaque_id('workflow')}", sources=sources),
-            "contract_version": "LatticeWorkflowTemplate/2.0",
+            "generated_object": generated_object(kind="lattice-workflow-template", schema_name="lattice-workflow-template", schema_version=3, subject=f"lattice-workflow:{opaque_id('workflow')}", sources=sources),
+            "contract_version": "LatticeWorkflowTemplate/3.0",
             "title": title,
             "roles": list(role_parameters.values()),
             "parameters": [*context_parameters.values(), *invocation_parameters.values()],
@@ -573,7 +579,7 @@ class Lattice:
         *,
         expected_template_sha256: str,
         project_id: str,
-        role_session_id: str,
+        role_session_id: str | None,
         context_bindings: dict[str, str],
         invocation_bindings: dict[str, str],
         route: ProviderRoute | None = None,
@@ -591,13 +597,27 @@ class Lattice:
         context_steps = {binding["step_id"] for item in step["context"] for binding in [item["binding"], *item["derived_bindings"]] if binding["kind"] == "step-output"}
         if set(context_bindings) != expected_context or set(invocation_bindings) != ({parent["step_id"] for parent in step["parents"] if parent["kind"] == "step"} | context_steps | expected_invocations):
             raise LatticeConflict("workflow template bindings do not exactly match this step")
-        session = self.store.get_role_session(role_session_id)
-        if session["project_id"] != project_id:
-            raise LatticeConflict("workflow template role session belongs to another project")
-        role = self.store.get_role(session["role_id"])
+        actor_declaration = step.get("actor_binding")
+        if actor_declaration is None:
+            actor_declaration = {"kind": "role-parameter", "parameter_id": step["role_parameter_id"]}
+        if actor_declaration["kind"] == "direct":
+            if role_session_id is not None:
+                raise LatticeConflict("direct workflow template steps cannot acquire a role session")
+            actor_binding: ActorBindingV1 = DirectActorBinding()
+            role = None
+        else:
+            if role_session_id is None:
+                raise LatticeConflict("role-bound workflow template steps require a role session")
+            session = self.store.get_role_session(role_session_id)
+            if session["project_id"] != project_id:
+                raise LatticeConflict("workflow template role session belongs to another project")
+            role = self.store.get_role(session["role_id"])
+            actor_binding = {"kind": "role-session", "role_session_id": role_session_id}
 
         def resolve_block(binding: dict[str, str]) -> str:
             if binding["kind"] == "role-instruction":
+                if role is None:
+                    raise LatticeConflict("direct workflow template step cannot resolve a role instruction")
                 return role["instructions_block_id"]
             if binding["kind"] == "context-parameter":
                 parameter_id = binding["parameter_id"]
@@ -630,7 +650,7 @@ class Lattice:
         draft = self.store.create_draft(
             DraftCreate(
                 project_id=project_id,
-                role_session_id=role_session_id,
+                actor_binding=actor_binding,
                 prompt=prompt_block["content"],
                 route=route or ProviderRoute.model_validate(step["route_default"]),
                 selections=selections,

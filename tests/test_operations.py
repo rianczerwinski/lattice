@@ -7,7 +7,7 @@ import json
 import pytest
 
 from lattice.canonical import canonical_bytes, sha256_bytes
-from lattice.contracts import BlockDisposition, ContextBlockCreate, ContextSelection, DraftCreate, DraftPatch, EdgeRelation, ProjectCreate, RoleCreate, RoleSessionCreate, SliceCreate, TagRequest
+from lattice.contracts import BlockDisposition, ContextBlockCreate, ContextSelection, DirectActorBinding, DraftCreate, DraftPatch, EdgeRelation, ProjectCreate, RoleCreate, RolePinCreate, RoleSessionCreate, SliceCreate, TagRequest
 
 from conftest import completed_invocation
 
@@ -315,6 +315,127 @@ def test_oracle_extracted_workflow_artifact_resolves_to_its_exact_bytes(lattice_
 
 
 @pytest.mark.oracle
+def test_direct_conversation_extracts_and_materializes_without_inventing_a_role(lattice_env) -> None:
+    store = lattice_env["store"]
+    source_draft = store.create_draft(DraftCreate(
+        project_id=lattice_env["project"]["project_id"],
+        actor_binding=DirectActorBinding(),
+        prompt="direct reusable source",
+        route=lattice_env["route"],
+    ))
+    source = lattice_env["lattice"].seal(source_draft["draft_id"])
+    attempt = store.create_attempt(source["invocation_id"], "direct-template-source", "test-boot", 9_999_999_999)
+    source = store.finish_successful_attempt(attempt["attempt_id"], response="direct result", artifacts=[], journal_path="fixture:direct-template", runtime_receipt={"fixture": True})
+
+    template = lattice_env["lattice"].extract(lattice_env["project"]["project_id"], [source["invocation_id"]], "Direct path")
+    contracts = {item["parameter_id"]: item for item in template["parameters"] if item["kind"] == "context-block"}
+    bindings = {
+        parameter_id: store.create_context_block(ContextBlockCreate(
+            project_id=lattice_env["project"]["project_id"],
+            semantic_type=contract["semantic_type"],
+            content=f"replacement {parameter_id}",
+            status=contract["status"],
+            authority=contract["authority"],
+            evidence_level=contract["evidence_level"],
+            sensitivity=contract["sensitivity"],
+        ))["block_id"]
+        for parameter_id, contract in contracts.items()
+    }
+    artifact_id = template["generated_object"]["artifact_id"]
+    template_sha = store.get_artifact(artifact_id)["content_sha256"]
+    target = lattice_env["lattice"].materialize_template_step(
+        artifact_id,
+        "step-001",
+        expected_template_sha256=template_sha,
+        project_id=lattice_env["project"]["project_id"],
+        role_session_id=None,
+        context_bindings=bindings,
+        invocation_bindings={},
+    )
+
+    assert template["contract_version"] == "LatticeWorkflowTemplate/3.0"
+    assert template["roles"] == []
+    assert template["steps"][0]["actor_binding"] == {"kind": "direct"}
+    assert target["actor_binding"] == {"kind": "direct"}
+    with pytest.raises(Exception, match="cannot acquire a role session"):
+        lattice_env["lattice"].materialize_template_step(
+            artifact_id,
+            "step-001",
+            expected_template_sha256=template_sha,
+            project_id=lattice_env["project"]["project_id"],
+            role_session_id=lattice_env["session"]["role_session_id"],
+            context_bindings=bindings,
+            invocation_bindings={},
+        )
+
+
+@pytest.mark.oracle
+def test_pin_as_role_is_future_facing_and_preserves_direct_history(lattice_env) -> None:
+    store = lattice_env["store"]
+    source_draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="demonstrate the function", route=lattice_env["route"]))
+    source = lattice_env["lattice"].seal(source_draft["draft_id"])
+    attempt = store.create_attempt(source["invocation_id"], "pin-role-source", "test-boot", 9_999_999_999)
+    source = store.finish_successful_attempt(attempt["attempt_id"], response="demonstrated output", artifacts=[], journal_path="fixture:pin-role", runtime_receipt={"fixture": True})
+    original_manifest = canonical_bytes(source["manifest"])
+
+    pinned = store.pin_invocation_as_role(source["invocation_id"], RolePinCreate(name="Critic", instructions="Find falsifiers.", session_label="Critic spine"))
+    unchanged = store.get_invocation(source["invocation_id"])
+    next_draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=pinned["session"]["role_session_id"], prompt="apply the demonstrated function", route=lattice_env["route"]))
+
+    assert unchanged["actor_binding"] == {"kind": "direct"}
+    assert canonical_bytes(unchanged["manifest"]) == original_manifest
+    assert next_draft["actor_binding"] == {"kind": "role-session", "role_session_id": pinned["session"]["role_session_id"]}
+    with store._connect() as conn:
+        lineage = conn.execute("SELECT relation,metadata_json FROM edges WHERE source_id=? AND target_id=?", (pinned["role"]["instructions_block_id"], source["invocation_id"])).fetchone()
+    assert lineage is not None and lineage["relation"] == "derived_from" and "role-demonstration" in lineage["metadata_json"]
+
+
+@pytest.mark.regression
+def test_direct_template_reader_rejects_a_planted_role_actor(lattice_env) -> None:
+    store = lattice_env["store"]
+    source_draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="direct source", route=lattice_env["route"]))
+    source = lattice_env["lattice"].seal(source_draft["draft_id"])
+    output = store.create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type="model-response", content="result", producing_invocation_id=source["invocation_id"]))
+    source = store.attach_imported_output(source["invocation_id"], output["block_id"])
+    template = lattice_env["lattice"].extract(lattice_env["project"]["project_id"], [source["invocation_id"]], "Direct source")
+    artifact_id = template["generated_object"]["artifact_id"]
+    mutated = json.loads(json.dumps(template))
+    mutated["steps"][0]["actor_binding"] = {"kind": "role-parameter", "parameter_id": "role-001"}
+    raw = canonical_bytes(mutated)
+    digest = store.blobs.put(raw)
+    with store.transaction() as conn:
+        conn.execute("UPDATE artifacts SET generated_json=?,content_sha256=? WHERE artifact_id=?", (raw.decode(), digest, artifact_id))
+
+    with pytest.raises(Exception, match="changed the direct source actor"):
+        lattice_env["lattice"].materialize_template_step(artifact_id, "step-001", expected_template_sha256=digest, project_id=lattice_env["project"]["project_id"], role_session_id=None, context_bindings={}, invocation_bindings={})
+
+
+@pytest.mark.contract
+def test_v2_role_template_remains_readable_after_v3_extraction_upgrade(lattice_env) -> None:
+    source = completed_invocation(lattice_env, "legacy role path", "result")
+    template = lattice_env["lattice"].extract(lattice_env["project"]["project_id"], [source["invocation_id"]], "Legacy role path")
+    artifact_id = template["generated_object"]["artifact_id"]
+    legacy = json.loads(json.dumps(template))
+    legacy["contract_version"] = "LatticeWorkflowTemplate/2.0"
+    legacy["generated_object"]["schema"]["version"] = 2
+    for step in legacy["steps"]:
+        step["role_parameter_id"] = step.pop("actor_binding")["parameter_id"]
+    raw = canonical_bytes(legacy)
+    digest = lattice_env["store"].blobs.put(raw)
+    with lattice_env["store"].transaction() as conn:
+        conn.execute("UPDATE artifacts SET generated_json=?,content_sha256=? WHERE artifact_id=?", (raw.decode(), digest, artifact_id))
+
+    parameters = {item["parameter_id"]: item for item in legacy["parameters"] if item["kind"] == "context-block"}
+    bindings = {
+        parameter_id: lattice_env["store"].create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type=contract["semantic_type"], content=f"legacy {parameter_id}", status=contract["status"], authority=contract["authority"], evidence_level=contract["evidence_level"], sensitivity=contract["sensitivity"]))["block_id"]
+        for parameter_id, contract in parameters.items()
+    }
+    draft = lattice_env["lattice"].materialize_template_step(artifact_id, "step-001", expected_template_sha256=digest, project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], context_bindings=bindings, invocation_bindings={})
+
+    assert draft["actor_kind"] == "role-session"
+
+
+@pytest.mark.oracle
 def test_extracted_workflow_materializes_parameterized_edges_without_copying_project_evidence(lattice_env) -> None:
     first = completed_invocation(lattice_env, "SOURCE PROMPT MUST NOT COPY", "SOURCE OUTPUT MUST NOT COPY")
     second_draft = lattice_env["lattice"].fork(first["invocation_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="SECOND SOURCE PROMPT MUST NOT COPY", route=lattice_env["route"])
@@ -324,7 +445,7 @@ def test_extracted_workflow_materializes_parameterized_edges_without_copying_pro
     template = lattice_env["lattice"].extract(lattice_env["project"]["project_id"], [second["invocation_id"], first["invocation_id"]], "Executable path")
     template_bytes = canonical_bytes(template)
 
-    assert template["contract_version"] == "LatticeWorkflowTemplate/2.0"
+    assert template["contract_version"] == "LatticeWorkflowTemplate/3.0"
     assert [step["step_id"] for step in template["steps"]] == ["step-001", "step-002"]
     assert b"SOURCE PROMPT MUST NOT COPY" not in template_bytes
     assert b"SOURCE OUTPUT MUST NOT COPY" not in template_bytes

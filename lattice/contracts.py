@@ -149,6 +149,12 @@ class RoleSessionCreate(StrictModel):
     label: str = Field(min_length=1, max_length=200)
 
 
+class RolePinCreate(RoleCreate):
+    """Create a future role from an exact completed conversational demonstration."""
+
+    session_label: str = Field(min_length=1, max_length=200)
+
+
 class ContextBlockCreate(StrictModel):
     project_id: str
     semantic_type: str = Field(min_length=1, max_length=120)

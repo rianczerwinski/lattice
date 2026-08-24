@@ -31,6 +31,7 @@ from .contracts import (
     ProjectCreate,
     ProviderRoute,
     RoleCreate,
+    RolePinCreate,
     RoleSessionCreate,
     SliceCreate,
     TagRequest,
@@ -85,7 +86,7 @@ class ExtractRequest(StrictRequest):
 class MaterializeTemplateStepRequest(StrictRequest):
     expected_template_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     project_id: str
-    role_session_id: str
+    role_session_id: str | None = None
     context_bindings: dict[str, str] = Field(default_factory=dict, max_length=1000)
     invocation_bindings: dict[str, str] = Field(default_factory=dict, max_length=1000)
     route: ProviderRoute | None = None
@@ -335,6 +336,10 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.post("/api/v1/projects/{project_id}/roles")
     async def create_role(project_id: str, value: RoleCreate):
         return store.create_role(project_id, value)
+
+    @app.post("/api/v1/invocations/{invocation_id}/roles")
+    async def pin_invocation_as_role(invocation_id: str, value: RolePinCreate):
+        return store.pin_invocation_as_role(invocation_id, value)
 
     @app.post("/api/v1/role-sessions")
     async def create_role_session(value: RoleSessionCreate):

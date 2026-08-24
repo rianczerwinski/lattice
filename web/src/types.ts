@@ -33,7 +33,7 @@ export type Route = { provider_code: string; model_code: string; official_cli: s
 export type InvocationSummary = { invocation_id: string; state: string; actor_kind: 'direct' | 'role-session'; role_session_id: string | null; output_block_id?: string; created_at: string };
 export type InvocationPage = { has_older: boolean; next_before: { created_at: string; invocation_id: string } | null };
 export type WorkflowTemplateSummary = { artifact_id: string; artifact_kind: 'workflow-template'; content_sha256: string; created_at: string };
-export type WorkflowTemplate = { generated_object: { artifact_id: string }; contract_version: 'LatticeWorkflowTemplate/2.0'; title: string; steps: Array<{ step_id: string }> };
+export type WorkflowTemplate = { generated_object: { artifact_id: string }; contract_version: 'LatticeWorkflowTemplate/2.0' | 'LatticeWorkflowTemplate/3.0'; title: string; steps: Array<{ step_id: string; actor_binding?: { kind: 'direct' } | { kind: 'role-parameter'; parameter_id: string }; role_parameter_id?: string }> };
 export type ManifestSegment = { block_id: string; plane: string; label: string; disposition: string; sha256: string; status: string; semantic_type: string };
 export type Manifest = {
   invocation_id: string;

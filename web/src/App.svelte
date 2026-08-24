@@ -32,6 +32,10 @@
   let slateConcern = '';
   let slateLabel = '';
   let slateTagReceipt = '';
+  let pinRoleName = '';
+  let pinRoleInstructions = '';
+  let pinRoleSessionLabel = '';
+  let pinRoleReceipt = '';
   let selected: Invocation | null = null;
   let comparison: Record<string, unknown> | null = null;
   let neighborhood: { nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } } | null = null;
@@ -110,7 +114,7 @@
     project = await api<Project>(`/api/v1/projects/${projectId}`);
     episodes = await api<Episode[]>(`/api/v1/projects/${projectId}/episodes`);
     currentEpisode = switchingProjects ? null : episodes.find((episode) => episode.slice_id === currentEpisode?.slice_id) ?? null;
-    selectedSession = project.sessions?.[0]?.role_session_id ?? '';
+    selectedSession = '';
     selectedParents = new Set();
     preview = null;
     pendingBatchRequest = null;
@@ -123,6 +127,10 @@
     armedAutomation = '';
     armedTransition = '';
     extractedTemplateId = '';
+    pinRoleName = '';
+    pinRoleInstructions = '';
+    pinRoleSessionLabel = '';
+    pinRoleReceipt = '';
     executionProfile = 'compiled-fresh';
     continuationSource = null;
     if (project.invocations?.length) await inspect(project.invocations[project.invocations.length - 1].invocation_id);
@@ -370,6 +378,26 @@
     try {
       const result = await post<{ edge_id: string; slice: { slice_id: string } }>(path, { concern_ref: identity, label: slateLabel });
       slateTagReceipt = `${result.slice.slice_id} · ${result.edge_id}`;
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    finally { working = false; }
+  }
+
+  async function pinSelectedAsRole() {
+    if (!selected || !pinRoleName.trim() || !pinRoleInstructions.trim() || !pinRoleSessionLabel.trim()) return;
+    working = true;
+    error = '';
+    try {
+      const result = await post<{ role: { role_id: string }; session: { role_session_id: string } }>(`/api/v1/invocations/${selected.invocation_id}/roles`, {
+        name: pinRoleName,
+        instructions: pinRoleInstructions,
+        incentives: [],
+        authority_limits: [],
+        session_label: pinRoleSessionLabel,
+      });
+      const sourceId = selected.invocation_id;
+      await openProject(project?.project_id ?? '');
+      await inspect(sourceId);
+      pinRoleReceipt = `${result.role.role_id} · ${result.session.role_session_id}`;
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
     finally { working = false; }
   }
@@ -841,6 +869,7 @@
 
         {#if comparison}<div class="comparison"><h3>Branch delta</h3><pre>{JSON.stringify(comparison, null, 2)}</pre></div>{/if}
         {#if selected}<details class="slate-tag"><summary>Tag into a live Slate topic</summary><label>Stable Slate identity<input bind:value={slateConcern} placeholder="canon-quaternary-german" /></label><label>Visible topic label<input bind:value={slateLabel} placeholder="Canon > Quaternary > German" /></label><div><button class="quiet" disabled={working || !slateConcern.trim() || !slateLabel.trim()} on:click={() => tagSelectedToSlate('invocation')}>Tag invocation</button><button class="quiet" disabled={working || !selected.output_block_id || !slateConcern.trim() || !slateLabel.trim()} on:click={() => tagSelectedToSlate('response')}>Tag response block</button></div>{#if slateTagReceipt}<small>Live slice updated · {slateTagReceipt}</small>{/if}</details>{/if}
+        {#if selected && ['succeeded', 'imported'].includes(selected.state)}<details class="role-pin"><summary>Pin demonstrated function as role</summary><p class="muted">Creates an optional role for future edges. This invocation and its context remain unchanged.</p><label>Role name<input bind:value={pinRoleName} placeholder="Critic" /></label><label>Future instructions<textarea bind:value={pinRoleInstructions} rows="4" placeholder="Describe the function worth repeating…"></textarea></label><label>Session label<input bind:value={pinRoleSessionLabel} placeholder="Critic spine" /></label><button class="quiet" disabled={working || !pinRoleName.trim() || !pinRoleInstructions.trim() || !pinRoleSessionLabel.trim()} on:click={pinSelectedAsRole}>Pin as role</button>{#if pinRoleReceipt}<small>Future role created · {pinRoleReceipt}</small>{/if}</details>{/if}
         {#if project?.workflow_templates?.length}
           <div class="template-list"><h3>Reusable paths</h3>{#if project.workflow_templates_partial}<p class="muted">Showing the newest 100 templates; the complete artifact ledger remains available through Lattice.</p>{/if}{#each project.workflow_templates as template}<details open={template.artifact_id === extractedTemplateId} on:toggle={(event) => event.currentTarget.open && loadArtifact(template.artifact_id)}><summary>{template.artifact_id === extractedTemplateId ? 'Just extracted · ' : ''}{template.artifact_id.slice(-12)}</summary><small>{template.created_at} · {template.content_sha256.slice(0, 12)}</small><pre>{artifactContents[template.artifact_id] ?? 'Open to inspect exact template bytes…'}</pre></details>{/each}</div>
         {/if}
