@@ -146,7 +146,7 @@ def test_negative_control_doctor_rejects_running_port_that_disagrees_with_outpor
     monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9011, "data_root": str(tmp_path)})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False})
-    monkeypatch.setattr(cli, "_adapter_status", lambda: {"anthropic": {}, "openai": {}})
+    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
@@ -166,7 +166,7 @@ def test_negative_control_doctor_rejects_stale_schema_generation(monkeypatch, tm
     monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path)})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False})
-    monkeypatch.setattr(cli, "_adapter_status", lambda: {"anthropic": {}, "openai": {}})
+    monkeypatch.setattr(cli, "_adapter_status", lambda _service=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"schema_version": 8, "expected_schema_version": 9})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
@@ -215,6 +215,30 @@ def test_negative_control_runtime_probe_executes_outside_the_source_checkout(mon
     assert observed["cwd"] == tmp_path
     assert observed["capture"] is True
     assert locations["lattice"].startswith("/installed/")
+
+
+@pytest.mark.regression
+def test_negative_control_required_binary_preserves_the_public_entrypoint(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "provider.exe"
+    target.write_bytes(b"provider")
+    target.chmod(0o755)
+    entrypoint = tmp_path / "provider"
+    entrypoint.symlink_to(target)
+    monkeypatch.setattr(deployment.shutil, "which", lambda _name: str(entrypoint))
+
+    assert deployment.required_binary("provider") == entrypoint
+
+
+@pytest.mark.regression
+def test_negative_control_doctor_uses_the_daemon_provider_view(monkeypatch) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    monkeypatch.setattr(cli, "_service_routes", lambda _service: [
+        {"provider_code": "anthropic", "official_cli": "claude", "model_code": "opus", "qualified": False, "qualified_profiles": []},
+        {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
+    ])
+
+    with pytest.raises(RuntimeError, match=r"unavailable=\['anthropic'\]"):
+        cli._adapter_status(service)
 
 
 @pytest.mark.property

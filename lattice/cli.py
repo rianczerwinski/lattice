@@ -67,6 +67,18 @@ def _health(service: OutportService, *, timeout: float = 2.0) -> dict[str, Any]:
     return payload
 
 
+def _service_routes(service: OutportService, *, timeout: float = 2.0) -> list[dict[str, Any]]:
+    request = urllib.request.Request(f"{service.loopback_url}/api/v1/routes", headers={"Host": f"127.0.0.1:{service.port}"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read())
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"Lattice service adapter status is unreadable on Outport :{service.port}: {error}") from error
+    if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
+        raise RuntimeError("Lattice service adapter status is not a list of provider objects")
+    return payload
+
+
 def _emit(value: Any, *, as_json: bool) -> None:
     if as_json:
         print(json.dumps(value, indent=2, sort_keys=True))
@@ -109,8 +121,8 @@ def _runtime_status() -> dict[str, Any]:
     return {"version": _version(), "executable": str(executable), "module": str(module), "editable": False}
 
 
-def _adapter_status() -> dict[str, Any]:
-    statuses = installed_adapter_status(probe_versions=False)
+def _adapter_status(service: OutportService | None = None) -> dict[str, Any]:
+    statuses = _service_routes(service) if service is not None else installed_adapter_status(probe_versions=False)
     required = {item["provider_code"]: item for item in statuses if item["provider_code"] in {"anthropic", "openai"}}
     missing = [provider for provider in ("anthropic", "openai") if provider not in required or not required[provider]["qualified"]]
     profile_gaps = [provider for provider, item in required.items() if not {"compiled-fresh", "workspace-agent", "native-continuation"}.issubset(set(item.get("qualified_profiles", [])))]
@@ -235,7 +247,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         _check("service", health_check),
         _check("database-blobs-and-journals", lambda: _database_status(config)),
         _check("runtime", _runtime_status),
-        _check("provider-adapters", _adapter_status),
+        _check("provider-adapters", lambda: _adapter_status(service_box.get("value") or _service(config))),
         _check("backup-and-recovery", lambda: _backup_status(config)),
     ]
     result = {"status": "pass" if all(item["state"] == "pass" for item in checks) else "fail", "checks": checks}

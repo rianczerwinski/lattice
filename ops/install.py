@@ -109,7 +109,11 @@ def required_binary(name: str) -> Path:
     candidate = shutil.which(name)
     if candidate is None:
         raise RuntimeError(f"required deployment executable is unavailable: {name}")
-    return Path(candidate).resolve(strict=True)
+    entrypoint = Path(candidate).absolute()
+    resolved = entrypoint.resolve(strict=True)
+    if not resolved.is_file() or not os.access(resolved, os.X_OK):
+        raise RuntimeError(f"required deployment executable is not runnable: {entrypoint}")
+    return entrypoint
 
 
 def runtime_path() -> str:
