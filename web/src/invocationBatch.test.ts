@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batchIdempotencyKey, reciprocalCrossFeedParents } from './invocationBatch';
+import { batchIdempotencyKey, reciprocalCrossFeedParents, resolveExactSelection } from './invocationBatch';
 import type { Invocation } from './types';
 
 function source(invocationId: string, provider: 'anthropic' | 'openai', state = 'succeeded', outputBlockId: string | undefined = `block_${provider}`): Invocation {
@@ -25,5 +25,30 @@ describe('invocation batch submission', () => {
   it('rejects same-provider and nonterminal cross-feed mutations', () => {
     expect(() => reciprocalCrossFeedParents([source('one', 'anthropic'), source('two', 'anthropic')])).toThrow('one Claude response and one Codex response');
     expect(() => reciprocalCrossFeedParents([source('one', 'anthropic', 'running'), source('two', 'openai')])).toThrow('nonterminal source');
+  });
+});
+
+describe('rendered response selection', () => {
+  it('maps a repeated visible phrase to its exact source occurrence', () => {
+    const source = 'first 🌊 then first 🌊';
+    const renderedStart = source.lastIndexOf('first');
+    expect(resolveExactSelection(source, source, 'first', renderedStart)).toEqual({
+      kind: 'exact',
+      text: 'first',
+      startByte: new TextEncoder().encode(source.slice(0, renderedStart)).byteLength,
+      endByte: new TextEncoder().encode(source.slice(0, renderedStart + 5)).byteLength,
+    });
+  });
+
+  it('rejects a rendered occurrence topology hidden by Markdown', () => {
+    const source = '[same](https://same.example) and same';
+    expect(resolveExactSelection(source, 'same and same', 'same', 9)).toEqual({
+      kind: 'unavailable',
+      reason: 'Formatting makes this rendered selection ambiguous in the exact source.',
+    });
+  });
+
+  it('rejects a caller-provided rendered offset that does not bind the selected bytes', () => {
+    expect(resolveExactSelection('alpha beta', 'alpha beta', 'beta', 0).kind).toBe('unavailable');
   });
 });

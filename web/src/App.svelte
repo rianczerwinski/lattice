@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api, beginSession, extractWorkflow, post } from './api';
-  import { batchIdempotencyKey, reciprocalCrossFeedParents } from './invocationBatch';
+  import { batchIdempotencyKey, reciprocalCrossFeedParents, resolveExactSelection } from './invocationBatch';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
   import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
@@ -34,6 +34,7 @@
   let pendingBatchRequest: Record<string, unknown> | null = null;
   let explicitSelections: Array<Record<string, unknown>> = [];
   let selectedExcerpt: { text: string; startByte: number; endByte: number } | null = null;
+  let selectionProofLimit = '';
   let episodes: Episode[] = [];
   let currentEpisode: Episode | null = null;
   let slateConcern = '';
@@ -390,18 +391,22 @@
   function captureResponseSelection() {
     const selection = window.getSelection();
     const anchor = selection?.anchorNode instanceof Element ? selection.anchorNode : selection?.anchorNode?.parentElement;
-    if (!anchor?.closest('article')) { selectedExcerpt = null; return; }
+    const article = anchor?.closest('article');
+    if (!article?.closest('.response-card') || !selection?.rangeCount) { selectedExcerpt = null; selectionProofLimit = ''; return; }
+    const range = selection.getRangeAt(0);
+    if (!article.contains(range.startContainer) || !article.contains(range.endContainer)) { selectedExcerpt = null; selectionProofLimit = ''; return; }
     const text = selection?.toString() ?? '';
     const source = selected?.output_block?.content ?? '';
-    if (!text.trim() || !source) { selectedExcerpt = null; return; }
-    const start = source.indexOf(text);
-    if (start < 0 || source.indexOf(text, start + 1) >= 0) { selectedExcerpt = null; return; }
-    const encoder = new TextEncoder();
-    selectedExcerpt = {
-      text,
-      startByte: encoder.encode(source.slice(0, start)).byteLength,
-      endByte: encoder.encode(source.slice(0, start + text.length)).byteLength,
-    };
+    if (!text.trim() || !source) { selectedExcerpt = null; selectionProofLimit = ''; return; }
+    const fullRange = document.createRange();
+    fullRange.selectNodeContents(article);
+    const prefixRange = document.createRange();
+    prefixRange.selectNodeContents(article);
+    prefixRange.setEnd(range.startContainer, range.startOffset);
+    const resolution = resolveExactSelection(source, fullRange.toString(), text, prefixRange.toString().length);
+    if (resolution.kind === 'unavailable') { selectedExcerpt = null; selectionProofLimit = resolution.reason; return; }
+    selectedExcerpt = resolution;
+    selectionProofLimit = '';
   }
 
   async function graftSelectedExcerpt(sideQuest: boolean) {
@@ -893,6 +898,7 @@
                 {#if selectedNativeEligible}<button class="quiet native" on:click={() => configureNativeContinuation('resume')}>Continue native session</button><button class="quiet native" on:click={() => configureNativeContinuation('fork')}>Fork native session</button>{/if}
                 {#if currentEpisode?.parent_episode_id}<button class="quiet return" on:click={returnToParentEpisode}>Return to {parentEpisode?.name ?? 'parent trail'}</button>{/if}
                 {#if selectedExcerpt}<button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(true)}>Side quest on “{selectedExcerpt.text.slice(0, 36)}{selectedExcerpt.text.length > 36 ? '…' : ''}”</button><button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(false)}>Bring selection here</button>{/if}
+                {#if selectionProofLimit}<small class="selection-proof-limit">{selectionProofLimit}</small>{/if}
               </div>
             {:else}
               <div class="empty-call"><span>Begin here</span><h3>Say what should happen next.</h3><p>Lattice will show the exact context before anything is sent.</p></div>
