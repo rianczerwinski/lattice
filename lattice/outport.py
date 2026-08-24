@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -27,9 +30,26 @@ class OutportService:
         return f"http://127.0.0.1:{self.port}"
 
 
+def outport_executable(environ: Mapping[str, str] = os.environ) -> str:
+    configured = environ.get("OUTPORT_BIN")
+    discovered = shutil.which("outport") if not configured else None
+    if not configured and discovered is None:
+        raise RuntimeError("Outport executable is unavailable")
+    candidate = Path(configured or str(discovered)).expanduser()
+    if not candidate.is_absolute():
+        raise RuntimeError("OUTPORT_BIN must be an absolute executable path")
+    try:
+        resolved = candidate.resolve(strict=True)
+    except FileNotFoundError as error:
+        raise RuntimeError(f"Outport executable does not exist: {candidate}") from error
+    if not resolved.is_file() or not os.access(resolved, os.X_OK):
+        raise RuntimeError(f"Outport executable is not runnable: {resolved}")
+    return str(resolved)
+
+
 def _run_outport(axisvi_root: Path) -> bytes:
     result = subprocess.run(
-        ["outport", "status", "--json"],
+        [outport_executable(), "status", "--json"],
         cwd=axisvi_root,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,

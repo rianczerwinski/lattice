@@ -14,7 +14,7 @@ from lattice import cli
 from lattice.config import LatticeConfig, user_data_root
 from lattice.contracts import DraftCreate, ProjectCreate
 from lattice.diagnostics import assess_backup, assess_data_root
-from lattice.outport import OutportService, resolve_lattice_service
+from lattice.outport import OutportService, outport_executable, resolve_lattice_service
 from lattice.server import create_app
 from lattice.snapshot import create_snapshot, restore_snapshot
 from ops import install as deployment
@@ -50,6 +50,12 @@ def test_outport_is_the_only_lattice_service_identity(tmp_path) -> None:
 def test_negative_control_outport_rejects_hostname_url_disagreement(tmp_path) -> None:
     with pytest.raises(RuntimeError, match="disagrees"):
         resolve_lattice_service(tmp_path, runner=lambda _root: outport_payload(url="https://impostor.axisvi.test"))
+
+
+@pytest.mark.regression
+def test_negative_control_outport_rejects_a_relative_supervisor_binary() -> None:
+    with pytest.raises(RuntimeError, match="absolute executable path"):
+        outport_executable({"OUTPORT_BIN": "outport"})
 
 
 @pytest.mark.oracle
@@ -184,7 +190,11 @@ def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -
     assert service["RunAtLoad"] is True and service["KeepAlive"] is True and service["ThrottleInterval"] == 10
     assert backup["ProgramArguments"][-2:] == ["--reason", "scheduled-daily"]
     assert backup["StartCalendarInterval"] == {"Hour": 3, "Minute": 0}
+    assert service["EnvironmentVariables"]["OUTPORT_BIN"] == str(deployment.required_binary("outport"))
+    assert str(deployment.required_binary("claude").parent) in service["EnvironmentVariables"]["PATH"].split(":")
+    assert str(deployment.required_binary("codex").parent) in service["EnvironmentVariables"]["PATH"].split(":")
     assert f"export AXISVI_ROOT={deployment.AXISVI_ROOT}" in shim
+    assert f"export OUTPORT_BIN={deployment.required_binary('outport')}" in shim
     assert str(deployment.CURRENT_LINK / ".venv" / "bin" / "lattice") in shim
     assert str(deployment.SOURCE_ROOT / ".venv") not in shim
 

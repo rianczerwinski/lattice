@@ -20,7 +20,7 @@ from axis_model_runner import installed_adapter_status
 
 from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
-from .outport import OutportService, resolve_lattice_service
+from .outport import OutportService, outport_executable, resolve_lattice_service
 from .server import create_app
 from .snapshot import create_snapshot, restore_snapshot
 
@@ -148,7 +148,7 @@ def command_open(args: argparse.Namespace) -> int:
     config = LatticeConfig.from_environment()
     service = _service(config)
     if service is not None:
-        result = subprocess.run(["outport", "open", "lattice"], cwd=config.axisvi_root, check=False)
+        result = subprocess.run([outport_executable(), "open", "lattice"], cwd=config.axisvi_root, check=False)
         return result.returncode
     if args.port is None:
         raise RuntimeError("standalone Lattice open requires --port")

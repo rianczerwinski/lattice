@@ -105,6 +105,25 @@ def source_python() -> Path:
     return candidate
 
 
+def required_binary(name: str) -> Path:
+    candidate = shutil.which(name)
+    if candidate is None:
+        raise RuntimeError(f"required deployment executable is unavailable: {name}")
+    return Path(candidate).resolve(strict=True)
+
+
+def runtime_path() -> str:
+    directories: list[str] = []
+    for binary in (required_binary("outport"), required_binary("claude"), required_binary("codex")):
+        parent = str(binary.parent)
+        if parent not in directories:
+            directories.append(parent)
+    for directory in ("/usr/bin", "/bin", "/usr/sbin", "/sbin"):
+        if directory not in directories:
+            directories.append(directory)
+    return os.pathsep.join(directories)
+
+
 def verify_source() -> None:
     run([str(source_python()), "-m", "pytest", "-q"])
     run(["npm", "run", "build"], cwd=SOURCE_ROOT / "web")
@@ -322,7 +341,7 @@ def shim_payload() -> bytes:
     """Bind the personal AXISVI deployment while keeping the active runtime swappable."""
 
     executable = CURRENT_LINK / ".venv" / "bin" / "lattice"
-    script = f"#!/bin/sh\nexport AXISVI_ROOT={shlex.quote(str(AXISVI_ROOT))}\nexec {shlex.quote(str(executable))} \"$@\"\n"
+    script = f"#!/bin/sh\nexport AXISVI_ROOT={shlex.quote(str(AXISVI_ROOT))}\nexport OUTPORT_BIN={shlex.quote(str(required_binary('outport')))}\nexec {shlex.quote(str(executable))} \"$@\"\n"
     return script.encode("utf-8")
 
 
@@ -332,7 +351,7 @@ def plist_payload(label: str, *, backup: bool) -> dict:
         "Label": label,
         "ProgramArguments": [executable, "backup", "--reason", "scheduled-daily"] if backup else [executable, "serve"],
         "WorkingDirectory": str(AXISVI_ROOT),
-        "EnvironmentVariables": {"AXISVI_ROOT": str(AXISVI_ROOT), "LATTICE_DATA_DIR": str(DEFAULT_DATA_ROOT)},
+        "EnvironmentVariables": {"AXISVI_ROOT": str(AXISVI_ROOT), "LATTICE_DATA_DIR": str(DEFAULT_DATA_ROOT), "OUTPORT_BIN": str(required_binary("outport")), "PATH": runtime_path()},
         "ProcessType": "Background",
         "ThrottleInterval": 10,
         "StandardOutPath": str(LOG_ROOT / ("backup.stdout.log" if backup else "service.stdout.log")),
