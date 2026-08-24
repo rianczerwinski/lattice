@@ -62,7 +62,7 @@
       "statement": "The remediation could duplicate already-working context delta, Slate slices, route selection, and trailhead machinery instead of exposing it coherently.",
       "route": [4, 5],
       "status": "open",
-      "implementation_receipts": ["web/src/App.svelte:loadOlderInvocations", "web/src/App.svelte:Context truth", "lattice/store.py:page_invocations", "lattice/store.py:get_slice"],
+      "implementation_receipts": ["web/src/App.svelte:loadOlderInvocations", "web/src/App.svelte:Context truth", "web/src/App.svelte:tagSelectedToSlate", "lattice/store.py:page_invocations", "lattice/store.py:get_slice", "lattice/store.py:tag_context_block"],
       "independent_oracle": "The cockpit and Slate acceptance paths resolve through the existing ledger identities and endpoints without copied transcript state or a second projection authority.",
       "false_mutation": "Replace a saved Slate query with copied transcript bytes or make an older trailhead unreachable and require acceptance to fail."
     },
@@ -112,7 +112,7 @@
       "statement": "Side-quest episodes and Slate topics are overlapping concern-backed slices, never exclusive containers or copied conversations.",
       "route": [5],
       "status": "open",
-      "implementation_receipts": [],
+      "implementation_receipts": ["lattice/store.py:create_episode", "lattice/store.py:add_episode_member", "lattice/store.py:list_invocation_episodes", "web/src/App.svelte:beginSideQuest", "web/src/App.svelte:returnToParentEpisode", "tests/test_invocation_batches.py:test_episodes_are_overlapping_live_slices_and_returned_work_is_new_history", "tests/test_invocation_batches.py:test_invocation_and_response_block_share_one_live_slate_slice_without_copying"],
       "independent_oracle": "One invocation participates in several episodes and a live Slate slice updates through concern edges while every claim resolves to its canonical object.",
       "false_mutation": "Make an episode own an invocation exclusively or persist transcript bytes in Slate and require the slice oracle to fail."
     },

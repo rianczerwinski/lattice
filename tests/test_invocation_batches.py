@@ -11,11 +11,13 @@ from lattice.contracts import (
     ContextSelection,
     DerivedTextBlockCreate,
     DirectActorBinding,
+    EpisodeCreate,
     InvocationBatchCreateV1,
     InvocationBatchPreviewV1,
     InvocationSpecV1,
     ProjectCreate,
     ProviderRoute,
+    TagRequest,
 )
 from lattice.store import LatticeConflict
 
@@ -178,3 +180,50 @@ def test_only_knowledge_plane_obeys_operator_selection_order(lattice_env) -> Non
     knowledge = [item["block_id"] for item in preview["members"][0]["preflight"]["segments"] if item["plane"] == "knowledge"]
 
     assert knowledge == [second["block_id"], first["block_id"]]
+
+
+@pytest.mark.oracle
+def test_episodes_are_overlapping_live_slices_and_returned_work_is_new_history(lattice_env) -> None:
+    root = completed_invocation(lattice_env, "root", "root answer")
+    parent_episode = lattice_env["store"].create_episode(EpisodeCreate(project_id=lattice_env["project"]["project_id"], name="Main line", anchor_type="invocation", anchor_id=root["invocation_id"]))
+    child_episode = lattice_env["store"].create_episode(EpisodeCreate(project_id=lattice_env["project"]["project_id"], name="Side quest", parent_episode_id=parent_episode["slice_id"], anchor_type="invocation", anchor_id=root["invocation_id"]))
+
+    memberships = lattice_env["store"].list_invocation_episodes(root["invocation_id"])
+    assert {item["slice_id"] for item in memberships} == {parent_episode["slice_id"], child_episode["slice_id"]}
+    assert child_episode["parent_episode_id"] == parent_episode["slice_id"]
+
+    request = InvocationBatchPreviewV1(
+        batch_id=opaque_id("batch"),
+        specifications=[InvocationSpecV1(
+            spec_id="return",
+            assembly=ContextAssemblyV1(project_id=lattice_env["project"]["project_id"], prompt="Return the useful result", parent_invocation_ids=[root["invocation_id"]]),
+            route=lattice_env["route"],
+            concern_refs=[parent_episode["concern_ref"]],
+        )],
+    )
+    preview = lattice_env["lattice"].preview_invocation_batch(request)
+    returned = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(**request.model_dump(mode="json"), idempotency_key="episode-return-0001", expected_preview_sha256=preview["preview_sha256"], confirmed_reason_sha256s=[]))
+
+    assert returned["invocation_ids"] != [root["invocation_id"]]
+    parent_live = lattice_env["store"].get_episode(parent_episode["slice_id"])
+    assert {item["object_id"] for item in parent_live["items"]} == {root["invocation_id"], returned["invocation_ids"][0]}
+    with lattice_env["store"]._connect() as conn:
+        query_bytes = conn.execute("SELECT query_json FROM slices WHERE slice_id=?", (parent_episode["slice_id"],)).fetchone()[0]
+    assert "root answer" not in query_bytes
+
+
+@pytest.mark.oracle
+def test_invocation_and_response_block_share_one_live_slate_slice_without_copying(lattice_env) -> None:
+    invocation = completed_invocation(lattice_env, "private prompt", "source-bound response")
+    tag = TagRequest(concern_ref="slate:topic-live", label="Topic live")
+    invocation_result = lattice_env["store"].tag_invocation(invocation["invocation_id"], tag)
+    block_result = lattice_env["store"].tag_context_block(invocation["output_block_id"], tag)
+
+    assert invocation_result["slice"]["slice_id"] == block_result["slice"]["slice_id"]
+    assert {(item["object_type"], item["object_id"]) for item in block_result["slice"]["items"]} == {
+        ("invocation", invocation["invocation_id"]),
+        ("context-block", invocation["output_block_id"]),
+    }
+    with lattice_env["store"]._connect() as conn:
+        stored = conn.execute("SELECT query_json FROM slices WHERE slice_id=?", (block_result["slice"]["slice_id"],)).fetchone()[0]
+    assert "private prompt" not in stored and "source-bound response" not in stored

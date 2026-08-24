@@ -37,6 +37,8 @@ from .contracts import (
     WorkflowTransitionRequest,
     WorkflowAutomationGrantRequest,
     EdgeRelation,
+    EpisodeCreate,
+    EpisodeMemberCreate,
 )
 from .octopus_import import OctopusImporter
 from .context_modules import ContextModuleError, ContextModuleRunner, read_bounded_local_file
@@ -437,9 +439,29 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     async def tag(invocation_id: str, value: TagRequest):
         return lattice.tag(invocation_id, value)
 
+    @app.post("/api/v1/context-blocks/{block_id}/tags")
+    async def tag_context_block(block_id: str, value: TagRequest):
+        return store.tag_context_block(block_id, value)
+
     @app.post("/api/v1/slices")
     async def create_slice(value: SliceCreate):
         return store.create_slice(value)
+
+    @app.post("/api/v1/episodes")
+    async def create_episode(value: EpisodeCreate):
+        return store.create_episode(value)
+
+    @app.get("/api/v1/projects/{project_id}/episodes")
+    async def project_episodes(project_id: str):
+        return store.list_project_episodes(project_id)
+
+    @app.get("/api/v1/invocations/{invocation_id}/episodes")
+    async def invocation_episodes(invocation_id: str):
+        return store.list_invocation_episodes(invocation_id)
+
+    @app.post("/api/v1/episodes/{episode_id}/members")
+    async def add_episode_member(episode_id: str, value: EpisodeMemberCreate):
+        return store.add_episode_member(episode_id, value)
 
     @app.get("/api/v1/slices/{slice_id}")
     async def get_slice(

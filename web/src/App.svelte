@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api, beginSession, extractWorkflow, post } from './api';
   import { renderMarkdown } from './renderMarkdown';
-  import type { BatchPreview, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
+  import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
 
   let projects: Project[] = [];
@@ -19,6 +19,11 @@
   let pendingBatchRequest: Record<string, unknown> | null = null;
   let explicitSelections: Array<Record<string, unknown>> = [];
   let selectedExcerpt: { text: string; startByte: number; endByte: number } | null = null;
+  let episodes: Episode[] = [];
+  let currentEpisode: Episode | null = null;
+  let slateConcern = '';
+  let slateLabel = '';
+  let slateTagReceipt = '';
   let selected: Invocation | null = null;
   let comparison: Record<string, unknown> | null = null;
   let neighborhood: { nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } } | null = null;
@@ -54,6 +59,7 @@
   $: activeWorkflowPack = workflowPacks.find((pack) => pack.definition.pack_id === project?.workflow?.pack_id);
   $: workflowPackCurrent = Boolean(project?.workflow?.pack_canonical_sha256 && project.workflow.pack_canonical_sha256 === activeWorkflowPack?.canonical_sha256);
   $: nextWorkflowTransitions = activeWorkflowPack?.definition.allowed_transitions.filter((transition) => transition.from === project?.workflow?.state) ?? [];
+  $: parentEpisode = episodes.find((episode) => episode.slice_id === currentEpisode?.parent_episode_id) ?? null;
 
   async function boot() {
     loading = true;
@@ -90,7 +96,10 @@
   }
 
   async function openProject(projectId: string) {
+    const switchingProjects = project?.project_id !== projectId;
     project = await api<Project>(`/api/v1/projects/${projectId}`);
+    episodes = await api<Episode[]>(`/api/v1/projects/${projectId}/episodes`);
+    currentEpisode = switchingProjects ? null : episodes.find((episode) => episode.slice_id === currentEpisode?.slice_id) ?? null;
     selectedSession = project.sessions?.[0]?.role_session_id ?? '';
     selectedParents = new Set();
     preview = null;
@@ -146,7 +155,7 @@
     };
     return {
       batch_id: batchId,
-      specifications: routeChoices.map((route) => ({ spec_id: route.provider_code, assembly, route: routePayload(route) })),
+      specifications: routeChoices.map((route) => ({ spec_id: route.provider_code, assembly, route: routePayload(route), concern_refs: currentEpisode ? [currentEpisode.concern_ref] : [] })),
     };
   }
 
@@ -253,14 +262,35 @@
     resetPreview();
   }
 
-  function beginSideQuest(mode: 'anthropic' | 'openai' | 'both' = routeMode) {
-    if (!selected) return;
-    routeMode = mode;
-    selectedSession = '';
+  async function beginSideQuest(mode: 'anthropic' | 'openai' | 'both' = routeMode) {
+    if (!selected || !project) return;
+    working = true;
+    error = '';
+    try {
+      let parent = currentEpisode;
+      if (!parent) {
+        parent = await post<Episode>('/api/v1/episodes', { project_id: project.project_id, name: 'Main trail', anchor_type: 'invocation', anchor_id: selected.invocation_id });
+      }
+      const child = await post<Episode>('/api/v1/episodes', { project_id: project.project_id, name: `Side quest · ${selected.invocation_id.slice(-8)}`, parent_episode_id: parent.slice_id, anchor_type: 'invocation', anchor_id: selected.invocation_id });
+      episodes = await api<Episode[]>(`/api/v1/projects/${project.project_id}/episodes`);
+      currentEpisode = episodes.find((episode) => episode.slice_id === child.slice_id) ?? child;
+      routeMode = mode;
+      selectedSession = '';
+      selectedParents = new Set([selected.invocation_id]);
+      prompt = '';
+      explicitSelections = [];
+      selectedExcerpt = null;
+      resetPreview();
+      document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    finally { working = false; }
+  }
+
+  function returnToParentEpisode() {
+    if (!currentEpisode?.parent_episode_id || !selected) return;
+    currentEpisode = episodes.find((episode) => episode.slice_id === currentEpisode?.parent_episode_id) ?? null;
     selectedParents = new Set([selected.invocation_id]);
     prompt = '';
-    explicitSelections = [];
-    selectedExcerpt = null;
     resetPreview();
     document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
   }
@@ -293,11 +323,25 @@
         start_byte: selectedExcerpt.startByte,
         end_byte: selectedExcerpt.endByte,
       });
+      if (sideQuest) await beginSideQuest();
       explicitSelections = [...explicitSelections, { block_id: block.block_id, plane: 'knowledge', label: `graft:${block.block_id.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [selected.output_block_id] }];
-      if (sideQuest) selectedParents = new Set([selected.invocation_id]);
       selectedExcerpt = null;
       resetPreview();
       document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+    } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+    finally { working = false; }
+  }
+
+  async function tagSelectedToSlate(target: 'invocation' | 'response') {
+    if (!selected || !slateConcern.trim() || !slateLabel.trim()) return;
+    const identity = slateConcern.startsWith('slate:') ? slateConcern : `slate:${slateConcern}`;
+    const path = target === 'invocation' ? `/api/v1/invocations/${selected.invocation_id}/tags` : `/api/v1/context-blocks/${selected.output_block_id}/tags`;
+    if (target === 'response' && !selected.output_block_id) return;
+    working = true;
+    error = '';
+    try {
+      const result = await post<{ edge_id: string; slice: { slice_id: string } }>(path, { concern_ref: identity, label: slateLabel });
+      slateTagReceipt = `${result.slice.slice_id} · ${result.edge_id}`;
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
     finally { working = false; }
   }
@@ -600,6 +644,7 @@
               {/each}
             </div>
           </div>
+          {#if currentEpisode}<nav class="episode-breadcrumb" aria-label="Current episode">{#if parentEpisode}<button on:click={() => currentEpisode = parentEpisode}>{parentEpisode.name}</button><span>›</span>{/if}<strong>{currentEpisode.name}</strong><small>{currentEpisode.items.length} member{currentEpisode.items.length === 1 ? '' : 's'}</small></nav>{/if}
 
           {#if project.workflow}
             <details class="workflow-control">
@@ -679,6 +724,7 @@
                 <button class="quiet" on:click={() => beginSideQuest('anthropic')}>Ask Claude</button>
                 <button class="quiet" on:click={() => beginSideQuest('openai')}>Ask Codex</button>
                 <button class="quiet" on:click={() => beginSideQuest('both')}>Ask both</button>
+                {#if currentEpisode?.parent_episode_id}<button class="quiet return" on:click={returnToParentEpisode}>Return to {parentEpisode?.name ?? 'parent trail'}</button>{/if}
                 {#if selectedExcerpt}<button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(true)}>Side quest on “{selectedExcerpt.text.slice(0, 36)}{selectedExcerpt.text.length > 36 ? '…' : ''}”</button><button class="quiet selected-text" disabled={working} on:click={() => graftSelectedExcerpt(false)}>Bring selection here</button>{/if}
               </div>
             {:else}
@@ -751,6 +797,7 @@
         {:else}<p class="muted">Prepare an edge to inspect its exact world before execution.</p>{/if}
 
         {#if comparison}<div class="comparison"><h3>Branch delta</h3><pre>{JSON.stringify(comparison, null, 2)}</pre></div>{/if}
+        {#if selected}<details class="slate-tag"><summary>Tag into a live Slate topic</summary><label>Stable Slate identity<input bind:value={slateConcern} placeholder="canon-quaternary-german" /></label><label>Visible topic label<input bind:value={slateLabel} placeholder="Canon > Quaternary > German" /></label><div><button class="quiet" disabled={working || !slateConcern.trim() || !slateLabel.trim()} on:click={() => tagSelectedToSlate('invocation')}>Tag invocation</button><button class="quiet" disabled={working || !selected.output_block_id || !slateConcern.trim() || !slateLabel.trim()} on:click={() => tagSelectedToSlate('response')}>Tag response block</button></div>{#if slateTagReceipt}<small>Live slice updated · {slateTagReceipt}</small>{/if}</details>{/if}
         {#if project?.workflow_templates?.length}
           <div class="template-list"><h3>Reusable paths</h3>{#if project.workflow_templates_partial}<p class="muted">Showing the newest 100 templates; the complete artifact ledger remains available through Lattice.</p>{/if}{#each project.workflow_templates as template}<details open={template.artifact_id === extractedTemplateId} on:toggle={(event) => event.currentTarget.open && loadArtifact(template.artifact_id)}><summary>{template.artifact_id === extractedTemplateId ? 'Just extracted · ' : ''}{template.artifact_id.slice(-12)}</summary><small>{template.created_at} · {template.content_sha256.slice(0, 12)}</small><pre>{artifactContents[template.artifact_id] ?? 'Open to inspect exact template bytes…'}</pre></details>{/each}</div>
         {/if}

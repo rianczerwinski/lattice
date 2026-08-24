@@ -283,6 +283,16 @@ class InvocationSpecV1(StrictModel):
     spec_id: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$")
     assembly: ContextAssemblyV1
     route: ProviderRoute
+    concern_refs: list[str] = Field(default_factory=list, max_length=100)
+
+    @field_validator("concern_refs")
+    @classmethod
+    def concerns_are_unique_and_printable(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("invocation concern identities must be unique")
+        if any(not item or len(item) > 500 or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in value):
+            raise ValueError("invocation concern identities must be printable")
+        return value
 
 
 class InvocationBatchPreviewV1(StrictModel):
@@ -337,6 +347,19 @@ class DerivedTextBlockCreate(StrictModel):
         if self.end_byte <= self.start_byte:
             raise ValueError("excerpt end byte must follow its start byte")
         return self
+
+
+class EpisodeCreate(StrictModel):
+    project_id: str
+    name: str = Field(min_length=1, max_length=300)
+    parent_episode_id: str | None = None
+    anchor_type: Literal["invocation", "context-block", "artifact"]
+    anchor_id: str = Field(min_length=1)
+
+
+class EpisodeMemberCreate(StrictModel):
+    object_type: Literal["invocation", "context-block", "artifact"]
+    object_id: str = Field(min_length=1)
 
 
 class ExecuteRequest(StrictModel):

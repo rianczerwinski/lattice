@@ -195,6 +195,7 @@ class Lattice:
                 raise LatticeConflict("independent manifest reader disagrees with batch compositor")
             prepared.append({
                 "spec_id": spec.spec_id,
+                "concern_refs": spec.concern_refs,
                 "assembly_sha256": member["assembly_sha256"],
                 "prompt_block": prompt_block,
                 "draft": draft,

@@ -29,6 +29,8 @@ from .contracts import (
     DraftPatch,
     DraftState,
     EdgeRelation,
+    EpisodeCreate,
+    EpisodeMemberCreate,
     InvocationState,
     ProjectCreate,
     RoleCreate,
@@ -1653,6 +1655,14 @@ class LatticeStore:
                     self._event(conn, project_id=draft["project_id"], event_type="invocation.sealed", subject_type="invocation", subject_id=manifest["invocation_id"], payload={"manifest_artifact_id": manifest["generated_object"]["artifact_id"], "manifest_sha256": manifest["manifest_sha256"], "batch_id": batch_id})
                     for parent_id in draft["parents"]:
                         self._insert_edge(conn, project_id=draft["project_id"], relation=EdgeRelation(draft["relation"]), source_type="invocation", source_id=manifest["invocation_id"], source_revision=manifest["manifest_sha256"], target_type="invocation", target_id=parent_id, target_revision=self._invocation_revision(conn, parent_id), metadata={"batch_id": batch_id})
+                    for concern_ref in item.get("concern_refs", []):
+                        concern_slice = conn.execute(
+                            "SELECT project_id,scope FROM slices WHERE json_extract(query_json,'$.concern_ref')=? ORDER BY created_at LIMIT 1",
+                            (concern_ref,),
+                        ).fetchone()
+                        if concern_slice is None or (concern_slice["scope"] != "global" and concern_slice["project_id"] != draft["project_id"]):
+                            raise LatticeConflict("batch concern does not resolve to a visible saved slice")
+                        self._insert_edge(conn, project_id=draft["project_id"], relation=EdgeRelation.concerns, source_type="invocation", source_id=manifest["invocation_id"], source_revision=manifest["manifest_sha256"], target_type="external-concern", target_id=concern_ref, target_revision=sha256_bytes(concern_ref.encode("utf-8")), metadata={"batch_id": batch_id})
 
                 conn.execute(
                     "INSERT INTO invocation_batches(batch_id,project_id,idempotency_key,request_sha256,preview_sha256,receipt_json,receipt_sha256,created_at) VALUES(?,?,?,?,?,?,?,?)",
@@ -1887,6 +1897,77 @@ class LatticeStore:
             self._event(conn, project_id=value.project_id, event_type="slice.created", subject_type="slice", subject_id=slice_id, payload=value.model_dump(mode="json"))
         return self.get_slice(slice_id)
 
+    @staticmethod
+    def _object_revision(conn: sqlite3.Connection, project_id: str, object_type: str, object_id: str) -> str:
+        contracts = {
+            "invocation": ("invocations", "invocation_id", "manifest_sha256"),
+            "context-block": ("context_blocks", "block_id", "content_sha256"),
+            "artifact": ("artifacts", "artifact_id", "content_sha256"),
+        }
+        table, identity, revision = contracts[object_type]
+        row = conn.execute(f'SELECT project_id,"{revision}" AS revision FROM "{table}" WHERE "{identity}"=?', (object_id,)).fetchone()
+        if row is None:
+            raise LatticeNotFound(object_id)
+        if row["project_id"] != project_id:
+            raise LatticeConflict("episode member belongs to another project")
+        return row["revision"]
+
+    def create_episode(self, value: EpisodeCreate) -> dict[str, Any]:
+        episode_id = opaque_id("episode")
+        slice_id = opaque_id("slice")
+        concern_ref = f"lattice:{episode_id}"
+        now = stamp()
+        query = {"concern_ref": concern_ref, "object_types": ["invocation", "context-block"]}
+        with self.transaction() as conn:
+            anchor_revision = self._object_revision(conn, value.project_id, value.anchor_type, value.anchor_id)
+            parent = None
+            if value.parent_episode_id is not None:
+                parent = self._row(conn.execute("SELECT slice_id,project_id,query_json FROM slices WHERE slice_id=?", (value.parent_episode_id,)).fetchone(), value.parent_episode_id)
+                if parent["project_id"] != value.project_id or not str(json.loads(parent["query_json"]).get("concern_ref", "")).startswith("lattice:episode_"):
+                    raise LatticeConflict("parent episode is not a project-local episode")
+            conn.execute("INSERT INTO slices(slice_id,project_id,scope,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,'project',?,?,NULL,?,?)", (slice_id, value.project_id, value.name, canonical_bytes(query).decode(), now, now))
+            self._event(conn, project_id=value.project_id, event_type="episode.created", subject_type="slice", subject_id=slice_id, payload={"episode_id": episode_id, "concern_ref": concern_ref, **value.model_dump(mode="json")})
+            self._insert_edge(conn, project_id=value.project_id, relation=EdgeRelation.concerns, source_type=value.anchor_type, source_id=value.anchor_id, source_revision=anchor_revision, target_type="external-concern", target_id=concern_ref, target_revision=sha256_bytes(concern_ref.encode("utf-8")), metadata={"episode_id": episode_id, "anchor": True})
+            if parent is not None:
+                self._insert_edge(conn, project_id=value.project_id, relation=EdgeRelation.derived_from, source_type="slice", source_id=slice_id, source_revision=sha256_bytes(canonical_bytes(query)), target_type="slice", target_id=parent["slice_id"], target_revision=sha256_bytes(parent["query_json"].encode("utf-8")), metadata={"kind": "child-episode"})
+        return self.get_episode(slice_id)
+
+    def add_episode_member(self, episode_id: str, value: EpisodeMemberCreate) -> dict[str, Any]:
+        with self.transaction() as conn:
+            episode = self._row(conn.execute("SELECT slice_id,project_id,query_json FROM slices WHERE slice_id=?", (episode_id,)).fetchone(), episode_id)
+            concern_ref = json.loads(episode["query_json"]).get("concern_ref")
+            if not isinstance(concern_ref, str) or not concern_ref.startswith("lattice:episode_"):
+                raise LatticeConflict("slice is not an episode")
+            revision = self._object_revision(conn, episode["project_id"], value.object_type, value.object_id)
+            existing = conn.execute("SELECT edge_id FROM edges WHERE relation='concerns' AND source_type=? AND source_id=? AND source_revision=? AND target_type='external-concern' AND target_id=?", (value.object_type, value.object_id, revision, concern_ref)).fetchone()
+            edge_id = existing["edge_id"] if existing else self._insert_edge(conn, project_id=episode["project_id"], relation=EdgeRelation.concerns, source_type=value.object_type, source_id=value.object_id, source_revision=revision, target_type="external-concern", target_id=concern_ref, target_revision=sha256_bytes(concern_ref.encode("utf-8")), metadata={"episode_id": episode_id})
+        return {"edge_id": edge_id, "episode": self.get_episode(episode_id)}
+
+    def get_episode(self, episode_id: str) -> dict[str, Any]:
+        episode = self.get_slice(episode_id)
+        concern_ref = episode["query"].get("concern_ref")
+        if not isinstance(concern_ref, str) or not concern_ref.startswith("lattice:episode_"):
+            raise LatticeConflict("slice is not an episode")
+        with self._connect() as conn:
+            parent = conn.execute("SELECT target_id FROM edges WHERE relation='derived_from' AND source_type='slice' AND source_id=? AND target_type='slice' ORDER BY created_at LIMIT 1", (episode_id,)).fetchone()
+        return {**episode, "episode_id": concern_ref.removeprefix("lattice:"), "concern_ref": concern_ref, "parent_episode_id": parent["target_id"] if parent else None}
+
+    def list_project_episodes(self, project_id: str) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = [row["slice_id"] for row in conn.execute("SELECT slice_id FROM slices WHERE project_id=? AND scope='project' AND json_extract(query_json,'$.concern_ref') GLOB 'lattice:episode_*' ORDER BY created_at", (project_id,))]
+        return [self.get_episode(slice_id) for slice_id in rows]
+
+    def list_invocation_episodes(self, invocation_id: str) -> list[dict[str, Any]]:
+        invocation = self.get_invocation(invocation_id)
+        with self._connect() as conn:
+            rows = [row["slice_id"] for row in conn.execute(
+                """SELECT DISTINCT s.slice_id FROM edges e JOIN slices s ON json_extract(s.query_json,'$.concern_ref')=e.target_id
+                   WHERE e.relation='concerns' AND e.source_type='invocation' AND e.source_id=? AND s.project_id=? AND json_extract(s.query_json,'$.concern_ref') GLOB 'lattice:episode_*'
+                   ORDER BY s.created_at""",
+                (invocation_id, invocation["project_id"]),
+            )]
+        return [self.get_episode(slice_id) for slice_id in rows]
+
     def tag_invocation(self, invocation_id: str, value: TagRequest) -> dict[str, Any]:
         """Commit the concern edge and its globally addressable live slice as one fact."""
         target_revision = sha256_bytes(value.concern_ref.encode("utf-8"))
@@ -1909,6 +1990,38 @@ class LatticeStore:
                 (invocation_id, invocation["manifest_sha256"], value.concern_ref, target_revision),
             ).fetchone()
             edge_id = existing["edge_id"] if existing else self._insert_edge(conn, project_id=invocation["project_id"], relation=EdgeRelation.concerns, source_type="invocation", source_id=invocation_id, source_revision=invocation["manifest_sha256"], target_type="external-concern", target_id=value.concern_ref, target_revision=target_revision, metadata={"label": value.label})
+        return {"edge_id": edge_id, "slice": self.get_slice(slice_id)}
+
+    def tag_context_block(self, block_id: str, value: TagRequest) -> dict[str, Any]:
+        """Tag a reusable block into the same live concern-slice system as invocations."""
+
+        target_revision = sha256_bytes(value.concern_ref.encode("utf-8"))
+        with self.transaction() as conn:
+            block = self._row(conn.execute("SELECT project_id,content_sha256 FROM context_blocks WHERE block_id=?", (block_id,)).fetchone(), block_id)
+            slice_row = conn.execute("SELECT slice_id,name FROM slices WHERE external_ref=?", (value.concern_ref,)).fetchone()
+            if slice_row is None:
+                slice_id = opaque_id("slice")
+                now = stamp()
+                query = {"concern_ref": value.concern_ref, "object_types": ["invocation", "context-block"]}
+                conn.execute("INSERT INTO slices(slice_id,project_id,scope,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,'global',?,?,?,?,?)", (slice_id, block["project_id"], value.label, canonical_bytes(query).decode(), value.concern_ref, now, now))
+                self._event(conn, project_id=block["project_id"], event_type="slice.created", subject_type="slice", subject_id=slice_id, payload={"project_id": block["project_id"], "scope": "global", "name": value.label, "query": query, "external_ref": value.concern_ref})
+            else:
+                slice_id = slice_row["slice_id"]
+                if slice_row["name"] != value.label:
+                    raise LatticeConflict("external concern label disagrees with its existing stable identity")
+                existing_query = conn.execute("SELECT query_json,revision FROM slices WHERE slice_id=?", (slice_id,)).fetchone()
+                query = json.loads(existing_query["query_json"])
+                object_types = list(query.get("object_types", ["invocation"]))
+                if "context-block" not in object_types:
+                    query["object_types"] = [*object_types, "context-block"]
+                    conn.execute("UPDATE slices SET query_json=?,revision=?,updated_at=? WHERE slice_id=?", (canonical_bytes(query).decode(), existing_query["revision"] + 1, stamp(), slice_id))
+                    self._event(conn, project_id=block["project_id"], event_type="slice.query-expanded", subject_type="slice", subject_id=slice_id, payload={"object_types": query["object_types"], "reason": "explicit-context-block-tag"})
+            existing = conn.execute(
+                """SELECT edge_id FROM edges WHERE relation='concerns' AND source_type='context-block' AND source_id=? AND source_revision=?
+                   AND target_type='external-concern' AND target_id=? AND target_revision=?""",
+                (block_id, block["content_sha256"], value.concern_ref, target_revision),
+            ).fetchone()
+            edge_id = existing["edge_id"] if existing else self._insert_edge(conn, project_id=block["project_id"], relation=EdgeRelation.concerns, source_type="context-block", source_id=block_id, source_revision=block["content_sha256"], target_type="external-concern", target_id=value.concern_ref, target_revision=target_revision, metadata={"label": value.label})
         return {"edge_id": edge_id, "slice": self.get_slice(slice_id)}
 
     @staticmethod
