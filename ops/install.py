@@ -583,8 +583,8 @@ def restore_publication_state(state: PublicationState) -> None:
 
 def publish_runtime(target: Path) -> None:
     prior = capture_publication_state()
-    install_links(target)
     try:
+        install_links(target)
         install_launchd(target)
         verify_live_service(target.name)
     except BaseException as publication_error:

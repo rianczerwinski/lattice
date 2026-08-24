@@ -439,6 +439,22 @@ def test_publication_failure_always_invokes_exact_state_rollback(monkeypatch, tm
 
 
 @pytest.mark.regression
+def test_negative_control_selector_publication_failure_also_rolls_back(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "candidate"
+    target.mkdir()
+    prior = deployment.PublicationState(None, None, None, None, None, False, False)
+    calls = []
+    monkeypatch.setattr(deployment, "capture_publication_state", lambda: prior)
+    monkeypatch.setattr(deployment, "install_links", lambda value: (_ for _ in ()).throw(RuntimeError(f"selector failed: {value}")))
+    monkeypatch.setattr(deployment, "restore_publication_state", lambda value: calls.append(("restore", value)))
+
+    with pytest.raises(RuntimeError, match="selector failed"):
+        deployment.publish_runtime(target)
+
+    assert calls == [("restore", prior)]
+
+
+@pytest.mark.regression
 def test_negative_control_required_binary_preserves_the_public_entrypoint(monkeypatch, tmp_path) -> None:
     target = tmp_path / "provider.exe"
     target.write_bytes(b"provider")
