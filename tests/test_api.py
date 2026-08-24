@@ -191,6 +191,37 @@ def test_unknown_api_route_is_a_json_404_not_the_cockpit(lattice_env) -> None:
     assert '<div id="app"></div>' not in response.text
 
 
+@pytest.mark.contract
+def test_context_module_catalogue_and_failures_are_explicit(lattice_env) -> None:
+    app = create_app(lattice_env["config"])
+    with TestClient(app) as client:
+        catalogue = client.get("/api/v1/context-modules")
+        session = client.get("/api/session")
+        headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
+        failed = client.post("/api/v1/context-modules/resolve", headers=headers, json={
+            "project_id": lattice_env["project"]["project_id"],
+            "definition": {"module_id": "bad.file", "version": 1, "mode": "manual", "source_kind": "file", "capabilities": [], "configuration": {"path": "/unreadable"}},
+        })
+        legacy = client.post("/api/v1/context-modules/resolve", headers=headers, json={
+            "project_id": lattice_env["project"]["project_id"],
+            "definition": {"module_id": "legacy.role", "version": 1, "mode": "role_default", "source_kind": "file", "capabilities": ["read-local-file"], "configuration": {"path": "/unreadable"}},
+        })
+
+    assert catalogue.status_code == 200
+    assert catalogue.json()["modes"] == ["manual", "project_default", "workflow_required"]
+    assert {item["source_kind"] for item in catalogue.json()["sources"]} == {"file", "surface", "octopus", "http_readonly"}
+    assert failed.status_code == 422
+    with lattice_env["store"]._connect() as connection:
+        event = connection.execute("SELECT payload_json FROM events WHERE event_type='context-module.failed' ORDER BY seq DESC LIMIT 1").fetchone()
+    receipt = json.loads(event[0])["receipt"]
+    assert receipt["failure_kind"] == "resolution-failed"
+    assert receipt["sensitivity"] == "private"
+    assert receipt["authority"] == "bad.file"
+    assert receipt["receipt_sha256"]
+    assert legacy.status_code == 422
+    assert "legacy workflow-pack mode" in legacy.json()["detail"]
+
+
 @pytest.mark.oracle
 def test_oracle_invocation_inspection_exposes_independently_reconstructed_prompt(lattice_env) -> None:
     draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="EXACT_VISIBLE_PROMPT", route=lattice_env["route"]))

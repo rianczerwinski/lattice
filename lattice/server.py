@@ -773,12 +773,19 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     async def import_octopus(value: ImportConversationRequest):
         return await asyncio.to_thread(importer.import_conversation, project_id=value.project_id, conversation_id=value.conversation_id, provider=value.provider)
 
+    @app.get("/api/v1/context-modules")
+    async def context_module_catalogue():
+        return context_modules.catalogue()
+
     @app.post("/api/v1/context-modules/resolve")
     async def resolve_context_module(value: ResolveContextModuleRequest):
+        if value.definition.mode.value == "role_default":
+            raise HTTPException(422, "role_default is a legacy workflow-pack mode and cannot be installed without a named role")
         try:
             result = await asyncio.to_thread(context_modules.resolve, value.definition)
         except ContextModuleError as error:
-            store.record_event(project_id=value.project_id, event_type="context-module.failed", subject_type="context-module", subject_id=value.definition.module_id, payload={"definition": value.definition.model_dump(mode="json"), "failure_kind": "resolution-failed", "error": str(error)})
+            receipt = context_modules.failure_receipt(value.definition, error)
+            store.record_event(project_id=value.project_id, event_type="context-module.failed", subject_type="context-module", subject_id=value.definition.module_id, payload={"receipt": receipt})
             raise HTTPException(422, str(error)) from error
         block = store.create_context_block(ContextBlockCreate(project_id=value.project_id, semantic_type=f"context-module:{value.definition.module_id}", content=result.content.decode("utf-8"), source_ref=result.receipt["source_ref"], source_sha256=result.receipt["content_sha256"], authority=value.definition.module_id, evidence_level="module-receipt", sensitivity="private", transformation=result.receipt))
         default = None

@@ -444,6 +444,9 @@ def test_file_context_module_is_root_bounded_and_receipted(tmp_path: Path):
     assert result.receipt["content_sha256"]
     assert result.receipt["definition"] == definition.model_dump(mode="json")
     assert result.receipt["definition_sha256"] == sha256_bytes(canonical_bytes(definition.model_dump(mode="json")))
+    assert result.receipt["sensitivity"] == "private"
+    assert result.receipt["authority"] == definition.module_id
+    assert result.receipt["transformation"]["definition_sha256"] == result.receipt["definition_sha256"]
 
     outside = tmp_path / "secret"
     outside.write_text("no", encoding="utf-8")

@@ -82,6 +82,12 @@ class ContextModuleRunner:
         "octopus": "read-octopus",
         "http_readonly": "read-http",
     }
+    CONFIGURATION_FIELDS = {
+        "file": {"path": "required", "max_bytes": "optional"},
+        "surface": {"path": "required", "max_bytes": "optional"},
+        "octopus": {"conversation_id": "required", "representation": "optional", "max_bytes": "optional"},
+        "http_readonly": {"url": "required", "allowed_origins": "required", "max_bytes": "optional"},
+    }
 
     def __init__(self, *, allowed_file_roots: tuple[Path, ...], octopus_base_url: str, transport: httpx.BaseTransport | None = None):
         self.allowed_file_roots = tuple(path.expanduser().resolve() for path in allowed_file_roots)
@@ -91,6 +97,43 @@ class ContextModuleRunner:
         except HTTPBoundaryError as error:
             raise ContextModuleError(f"invalid Octopus origin: {error}") from error
         self.transport = transport
+
+    @classmethod
+    def catalogue(cls) -> dict[str, Any]:
+        return {
+            "contract_version": "LatticeContextModuleCatalogue/1.0",
+            "modes": ["manual", "project_default", "workflow_required"],
+            "sources": [
+                {
+                    "source_kind": source_kind,
+                    "required_capability": cls.REQUIRED_CAPABILITY[source_kind],
+                    "configuration_fields": cls.CONFIGURATION_FIELDS[source_kind],
+                    "output": "exact-utf8-text",
+                }
+                for source_kind in sorted(cls.REQUIRED_CAPABILITY)
+            ],
+        }
+
+    @staticmethod
+    def failure_receipt(definition: ContextModuleDefinition, error: Exception) -> dict[str, Any]:
+        value = definition.model_dump(mode="json")
+        receipt = {
+            "kind": "lattice-context-module-failure-receipt",
+            "module_id": definition.module_id,
+            "module_version": definition.version,
+            "definition": value,
+            "definition_sha256": sha256_bytes(canonical_bytes(value)),
+            "mode": definition.mode.value,
+            "source_kind": definition.source_kind,
+            "failure_kind": "resolution-failed",
+            "error": str(error),
+            "resolved_at": stamp(),
+            "capabilities": list(definition.capabilities),
+            "sensitivity": "private",
+            "authority": definition.module_id,
+        }
+        receipt["receipt_sha256"] = sha256_bytes(canonical_bytes(receipt))
+        return receipt
 
     def resolve(self, definition: ContextModuleDefinition) -> ContextModuleResult:
         required = self.REQUIRED_CAPABILITY[definition.source_kind]
@@ -163,6 +206,9 @@ class ContextModuleRunner:
             "byte_count": len(content),
             "resolved_at": stamp(),
             "capabilities": list(definition.capabilities),
+            "sensitivity": "private",
+            "authority": definition.module_id,
+            "transformation": {"kind": "context-module-resolution-v1", "definition_sha256": sha256_bytes(canonical_bytes(definition.model_dump(mode="json")))},
         }
         if details:
             receipt["http"] = details
