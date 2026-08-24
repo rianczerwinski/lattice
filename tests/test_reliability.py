@@ -175,6 +175,73 @@ def test_snapshot_and_restore_sync_complete_directory_trees(monkeypatch, lattice
     assert synced[1].name.startswith(".restored.restore-")
 
 
+@pytest.mark.concurrency
+def test_snapshot_identity_describes_the_captured_generation_not_a_stale_preflight(lattice_env, tmp_path) -> None:
+    before = assess_data_root(lattice_env["config"].data_root)
+    completed_invocation(lattice_env, "newer prompt", "newer response")
+
+    snapshot = create_snapshot(
+        lattice_env["config"].data_root,
+        backup_root=tmp_path / "backups",
+        reason="stale-preflight-negative-control",
+        source_revision=before["state_digest"],
+        schema_version=before["schema_version"],
+        state_digest=before["state_digest"],
+    )
+    captured = assess_backup(snapshot)
+    manifest = verify_snapshot(snapshot)
+
+    assert captured["state_digest"] != before["state_digest"]
+    assert manifest["state_digest"] == captured["state_digest"]
+    assert manifest["generated_object"]["sources"][0]["revision"] == captured["state_digest"]
+
+
+@pytest.mark.regression
+def test_negative_control_snapshot_paths_cannot_corrupt_content_or_snapshot_identity(lattice_env, tmp_path) -> None:
+    source = assess_data_root(lattice_env["config"].data_root)
+
+    with pytest.raises(OSError, match="inside snapshot content"):
+        create_snapshot(
+            lattice_env["config"].data_root,
+            backup_root=lattice_env["config"].data_root / "blobs" / "backups",
+            reason="recursive-negative-control",
+            source_revision=source["state_digest"],
+            schema_version=source["schema_version"],
+            state_digest=source["state_digest"],
+        )
+
+    snapshot = create_snapshot(
+        lattice_env["config"].data_root,
+        backup_root=tmp_path / "backups",
+        reason="restore-containment-negative-control",
+        source_revision=source["state_digest"],
+        schema_version=source["schema_version"],
+        state_digest=source["state_digest"],
+    )
+    with pytest.raises(OSError, match="inside its immutable snapshot"):
+        restore_snapshot(snapshot, snapshot / "restored")
+    assert verify_snapshot(snapshot)["state_digest"] == source["state_digest"]
+
+
+@pytest.mark.regression
+def test_negative_control_snapshot_rejects_direct_symlink_sources(lattice_env, tmp_path) -> None:
+    source = assess_data_root(lattice_env["config"].data_root)
+    token = lattice_env["config"].data_root / "operator-token"
+    target = tmp_path / "real-token"
+    target.write_text("secret", encoding="utf-8")
+    token.symlink_to(target)
+
+    with pytest.raises(OSError, match="source is a symlink"):
+        create_snapshot(
+            lattice_env["config"].data_root,
+            backup_root=tmp_path / "backups",
+            reason="symlink-negative-control",
+            source_revision=source["state_digest"],
+            schema_version=source["schema_version"],
+            state_digest=source["state_digest"],
+        )
+
+
 @pytest.mark.regression
 def test_negative_control_restore_rejects_missing_blob_even_when_database_is_readable(lattice_env, tmp_path) -> None:
     completed_invocation(lattice_env, "blob prompt", "blob response")

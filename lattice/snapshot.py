@@ -39,8 +39,10 @@ def _sha256_file(path: Path) -> tuple[str, int]:
 
 
 def _copy_regular(source: Path, destination: Path) -> None:
+    if source.is_symlink():
+        raise OSError(f"snapshot source is a symlink: {source}")
     source = source.resolve(strict=True)
-    if not source.is_file() or source.is_symlink():
+    if not source.is_file():
         raise OSError(f"snapshot source is not a regular non-symlink file: {source}")
     before = source.stat()
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -155,10 +157,14 @@ def create_snapshot(
     database = data_root / "lattice.sqlite3"
     if not database.is_file() or database.is_symlink():
         raise FileNotFoundError(database)
-    backup_root = (backup_root or data_root / "backups").expanduser().resolve()
+    backup_candidate = (backup_root or data_root / "backups").expanduser()
+    if backup_candidate.is_symlink():
+        raise OSError(f"backup root is a symlink: {backup_candidate}")
+    backup_root = backup_candidate.resolve()
+    protected_roots = tuple((data_root / name).resolve() for name in SNAPSHOT_CONTENT_ROOTS)
+    if any(backup_root == protected or backup_root.is_relative_to(protected) for protected in protected_roots):
+        raise OSError("backup root cannot live inside snapshot content")
     backup_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if backup_root.is_symlink():
-        raise OSError(f"backup root is a symlink: {backup_root}")
     artifact_id = f"artifact:{uuid.uuid4()}"
     created_at = stamp()
     final = backup_root / f"{created_at}-{artifact_id.removeprefix('artifact:')[:12]}"
@@ -179,6 +185,16 @@ def create_snapshot(
                     if not source.is_dir():
                         raise OSError(f"snapshot content root is not a directory: {source}")
                     _copy_tree(source, staging / name)
+            if state_digest is not None:
+                # The staged bytes, not a caller's earlier observation of the live
+                # store, are the authority for the published snapshot identity.
+                from .diagnostics import assess_data_root
+
+                captured = assess_data_root(staging)
+                if source_revision == state_digest:
+                    source_revision = captured["state_digest"]
+                schema_version = captured["schema_version"]
+                state_digest = captured["state_digest"]
         inventory = _inventory(staging)
         manifest = {
             "generated_object": generated_object(
@@ -276,9 +292,11 @@ def verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
 
 
 def restore_snapshot(snapshot_root: Path, destination: Path) -> dict[str, Any]:
-    manifest = verify_snapshot(snapshot_root)
     snapshot_root = snapshot_root.expanduser().resolve(strict=True)
     destination = destination.expanduser().resolve()
+    if destination == snapshot_root or destination.is_relative_to(snapshot_root):
+        raise OSError("restore destination cannot live inside its immutable snapshot")
+    manifest = verify_snapshot(snapshot_root)
     if destination.exists():
         raise FileExistsError(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
