@@ -18,7 +18,7 @@ MAX_COMPILED_CONTEXT_BYTES = 64 * 1024 * 1024
 
 def _segment_bytes(segment: dict[str, Any], content: str) -> bytes:
     record = {
-        "kind": "lattice-context-segment-v5",
+        "kind": "lattice-context-segment-v6",
         "ordinal": segment["ordinal"],
         "plane": segment["plane"],
         "label": segment["label"],
@@ -96,6 +96,38 @@ class ContextCompositor:
         identities: set[tuple[str, str, str, str, tuple[str, ...], str | None]] = set()
         entries: list[tuple[int, ContextSelection, dict[str, Any]]] = []
         for selection_index, selection in enumerate(combined):
+            block = get_block(selection.block_id)
+            if block["project_id"] != draft["project_id"]:
+                raise LatticeConflict("context block belongs to another project")
+            transformation = __import__("json").loads(block["transformation_json"] or "null")
+            if isinstance(transformation, dict) and transformation.get("kind") == "exact-utf8-byte-range-v1":
+                expected_keys = {"kind", "source_block_id", "source_sha256", "start_byte", "end_byte", "excerpt_sha256"}
+                if set(transformation) != expected_keys:
+                    raise LatticeConflict("exact excerpt transformation has an unsupported shape")
+                source_block_id = transformation.get("source_block_id")
+                if not isinstance(source_block_id, str):
+                    raise LatticeConflict("exact excerpt transformation lacks a source block")
+                source = get_block(source_block_id)
+                if source["project_id"] != draft["project_id"]:
+                    raise LatticeConflict("exact excerpt source belongs to another project")
+                start, end = transformation.get("start_byte"), transformation.get("end_byte")
+                if not isinstance(start, int) or isinstance(start, bool) or not isinstance(end, int) or isinstance(end, bool) or start < 0 or end <= start:
+                    raise LatticeConflict("exact excerpt transformation has an invalid byte range")
+                source_bytes = source["content"].encode("utf-8")
+                excerpt_bytes = block["content"].encode("utf-8")
+                if (
+                    end > len(source_bytes)
+                    or source_bytes[start:end] != excerpt_bytes
+                    or transformation["source_sha256"] != source["content_sha256"]
+                    or transformation["excerpt_sha256"] != block["content_sha256"]
+                    or block["source_ref"] != f"lattice:block/{source_block_id}"
+                    or block["source_sha256"] != source["content_sha256"]
+                ):
+                    raise LatticeConflict("exact excerpt bytes do not reconstruct from their declared source")
+                intrinsic_sources = [source_block_id]
+                if selection.derived_from_block_ids and selection.derived_from_block_ids != intrinsic_sources:
+                    raise LatticeConflict("declared excerpt lineage contradicts its transformation receipt")
+                selection = selection.model_copy(update={"derived_from_block_ids": intrinsic_sources})
             identity = (
                 selection.block_id,
                 selection.plane,
@@ -107,9 +139,6 @@ class ContextCompositor:
             if identity in identities:
                 continue
             identities.add(identity)
-            block = get_block(selection.block_id)
-            if block["project_id"] != draft["project_id"]:
-                raise LatticeConflict("context block belongs to another project")
             derived = [get_block(block_id, include_content=False) for block_id in selection.derived_from_block_ids]
             if any(parent["project_id"] != draft["project_id"] for parent in derived):
                 raise LatticeConflict("derived context source belongs to another project")
@@ -192,7 +221,7 @@ class ContextCompositor:
         invocation_id = f"invocation_{invocation_identity[:32]}"
         manifest_artifact_id = f"artifact:{uuid.uuid5(uuid.NAMESPACE_URL, f'lattice-manifest:{invocation_identity}')}"
         preflight: dict[str, Any] = {
-            "contract_version": "LatticeContextPreflight/3.0",
+            "contract_version": "LatticeContextPreflight/4.0",
             "invocation_id": invocation_id,
             "project_id": draft["project_id"],
             "actor_binding": draft["actor_binding"],
@@ -210,7 +239,7 @@ class ContextCompositor:
             "execution": route,
             "response_contract": draft["response_schema"],
             "compilation": {
-                "format": "lattice-context-jsonl-v5",
+                "format": "lattice-context-jsonl-v6",
                 "compiled_prompt_ref": f"lattice:blob/{prompt_sha}",
                 "compiled_prompt_sha256": prompt_sha,
                 "byte_count": len(compiled_prompt),
@@ -228,8 +257,8 @@ class ContextCompositor:
 
         manifest: dict[str, Any] = {
             **preflight,
-            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=5, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
-            "contract_version": "LatticeContextManifest/5.0",
+            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=6, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
+            "contract_version": "LatticeContextManifest/6.0",
             "result": {"state": "pending", "attempts_ref": f"lattice:invocation/{invocation_id}/attempts"},
         }
         manifest["manifest_sha256"] = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})

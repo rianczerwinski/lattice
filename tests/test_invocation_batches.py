@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
-from lattice.canonical import opaque_id
+from lattice.canonical import canonical_bytes, opaque_id, sha256_json
 from lattice.contracts import (
     ContextAssemblyV1,
     ContextBlockCreate,
     ContextSelection,
     DerivedTextBlockCreate,
     DirectActorBinding,
+    DraftCreate,
     EpisodeCreate,
     InvocationBatchCreateV1,
     InvocationBatchPreviewV1,
@@ -19,6 +22,7 @@ from lattice.contracts import (
     ProviderRoute,
     TagRequest,
 )
+from lattice.manifest_reader import ManifestVerificationError, verify_and_reconstruct
 from lattice.store import LatticeConflict
 
 from conftest import completed_invocation
@@ -124,10 +128,67 @@ def test_exact_utf8_excerpt_is_independently_bound_and_source_remains_unchanged(
     end = start + len("🌊".encode("utf-8"))
 
     excerpt = store.create_derived_text_block(DerivedTextBlockCreate(project_id=lattice_env["project"]["project_id"], source_block_id=source["block_id"], start_byte=start, end_byte=end))
+    draft = store.create_draft(DraftCreate(
+        project_id=lattice_env["project"]["project_id"],
+        actor_binding=DirectActorBinding(),
+        prompt="Use the exact wave excerpt.",
+        route=lattice_env["route"],
+        selections=[ContextSelection(block_id=excerpt["block_id"], plane="knowledge", label="wave")],
+    ))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    segment = next(item for item in invocation["manifest"]["segments"] if item["block_id"] == excerpt["block_id"])
 
     assert store.get_block(excerpt["block_id"])["content"] == "🌊"
     assert store.get_block(source["block_id"])["status"] == "disputed"
     assert store.get_block(excerpt["block_id"])["transformation_json"] is not None
+    assert segment["derived_from_block_ids"] == [source["block_id"]]
+    assert f"lattice:block/{source['block_id']}" in {item["ref"] for item in invocation["manifest"]["generated_object"]["sources"]}
+    assert verify_and_reconstruct(store, invocation["manifest"]) == store.blobs.get(invocation["compiled_prompt_sha256"])
+
+
+@pytest.mark.regression
+def test_excerpt_rejects_contradictory_caller_lineage(lattice_env) -> None:
+    store = lattice_env["store"]
+    source = store.create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type="evidence", content="source"))
+    other = store.create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type="evidence", content="other"))
+    excerpt = store.create_derived_text_block(DerivedTextBlockCreate(project_id=lattice_env["project"]["project_id"], source_block_id=source["block_id"], start_byte=0, end_byte=6))
+    draft = store.create_draft(DraftCreate(
+        project_id=lattice_env["project"]["project_id"],
+        actor_binding=DirectActorBinding(),
+        prompt="smuggle lineage",
+        route=lattice_env["route"],
+        selections=[ContextSelection(block_id=excerpt["block_id"], plane="knowledge", label="excerpt", derived_from_block_ids=[other["block_id"]])],
+    ))
+
+    with pytest.raises(LatticeConflict, match="contradicts"):
+        lattice_env["lattice"].seal(draft["draft_id"])
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("mutation", ["offset", "source-hash"])
+def test_independent_reader_rejects_forged_excerpt_receipts(lattice_env, mutation) -> None:
+    store = lattice_env["store"]
+    source = store.create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type="evidence", content="alpha 🌊 omega"))
+    raw = "alpha 🌊 omega".encode("utf-8")
+    start = raw.index("🌊".encode("utf-8"))
+    excerpt = store.create_derived_text_block(DerivedTextBlockCreate(project_id=lattice_env["project"]["project_id"], source_block_id=source["block_id"], start_byte=start, end_byte=start + 4))
+    draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="inspect", route=lattice_env["route"], selections=[ContextSelection(block_id=excerpt["block_id"], plane="knowledge", label="excerpt")]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    forged = json.loads(json.dumps(invocation["manifest"]))
+    segment = next(item for item in forged["segments"] if item["block_id"] == excerpt["block_id"])
+    if mutation == "offset":
+        segment["transformation"]["start_byte"] = 0
+        segment["transformation"]["end_byte"] = 4
+    else:
+        segment["transformation"]["source_sha256"] = "0" * 64
+    overridden = store.get_block(excerpt["block_id"])
+    overridden["transformation_json"] = canonical_bytes(segment["transformation"]).decode("utf-8")
+    preflight_keys = {"invocation_id", "project_id", "actor_binding", "role_session_id", "draft_id", "draft_revision", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "capabilities", "execution", "response_contract", "compilation", "provider_boundary"}
+    forged["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/4.0", **{key: forged[key] for key in preflight_keys}})
+    forged["manifest_sha256"] = sha256_json({key: value for key, value in forged.items() if key != "manifest_sha256"})
+
+    with pytest.raises(ManifestVerificationError, match="exact excerpt bytes"):
+        verify_and_reconstruct(store, forged, block_overrides={excerpt["block_id"]: overridden})
 
 
 @pytest.mark.regression

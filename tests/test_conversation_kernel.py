@@ -99,7 +99,7 @@ def test_direct_manifest_contains_only_explicit_world_and_reconstructs(lattice_e
     invocation = lattice_env["lattice"].seal(draft["draft_id"])
 
     assert invocation["actor_binding"] == {"kind": "direct"}
-    assert invocation["manifest"]["contract_version"] == "LatticeContextManifest/5.0"
+    assert invocation["manifest"]["contract_version"] == "LatticeContextManifest/6.0"
     assert invocation["manifest"]["actor_binding"] == {"kind": "direct"}
     assert invocation["manifest"]["role_session_id"] is None
     assert [item["label"] for item in invocation["manifest"]["segments"]] == ["user-prompt"]
@@ -114,7 +114,7 @@ def test_negative_control_direct_manifest_cannot_acquire_a_hidden_role(lattice_e
     mutated["actor_binding"] = {"kind": "role-session", "role_session_id": lattice_env["session"]["role_session_id"]}
     mutated["role_session_id"] = lattice_env["session"]["role_session_id"]
     preflight_keys = {"invocation_id", "project_id", "actor_binding", "role_session_id", "draft_id", "draft_revision", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "capabilities", "execution", "response_contract", "compilation", "provider_boundary"}
-    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/3.0", **{key: mutated[key] for key in preflight_keys}})
+    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/4.0", **{key: mutated[key] for key in preflight_keys}})
     mutated["manifest_sha256"] = sha256_json({key: value for key, value in mutated.items() if key != "manifest_sha256"})
 
     with pytest.raises(ManifestVerificationError, match="actor binding"):
