@@ -326,6 +326,7 @@ def command_doctor(args: argparse.Namespace) -> int:
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="lattice", description="Operate the local Lattice conversational harness")
+    root.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = root.add_subparsers(dest="command", required=True)
 
     serve = subparsers.add_parser("serve", help="run the single-origin Lattice service")

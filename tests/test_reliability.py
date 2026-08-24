@@ -50,6 +50,15 @@ def test_release_identity_has_one_package_owned_source() -> None:
     assert deployment.release_version() == __version__
 
 
+@pytest.mark.contract
+def test_cli_exposes_the_release_identity(capsys) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        cli.parser().parse_args(["--version"])
+
+    assert exit_info.value.code == 0
+    assert capsys.readouterr().out == "lattice 0.2.0\n"
+
+
 @pytest.mark.regression
 def test_darwin_strict_sync_flushes_kernel_and_drive(monkeypatch) -> None:
     calls = []
