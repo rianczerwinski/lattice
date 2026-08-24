@@ -13,11 +13,11 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-from .canonical import canonical_bytes, sha256_bytes, stamp, strict_json_loads
+from .canonical import canonical_bytes, generated_object, sha256_bytes, stamp, strict_json_loads, validate_generated_object_envelope
 
 
 SNAPSHOT_MANIFEST = "snapshot.json"
-SNAPSHOT_CONTENT_ROOTS = ("blobs", "model-runs")
+SNAPSHOT_CONTENT_ROOTS = ("acceptance", "blobs", "model-runs")
 SNAPSHOT_CONTENT_FILES = ("lattice.sqlite3", "operator-token")
 
 
@@ -176,18 +176,17 @@ def create_snapshot(
                     _copy_tree(source, staging / name)
         inventory = _inventory(staging)
         manifest = {
-            "generated_object": {
-                "contract_version": 1,
-                "role": "snapshot",
-                "kind": "lattice-backup",
-                "schema": {"name": "lattice-backup", "version": 1},
-                "artifact_id": artifact_id,
-                "generated_at": created_at,
-                "producer": {"name": "lattice", "version": "0.1.0"},
-                "subject": "lattice:canonical-runtime-state",
-                "sources": [{"ref": f"lattice:data-root:{data_root}", "revision": source_revision}],
-            },
-            "contract_version": "LatticeBackup/1.0",
+            "generated_object": generated_object(
+                kind="lattice-backup",
+                schema_name="lattice-backup",
+                schema_version=2,
+                subject="lattice:canonical-runtime-state",
+                sources=[{"ref": f"lattice:data-root:{data_root}", "revision": source_revision, "sha256": None}],
+                role="snapshot",
+                artifact_id=artifact_id,
+                generated_at=created_at,
+            ),
+            "contract_version": "LatticeBackup/2.0",
             "reason": reason,
             "source_data_root": str(data_root),
             "schema_version": schema_version,
@@ -221,11 +220,27 @@ def verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
     manifest_path = snapshot_root / SNAPSHOT_MANIFEST
     raw = manifest_path.read_bytes()
     manifest = strict_json_loads(raw)
-    if not isinstance(manifest, dict) or canonical_bytes(manifest) != raw or manifest.get("contract_version") != "LatticeBackup/1.0":
-        raise OSError("Lattice snapshot manifest is not exact canonical LatticeBackup/1.0 JSON")
+    contract_version = manifest.get("contract_version") if isinstance(manifest, dict) else None
+    if not isinstance(manifest, dict) or canonical_bytes(manifest) != raw or contract_version not in {"LatticeBackup/1.0", "LatticeBackup/2.0"}:
+        raise OSError("Lattice snapshot manifest is not exact canonical supported LatticeBackup JSON")
     envelope = manifest.get("generated_object")
-    if not isinstance(envelope, dict) or envelope.get("role") != "snapshot" or envelope.get("kind") != "lattice-backup" or envelope.get("schema") != {"name": "lattice-backup", "version": 1}:
+    if contract_version == "LatticeBackup/2.0":
+        try:
+            validate_generated_object_envelope(envelope)
+        except ValueError as error:
+            raise OSError("Lattice snapshot generated-object envelope is invalid") from error
+        expected_schema = {"name": "lattice-backup", "version": 2}
+    else:
+        required_envelope = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
+        if not isinstance(envelope, dict) or set(envelope) != required_envelope:
+            raise OSError("legacy Lattice snapshot generated-object envelope is invalid")
+        expected_schema = {"name": "lattice-backup", "version": 1}
+    if envelope.get("role") != "snapshot" or envelope.get("kind") != "lattice-backup" or envelope.get("schema") != expected_schema or envelope.get("producer") != {"name": "lattice", "version": "0.1.0"} or envelope.get("subject") != "lattice:canonical-runtime-state":
         raise OSError("Lattice snapshot generated-object envelope is invalid")
+    sources = envelope.get("sources")
+    expected_source_keys = {"ref", "revision", "sha256"} if contract_version == "LatticeBackup/2.0" else {"ref", "revision"}
+    if not isinstance(sources, list) or len(sources) != 1 or not isinstance(sources[0], dict) or set(sources[0]) != expected_source_keys or sources[0].get("sha256") is not None or not isinstance(sources[0].get("revision"), str) or not sources[0]["revision"]:
+        raise OSError("Lattice snapshot generated-object source is malformed")
     inventory = manifest.get("inventory")
     if not isinstance(inventory, list) or not inventory:
         raise OSError("Lattice snapshot inventory is missing")

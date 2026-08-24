@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import time
 import uuid
 from typing import Any
@@ -14,6 +15,12 @@ import rfc8785
 
 MAX_CANONICAL_NODES = 100_000
 MAX_CANONICAL_DEPTH = 256
+SHA256 = re.compile(r"[0-9a-f]{64}")
+ARTIFACT_ID = re.compile(r"artifact:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+GENERATED_KIND = re.compile(r"[a-z][a-z0-9.-]*")
+SEMVER = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+TRACKING_TIMESTAMP = re.compile(r"[0-9]{8}T[0-9]{6}(?:Z[+-][0-9]{2})?")
+GENERATED_SOURCE_KEYS = {"ref", "revision", "sha256"}
 
 
 def stamp() -> str:
@@ -78,6 +85,45 @@ def sha256_json(value: Any) -> str:
     return sha256_bytes(canonical_bytes(value))
 
 
+def validate_generated_object_envelope(envelope: Any) -> None:
+    if not isinstance(envelope, dict):
+        raise ValueError("generated-object envelope must be an object")
+    role = envelope.get("role")
+    required = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
+    allowed = required | ({"parent_artifact_id"} if role == "canonical" else set())
+    if role not in {"canonical", "snapshot"} or set(envelope) != required and set(envelope) != allowed:
+        raise ValueError("source-bound generated-object envelope has invalid fields or role")
+    if envelope["contract_version"] != 1 or not isinstance(envelope["kind"], str) or GENERATED_KIND.fullmatch(envelope["kind"]) is None:
+        raise ValueError("generated-object contract or kind is invalid")
+    schema = envelope["schema"]
+    if not isinstance(schema, dict) or set(schema) != {"name", "version"} or not isinstance(schema["name"], str) or GENERATED_KIND.fullmatch(schema["name"]) is None or not isinstance(schema["version"], int) or isinstance(schema["version"], bool) or schema["version"] < 1:
+        raise ValueError("generated-object schema is invalid")
+    producer = envelope["producer"]
+    if not isinstance(producer, dict) or set(producer) != {"name", "version"} or not isinstance(producer["name"], str) or not producer["name"] or not isinstance(producer["version"], str) or SEMVER.fullmatch(producer["version"]) is None:
+        raise ValueError("generated-object producer is invalid")
+    if not isinstance(envelope["artifact_id"], str) or ARTIFACT_ID.fullmatch(envelope["artifact_id"]) is None or not isinstance(envelope["generated_at"], str) or TRACKING_TIMESTAMP.fullmatch(envelope["generated_at"]) is None or not isinstance(envelope["subject"], str) or not envelope["subject"]:
+        raise ValueError("generated-object durable identity is invalid")
+    parent = envelope.get("parent_artifact_id")
+    if parent is not None and (not isinstance(parent, str) or ARTIFACT_ID.fullmatch(parent) is None):
+        raise ValueError("generated-object parent artifact identity is invalid")
+    sources = envelope["sources"]
+    if not isinstance(sources, list) or not sources:
+        raise ValueError("generated-object requires exact sources")
+    for source in sources:
+        if not isinstance(source, dict) or set(source) != GENERATED_SOURCE_KEYS:
+            raise ValueError("generated-object sources require exactly ref, revision, and sha256")
+        if not isinstance(source["ref"], str) or not source["ref"]:
+            raise ValueError("generated-object source refs must be non-empty strings")
+        revision = source["revision"]
+        digest = source["sha256"]
+        if revision is not None and (not isinstance(revision, str) or not revision):
+            raise ValueError("generated-object source revisions must be non-empty strings or null")
+        if digest is not None and (not isinstance(digest, str) or SHA256.fullmatch(digest) is None):
+            raise ValueError("generated-object source digests must be lowercase SHA-256 or null")
+        if revision is None and digest is None:
+            raise ValueError("generated-object sources require a revision or SHA-256")
+
+
 def generated_object(
     *,
     kind: str,
@@ -85,23 +131,25 @@ def generated_object(
     subject: str,
     sources: list[dict[str, str | None]],
     schema_version: int = 1,
+    role: str = "canonical",
+    producer_name: str = "lattice",
+    producer_version: str = "0.1.0",
     parent_artifact_id: str | None = None,
     artifact_id: str | None = None,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
-    if not sources:
-        raise ValueError("canonical Lattice artifacts require exact sources")
     envelope: dict[str, Any] = {
         "contract_version": 1,
-        "role": "canonical",
+        "role": role,
         "kind": kind,
         "schema": {"name": schema_name, "version": schema_version},
         "artifact_id": artifact_id or f"artifact:{uuid.uuid4()}",
         "generated_at": generated_at or stamp(),
-        "producer": {"name": "lattice", "version": "0.1.0"},
+        "producer": {"name": producer_name, "version": producer_version},
         "subject": subject,
         "sources": sources,
     }
     if parent_artifact_id is not None:
         envelope["parent_artifact_id"] = parent_artifact_id
+    validate_generated_object_envelope(envelope)
     return envelope

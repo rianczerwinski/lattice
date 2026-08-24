@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from ops import authenticated_acceptance
-from ops.authenticated_acceptance import AcceptanceFailure, LatticeAPI, assembly, route, specification
+from ops.authenticated_acceptance import AcceptanceFailure, AcceptanceRun, LatticeAPI, assembly, route, specification
 
 
 @pytest.mark.contract
@@ -49,3 +52,38 @@ def test_acceptance_driver_reexecs_before_optional_dependencies(monkeypatch, tmp
         authenticated_acceptance.reexec_in_source_environment()
 
     assert observed["executable"] == str(source.resolve())
+
+
+@pytest.mark.contract
+def test_acceptance_report_is_canonical_source_bound_and_parented(tmp_path) -> None:
+    class API:
+        def get(self, _path):
+            return {"status": "ok"}
+
+    run = AcceptanceRun(API(), tmp_path, timeout_seconds=1)
+    first = run.report(status="fail", core=None, profiles=None, failure_recovery=None, restart=None, error="synthetic")
+    first_value = json.loads(Path(first["path"]).read_bytes())
+    second = run.report(status="fail", core=None, profiles=None, failure_recovery=None, restart=None, error="synthetic-two")
+    second_path = Path(second["path"])
+    second_raw = second_path.read_bytes()
+    second_value = json.loads(second_raw)
+    from lattice.canonical import canonical_bytes
+
+    assert canonical_bytes(second_value) == second_raw
+    assert second_value["generated_object"]["parent_artifact_id"] == first_value["generated_object"]["artifact_id"]
+    assert all(set(source) == {"ref", "revision", "sha256"} for source in second_value["generated_object"]["sources"])
+
+
+@pytest.mark.regression
+def test_negative_control_acceptance_report_refuses_to_fork_around_corrupt_history(tmp_path) -> None:
+    class API:
+        def get(self, _path):
+            return {"status": "ok"}
+
+    reports = tmp_path / "acceptance" / "reports"
+    reports.mkdir(parents=True)
+    (reports / "99999999T999999-corrupt.json").write_bytes(b"not-json")
+    run = AcceptanceRun(API(), tmp_path, timeout_seconds=1)
+
+    with pytest.raises(AcceptanceFailure, match="cannot be silently bypassed"):
+        run.report(status="fail", core=None, profiles=None, failure_recovery=None, restart=None, error="synthetic")

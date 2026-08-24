@@ -11,12 +11,13 @@ from axis_model_runner import bind_request, create_run_journal
 from fastapi.testclient import TestClient
 
 from lattice import cli
+from lattice.canonical import canonical_bytes, generated_object
 from lattice.config import LatticeConfig, user_data_root
 from lattice.contracts import DraftCreate, ProjectCreate
 from lattice.diagnostics import assess_backup, assess_data_root
 from lattice.outport import OutportService, outport_executable, resolve_lattice_service
 from lattice.server import create_app
-from lattice.snapshot import create_snapshot, restore_snapshot
+from lattice.snapshot import create_snapshot, restore_snapshot, verify_snapshot
 from ops import install as deployment
 
 from conftest import completed_invocation
@@ -78,6 +79,7 @@ def test_oracle_snapshot_restore_reproduces_exact_lattice_state(lattice_env, tmp
     assert verified["state_digest"] == source["state_digest"]
     assert restored["state_digest"] == source["state_digest"]
     assert manifest["generated_object"]["role"] == "snapshot"
+    assert manifest["generated_object"]["sources"] == [{"ref": f"lattice:data-root:{lattice_env['config'].data_root.resolve()}", "revision": source["state_digest"], "sha256": None}]
     assert {item["path"] for item in manifest["inventory"]} >= {"lattice.sqlite3"}
 
 
@@ -93,6 +95,20 @@ def test_negative_control_restore_rejects_missing_blob_even_when_database_is_rea
     with pytest.raises(OSError, match="inventory"):
         restore_snapshot(snapshot, tmp_path / "must-not-exist")
     assert not (tmp_path / "must-not-exist").exists()
+
+
+@pytest.mark.regression
+def test_legacy_backup_manifest_remains_readable_without_rewriting_history(lattice_env, tmp_path) -> None:
+    source = assess_data_root(lattice_env["config"].data_root)
+    snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="legacy-reader", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
+    path = snapshot / "snapshot.json"
+    legacy = json.loads(path.read_bytes())
+    legacy["contract_version"] = "LatticeBackup/1.0"
+    legacy["generated_object"]["schema"]["version"] = 1
+    del legacy["generated_object"]["sources"][0]["sha256"]
+    path.write_bytes(canonical_bytes(legacy))
+
+    assert verify_snapshot(snapshot)["generated_object"]["artifact_id"] == legacy["generated_object"]["artifact_id"]
 
 
 @pytest.mark.concurrency
@@ -298,6 +314,51 @@ def test_runtime_manifest_canonicalization_uses_the_candidate_environment(tmp_pa
 
 
 @pytest.mark.regression
+def test_negative_control_generated_objects_reject_partial_source_records() -> None:
+    with pytest.raises(ValueError, match="exactly ref, revision, and sha256"):
+        generated_object(kind="lattice-test", schema_name="lattice-test", subject="lattice:test", sources=[{"ref": "lattice:test", "revision": "one"}])
+    with pytest.raises(ValueError, match="durable identity"):
+        generated_object(kind="lattice-test", schema_name="lattice-test", subject="lattice:test", sources=[{"ref": "lattice:test", "revision": "one", "sha256": None}], artifact_id="artifact:traversal")
+
+
+@pytest.mark.contract
+def test_runtime_manifest_binds_complete_sources_and_executing_modules(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "runtime"
+    python = target / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.symlink_to(Path(__import__("sys").executable))
+    executable = target / ".venv" / "bin" / "lattice"
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+    executable.chmod(0o755)
+    locations = {"lattice": str(target / "lattice/__init__.py"), "model_runner": str(target / "axis_model_runner/__init__.py")}
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=["lattice==0.1.0"], module_locations=locations)
+    raw = canonical_bytes(manifest)
+    (target / "runtime.json").write_bytes(raw)
+    monkeypatch.setattr(deployment, "probe_runtime", lambda _target: locations)
+    monkeypatch.setattr(deployment, "canonical_runtime_manifest", lambda value, _python: canonical_bytes(value))
+
+    deployment.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
+    assert all(set(source) == {"ref", "revision", "sha256"} for source in manifest["generated_object"]["sources"])
+
+    (target / "runtime.json").write_bytes(raw + b"\n")
+    with pytest.raises(RuntimeError, match="not exact RFC 8785"):
+        deployment.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
+
+
+@pytest.mark.regression
+def test_negative_control_runtime_manifest_rejects_incomplete_generated_source(tmp_path) -> None:
+    target = tmp_path / "runtime"
+    python = target / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.symlink_to(Path(__import__("sys").executable))
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=[], module_locations={"lattice": "/runtime/lattice", "model_runner": "/runtime/model-runner"})
+    del manifest["generated_object"]["sources"][0]["sha256"]
+
+    with pytest.raises(RuntimeError, match="provenance"):
+        deployment._validate_runtime_manifest(manifest, target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
+
+
+@pytest.mark.regression
 def test_negative_control_runtime_manifest_canonicalization_rejects_nonfinite_numbers() -> None:
     with pytest.raises(ValueError, match="JSON compliant"):
         deployment.canonical_runtime_manifest({"unsafe": float("nan")}, Path(__import__("sys").executable))
@@ -325,6 +386,56 @@ def test_negative_control_live_publication_rejects_the_prior_runtime(monkeypatch
 
     with pytest.raises(RuntimeError, match="prior-runtime"):
         deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
+
+
+@pytest.mark.regression
+def test_negative_control_first_install_failure_unpublishes_every_candidate_selector(monkeypatch, tmp_path) -> None:
+    runtime_root = tmp_path / "runtime"
+    target = runtime_root / "versions" / "candidate"
+    target.mkdir(parents=True)
+    current = runtime_root / "current"
+    previous = runtime_root / "previous"
+    shim = tmp_path / "bin" / "lattice"
+    agents = tmp_path / "LaunchAgents"
+    agents.mkdir()
+    shim.parent.mkdir()
+    current.symlink_to(target)
+    previous.symlink_to(target)
+    shim.write_bytes(b"candidate shim")
+    service_path = agents / f"{deployment.SERVICE_LABEL}.plist"
+    backup_path = agents / f"{deployment.BACKUP_LABEL}.plist"
+    service_path.write_bytes(b"candidate service")
+    backup_path.write_bytes(b"candidate backup")
+    monkeypatch.setattr(deployment, "CURRENT_LINK", current)
+    monkeypatch.setattr(deployment, "PREVIOUS_LINK", previous)
+    monkeypatch.setattr(deployment, "SHIM", shim)
+    monkeypatch.setattr(deployment, "LAUNCH_AGENTS", agents)
+    unloaded = []
+    monkeypatch.setattr(deployment, "unload_job", lambda label: unloaded.append(label))
+
+    deployment.restore_publication_state(deployment.PublicationState(None, None, None, None, None, False, False))
+
+    assert not current.exists() and not current.is_symlink()
+    assert not previous.exists() and not previous.is_symlink()
+    assert not shim.exists() and not service_path.exists() and not backup_path.exists()
+    assert unloaded == [deployment.BACKUP_LABEL, deployment.SERVICE_LABEL]
+
+
+@pytest.mark.regression
+def test_publication_failure_always_invokes_exact_state_rollback(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "candidate"
+    target.mkdir()
+    prior = deployment.PublicationState(None, None, None, None, None, False, False)
+    calls = []
+    monkeypatch.setattr(deployment, "capture_publication_state", lambda: prior)
+    monkeypatch.setattr(deployment, "install_links", lambda value: calls.append(("links", value)))
+    monkeypatch.setattr(deployment, "install_launchd", lambda value: (_ for _ in ()).throw(RuntimeError("publication failed")))
+    monkeypatch.setattr(deployment, "restore_publication_state", lambda value: calls.append(("restore", value)))
+
+    with pytest.raises(RuntimeError, match="publication failed"):
+        deployment.publish_runtime(target)
+
+    assert calls == [("links", target), ("restore", prior)]
 
 
 @pytest.mark.regression

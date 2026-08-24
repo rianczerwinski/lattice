@@ -11,13 +11,17 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import uvicorn
+import axis_model_runner as model_runner_package
+import lattice as lattice_package
 from axis_model_runner import installed_adapter_status
 
+from .canonical import canonical_bytes, strict_json_loads
 from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
 from .outport import OutportService, outport_executable, resolve_lattice_service
@@ -121,7 +125,36 @@ def _runtime_status() -> dict[str, Any]:
     runtime_root = next((parent for parent in module.parents if parent.parent.name == "versions"), None)
     if runtime_root is None:
         raise RuntimeError(f"installed Lattice module is not inside a versioned runtime: {module}")
-    return {"version": _version(), "runtime_id": runtime_root.name, "executable": str(executable), "module": str(module), "editable": False}
+    manifest_path = runtime_root / "runtime.json"
+    try:
+        raw = manifest_path.read_bytes()
+        manifest = strict_json_loads(raw)
+    except (OSError, ValueError, UnicodeDecodeError) as error:
+        raise RuntimeError(f"installed runtime manifest is unreadable: {manifest_path}") from error
+    if not isinstance(manifest, dict) or canonical_bytes(manifest) != raw or set(manifest) != {"generated_object", "contract_version", "runtime_id", "python", "packages", "module_locations"}:
+        raise RuntimeError("installed runtime manifest is not exact canonical LatticeInstalledRuntime/1.0 JSON")
+    envelope = manifest.get("generated_object")
+    required = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
+    if not isinstance(envelope, dict) or set(envelope) != required or envelope.get("contract_version") != 1 or envelope.get("role") != "canonical" or envelope.get("kind") != "lattice-installed-runtime" or envelope.get("schema") != {"name": "lattice-installed-runtime", "version": 1} or envelope.get("producer") != {"name": "lattice-installer", "version": "1.0.0"}:
+        raise RuntimeError("installed runtime generated-object envelope is invalid")
+    artifact_id = envelope.get("artifact_id")
+    try:
+        artifact_uuid = uuid.UUID(str(artifact_id).removeprefix("artifact:"))
+    except ValueError as error:
+        raise RuntimeError("installed runtime artifact identity is invalid") from error
+    if artifact_id != f"artifact:{artifact_uuid}" or envelope.get("subject") != f"lattice:installed-runtime:{runtime_root.name}":
+        raise RuntimeError("installed runtime artifact does not describe the selected generation")
+    sources = envelope.get("sources")
+    if not isinstance(sources, list) or len(sources) < 3:
+        raise RuntimeError("installed runtime lacks exact source provenance")
+    for source in sources:
+        if not isinstance(source, dict) or set(source) != {"ref", "revision", "sha256"} or not isinstance(source["ref"], str) or not source["ref"] or source["revision"] is None and source["sha256"] is None:
+            raise RuntimeError("installed runtime carries a malformed source binding")
+    locations = manifest.get("module_locations")
+    actual_locations = {"lattice": str(Path(lattice_package.__file__).resolve()), "model_runner": str(Path(model_runner_package.__file__).resolve())}
+    if manifest.get("contract_version") != "LatticeInstalledRuntime/1.0" or manifest.get("runtime_id") != runtime_root.name or manifest.get("python") != str(executable) or locations != actual_locations:
+        raise RuntimeError("installed runtime manifest disagrees with the executing environment")
+    return {"version": _version(), "runtime_id": runtime_root.name, "artifact_id": artifact_id, "executable": str(executable), "module": str(module), "editable": False}
 
 
 def _adapter_status(service: OutportService | None = None) -> dict[str, Any]:

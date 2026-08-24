@@ -312,6 +312,8 @@ class AcceptanceRun:
         return {"before_boot_id": before["boot_id"], "after_boot_id": after["boot_id"], "resumed_invocation_id": resumed["invocation_id"]}
 
     def report(self, *, status: str, core: dict[str, Any] | None, profiles: dict[str, Any] | None, failure_recovery: dict[str, Any] | None, restart: dict[str, Any] | None, error: str | None) -> dict[str, Any]:
+        from lattice.canonical import canonical_bytes, generated_object, strict_json_loads
+
         inspected = []
         for invocation_id in self.invocations:
             try:
@@ -321,33 +323,36 @@ class AcceptanceRun:
             inspected.append({"invocation_id": invocation_id, "state": value["state"], "manifest_sha256": value["manifest"]["manifest_sha256"], "output_sha256": value["attempts"][-1].get("output_sha256") if value.get("attempts") else None})
         report_root = self.data_root / "acceptance" / "reports"
         report_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        prior = sorted(report_root.glob("*.json"))[-1] if list(report_root.glob("*.json")) else None
+        report_paths = sorted(report_root.glob("*.json"))
+        prior = report_paths[-1] if report_paths else None
         parent_artifact_id = None
         if prior:
             try:
-                parent_artifact_id = json.loads(prior.read_bytes())["generated_object"]["artifact_id"]
-            except (OSError, KeyError, UnicodeDecodeError, json.JSONDecodeError):
-                parent_artifact_id = None
+                prior_value = strict_json_loads(prior.read_bytes())
+                parent_artifact_id = prior_value["generated_object"]["artifact_id"]
+            except (OSError, KeyError, TypeError, UnicodeDecodeError, ValueError) as prior_error:
+                raise AcceptanceFailure(f"prior acceptance report is unreadable and cannot be silently bypassed: {prior}") from prior_error
         artifact_id = f"artifact:{uuid.uuid4()}"
-        generated_object = {
-            "contract_version": 1,
-            "role": "canonical",
-            "kind": "lattice-authenticated-acceptance-report",
-            "schema": {"name": "lattice-authenticated-acceptance-report", "version": 1},
-            "artifact_id": artifact_id,
-            "generated_at": stamp(),
-            "producer": {"name": "lattice-authenticated-acceptance", "version": "1.0.0"},
-            "subject": "lattice:authenticated-acceptance",
-            "sources": [{"ref": f"lattice:invocation:{item['invocation_id']}", "sha256": item["manifest_sha256"]} for item in inspected],
-        }
+        sources = [{"ref": f"lattice:invocation:{item['invocation_id']}", "revision": None, "sha256": item["manifest_sha256"]} for item in inspected]
+        if not sources:
+            sources = [{"ref": f"lattice:acceptance-run:{self.started_at}", "revision": self.started_at, "sha256": None}]
+        report_envelope = generated_object(
+            kind="lattice-authenticated-acceptance-report",
+            schema_name="lattice-authenticated-acceptance-report",
+            subject="lattice:authenticated-acceptance",
+            sources=sources,
+            artifact_id=artifact_id,
+            producer_name="lattice-authenticated-acceptance",
+            producer_version="1.0.0",
+        )
         if parent_artifact_id:
-            generated_object["parent_artifact_id"] = parent_artifact_id
+            report_envelope["parent_artifact_id"] = parent_artifact_id
         try:
             health_after = self.api.get("/api/health")
         except AcceptanceFailure as health_error:
             health_after = {"status": "unavailable", "error": str(health_error)}
         value = {
-            "generated_object": generated_object,
+            "generated_object": report_envelope,
             "contract_version": "LatticeAuthenticatedAcceptanceReport/1.0",
             "status": status,
             "started_at": self.started_at,
@@ -367,10 +372,17 @@ class AcceptanceRun:
             "proof_limits": ["Provider-owned system context remains observable only through the adapter's declared proof limits.", "Browser rendering is a separate acceptance plane and is not inferred from this API run."],
         }
         path = report_root / f"{value['completed_at']}-{artifact_id.removeprefix('artifact:')[:12]}.json"
-        import rfc8785
-
-        path.write_bytes(rfc8785.dumps(value))
-        os.chmod(path, 0o600)
+        raw = canonical_bytes(value)
+        with path.open("xb") as handle:
+            os.fchmod(handle.fileno(), 0o600)
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+        descriptor = os.open(report_root, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
         return {"path": str(path), "artifact_id": artifact_id, "status": status, "project_id": self.project_id}
 
 

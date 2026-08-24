@@ -17,6 +17,7 @@ import tempfile
 import time
 import urllib.request
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -34,6 +35,23 @@ LAUNCH_AGENTS = Path.home() / "Library" / "LaunchAgents"
 LOG_ROOT = Path.home() / "Library" / "Logs" / "Lattice"
 SERVICE_LABEL = "com.axisvi.lattice"
 BACKUP_LABEL = "com.axisvi.lattice.backup"
+
+
+@dataclass(frozen=True)
+class FileState:
+    content: bytes
+    mode: int
+
+
+@dataclass(frozen=True)
+class PublicationState:
+    current_target: Path | None
+    previous_target: Path | None
+    shim: FileState | None
+    service_plist: FileState | None
+    backup_plist: FileState | None
+    service_loaded: bool
+    backup_loaded: bool
 
 
 def run(arguments: list[str], *, cwd: Path = SOURCE_ROOT, env: dict[str, str] | None = None, capture: bool = False) -> subprocess.CompletedProcess[bytes]:
@@ -302,6 +320,78 @@ def probe_runtime(target: Path) -> dict[str, str]:
     return value
 
 
+def _generated_object_source(ref: str, *, revision: str | None, sha256: str | None) -> dict[str, str | None]:
+    if not ref or (revision is None and sha256 is None):
+        raise ValueError("runtime sources require a ref and immutable revision or digest")
+    return {"ref": ref, "revision": revision, "sha256": sha256}
+
+
+def _valid_artifact_id(value: object) -> bool:
+    if not isinstance(value, str) or not value.startswith("artifact:"):
+        return False
+    try:
+        return str(uuid.UUID(value.removeprefix("artifact:"))) == value.removeprefix("artifact:")
+    except ValueError:
+        return False
+
+
+def _validate_runtime_manifest(manifest: object, *, target: Path, runtime_id: str, lattice_revision: str, runner_revision: str) -> dict:
+    if not isinstance(manifest, dict) or set(manifest) != {"generated_object", "contract_version", "runtime_id", "python", "packages", "module_locations"}:
+        raise RuntimeError("runtime manifest body is malformed")
+    envelope = manifest.get("generated_object")
+    required = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
+    if not isinstance(envelope, dict) or set(envelope) != required:
+        raise RuntimeError("runtime generated-object envelope is malformed")
+    if envelope.get("contract_version") != 1 or envelope.get("role") != "canonical" or envelope.get("kind") != "lattice-installed-runtime" or envelope.get("schema") != {"name": "lattice-installed-runtime", "version": 1} or envelope.get("producer") != {"name": "lattice-installer", "version": "1.0.0"}:
+        raise RuntimeError("runtime generated-object contract identity is invalid")
+    if not _valid_artifact_id(envelope.get("artifact_id")) or envelope.get("subject") != f"lattice:installed-runtime:{runtime_id}":
+        raise RuntimeError("runtime generated-object durable identity is invalid")
+    try:
+        time.strptime(str(envelope.get("generated_at")), "%Y%m%dT%H%M%S")
+    except ValueError as error:
+        raise RuntimeError("runtime generated-object timestamp is invalid") from error
+    expected_sources = [
+        _generated_object_source(f"git:{SOURCE_ROOT}", revision=lattice_revision, sha256=None),
+        _generated_object_source(f"git:{MODEL_RUNNER_ROOT}", revision=runner_revision, sha256=None),
+        _generated_object_source(f"file:{SOURCE_ROOT / 'uv.lock'}", revision=None, sha256=exact_sha256(SOURCE_ROOT / "uv.lock")),
+    ]
+    if envelope.get("sources") != expected_sources:
+        raise RuntimeError("runtime target provenance disagrees with its version identity or lockfile")
+    expected_python = str((target / ".venv" / "bin" / "python").resolve(strict=True))
+    if manifest.get("contract_version") != "LatticeInstalledRuntime/1.0" or manifest.get("runtime_id") != runtime_id or manifest.get("python") != expected_python:
+        raise RuntimeError("runtime manifest identity or Python executable is invalid")
+    packages = manifest.get("packages")
+    locations = manifest.get("module_locations")
+    if not isinstance(packages, list) or any(not isinstance(item, str) or not item for item in packages) or not isinstance(locations, dict) or set(locations) != {"lattice", "model_runner"} or any(not isinstance(item, str) or not item for item in locations.values()):
+        raise RuntimeError("runtime manifest package or module inventory is malformed")
+    return manifest
+
+
+def build_runtime_manifest(*, target: Path, runtime_id: str, lattice_revision: str, runner_revision: str, packages: list[str], module_locations: dict[str, str]) -> dict:
+    return {
+        "generated_object": {
+            "contract_version": 1,
+            "role": "canonical",
+            "kind": "lattice-installed-runtime",
+            "schema": {"name": "lattice-installed-runtime", "version": 1},
+            "artifact_id": f"artifact:{uuid.uuid4()}",
+            "generated_at": time.strftime("%Y%m%dT%H%M%S"),
+            "producer": {"name": "lattice-installer", "version": "1.0.0"},
+            "subject": f"lattice:installed-runtime:{runtime_id}",
+            "sources": [
+                _generated_object_source(f"git:{SOURCE_ROOT}", revision=lattice_revision, sha256=None),
+                _generated_object_source(f"git:{MODEL_RUNNER_ROOT}", revision=runner_revision, sha256=None),
+                _generated_object_source(f"file:{SOURCE_ROOT / 'uv.lock'}", revision=None, sha256=exact_sha256(SOURCE_ROOT / "uv.lock")),
+            ],
+        },
+        "contract_version": "LatticeInstalledRuntime/1.0",
+        "runtime_id": runtime_id,
+        "python": str((target / ".venv" / "bin" / "python").resolve(strict=True)),
+        "packages": packages,
+        "module_locations": module_locations,
+    }
+
+
 def verify_runtime_target(target: Path, *, runtime_id: str, lattice_revision: str, runner_revision: str) -> None:
     marker = target / ".pending"
     manifest_path = target / "runtime.json"
@@ -309,18 +399,16 @@ def verify_runtime_target(target: Path, *, runtime_id: str, lattice_revision: st
     if marker.exists() or not manifest_path.is_file() or not executable.is_file():
         raise RuntimeError(f"runtime target is incomplete: {target}")
     try:
-        manifest = json.loads(manifest_path.read_bytes())
+        raw = manifest_path.read_bytes()
+        manifest = json.loads(raw)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise RuntimeError(f"runtime manifest is unreadable: {manifest_path}") from error
-    sources = manifest.get("generated_object", {}).get("sources", [])
-    expected_sources = {
-        f"git:{SOURCE_ROOT}": lattice_revision,
-        f"git:{MODEL_RUNNER_ROOT}": runner_revision,
-    }
-    actual_sources = {item.get("ref"): item.get("revision") for item in sources if isinstance(item, dict) and "revision" in item}
-    if manifest.get("runtime_id") != runtime_id or any(actual_sources.get(ref) != revision for ref, revision in expected_sources.items()):
-        raise RuntimeError(f"runtime target provenance disagrees with its version identity: {target}")
+    manifest = _validate_runtime_manifest(manifest, target=target, runtime_id=runtime_id, lattice_revision=lattice_revision, runner_revision=runner_revision)
+    if canonical_runtime_manifest(manifest, target / ".venv" / "bin" / "python") != raw:
+        raise RuntimeError(f"runtime manifest is not exact RFC 8785 canonical JSON: {manifest_path}")
     locations = probe_runtime(target)
+    if locations != manifest["module_locations"]:
+        raise RuntimeError(f"runtime module locations changed after installation: recorded={manifest['module_locations']}, actual={locations}")
     if any(str(SOURCE_ROOT) in location or str(MODEL_RUNNER_ROOT) in location for location in locations.values()):
         raise RuntimeError(f"installed runtime still imports a development checkout: {locations}")
 
@@ -347,30 +435,10 @@ def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
             raise RuntimeError(f"installed runtime still imports a development checkout: {locations}")
         run([str(target / ".venv" / "bin" / "lattice"), "--help"])
         frozen = run(["uv", "pip", "freeze", "--python", str(target / ".venv" / "bin" / "python")], capture=True).stdout.decode().splitlines()
-        manifest = {
-            "generated_object": {
-                "contract_version": 1,
-                "role": "canonical",
-                "kind": "lattice-installed-runtime",
-                "schema": {"name": "lattice-installed-runtime", "version": 1},
-                "artifact_id": f"artifact:{uuid.uuid4()}",
-                "generated_at": time.strftime("%Y%m%dT%H%M%S"),
-                "producer": {"name": "lattice-installer", "version": "1.0.0"},
-                "subject": f"lattice:installed-runtime:{runtime_id}",
-                "sources": [
-                    {"ref": f"git:{SOURCE_ROOT}", "revision": lattice_revision},
-                    {"ref": f"git:{MODEL_RUNNER_ROOT}", "revision": runner_revision},
-                    {"ref": f"file:{SOURCE_ROOT / 'uv.lock'}", "sha256": exact_sha256(SOURCE_ROOT / "uv.lock")},
-                ],
-            },
-            "contract_version": "LatticeInstalledRuntime/1.0",
-            "runtime_id": runtime_id,
-            "python": str((target / ".venv" / "bin" / "python").resolve()),
-            "packages": frozen,
-            "module_locations": locations,
-        }
+        manifest = build_runtime_manifest(target=target, runtime_id=runtime_id, lattice_revision=lattice_revision, runner_revision=runner_revision, packages=frozen, module_locations=locations)
         write_atomic(target / "runtime.json", canonical_runtime_manifest(manifest, target / ".venv" / "bin" / "python"), mode=0o600)
         marker.unlink()
+        verify_runtime_target(target, runtime_id=runtime_id, lattice_revision=lattice_revision, runner_revision=runner_revision)
         return target
     except BaseException:
         shutil.rmtree(target)
@@ -378,13 +446,16 @@ def install_runtime(lattice_revision: str, runner_revision: str) -> Path:
 
 
 def install_links(target: Path) -> Path | None:
+    for link in (CURRENT_LINK, PREVIOUS_LINK):
+        if (link.exists() or link.is_symlink()) and not link.is_symlink():
+            raise RuntimeError(f"refusing to replace non-symlink runtime selector: {link}")
+    if SHIM.exists() and (SHIM.is_symlink() or not SHIM.is_file() or not managed_shim(SHIM.read_bytes())):
+        raise RuntimeError(f"refusing to replace unmanaged CLI path: {SHIM}")
     old = CURRENT_LINK.resolve() if CURRENT_LINK.is_symlink() and CURRENT_LINK.exists() else None
     if old is not None and old != target:
         replace_symlink(PREVIOUS_LINK, old)
     replace_symlink(CURRENT_LINK, target)
     SHIM.parent.mkdir(parents=True, exist_ok=True)
-    if SHIM.exists() and not SHIM.is_symlink() and not managed_shim(SHIM.read_bytes()):
-        raise RuntimeError(f"refusing to replace non-symlink CLI path: {SHIM}")
     write_atomic(SHIM, shim_payload(), mode=0o755)
     return old
 
@@ -416,6 +487,114 @@ def managed_shim(content: bytes) -> bool:
         return candidate.is_absolute() and candidate.resolve(strict=True) == required_binary("outport").resolve(strict=True)
     except FileNotFoundError:
         return False
+
+
+def _symlink_target(path: Path) -> Path | None:
+    if not path.exists() and not path.is_symlink():
+        return None
+    if not path.is_symlink():
+        raise RuntimeError(f"deployment selector is not a symlink: {path}")
+    try:
+        return path.resolve(strict=True)
+    except FileNotFoundError as error:
+        raise RuntimeError(f"deployment selector is dangling: {path}") from error
+
+
+def _file_state(path: Path) -> FileState | None:
+    if not path.exists() and not path.is_symlink():
+        return None
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"deployment-owned path is not a regular file: {path}")
+    return FileState(content=path.read_bytes(), mode=path.stat().st_mode & 0o777)
+
+
+def _job_loaded(label: str) -> bool:
+    return subprocess.run(["launchctl", "print", f"gui/{os.getuid()}/{label}"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode == 0
+
+
+def capture_publication_state() -> PublicationState:
+    service_path = LAUNCH_AGENTS / f"{SERVICE_LABEL}.plist"
+    backup_path = LAUNCH_AGENTS / f"{BACKUP_LABEL}.plist"
+    return PublicationState(
+        current_target=_symlink_target(CURRENT_LINK),
+        previous_target=_symlink_target(PREVIOUS_LINK),
+        shim=_file_state(SHIM),
+        service_plist=_file_state(service_path),
+        backup_plist=_file_state(backup_path),
+        service_loaded=_job_loaded(SERVICE_LABEL),
+        backup_loaded=_job_loaded(BACKUP_LABEL),
+    )
+
+
+def _restore_symlink(path: Path, target: Path | None) -> None:
+    if target is not None:
+        replace_symlink(path, target)
+        return
+    if path.is_symlink():
+        path.unlink()
+    elif path.exists():
+        raise RuntimeError(f"refusing to remove non-symlink deployment selector: {path}")
+
+
+def _restore_file(path: Path, state: FileState | None) -> None:
+    if state is not None:
+        write_atomic(path, state.content, mode=state.mode)
+        return
+    if path.is_symlink() or path.exists() and not path.is_file():
+        raise RuntimeError(f"refusing to remove unsupported deployment object: {path}")
+    path.unlink(missing_ok=True)
+
+
+def unload_job(label: str) -> None:
+    target = f"gui/{os.getuid()}/{label}"
+    if not _job_loaded(label):
+        return
+    run(["launchctl", "bootout", target])
+    deadline = time.monotonic() + 5
+    while _job_loaded(label):
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f"launchd did not remove {target} within 5 seconds")
+        time.sleep(0.1)
+
+
+def restore_publication_state(state: PublicationState) -> None:
+    """Restore every published selector and supervised job to its exact prior state."""
+
+    service_path = LAUNCH_AGENTS / f"{SERVICE_LABEL}.plist"
+    backup_path = LAUNCH_AGENTS / f"{BACKUP_LABEL}.plist"
+    _restore_symlink(CURRENT_LINK, state.current_target)
+    _restore_symlink(PREVIOUS_LINK, state.previous_target)
+    _restore_file(SHIM, state.shim)
+    _restore_file(service_path, state.service_plist)
+    _restore_file(backup_path, state.backup_plist)
+    if state.backup_loaded:
+        if state.backup_plist is None:
+            raise RuntimeError("prior backup job was loaded without a recoverable plist")
+        reload_job(BACKUP_LABEL, backup_path)
+    else:
+        unload_job(BACKUP_LABEL)
+    if state.service_loaded:
+        if state.service_plist is None:
+            raise RuntimeError("prior service job was loaded without a recoverable plist")
+        reload_job(SERVICE_LABEL, service_path)
+    else:
+        unload_job(SERVICE_LABEL)
+
+
+def publish_runtime(target: Path) -> None:
+    prior = capture_publication_state()
+    install_links(target)
+    try:
+        install_launchd(target)
+        verify_live_service(target.name)
+    except BaseException as publication_error:
+        try:
+            restore_publication_state(prior)
+            if prior.current_target is not None and prior.service_loaded:
+                verify_live_service(prior.current_target.name)
+        except BaseException as rollback_error:
+            raise BaseExceptionGroup("Lattice publication and automatic rollback both failed", [publication_error, rollback_error])
+        raise publication_error
 
 
 def plist_payload(label: str, *, backup: bool, runtime_id: str | None = None) -> dict:
@@ -506,19 +685,7 @@ def main() -> None:
     migrate_legacy_data(args.legacy_data_root.expanduser().resolve())
     backup_before_upgrade()
     target = install_runtime(lattice_revision, runner_revision)
-    old = install_links(target)
-    try:
-        install_launchd(target)
-        verify_live_service(target.name)
-    except BaseException as upgrade_error:
-        if old is not None:
-            replace_symlink(CURRENT_LINK, old)
-            try:
-                install_launchd(old)
-                verify_live_service(old.name)
-            except BaseException as rollback_error:
-                raise BaseExceptionGroup("Lattice upgrade and automatic rollback both failed", [upgrade_error, rollback_error])
-        raise upgrade_error
+    publish_runtime(target)
     print(f"Installed Lattice runtime {target.name}")
     print(f"CLI: {SHIM}")
     print(f"State: {DEFAULT_DATA_ROOT}")
