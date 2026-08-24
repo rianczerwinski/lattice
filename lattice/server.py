@@ -354,6 +354,15 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     ):
         return store.page_invocations(project_id, limit=limit, before_created_at=before_created_at, before_invocation_id=before_invocation_id)
 
+    @app.get("/api/v1/projects/{project_id}/trailheads")
+    async def project_trailheads(
+        project_id: str,
+        limit: int = Query(default=50, ge=1, le=500),
+        before_created_at: str | None = Query(default=None, min_length=15, max_length=15, pattern=r"^\d{8}T\d{6}$"),
+        before_invocation_id: str | None = Query(default=None, min_length=1, max_length=96, pattern=r"^[A-Za-z0-9_:-]+$"),
+    ):
+        return store.page_trailheads(project_id, limit=limit, before_created_at=before_created_at, before_invocation_id=before_invocation_id)
+
     @app.get("/api/v1/projects/{project_id}/axial-projection")
     async def axial_projection(project_id: str):
         return store.project_enduring_graph(project_id)

@@ -33,6 +33,7 @@ export type RoleSession = { role_session_id: string; role_id: string; label: str
 export type Route = { provider_code: string; model_code: string; official_cli: string; installed: boolean; qualified: boolean; operational: boolean | null; qualification_blocker?: string; proof_limits: string[]; qualified_profiles: Array<'compiled-fresh' | 'workspace-agent' | 'native-continuation'> };
 export type InvocationSummary = { invocation_id: string; state: string; actor_kind: 'direct' | 'role-session'; role_session_id: string | null; output_block_id?: string; created_at: string };
 export type InvocationPage = { has_older: boolean; next_before: { created_at: string; invocation_id: string } | null };
+export type TrailheadPage = InvocationPage & { items: InvocationSummary[] };
 export type WorkflowTemplateSummary = { artifact_id: string; artifact_kind: 'workflow-template'; content_sha256: string; created_at: string };
 export type WorkflowTemplate = { generated_object: { artifact_id: string }; contract_version: 'LatticeWorkflowTemplate/2.0' | 'LatticeWorkflowTemplate/3.0'; title: string; steps: Array<{ step_id: string; actor_binding?: { kind: 'direct' } | { kind: 'role-parameter'; parameter_id: string }; role_parameter_id?: string }> };
 export type ManifestSegment = { block_id: string; plane: string; label: string; disposition: string; sha256: string; status: string; semantic_type: string };

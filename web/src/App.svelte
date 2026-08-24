@@ -3,7 +3,7 @@
   import { batchIdempotencyKey, reciprocalCrossFeedParents } from './invocationBatch';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
-  import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
+  import type { BatchPreview, Episode, Invocation, InvocationBatch, InvocationSummary, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
 
   let projects: Project[] = [];
@@ -26,6 +26,10 @@
   let title = '';
   let purpose = '';
   let selectedParents = new Set<string>();
+  let allTrailheads: InvocationSummary[] = [];
+  let trailheadPage: TrailheadPage | null = null;
+  let trailheadsLoading = false;
+  let trailheadError = '';
   let preview: BatchPreview | null = null;
   let pendingBatchRequest: Record<string, unknown> | null = null;
   let explicitSelections: Array<Record<string, unknown>> = [];
@@ -124,6 +128,10 @@
     currentEpisode = switchingProjects ? null : episodes.find((episode) => episode.slice_id === currentEpisode?.slice_id) ?? null;
     selectedSession = '';
     selectedParents = new Set();
+    allTrailheads = [];
+    trailheadPage = null;
+    trailheadsLoading = false;
+    trailheadError = '';
     preview = null;
     pendingBatchRequest = null;
     explicitSelections = [];
@@ -490,6 +498,27 @@
     finally { working = false; }
   }
 
+  async function loadTrailheads(reset = false) {
+    if (!project || trailheadsLoading || (!reset && !trailheadPage?.next_before)) return;
+    trailheadsLoading = true;
+    trailheadError = '';
+    try {
+      const cursor = reset ? null : trailheadPage?.next_before;
+      const query = cursor ? `&before_created_at=${encodeURIComponent(cursor.created_at)}&before_invocation_id=${encodeURIComponent(cursor.invocation_id)}` : '';
+      const page = await api<TrailheadPage>(`/api/v1/projects/${project.project_id}/trailheads?limit=50${query}`);
+      const known = new Set((reset ? [] : allTrailheads).map((item) => item.invocation_id));
+      allTrailheads = [...(reset ? [] : allTrailheads), ...page.items.filter((item) => !known.has(item.invocation_id))];
+      trailheadPage = page;
+    } catch (cause) {
+      trailheadError = cause instanceof Error ? cause.message : String(cause);
+    } finally { trailheadsLoading = false; }
+  }
+
+  async function resumeTrailhead(invocationId: string) {
+    selectedParents = new Set([invocationId]);
+    await inspect(invocationId);
+  }
+
   async function extractSelectedPath() {
     if (!project || !selectedParents.size) return;
     working = true;
@@ -770,6 +799,14 @@
               {#each trailheads as trail}
                 <button title="Open trailhead" class:chosen={selectedParents.has(trail.invocation_id)} on:click={() => toggleParent(trail.invocation_id)}>{trail.state.slice(0, 1).toUpperCase()}</button>
               {/each}
+              <details class="trailhead-catalogue" on:toggle={(event) => event.currentTarget.open && trailheadPage === null && loadTrailheads(true)}>
+                <summary>all branches</summary>
+                <div class="trailhead-menu">
+                  {#if trailheadsLoading && !allTrailheads.length}<small>Loading branch tips…</small>{:else if trailheadError}<small class="terminal-failure">Branch catalogue unavailable: {trailheadError}</small>{:else if trailheadPage && !allTrailheads.length}<small>No branch tips yet.</small>{/if}
+                  {#each allTrailheads as trail}<button class:chosen={selectedParents.has(trail.invocation_id)} on:click={() => resumeTrailhead(trail.invocation_id)}><code>{trail.invocation_id.slice(-8)}</code><span>{trail.state}</span></button>{/each}
+                  {#if trailheadPage?.has_older}<button class="quiet" disabled={trailheadsLoading} on:click={() => loadTrailheads(false)}>{trailheadsLoading ? 'Loading…' : 'Older branches'}</button>{/if}
+                </div>
+              </details>
             </div>
           </div>
           {#if currentEpisode}<nav class="episode-breadcrumb" aria-label="Current episode">{#if parentEpisode}<button on:click={() => currentEpisode = parentEpisode}>{parentEpisode.name}</button><span>›</span>{/if}<strong>{currentEpisode.name}</strong><small>{currentEpisode.items.length} member{currentEpisode.items.length === 1 ? '' : 's'}</small></nav>{/if}

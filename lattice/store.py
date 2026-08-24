@@ -1096,7 +1096,7 @@ class LatticeStore:
                    WHERE i.project_id=? AND NOT EXISTS(
                      SELECT 1 FROM edges e WHERE e.source_type='invocation'
                      AND e.target_type='invocation' AND e.target_id=i.invocation_id)
-                   ORDER BY i.created_at DESC LIMIT 3""", (project_id,))]
+                   ORDER BY i.created_at DESC,i.invocation_id DESC LIMIT 3""", (project_id,))]
             workflow_templates = [dict(row) for row in conn.execute(
                 """SELECT artifact_id,artifact_kind,content_sha256,created_at FROM artifacts
                    WHERE project_id=? AND artifact_kind='workflow-template'
@@ -1895,6 +1895,43 @@ class LatticeStore:
         oldest = window[-1] if window else None
         return {
             "items": list(reversed(window)),
+            "has_older": has_older,
+            "next_before": {"created_at": oldest["created_at"], "invocation_id": oldest["invocation_id"]} if has_older and oldest else None,
+        }
+
+    def page_trailheads(
+        self,
+        project_id: str,
+        *,
+        limit: int,
+        before_created_at: str | None = None,
+        before_invocation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Page every branch tip while the foreground recommends only three."""
+
+        if (before_created_at is None) != (before_invocation_id is None):
+            raise LatticeConflict("trailhead cursor requires both creation time and invocation identity")
+        cursor = ""
+        parameters: list[Any] = [project_id]
+        if before_created_at is not None and before_invocation_id is not None:
+            cursor = " AND (i.created_at < ? OR (i.created_at = ? AND i.invocation_id < ?))"
+            parameters.extend([before_created_at, before_created_at, before_invocation_id])
+        parameters.append(limit + 1)
+        with self._connect() as conn:
+            rows = [dict(row) for row in conn.execute(
+                f"""SELECT i.invocation_id,i.project_id,i.actor_kind,i.role_session_id,i.state,i.manifest_sha256,i.output_block_id,i.terminal_kind,i.created_at,i.completed_at
+                    FROM invocations i
+                    WHERE i.project_id=?{cursor} AND NOT EXISTS(
+                        SELECT 1 FROM edges e WHERE e.source_type='invocation'
+                        AND e.target_type='invocation' AND e.target_id=i.invocation_id)
+                    ORDER BY i.created_at DESC,i.invocation_id DESC LIMIT ?""",
+                parameters,
+            )]
+        has_older = len(rows) > limit
+        window = rows[:limit]
+        oldest = window[-1] if window else None
+        return {
+            "items": window,
             "has_older": has_older,
             "next_before": {"created_at": oldest["created_at"], "invocation_id": oldest["invocation_id"]} if has_older and oldest else None,
         }

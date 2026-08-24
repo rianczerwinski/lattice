@@ -706,6 +706,10 @@ def test_project_history_is_windowed_and_reusable_paths_remain_discoverable(latt
         cursor = recent["next_before"]
         older = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}/invocations", params={"limit": 2, "before_created_at": cursor["created_at"], "before_invocation_id": cursor["invocation_id"]}).json()
         malformed = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}/invocations", params={"limit": 2, "before_created_at": cursor["created_at"]})
+        recent_trailheads = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}/trailheads", params={"limit": 2}).json()
+        trailhead_cursor = recent_trailheads["next_before"]
+        older_trailheads = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}/trailheads", params={"limit": 2, "before_created_at": trailhead_cursor["created_at"], "before_invocation_id": trailhead_cursor["invocation_id"]}).json()
+        malformed_trailhead_cursor = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}/trailheads", params={"limit": 2, "before_invocation_id": trailhead_cursor["invocation_id"]})
 
     assert len(recent["items"]) == 2
     assert recent["has_older"] is True
@@ -713,6 +717,10 @@ def test_project_history_is_windowed_and_reusable_paths_remain_discoverable(latt
     assert older["has_older"] is False
     assert {item["invocation_id"] for item in [*older["items"], *recent["items"]]} == {item["invocation_id"] for item in invocations}
     assert malformed.status_code == 409
+    assert recent_trailheads["has_older"] is True
+    assert older_trailheads["has_older"] is False
+    assert {item["invocation_id"] for item in [*recent_trailheads["items"], *older_trailheads["items"]]} == {item["invocation_id"] for item in invocations}
+    assert malformed_trailhead_cursor.status_code == 409
     assert project["invocation_page"] == {"has_older": False, "next_before": None}
     assert project["workflow_templates"] == [{
         "artifact_id": template["generated_object"]["artifact_id"],
