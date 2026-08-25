@@ -7,16 +7,16 @@
       "name": "surface-validation",
       "version": 2
     },
-    "artifact_id": "artifact:aa2fd275-a3d4-4d42-94b1-02e3e0eff9fa",
-    "generated_at": "20260824T182506",
+    "artifact_id": "artifact:207431d7-7b5c-4aaf-a286-8671af496dc4",
+    "generated_at": "20260824T195417",
     "producer": {
       "name": "surface-validator",
       "version": "2.0.1"
     },
-    "subject": "artifact:66dc92cf-0852-4a62-ad82-cc382ab87884",
+    "subject": "artifact:b04e8c8f-f946-446e-936f-34e585a394cc",
     "binding": {
-      "artifact_id": "artifact:66dc92cf-0852-4a62-ad82-cc382ab87884",
-      "sha256": "3730deca1677ab74ad7dc1354635d5958a57e65849dc83fe1d299c82b834a692"
+      "artifact_id": "artifact:b04e8c8f-f946-446e-936f-34e585a394cc",
+      "sha256": "9611624f69651dac23ef0c915f0695360a2ca468683f61f2a336f4b07051c620"
     },
     "validator": {
       "name": "surface-validator",
@@ -27,14 +27,14 @@
   "receipt_schema_version": 2,
   "validator_version": "2.0.1",
   "surface_schema_version": 2,
-  "surface_id": "surface:66dc92cf-0852-4a62-ad82-cc382ab87884",
+  "surface_id": "surface:b04e8c8f-f946-446e-936f-34e585a394cc",
   "artifact_path": "/Users/rian/AXISVI/axis/chariots/lattice/SURFACE.json",
-  "artifact_sha256": "3730deca1677ab74ad7dc1354635d5958a57e65849dc83fe1d299c82b834a692",
-  "source_revision": "38a8d053336c2c3c516876ad7c1cdd1f714c1d6a",
+  "artifact_sha256": "9611624f69651dac23ef0c915f0695360a2ca468683f61f2a336f4b07051c620",
+  "source_revision": "30358508dae9ddc82577180ba57933ee94f0ac6f",
   "external_census_matched": true,
   "evidence_census_accounted": true,
   "valid": true,
-  "parent_surface_id": "surface:f1256753-ad54-4902-a884-eab47bed6b42",
-  "parent_artifact_path": "/Users/rian/AXISVI/axis/chariots/lattice/surface-history/20260824T172412.json",
-  "parent_artifact_sha256": "9187235e9dde3919ac7fa0f1e4930fd51538462393626089ba783e829888347d"
+  "parent_surface_id": "surface:66dc92cf-0852-4a62-ad82-cc382ab87884",
+  "parent_artifact_path": "/Users/rian/AXISVI/axis/chariots/lattice/surface-history/20260824T182341.json",
+  "parent_artifact_sha256": "3730deca1677ab74ad7dc1354635d5958a57e65849dc83fe1d299c82b834a692"
 }
