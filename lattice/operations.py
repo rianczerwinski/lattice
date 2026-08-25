@@ -52,6 +52,8 @@ class Lattice:
             "source_sha256": None,
             "authority": "operator",
             "evidence_level": "operator-intent",
+            "issuer_kind": "operator",
+            "issuer_ref": None,
             "sensitivity": "private",
             "transformation_json": None,
             "created_at": None,

@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, beginSession, extractWorkflow } from './api';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  window.history.replaceState(null, '', '/');
+});
 
 describe('api boundary', () => {
   it('treats a successful no-content mutation as success', async () => {
@@ -13,6 +16,21 @@ describe('api boundary', () => {
   it('keeps request failure distinct from an empty successful response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: 'backend unavailable' }), { status: 503, headers: { 'content-type': 'application/json' } })));
     await expect(api('/api/v1/projects')).rejects.toThrow('backend unavailable');
+  });
+
+  it('redeems a one-time CLI pairing token without sending it as a query or path', async () => {
+    window.history.replaceState(null, '', '/#operator-bootstrap=one-time-secret');
+    const fetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ csrf: 'paired' }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetch);
+
+    await beginSession();
+
+    expect(fetch).toHaveBeenCalledWith('/api/session/redeem', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ bootstrap_token: 'one-time-secret' }),
+    });
+    expect(window.location.hash).toBe('');
   });
 
   it('binds workflow extraction to the exact checked invocation identities', async () => {

@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from lattice.contracts import (
+    AttemptState,
     ContextAssemblyV1,
     DirectActorBinding,
     DraftCreate,
@@ -77,7 +78,7 @@ async def test_supervisor_delivers_the_manifest_bound_claude_system_instructions
     declared = invocation["manifest"]["provider_boundary"]["system_instructions"]
     assert declared["channel"] == "official-system-prompt-file"
     assert observed["system_prompt"] == declared["content"]
-    assert observed["prompt"].startswith("LATTICE-CONVERSATION/9\n")
+    assert observed["prompt"].startswith("LATTICE-CONVERSATION/10\n")
 
 
 @pytest.mark.asyncio
@@ -256,9 +257,77 @@ async def test_oracle_native_continuation_uses_the_selected_parent_receipt_and_e
     ))
 
     execution = preview["members"][0]["preflight"]["execution"]
+    provider_boundary = preview["members"][0]["preflight"]["provider_boundary"]
     assert execution["native_session_id"] == session_id
     assert execution["native_parent_invocation_id"] == parent["invocation_id"]
     assert preview["members"][0]["preflight"]["capabilities"]["workspace"] == str(workspace.resolve())
+    assert provider_boundary["opaque_contexts"] == [{
+        "kind": "provider-native-session-history",
+        "disposition": "provider_opaque",
+        "provider": "openai",
+        "harness": "codex",
+        "native_session_id": session_id,
+        "native_parent_invocation_id": parent["invocation_id"],
+        "continuation_mode": continuation_mode,
+        "statement": "The official provider harness may add prior native-session messages and compaction state that Lattice cannot inspect byte-for-byte.",
+    }]
+    assert any("native session history and compaction state" in limit for limit in provider_boundary["proof_limits"])
+
+    sealed = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        batch_id=preview["batch_id"],
+        specifications=[InvocationSpecV1(spec_id="codex", assembly=assembly, route=continuation_route)],
+        idempotency_key=f"native-opaque-{continuation_mode}",
+        expected_preview_sha256=preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
+    ))
+    child = lattice_env["lattice"].inspect(sealed["invocation_ids"][0])
+    assert child["manifest_verification"]["valid"] is True
+    assert child["manifest"]["provider_boundary"]["opaque_contexts"] == provider_boundary["opaque_contexts"]
+
+
+@pytest.mark.concurrency
+@pytest.mark.asyncio
+async def test_native_session_lease_serializes_resume_and_recovers_after_restart(monkeypatch, lattice_env, tmp_path) -> None:
+    workspace = tmp_path / "lease-workspace"
+    workspace.mkdir()
+    parent_route = ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex", execution_profile="workspace-agent", tools=["shell"], workspace=str(workspace), sandbox="read-only")
+    parent_draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="start one native session", route=parent_route))
+    parent = lattice_env["lattice"].seal(parent_draft["draft_id"])
+    session_id = "33333333-3333-4333-8333-333333333333"
+    monkeypatch.setattr("lattice.supervisor.invoke_subscription", lambda *args, **kwargs: ({"response": "session started", "artifacts": []}, fake_journal(tmp_path, native_session_id=session_id)))
+    supervisor = ExecutionSupervisor(lattice_env["store"])
+    await supervisor.start()
+    await supervisor.execute(parent["invocation_id"], ExecuteRequest(idempotency_key="native-lease-parent"))
+    await asyncio.gather(*list(supervisor._tasks.values()))
+
+    route = ProviderRoute(
+        provider="openai",
+        model="gpt-5.6-sol",
+        harness="codex",
+        execution_profile="native-continuation",
+        session_policy="visible_native_continuation",
+        continuation_mode="resume",
+        native_parent_invocation_id=parent["invocation_id"],
+        tools=["shell"],
+        workspace=str(workspace),
+        sandbox="read-only",
+    )
+    children = []
+    for prompt in ("first continuation", "second continuation"):
+        draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt=prompt, route=route, parent_invocation_ids=[parent["invocation_id"]]))
+        children.append(lattice_env["lattice"].seal(draft["draft_id"]))
+
+    first_attempt = lattice_env["store"].create_attempt(children[0]["invocation_id"], "native-session-first", "old-boot", 9_999_999_999)
+    with pytest.raises(Exception, match="provider-native session is already executing"):
+        lattice_env["store"].create_attempt(children[1]["invocation_id"], "native-session-second", "new-boot", 9_999_999_999)
+
+    assert lattice_env["store"].reconcile_orphans("new-boot") == 1
+    assert lattice_env["store"].get_attempt(first_attempt["attempt_id"])["state"] == AttemptState.orphaned.value
+    second_attempt = lattice_env["store"].create_attempt(children[1]["invocation_id"], "native-session-second", "new-boot", 9_999_999_999)
+    assert second_attempt["state"] == AttemptState.leased.value
+    with lattice_env["store"]._connect() as conn:
+        leases = [dict(row) for row in conn.execute("SELECT state,invocation_id FROM native_session_leases WHERE provider='openai' AND native_session_id=? ORDER BY acquired_at", (session_id,))]
+    assert [item["state"] for item in leases] == ["released", "active"]
 
 
 @pytest.mark.contract

@@ -48,7 +48,19 @@ export type Manifest = {
   execution: Record<string, unknown>;
   response_contract: Record<string, unknown>;
   capabilities: Record<string, unknown>;
-  provider_boundary: { proof_limits: string[] };
+  provider_boundary: {
+    proof_limits: string[];
+    opaque_contexts?: Array<{
+      kind: string;
+      disposition: 'provider_opaque';
+      provider: string;
+      harness: string;
+      native_session_id: string;
+      native_parent_invocation_id: string | null;
+      continuation_mode: 'resume' | 'fork';
+      statement: string;
+    }>;
+  };
   compilation: { byte_count: number; compiled_prompt_sha256: string };
 };
 export type ContextPreflight = Omit<Manifest, 'manifest_sha256'> & { preflight_sha256: string };

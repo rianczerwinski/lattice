@@ -104,18 +104,52 @@ def ensure_cli_token(path: Path) -> str:
 
 
 class OperatorSessions:
-    def __init__(self, *, ttl_seconds: int = 86_400, max_sessions: int = 128, clock: Callable[[], float] = time.monotonic) -> None:
-        if ttl_seconds < 1 or max_sessions < 1:
+    def __init__(
+        self,
+        *,
+        ttl_seconds: int = 86_400,
+        bootstrap_ttl_seconds: int = 60,
+        max_sessions: int = 128,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if ttl_seconds < 1 or bootstrap_ttl_seconds < 1 or max_sessions < 1:
             raise ValueError("operator session bounds must be positive")
         self.ttl_seconds = ttl_seconds
+        self.bootstrap_ttl_seconds = bootstrap_ttl_seconds
         self.max_sessions = max_sessions
         self.clock = clock
         self._sessions: OrderedDict[str, tuple[str, float]] = OrderedDict()
+        self._bootstrap_tokens: OrderedDict[str, float] = OrderedDict()
 
     def _prune(self, now: float) -> None:
         expired = [session for session, (_csrf, expires_at) in self._sessions.items() if expires_at <= now]
         for session in expired:
             self._sessions.pop(session, None)
+        expired_bootstraps = [token for token, expires_at in self._bootstrap_tokens.items() if expires_at <= now]
+        for token in expired_bootstraps:
+            self._bootstrap_tokens.pop(token, None)
+
+    def issue_bootstrap(self) -> str:
+        """Mint a short-lived, single-use capability for transferring CLI authority to a browser."""
+
+        now = self.clock()
+        self._prune(now)
+        token = secrets.token_urlsafe(48)
+        self._bootstrap_tokens[token] = now + self.bootstrap_ttl_seconds
+        while len(self._bootstrap_tokens) > self.max_sessions:
+            self._bootstrap_tokens.popitem(last=False)
+        return token
+
+    def redeem_bootstrap(self, token: str | None) -> tuple[str, str] | None:
+        if not token:
+            return None
+        now = self.clock()
+        self._prune(now)
+        matched = next((candidate for candidate in self._bootstrap_tokens if hmac.compare_digest(candidate, token)), None)
+        if matched is None:
+            return None
+        self._bootstrap_tokens.pop(matched, None)
+        return self.issue()
 
     def issue(self) -> tuple[str, str]:
         now = self.clock()
@@ -134,6 +168,14 @@ class OperatorSessions:
         self._prune(now)
         value = self._sessions.get(session)
         return value is not None and hmac.compare_digest(value[0], csrf)
+
+    def csrf_for(self, session: str | None) -> str | None:
+        if not session:
+            return None
+        now = self.clock()
+        self._prune(now)
+        value = self._sessions.get(session)
+        return value[0] if value is not None else None
 
 
 class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
@@ -158,19 +200,22 @@ class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
         host = request.headers.get("host", "")
         if host not in self.allowed_hosts:
             return Response("unrecognized Lattice host", status_code=421)
-        if request.url.path == "/api/session":
+        if request.url.path in {"/api/session", "/api/session/redeem"}:
             fetch_site = request.headers.get("sec-fetch-site")
             origin = request.headers.get("origin")
             if fetch_site not in {None, "none", "same-origin"} or (origin is not None and origin.rstrip("/") not in self.allowed_origins):
                 return Response("cross-site operator session bootstrap rejected", status_code=403)
-        if request.method not in SAFE_METHODS and request.url.path.startswith("/api/"):
+        authorization = request.headers.get("authorization", "")
+        bearer = authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else None
+        bearer_ok = bearer is not None and hmac.compare_digest(bearer, self.cli_token)
+        session_cookie = request.cookies.get("lattice_operator")
+        if request.url.path == "/api/session" and not bearer_ok and self.sessions.csrf_for(session_cookie) is None:
+            return Response("operator authority required", status_code=403)
+        if request.method not in SAFE_METHODS and request.url.path.startswith("/api/") and request.url.path != "/api/session/redeem":
             origin = request.headers.get("origin")
             if origin is not None and origin.rstrip("/") not in self.allowed_origins:
                 return Response("unapproved Lattice origin", status_code=403)
-            authorization = request.headers.get("authorization", "")
-            bearer = authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else None
-            bearer_ok = bearer is not None and hmac.compare_digest(bearer, self.cli_token)
-            session_ok = self.sessions.valid(request.cookies.get("lattice_operator"), request.headers.get("x-lattice-csrf"))
+            session_ok = self.sessions.valid(session_cookie, request.headers.get("x-lattice-csrf"))
             if not bearer_ok and not session_ok:
                 return Response("operator authority required", status_code=403)
         response = await call_next(request)

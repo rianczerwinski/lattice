@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import replace
@@ -219,13 +220,29 @@ def command_serve(args: argparse.Namespace) -> int:
 def command_open(args: argparse.Namespace) -> int:
     config = LatticeConfig.from_environment()
     service = _service(config)
-    if service is not None:
-        result = subprocess.run([outport_executable(), "open", "lattice"], cwd=config.axisvi_root, check=False)
-        return result.returncode
-    if args.port is None:
+    if service is None and args.port is None:
         raise RuntimeError("standalone Lattice open requires --port")
+    port = service.port if service is not None else args.port
+    loopback_url = service.loopback_url if service is not None else f"http://127.0.0.1:{port}"
+    public_url = service.url if service is not None else loopback_url
+    cli_token = ensure_cli_token(config.operator_token)
+    request = urllib.request.Request(
+        f"{loopback_url}/api/session/bootstrap",
+        data=b"{}",
+        method="POST",
+        headers={"Host": f"127.0.0.1:{port}", "Authorization": f"Bearer {cli_token}", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read())
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"Lattice browser bootstrap failed: {error}") from error
+    bootstrap = payload.get("bootstrap_token") if isinstance(payload, dict) else None
+    if not isinstance(bootstrap, str):
+        raise RuntimeError("Lattice browser bootstrap returned no operator capability")
     import webbrowser
-    if not webbrowser.open(f"http://127.0.0.1:{args.port}"):
+    browser_url = f"{public_url.rstrip('/')}/#operator-bootstrap={urllib.parse.quote(bootstrap, safe='')}"
+    if not webbrowser.open(browser_url):
         raise RuntimeError("the system browser did not accept the Lattice URL")
     return 0
 

@@ -82,6 +82,51 @@ def _downgrade_actor_schema(database) -> None:
             conn.commit()
 
 
+def _downgrade_context_issuer_schema(database) -> None:
+    """Create a synthetic v9 context-block table without issuer claims."""
+
+    with sqlite3.connect(database, isolation_level=None) as conn:
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.execute("BEGIN EXCLUSIVE")
+        try:
+            for operation in ("insert", "update", "delete"):
+                conn.execute(f'DROP TRIGGER IF EXISTS "ledger_context_blocks_{operation}"')
+            conn.execute("DROP TRIGGER schema_migrations_no_delete")
+            conn.execute("DELETE FROM schema_migrations WHERE version=10")
+            conn.execute(
+                """CREATE TABLE context_blocks_v9(
+                    block_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(project_id),
+                    semantic_type TEXT NOT NULL,
+                    content_sha256 TEXT NOT NULL CHECK(length(content_sha256)=64),
+                    byte_count INTEGER NOT NULL CHECK(byte_count>=0),
+                    initial_status TEXT NOT NULL,
+                    producing_invocation_id TEXT,
+                    source_ref TEXT,
+                    source_sha256 TEXT,
+                    authority TEXT NOT NULL,
+                    evidence_level TEXT NOT NULL,
+                    sensitivity TEXT NOT NULL,
+                    transformation_json TEXT CHECK(transformation_json IS NULL OR json_valid(transformation_json)),
+                    created_at TEXT NOT NULL
+                ) STRICT"""
+            )
+            conn.execute(
+                """INSERT INTO context_blocks_v9
+                   SELECT block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
+                          producing_invocation_id,source_ref,source_sha256,authority,evidence_level,
+                          sensitivity,transformation_json,created_at
+                   FROM context_blocks"""
+            )
+            conn.execute("DROP TABLE context_blocks")
+            conn.execute("ALTER TABLE context_blocks_v9 RENAME TO context_blocks")
+        except BaseException:
+            conn.rollback()
+            raise
+        else:
+            conn.commit()
+
+
 @pytest.mark.contract
 def test_direct_actor_binding_rejects_implicit_or_contradictory_roles(lattice_env) -> None:
     base = {"project_id": lattice_env["project"]["project_id"], "prompt": "direct", "route": lattice_env["route"]}
@@ -99,7 +144,7 @@ def test_direct_manifest_contains_only_explicit_world_and_reconstructs(lattice_e
     invocation = lattice_env["lattice"].seal(draft["draft_id"])
 
     assert invocation["actor_binding"] == {"kind": "direct"}
-    assert invocation["manifest"]["contract_version"] == "LatticeContextManifest/9.0"
+    assert invocation["manifest"]["contract_version"] == "LatticeContextManifest/10.0"
     assert invocation["manifest"]["actor_binding"] == {"kind": "direct"}
     assert invocation["manifest"]["role_session_id"] is None
     assert [item["label"] for item in invocation["manifest"]["segments"]] == ["user-prompt"]
@@ -114,7 +159,7 @@ def test_negative_control_direct_manifest_cannot_acquire_a_hidden_role(lattice_e
     mutated["actor_binding"] = {"kind": "role-session", "role_session_id": lattice_env["session"]["role_session_id"]}
     mutated["role_session_id"] = lattice_env["session"]["role_session_id"]
     preflight_keys = {"invocation_id", "project_id", "actor_binding", "role_session_id", "draft_id", "draft_revision", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "capabilities", "execution", "response_contract", "compilation", "provider_boundary"}
-    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/7.0", **{key: mutated[key] for key in preflight_keys}})
+    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/8.0", **{key: mutated[key] for key in preflight_keys}})
     mutated["manifest_sha256"] = sha256_json({key: value for key, value in mutated.items() if key != "manifest_sha256"})
 
     with pytest.raises(ManifestVerificationError, match="actor binding"):
@@ -138,6 +183,30 @@ def test_v7_actor_migration_preserves_every_manifest_byte(lattice_env) -> None:
 
     assert after == before
     assert migrated.get_invocation(invocation["invocation_id"])["actor_binding"] == {"kind": "role-session", "role_session_id": lattice_env["session"]["role_session_id"]}
+
+
+@pytest.mark.regression
+def test_v9_issuer_migration_preserves_manifest_bytes_and_marks_legacy_authority_unknown(lattice_env) -> None:
+    store = lattice_env["store"]
+    draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="legacy issuer bytes", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    prompt_block_id = invocation["manifest"]["segments"][-1]["block_id"]
+    with sqlite3.connect(store.config.database) as conn:
+        before = conn.execute("SELECT manifest_json FROM invocations WHERE invocation_id=?", (invocation["invocation_id"],)).fetchone()[0]
+    _downgrade_context_issuer_schema(store.config.database)
+
+    migrated = LatticeStore(LatticeConfig(data_root=store.config.data_root, port=store.config.port, axisvi_root=None))
+    with sqlite3.connect(store.config.database) as conn:
+        after = conn.execute("SELECT manifest_json FROM invocations WHERE invocation_id=?", (invocation["invocation_id"],)).fetchone()[0]
+        migration_count = conn.execute("SELECT COUNT(*) FROM schema_migrations WHERE version=10").fetchone()[0]
+        migration_versions = [row[0] for row in conn.execute("SELECT version FROM schema_migrations ORDER BY version")]
+        latest_image = json.loads(conn.execute("SELECT row_json FROM ledger_changes WHERE table_name='context_blocks' AND json_extract(primary_key_json,'$.block_id')=? ORDER BY seq DESC LIMIT 1", (prompt_block_id,)).fetchone()[0])
+
+    assert after == before
+    assert migration_count == 1
+    assert migration_versions == list(range(1, 11))
+    assert migrated.get_block(prompt_block_id, include_content=False)["issuer_kind"] == "legacy-unknown"
+    assert latest_image["issuer_kind"] == "legacy-unknown"
 
 
 @pytest.mark.property

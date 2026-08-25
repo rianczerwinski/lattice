@@ -20,6 +20,14 @@ from lattice.workflows import WorkflowRegistry
 from conftest import TEST_WORKFLOW_PACK_ROOTS, completed_invocation
 
 
+def _operator_session(client: TestClient, lattice_env, **headers: str):
+    token = ensure_cli_token(lattice_env["config"].operator_token)
+    return client.get(
+        "/api/session",
+        headers={"authorization": f"Bearer {token}", **headers},
+    )
+
+
 def _terminal_workflow_output(lattice_env, created, response: str, *, workflow_role_key: str | None = None):
     project = created["project"]
     if workflow_role_key is None:
@@ -40,7 +48,7 @@ def test_contract_mutations_require_same_origin_operator_session(lattice_env) ->
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
         denied = client.post("/api/v1/projects", json={"title": "Denied"})
-        session = client.get("/api/session")
+        session = _operator_session(client, lattice_env)
         csrf = session.json()["csrf"]
         evil = client.post("/api/v1/projects", headers={"x-lattice-csrf": csrf, "origin": "http://localhost:31337"}, json={"title": "Evil"})
         allowed = client.post("/api/v1/projects", headers={"x-lattice-csrf": csrf, "origin": "http://testserver"}, json={"title": "Allowed"})
@@ -64,7 +72,7 @@ def test_negative_control_provider_process_probe_requires_operator_authority(mon
     with TestClient(app) as client:
         denied_get = client.get("/api/v1/routes?probe=true")
         denied_post = client.post("/api/v1/routes/probe", json={})
-        session = client.get("/api/session")
+        session = _operator_session(client, lattice_env)
         allowed_post = client.post("/api/v1/routes/probe", headers={"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}, json={})
 
     assert denied_get.status_code == 405
@@ -77,7 +85,7 @@ def test_negative_control_provider_process_probe_requires_operator_authority(mon
 def test_manual_project_endpoint_cannot_bypass_atomic_workflow_installation(lattice_env) -> None:
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        session = client.get("/api/session")
+        session = _operator_session(client, lattice_env)
         response = client.post("/api/v1/projects", headers={"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}, json={"title": "False workflow", "workflow_pack": "quaternary"})
 
     assert response.status_code == 422
@@ -87,7 +95,7 @@ def test_manual_project_endpoint_cannot_bypass_atomic_workflow_installation(latt
 @pytest.mark.regression
 def test_operator_session_bootstrap_rejects_cross_site_requests_and_sessions_expire(lattice_env) -> None:
     now = [10.0]
-    sessions = OperatorSessions(ttl_seconds=5, max_sessions=2, clock=lambda: now[0])
+    sessions = OperatorSessions(ttl_seconds=5, bootstrap_ttl_seconds=2, max_sessions=2, clock=lambda: now[0])
     first, csrf = sessions.issue()
     sessions.issue()
     third, third_csrf = sessions.issue()
@@ -95,14 +103,42 @@ def test_operator_session_bootstrap_rejects_cross_site_requests_and_sessions_exp
     assert sessions.valid(third, third_csrf) is True
     now[0] = 16.0
     assert sessions.valid(third, third_csrf) is False
+    bootstrap = sessions.issue_bootstrap()
+    assert sessions.redeem_bootstrap(bootstrap) is not None
+    assert sessions.redeem_bootstrap(bootstrap) is None
+    expired = sessions.issue_bootstrap()
+    now[0] = 19.0
+    assert sessions.redeem_bootstrap(expired) is None
 
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        cross_site = client.get("/api/session", headers={"sec-fetch-site": "cross-site"})
-        same_site = client.get("/api/session", headers={"sec-fetch-site": "same-origin"})
+        token = ensure_cli_token(lattice_env["config"].operator_token)
+        cross_site = _operator_session(client, lattice_env, **{"sec-fetch-site": "cross-site"})
+        unpaired = client.get("/api/session", headers={"sec-fetch-site": "same-origin"})
+        same_site = _operator_session(client, lattice_env, **{"sec-fetch-site": "same-origin"})
+        minted = client.post(
+            "/api/session/bootstrap",
+            headers={"authorization": f"Bearer {token}", "origin": "http://testserver"},
+            json={},
+        )
+        client.cookies.clear()
+        redeemed = client.post(
+            "/api/session/redeem",
+            headers={"origin": "http://testserver"},
+            json={"bootstrap_token": minted.json()["bootstrap_token"]},
+        )
+        replayed = client.post(
+            "/api/session/redeem",
+            headers={"origin": "http://testserver"},
+            json={"bootstrap_token": minted.json()["bootstrap_token"]},
+        )
 
     assert cross_site.status_code == 403
+    assert unpaired.status_code == 403
     assert same_site.status_code == 200
+    assert minted.status_code == 200
+    assert redeemed.status_code == 200
+    assert replayed.status_code == 403
     assert "Max-Age=86400" in same_site.headers["set-cookie"]
     assert "frame-ancestors 'self' http://127.0.0.1:9000 http://localhost:9000" in same_site.headers["content-security-policy"]
 
@@ -164,7 +200,8 @@ def test_invalid_optional_workflow_pack_does_not_take_down_manual_conversation(t
     app = create_app(config)
     with TestClient(app, raise_server_exceptions=False) as client:
         catalogue = client.get("/api/v1/workflow-packs")
-        session = client.get("/api/session")
+        token = ensure_cli_token(config.operator_token)
+        session = client.get("/api/session", headers={"authorization": f"Bearer {token}"})
         headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
         created = client.post("/api/v1/projects", headers=headers, json={"title": "Conversation survives", "purpose": "No workflow required"})
         rejected = client.post("/api/v1/workflow-packs/platform-foundry/projects", headers=headers, json={"title": "Must fail", "selector": {"platform_id": "pinterest-com"}})
@@ -176,7 +213,9 @@ def test_invalid_optional_workflow_pack_does_not_take_down_manual_conversation(t
     assert created.json()["roles"] == []
     assert rejected.status_code == 422
     assert "workflow pack is unavailable" in rejected.json()["detail"]
-    assert health.json()["status"] == "ok"
+    assert health.json()["status"] == "degraded"
+    assert health.json()["conversation_ready"] is True
+    assert health.json()["workflow_ready"] is False
     assert health.json()["workflow_pack_failures"][0]["pack_id"] == "platform-foundry"
 
 
@@ -193,11 +232,17 @@ def test_unknown_api_route_is_a_json_404_not_the_cockpit(lattice_env) -> None:
 
 @pytest.mark.contract
 def test_context_module_catalogue_and_failures_are_explicit(lattice_env) -> None:
+    source = lattice_env["config"].data_root / "module-source.txt"
+    source.write_text("exact local weather", encoding="utf-8")
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
         catalogue = client.get("/api/v1/context-modules")
-        session = client.get("/api/session")
+        session = _operator_session(client, lattice_env)
         headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
+        resolved = client.post("/api/v1/context-modules/resolve", headers=headers, json={
+            "project_id": lattice_env["project"]["project_id"],
+            "definition": {"module_id": "local.weather", "version": 3, "mode": "manual", "source_kind": "file", "capabilities": ["read-local-file"], "configuration": {"path": str(source)}},
+        })
         failed = client.post("/api/v1/context-modules/resolve", headers=headers, json={
             "project_id": lattice_env["project"]["project_id"],
             "definition": {"module_id": "bad.file", "version": 1, "mode": "manual", "source_kind": "file", "capabilities": [], "configuration": {"path": "/unreadable"}},
@@ -210,6 +255,9 @@ def test_context_module_catalogue_and_failures_are_explicit(lattice_env) -> None
     assert catalogue.status_code == 200
     assert catalogue.json()["modes"] == ["manual", "project_default", "workflow_required"]
     assert {item["source_kind"] for item in catalogue.json()["sources"]} == {"file", "surface", "octopus", "http_readonly"}
+    assert resolved.status_code == 200
+    assert resolved.json()["block"]["issuer_kind"] == "context-module"
+    assert resolved.json()["block"]["issuer_ref"].startswith("local.weather@3:")
     assert failed.status_code == 422
     with lattice_env["store"]._connect() as connection:
         event = connection.execute("SELECT payload_json FROM events WHERE event_type='context-module.failed' ORDER BY seq DESC LIMIT 1").fetchone()
@@ -239,7 +287,7 @@ def test_seal_is_bound_to_the_exact_context_preview(lattice_env) -> None:
     draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="preview exactly", route=lattice_env["route"]))
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        csrf = client.get("/api/session").json()["csrf"]
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
         headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
         first = client.get(f"/api/v1/drafts/{draft['draft_id']}/preview").json()
         repeated = client.get(f"/api/v1/drafts/{draft['draft_id']}/preview").json()
@@ -311,7 +359,7 @@ def test_oracle_artifact_inspector_returns_exact_content_bytes(lattice_env) -> N
     artifact_id = result["artifacts"][0]["artifact_id"]
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        session = client.get("/api/session")
+        session = _operator_session(client, lattice_env)
         mutation_headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
         inspected = client.get(f"/api/v1/artifacts/{artifact_id}")
         grafted = client.post(f"/api/v1/artifacts/{artifact_id}/context-blocks", headers=mutation_headers, json={})
@@ -394,7 +442,7 @@ def test_closure_transition_automatically_seals_dispatches_and_blinds_challenger
 
     monkeypatch.setattr(app.state.supervisor, "execute", fake_execute)
     with TestClient(app) as client:
-        session = client.get("/api/session")
+        session = _operator_session(client, lattice_env)
         headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
         pack = client.get("/api/v1/workflow-packs/quaternary").json()
         granted = client.put(f"/api/v1/workflow-packs/quaternary/projects/{project_id}/automatic-grants/closure-proposed", headers=headers, json={"expected_revision": 1, "enabled": True, "pack_canonical_sha256": pack["canonical_sha256"]})
@@ -446,7 +494,7 @@ def test_trigger_planning_failure_is_visible_retriable_and_does_not_lie_about_co
 
     monkeypatch.setattr(app.state.store, "create_draft", fail_once)
     with TestClient(app) as client:
-        csrf = client.get("/api/session").json()["csrf"]
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
         headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
         transition = client.post("/api/v1/workflow-packs/quaternary/transitions", headers=headers, json={"project_id": project_id, "expected_revision": 2, "from_state": "countersearch", "to_state": "closure-candidate", "evidence_block_ids": [evidence["block_id"], created["blackboard"]["block_id"]], "payload": {"closure_candidate_block_id": candidate["block_id"]}})
         body = transition.json()
@@ -484,7 +532,7 @@ def test_trigger_dispatch_failure_is_retriable_but_never_under_a_changed_pack(mo
     store.set_workflow_automatic_grant(project_id, expected_revision=1, trigger_name="closure-proposed", grant={"trigger": "closure-proposed", "pack_canonical_sha256": loaded["canonical_sha256"], "action_sha256": sha256_bytes(canonical_bytes(trigger_definition["action"]))})
 
     with TestClient(app) as client:
-        csrf = client.get("/api/session").json()["csrf"]
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
         headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
         transition = client.post("/api/v1/workflow-packs/quaternary/transitions", headers=headers, json={"project_id": project_id, "expected_revision": 2, "from_state": "countersearch", "to_state": "closure-candidate", "evidence_block_ids": [evidence["block_id"], created["blackboard"]["block_id"]], "payload": {"closure_candidate_block_id": candidate["block_id"]}})
         trigger_id = transition.json()["trigger"]["trigger_id"]
@@ -519,7 +567,7 @@ def test_negative_control_automatic_trigger_requires_exact_project_grant_and_pac
     candidate = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="closure-candidate", content="excluded"))
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        csrf = client.get("/api/session").json()["csrf"]
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
         headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
         empty_evidence = client.post("/api/v1/workflow-packs/quaternary/transitions", headers=headers, json={"project_id": project_id, "expected_revision": 1, "from_state": "countersearch", "to_state": "closure-candidate", "evidence_block_ids": [], "payload": {"closure_candidate_block_id": candidate["block_id"]}})
         unsupported = client.post("/api/v1/workflow-packs/quaternary/transitions", headers=headers, json={"project_id": project_id, "expected_revision": 1, "from_state": "countersearch", "to_state": "closure-candidate", "evidence_block_ids": [unsupported_evidence["block_id"], created["blackboard"]["block_id"]], "payload": {"closure_candidate_block_id": candidate["block_id"]}})
@@ -558,7 +606,7 @@ def test_negative_control_stale_workflow_instance_cannot_execute_under_new_pack(
     candidate = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="closure-candidate", content="excluded"))
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        csrf = client.get("/api/session").json()["csrf"]
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
         response = client.post("/api/v1/workflow-packs/quaternary/transitions", headers={"x-lattice-csrf": csrf, "origin": "http://testserver"}, json={"project_id": project_id, "expected_revision": 1, "from_state": "countersearch", "to_state": "closure-candidate", "evidence_block_ids": [evidence["block_id"]], "payload": {"closure_candidate_block_id": candidate["block_id"]}})
 
     assert response.status_code == 409
@@ -598,7 +646,7 @@ def test_workflow_file_command_review_binds_exact_bytes_and_idempotent_retry_nee
     store.refresh_workflow_blackboard(project_id, content=b'{"fixture":true,"state_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}', source_ref="fixture:bound-state")
     arguments = {"preparation_id": "qep_fixture", "input": str(source)}
     with TestClient(app) as client:
-        csrf = client.get("/api/session").json()["csrf"]
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
         headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
         review = client.post("/api/v1/workflow-packs/quaternary/commands/preflight", headers=headers, json={"project_id": project_id, "expected_revision": 1, "operation": "freeze-language-profile", "arguments": arguments})
         source.write_text('{"exact":"changed"}', encoding="utf-8")
@@ -644,7 +692,7 @@ def test_workflow_write_review_rejects_external_state_drift_before_dispatch(latt
     adapter = DriftingAdapter()
     app.state.workflows.adapters["quaternary"] = adapter
     with TestClient(app) as client:
-        csrf = client.get("/api/session").json()["csrf"]
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
         headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
         review = client.post("/api/v1/workflow-packs/quaternary/commands/preflight", headers=headers, json={"project_id": project_id, "expected_revision": 1, "operation": "prepare-language", "arguments": {"language": "de"}})
         adapter.revision = "2" * 64
@@ -785,7 +833,7 @@ def test_blank_project_batch_api_fans_out_without_role_bootstrap(lattice_env, mo
     monkeypatch.setattr("lattice.server.ExecutionSupervisor.execute", fake_execute)
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        csrf = client.get("/api/session").json()["csrf"]
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
         headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
         project_response = client.post("/api/v1/projects", headers=headers, json={"title": "Blank conversation"})
         project = project_response.json()
@@ -806,3 +854,43 @@ def test_blank_project_batch_api_fans_out_without_role_bootstrap(lattice_env, mo
     assert created.status_code == 202, created.text
     assert len(created.json()["invocation_ids"]) == 2
     assert {item["preflight"]["execution"]["provider"] for item in preview.json()["members"]} == {"openai", "anthropic"}
+
+
+@pytest.mark.regression
+def test_batch_dispatch_failure_returns_a_truthful_partial_receipt_and_retries_idempotently(lattice_env, monkeypatch) -> None:
+    calls: dict[str, int] = {}
+
+    async def flaky_execute(_self, invocation_id, request):
+        calls[invocation_id] = calls.get(invocation_id, 0) + 1
+        if sum(calls.values()) == 1:
+            raise RuntimeError("planted dispatch admission failure")
+        return {"attempt_id": f"attempt_{invocation_id[-8:]}", "invocation_id": invocation_id, "idempotency_key": request.idempotency_key, "event_cursor": 1}
+
+    monkeypatch.setattr("lattice.server.ExecutionSupervisor.execute", flaky_execute)
+    app = create_app(lattice_env["config"])
+    with TestClient(app) as client:
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
+        headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
+        assembly = {"project_id": lattice_env["project"]["project_id"], "actor_binding": {"kind": "direct"}, "prompt": "dispatch both truthfully", "parent_invocation_ids": []}
+        request = {
+            "batch_id": "batch_abcdefabcdefabcdefabcdefabcdefab",
+            "specifications": [
+                {"spec_id": "codex", "assembly": assembly, "route": lattice_env["route"].model_dump(mode="json")},
+                {"spec_id": "claude", "assembly": assembly, "route": ProviderRoute(provider="anthropic", model="claude-sonnet-4-6", harness="claude").model_dump(mode="json")},
+            ],
+        }
+        preview = client.post("/api/v1/invocation-batches/preview", headers=headers, json=request).json()
+        create = {**request, "idempotency_key": "batch-dispatch-partial-1", "expected_preview_sha256": preview["preview_sha256"], "confirmed_reason_sha256s": []}
+        first = client.post("/api/v1/invocation-batches", headers=headers, json=create)
+        retried = client.post("/api/v1/invocation-batches", headers=headers, json=create)
+
+    assert first.status_code == 202
+    assert len(first.json()["execution_attempts"]) == 1
+    assert first.json()["dispatch_failures"][0]["error"] == "RuntimeError: planted dispatch admission failure"
+    assert retried.status_code == 202
+    assert retried.json()["dispatch_failures"] == []
+    assert retried.json()["invocation_ids"] == first.json()["invocation_ids"]
+    assert all(count >= 1 for count in calls.values())
+    with lattice_env["store"]._connect() as conn:
+        event = conn.execute("SELECT payload_json FROM events WHERE event_type='invocation-batch.dispatch-failed' ORDER BY seq DESC LIMIT 1").fetchone()
+    assert event is not None and "planted dispatch admission failure" in event["payload_json"]

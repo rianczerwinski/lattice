@@ -21,6 +21,7 @@ from lattice.contracts import DraftCreate, ProjectCreate
 from lattice.diagnostics import assess_backup, assess_data_root
 from lattice.outport import OutportService, outport_executable, resolve_lattice_service
 from lattice.runtime_attestation import mapped_inventory, tree_inventory
+from lattice.security import ensure_cli_token
 from lattice.server import create_app
 from lattice import snapshot as snapshot_runtime
 from lattice.snapshot import create_snapshot, restore_snapshot, verify_snapshot
@@ -341,13 +342,48 @@ def test_outport_public_origin_and_panels_embedding_are_exact(lattice_env) -> No
     )
     app = create_app(config)
     with TestClient(app, base_url="https://lattice.axisvi.test") as client:
-        session = client.get("/api/session", headers={"origin": "https://lattice.axisvi.test"})
-        rejected = client.get("/api/session", headers={"host": "impostor.axisvi.test"})
+        token = ensure_cli_token(config.operator_token)
+        session = client.get("/api/session", headers={"authorization": f"Bearer {token}", "origin": "https://lattice.axisvi.test"})
+        rejected = client.get("/api/session", headers={"authorization": f"Bearer {token}", "host": "impostor.axisvi.test"})
 
     assert session.status_code == 200
     assert "Secure" in session.headers["set-cookie"]
     assert "https://slate.axisvi.test" in session.headers["content-security-policy"]
     assert rejected.status_code == 421
+
+
+@pytest.mark.contract
+def test_lattice_open_pairs_the_browser_with_a_one_time_fragment_capability(monkeypatch, tmp_path) -> None:
+    service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
+    requests = []
+    opened = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        @staticmethod
+        def read():
+            return b'{"bootstrap_token":"pair-once","expires_at":123}'
+
+    def urlopen(request, timeout):
+        requests.append((request, timeout))
+        return Response()
+
+    monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(cli, "_service", lambda _config: service)
+    monkeypatch.setattr(cli.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr("webbrowser.open", lambda url: opened.append(url) or True)
+
+    assert cli.command_open(argparse.Namespace(port=None)) == 0
+    request, timeout = requests[0]
+    assert request.full_url == "http://127.0.0.1:9010/api/session/bootstrap"
+    assert request.get_header("Authorization").startswith("Bearer ")
+    assert timeout == 5
+    assert opened == ["https://lattice.axisvi.test/#operator-bootstrap=pair-once"]
 
 
 @pytest.mark.regression
@@ -359,7 +395,7 @@ def test_negative_control_doctor_rejects_running_port_that_disagrees_with_outpor
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
-    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 10, "expected_schema_version": 10})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
 
     status = cli.command_doctor(argparse.Namespace(json=True))
@@ -379,7 +415,7 @@ def test_negative_control_doctor_rejects_stale_schema_generation(monkeypatch, tm
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
-    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"schema_version": 8, "expected_schema_version": 9})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"schema_version": 9, "expected_schema_version": 10})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
 
     status = cli.command_doctor(argparse.Namespace(json=True))
@@ -388,7 +424,7 @@ def test_negative_control_doctor_rejects_stale_schema_generation(monkeypatch, tm
     assert status == 1
     check = next(item for item in output["checks"] if item["name"] == "database-blobs-and-journals")
     assert check["state"] == "fail"
-    assert "schema generation is 8, expected 9" in check["detail"]
+    assert "schema generation is 9, expected 10" in check["detail"]
 
 
 @pytest.mark.regression
@@ -400,7 +436,7 @@ def test_negative_control_doctor_rejects_service_from_unselected_runtime(monkeyp
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "candidate-runtime"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
-    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 10, "expected_schema_version": 10})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
 
     status = cli.command_doctor(argparse.Namespace(json=True))
@@ -421,7 +457,7 @@ def test_negative_control_doctor_rejects_service_version_disagreement(monkeypatc
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime", "version": "0.2.0"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
-    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 10, "expected_schema_version": 10})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
 
     status = cli.command_doctor(argparse.Namespace(json=True))
@@ -443,7 +479,7 @@ def test_negative_control_doctor_reports_undispatched_startup_recovery(monkeypat
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
-    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 10, "expected_schema_version": 10})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
 
     status = cli.command_doctor(argparse.Namespace(json=True))
@@ -465,7 +501,7 @@ def test_negative_control_doctor_reports_quarantined_workflow_pack(monkeypatch, 
     monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
-    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 10, "expected_schema_version": 10})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
 
     status = cli.command_doctor(argparse.Namespace(json=True))
@@ -492,7 +528,7 @@ def test_doctor_qualifies_the_live_daemon_with_operator_authority(monkeypatch, t
         {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "operational": token == "x" * 64, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
     ])
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
-    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 9, "expected_schema_version": 9})
+    monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 10, "expected_schema_version": 10})
     monkeypatch.setenv("LATTICE_DATA_DIR", str(tmp_path))
 
     status = cli.command_doctor(argparse.Namespace(json=True))

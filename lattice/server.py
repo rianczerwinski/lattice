@@ -137,6 +137,10 @@ class ResolveContextModuleRequest(StrictRequest):
     definition: ContextModuleDefinition
 
 
+class RedeemOperatorBootstrapRequest(StrictRequest):
+    bootstrap_token: str = Field(min_length=32, max_length=256)
+
+
 def _initialize_runtime(config: LatticeConfig):
     """Acquire canonical ownership before opening or migrating any durable state."""
     cli_token = ensure_cli_token(config.operator_token)
@@ -272,12 +276,31 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
-        return {"status": "ok", "service": "lattice", "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, "runtime_id": config.runtime_id, "startup_recovery_failures": supervisor.startup_recovery_failures, "workflow_pack_failures": workflow_pack_failures}
+        degraded = bool(supervisor.startup_recovery_failures or workflow_pack_failures)
+        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, "runtime_id": config.runtime_id, "startup_recovery_failures": supervisor.startup_recovery_failures, "workflow_pack_failures": workflow_pack_failures}
+
+    def set_operator_cookie(response: Response, session: str) -> None:
+        response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=bool(config.public_url and config.public_url.startswith("https://")), path="/", max_age=sessions.ttl_seconds)
 
     @app.get("/api/session")
-    async def create_session(response: Response) -> dict[str, str]:
-        session, csrf = sessions.issue()
-        response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=bool(config.public_url and config.public_url.startswith("https://")), path="/", max_age=sessions.ttl_seconds)
+    async def recover_or_create_session(request: Request, response: Response) -> dict[str, str]:
+        csrf = sessions.csrf_for(request.cookies.get("lattice_operator"))
+        if csrf is None:
+            session, csrf = sessions.issue()
+            set_operator_cookie(response, session)
+        return {"csrf": csrf}
+
+    @app.post("/api/session/bootstrap")
+    async def create_session_bootstrap() -> dict[str, Any]:
+        return {"bootstrap_token": sessions.issue_bootstrap(), "expires_in": sessions.bootstrap_ttl_seconds}
+
+    @app.post("/api/session/redeem")
+    async def redeem_session_bootstrap(value: RedeemOperatorBootstrapRequest, response: Response) -> dict[str, str]:
+        issued = sessions.redeem_bootstrap(value.bootstrap_token)
+        if issued is None:
+            raise HTTPException(status_code=403, detail="operator bootstrap is invalid, expired, or already used")
+        session, csrf = issued
+        set_operator_cookie(response, session)
         return {"csrf": csrf}
 
     @app.get("/api/v1/routes")
@@ -421,9 +444,18 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     async def create_invocation_batch(value: InvocationBatchCreateV1):
         batch = lattice.create_invocation_batch(value)
         attempts = []
+        dispatch_failures = []
         for member in batch["members"]:
-            attempts.append(await supervisor.execute(member["invocation_id"], ExecuteRequest(idempotency_key=f"batch:{value.batch_id}:{member['spec_id']}")))
-        return {**store.get_invocation_batch(value.batch_id), "execution_attempts": attempts}
+            try:
+                attempts.append(await supervisor.execute(member["invocation_id"], ExecuteRequest(idempotency_key=f"batch:{value.batch_id}:{member['spec_id']}")))
+            except Exception as error:
+                failure = {"spec_id": member["spec_id"], "invocation_id": member["invocation_id"], "error": f"{type(error).__name__}: {error}"}
+                dispatch_failures.append(failure)
+                try:
+                    store.record_event(project_id=batch["project_id"], event_type="invocation-batch.dispatch-failed", subject_type="invocation", subject_id=member["invocation_id"], payload={"batch_id": value.batch_id, **failure})
+                except Exception as receipt_error:
+                    failure["receipt_error"] = f"{type(receipt_error).__name__}: {receipt_error}"
+        return {**store.get_invocation_batch(value.batch_id), "execution_attempts": attempts, "dispatch_failures": dispatch_failures}
 
     @app.get("/api/v1/invocation-batches/{batch_id}")
     async def get_invocation_batch(batch_id: str):
@@ -787,7 +819,12 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             receipt = context_modules.failure_receipt(value.definition, error)
             store.record_event(project_id=value.project_id, event_type="context-module.failed", subject_type="context-module", subject_id=value.definition.module_id, payload={"receipt": receipt})
             raise HTTPException(422, str(error)) from error
-        block = store.create_context_block(ContextBlockCreate(project_id=value.project_id, semantic_type=f"context-module:{value.definition.module_id}", content=result.content.decode("utf-8"), source_ref=result.receipt["source_ref"], source_sha256=result.receipt["content_sha256"], authority=value.definition.module_id, evidence_level="module-receipt", sensitivity="private", transformation=result.receipt))
+        block = store.create_context_module_block(
+            ContextBlockCreate(project_id=value.project_id, semantic_type=f"context-module:{value.definition.module_id}", content=result.content.decode("utf-8"), source_ref=result.receipt["source_ref"], source_sha256=result.receipt["content_sha256"], authority=value.definition.module_id, evidence_level="module-receipt", sensitivity="private", transformation=result.receipt),
+            module_id=value.definition.module_id,
+            module_version=value.definition.version,
+            receipt_sha256=result.receipt["receipt_sha256"],
+        )
         default = None
         if value.definition.mode.value in {"project_default", "workflow_required"}:
             default = store.set_project_context_default(value.project_id, block["block_id"], module_id=value.definition.module_id, mode=value.definition.mode.value)

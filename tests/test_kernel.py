@@ -29,8 +29,8 @@ EXPECTED_CONTEXT_PROTOCOL_V8 = (
     b"Return only an object matching the separately supplied response schema.\n"
     b"LATTICE-CONVERSATION-SEGMENTS\n"
 )
-EXPECTED_CONTEXT_PROTOCOL_V9 = (
-    b"LATTICE-CONVERSATION/9\n"
+EXPECTED_CONTEXT_PROTOCOL_V10 = (
+    b"LATTICE-CONVERSATION/10\n"
     b"The user sent this message through their local Lattice conversation-routing client. Each "
     b"following line is a JSON object whose content string contains one exact selected piece of the "
     b"conversation. Parent harness labels were locally resolved from immutable Lattice invocation "
@@ -63,8 +63,8 @@ def test_oracle_manifest_compiles_the_hand_authored_context_bytes(lattice_env) -
     invocation = lattice_env["lattice"].seal(draft["draft_id"])
     manifest = invocation["manifest"]
     blocks = {item["label"]: store.get_block(item["block_id"]) for item in manifest["segments"]}
-    expected = EXPECTED_CONTEXT_PROTOCOL_V9 + b"".join(
-        canonical_bytes({"kind": "lattice-conversation-segment-v9", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "content": blocks[item["label"]]["content"]}) + b"\n"
+    expected = EXPECTED_CONTEXT_PROTOCOL_V10 + b"".join(
+        canonical_bytes({"kind": "lattice-conversation-segment-v10", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "content": blocks[item["label"]]["content"]}) + b"\n"
         for item in manifest["segments"]
     )
 
@@ -80,8 +80,8 @@ def test_context_content_cannot_forge_a_provider_facing_segment(lattice_env) -> 
     draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="inspect", route=lattice_env["route"], selections=[ContextSelection(block_id=block["block_id"], plane="knowledge", label="untrusted")]))
     invocation = lattice_env["lattice"].seal(draft["draft_id"])
     compiled = lattice_env["store"].blobs.get(invocation["compiled_prompt_sha256"])
-    assert compiled.startswith(EXPECTED_CONTEXT_PROTOCOL_V9)
-    records = [json.loads(line) for line in compiled[len(EXPECTED_CONTEXT_PROTOCOL_V9):].splitlines()]
+    assert compiled.startswith(EXPECTED_CONTEXT_PROTOCOL_V10)
+    records = [json.loads(line) for line in compiled[len(EXPECTED_CONTEXT_PROTOCOL_V10):].splitlines()]
 
     assert len(records) == len(invocation["manifest"]["segments"])
     assert all(set(record) == {"kind", "ordinal", "plane", "label", "content"} for record in records)
@@ -95,7 +95,7 @@ def test_negative_control_manifest_cannot_swap_the_provider_context_protocol(lat
     mutated = json.loads(json.dumps(invocation["manifest"]))
     mutated["compilation"]["protocol_sha256"] = "0" * 64
     preflight_keys = {"invocation_id", "project_id", "actor_binding", "role_session_id", "draft_id", "draft_revision", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "capabilities", "execution", "response_contract", "compilation", "provider_boundary"}
-    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/7.0", **{key: mutated[key] for key in preflight_keys}})
+    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/8.0", **{key: mutated[key] for key in preflight_keys}})
     mutated["manifest_sha256"] = sha256_json({key: value for key, value in mutated.items() if key != "manifest_sha256"})
 
     with pytest.raises(ManifestVerificationError, match="protocol"):
@@ -113,7 +113,7 @@ def test_negative_control_manifest_cannot_swap_claude_system_instructions(lattic
     system["sha256"] = sha256_bytes(system["content"].encode("utf-8"))
     system["byte_count"] = len(system["content"].encode("utf-8"))
     preflight_keys = {"invocation_id", "project_id", "actor_binding", "role_session_id", "draft_id", "draft_revision", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "capabilities", "execution", "response_contract", "compilation", "provider_boundary"}
-    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/7.0", **{key: mutated[key] for key in preflight_keys}})
+    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/8.0", **{key: mutated[key] for key in preflight_keys}})
     mutated["manifest_sha256"] = sha256_json({key: value for key, value in mutated.items() if key != "manifest_sha256"})
 
     with pytest.raises(ManifestVerificationError, match="system instructions"):
@@ -461,14 +461,14 @@ def test_negative_control_independent_reader_rejects_false_parent_harness(lattic
     parent_segment = next(item for item in mutated["segments"] if item["plane"] == "ancestry")
     parent_segment["label"] = f"parent:claude:{parent['invocation_id']}"
     blocks = {item["block_id"]: lattice_env["store"].get_block(item["block_id"]) for item in mutated["segments"]}
-    compiled = EXPECTED_CONTEXT_PROTOCOL_V9 + b"".join(
-        canonical_bytes({"kind": "lattice-conversation-segment-v9", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "content": blocks[item["block_id"]]["content"]}) + b"\n"
+    compiled = EXPECTED_CONTEXT_PROTOCOL_V10 + b"".join(
+        canonical_bytes({"kind": "lattice-conversation-segment-v10", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "content": blocks[item["block_id"]]["content"]}) + b"\n"
         for item in mutated["segments"]
     )
     digest = lattice_env["store"].blobs.put(compiled)
     mutated["compilation"].update({"compiled_prompt_ref": f"lattice:blob/{digest}", "compiled_prompt_sha256": digest, "byte_count": len(compiled)})
     preflight_keys = {"invocation_id", "project_id", "actor_binding", "role_session_id", "draft_id", "draft_revision", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "capabilities", "execution", "response_contract", "compilation", "provider_boundary"}
-    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/7.0", **{key: mutated[key] for key in preflight_keys}})
+    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/8.0", **{key: mutated[key] for key in preflight_keys}})
     mutated["manifest_sha256"] = sha256_json({key: value for key, value in mutated.items() if key != "manifest_sha256"})
 
     with pytest.raises(ManifestVerificationError, match="parent harness attribution is false"):

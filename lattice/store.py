@@ -48,7 +48,7 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
 
@@ -179,6 +179,8 @@ CREATE TABLE IF NOT EXISTS context_blocks(
     source_sha256 TEXT,
     authority TEXT NOT NULL,
     evidence_level TEXT NOT NULL,
+    issuer_kind TEXT NOT NULL,
+    issuer_ref TEXT,
     sensitivity TEXT NOT NULL,
     transformation_json TEXT CHECK(transformation_json IS NULL OR json_valid(transformation_json)),
     created_at TEXT NOT NULL
@@ -299,6 +301,22 @@ CREATE TABLE IF NOT EXISTS leases(
 
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_invocation_lease
 ON leases(invocation_id) WHERE state='active';
+
+CREATE TABLE IF NOT EXISTS native_session_leases(
+    native_session_lease_id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    native_session_id TEXT NOT NULL,
+    invocation_id TEXT NOT NULL REFERENCES invocations(invocation_id),
+    attempt_id TEXT NOT NULL UNIQUE REFERENCES attempts(attempt_id),
+    owner_boot_id TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('active','released')),
+    acquired_at TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    released_at TEXT
+) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_active_native_session_lease
+ON native_session_leases(provider,native_session_id) WHERE state='active';
 
 CREATE TABLE IF NOT EXISTS slices(
     slice_id TEXT PRIMARY KEY,
@@ -450,7 +468,7 @@ CREATE INDEX IF NOT EXISTS ledger_changes_current ON ledger_changes(table_name, 
 
 CHANGE_TABLES = (
     "projects", "context_blocks", "block_status", "roles", "role_sessions", "drafts", "invocations", "edges",
-    "invocation_batches", "invocation_batch_members", "attempts", "leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
+    "invocation_batches", "invocation_batch_members", "attempts", "leases", "native_session_leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
     "workflow_triggers", "role_context_defaults", "project_context_defaults", "conversation_imports", "conversation_import_turns",
 )
 
@@ -482,6 +500,7 @@ class LatticeStore:
         with self._connect() as conn:
             conn.executescript(DDL)
             attempt_columns = {row[1] for row in conn.execute("PRAGMA table_info(attempts)")}
+            block_columns = {row[1] for row in conn.execute("PRAGMA table_info(context_blocks)")}
             role_columns = {row[1] for row in conn.execute("PRAGMA table_info(roles)")}
             trigger_columns = {row[1] for row in conn.execute("PRAGMA table_info(workflow_triggers)")}
             draft_columns = {row[1] for row in conn.execute("PRAGMA table_info(drafts)")}
@@ -494,6 +513,7 @@ class LatticeStore:
             import_turn_columns = {row[1] for row in conn.execute("PRAGMA table_info(conversation_import_turns)")}
             required_columns = {
                 "attempts": ({"runtime_receipt_json"}, attempt_columns),
+                "context_blocks": ({"issuer_kind", "issuer_ref"}, block_columns),
                 "roles": ({"workflow_role_key", "route_policy_json"}, role_columns),
                 "workflow_triggers": ({"error_text", "pack_canonical_sha256", "action_sha256", "action_json"}, trigger_columns),
                 "drafts": ({"context_mode", "actor_kind"}, draft_columns),
@@ -511,6 +531,10 @@ class LatticeStore:
                         conn.execute(f'DROP TRIGGER IF EXISTS "ledger_{table}_{operation}"')
             if "runtime_receipt_json" not in attempt_columns:
                 conn.execute("ALTER TABLE attempts ADD COLUMN runtime_receipt_json TEXT CHECK(runtime_receipt_json IS NULL OR json_valid(runtime_receipt_json))")
+            if "issuer_kind" not in block_columns:
+                conn.execute("ALTER TABLE context_blocks ADD COLUMN issuer_kind TEXT NOT NULL DEFAULT 'legacy-unknown'")
+            if "issuer_ref" not in block_columns:
+                conn.execute("ALTER TABLE context_blocks ADD COLUMN issuer_ref TEXT")
             if "workflow_role_key" not in role_columns:
                 conn.execute("ALTER TABLE roles ADD COLUMN workflow_role_key TEXT")
             if "route_policy_json" not in role_columns:
@@ -598,7 +622,14 @@ class LatticeStore:
                 self._baseline_current_views(conn)
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(7,?)", (stamp(),))
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(8,?)", (stamp(),))
-            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(?,?)", (SCHEMA_VERSION, stamp()))
+            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(9,?)", (stamp(),))
+            if conn.execute("SELECT 1 FROM schema_migrations WHERE version=10").fetchone() is None:
+                # Adding issuer columns changes the complete row image that the
+                # append-only current-view verifier compares. Preserve the old
+                # evidence, then append one schema-10 baseline for each extant
+                # block so replay resolves to the migrated truth.
+                self._baseline_tables(conn, ("context_blocks",))
+                conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(10,?)", (stamp(),))
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
 
@@ -782,7 +813,13 @@ class LatticeStore:
     def _baseline_current_views(cls, conn: sqlite3.Connection) -> None:
         """Append one complete-schema row image for every extant derived object."""
 
-        for table in CHANGE_TABLES:
+        cls._baseline_tables(conn, CHANGE_TABLES)
+
+    @classmethod
+    def _baseline_tables(cls, conn: sqlite3.Connection, tables: tuple[str, ...]) -> None:
+        """Append complete row images for tables whose schema meaning changed."""
+
+        for table in tables:
             _columns, primary = cls._table_contract(conn, table)
             for row in conn.execute(f'SELECT * FROM "{table}"'):
                 value = dict(row)
@@ -964,8 +1001,8 @@ class LatticeStore:
             digest = self.blobs.put(expected)
             now = stamp()
             transformation = {"kind": "role-contract-upgrade-v1", "source_block_ids": [row["instructions_block_id"]]}
-            conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,authority,evidence_level,sensitivity,transformation_json,created_at)
-                          VALUES(?,?,?,?,?,'active','lattice-migration','governing-instruction','private',?,?)""", (block_id, row["project_id"], "role-instruction", digest, len(expected), canonical_bytes(transformation).decode(), now))
+            conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,transformation_json,created_at)
+                          VALUES(?,?,?,?,?,'active','lattice-migration','governing-instruction','system','role-contract-v1','private',?,?)""", (block_id, row["project_id"], "role-instruction", digest, len(expected), canonical_bytes(transformation).decode(), now))
             event_id = self._event(conn, project_id=row["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": digest, "semantic_type": "role-instruction", "status": "active", "migration": "role-contract-v1"})
             conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, event_id))
             self._insert_edge(conn, project_id=row["project_id"], relation=EdgeRelation.derived_from, source_type="context-block", source_id=block_id, source_revision=digest, target_type="context-block", target_id=row["instructions_block_id"], target_revision=row["content_sha256"], metadata={"migration": "role-contract-v1"})
@@ -1248,7 +1285,7 @@ class LatticeStore:
             entry_seq = conn.execute("SELECT seq FROM events WHERE event_id=?", (entry_event,)).fetchone()[0]
             conn.execute("UPDATE workflow_instances SET state_entry_seq=? WHERE project_id=?", (entry_seq, project_id))
             for spec, role_id, session_id, instruction_id, instruction_sha, instructions in prepared_roles:
-                conn.execute("INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,authority,evidence_level,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-pack','governing-instruction','private',?)", (instruction_id, project_id, "role-instruction", instruction_sha, len(instructions), now))
+                conn.execute("INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-pack','governing-instruction','workflow-engine',?,'private',?)", (instruction_id, project_id, "role-instruction", instruction_sha, len(instructions), workflow_pack, now))
                 instruction_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=instruction_id, payload={"sha256": instruction_sha, "semantic_type": "role-instruction", "status": "active"})
                 conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (instruction_id, instruction_event))
                 route_policy = self._workflow_route_policy(spec)
@@ -1260,8 +1297,8 @@ class LatticeStore:
                 definition = module["definition"]
                 receipt = module["receipt"]
                 content = module["content"]
-                conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,sensitivity,transformation_json,created_at)
-                             VALUES(?,?,?,?,?,'active',?,?,?,'module-receipt','private',?,?)""", (block_id, project_id, f"context-module:{definition['module_id']}", content_sha, len(content), receipt["source_ref"], receipt["content_sha256"], definition["module_id"], canonical_bytes(receipt).decode(), now))
+                conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,transformation_json,created_at)
+                             VALUES(?,?,?,?,?,'active',?,?,?,'module-receipt','context-module',?,'private',?,?)""", (block_id, project_id, f"context-module:{definition['module_id']}", content_sha, len(content), receipt["source_ref"], receipt["content_sha256"], definition["module_id"], definition["module_id"], canonical_bytes(receipt).decode(), now))
                 module_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": content_sha, "semantic_type": f"context-module:{definition['module_id']}", "status": "active", "mode": definition["mode"]})
                 conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, module_event))
                 if definition["mode"] in {"project_default", "workflow_required"}:
@@ -1269,8 +1306,8 @@ class LatticeStore:
                 if definition["mode"] in {"role_default", "workflow_required"}:
                     for _spec, role_id, *_rest in prepared_roles:
                         conn.execute("INSERT INTO role_context_defaults(role_id,block_id,module_id,mode,active) VALUES(?,?,?,?,1)", (role_id, block_id, definition["module_id"], definition["mode"]))
-            conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,sensitivity,created_at)
-                         VALUES(?,?,?,?,?,'active',?,?,?,'authoritative-read','private',?)""", (blackboard_id, project_id, "workflow-blackboard-snapshot", blackboard_sha, len(blackboard_content), blackboard_source_ref, blackboard_sha, workflow_pack, now))
+            conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,created_at)
+                         VALUES(?,?,?,?,?,'active',?,?,?,'authoritative-read','workflow-engine',?,'private',?)""", (blackboard_id, project_id, "workflow-blackboard-snapshot", blackboard_sha, len(blackboard_content), blackboard_source_ref, blackboard_sha, workflow_pack, workflow_pack, now))
             blackboard_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=blackboard_id, payload={"sha256": blackboard_sha, "semantic_type": "workflow-blackboard-snapshot", "status": "active"})
             conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (blackboard_id, blackboard_event))
             conn.execute("UPDATE workflow_instances SET current_blackboard_block_id=? WHERE project_id=?", (blackboard_id, project_id))
@@ -1327,18 +1364,29 @@ class LatticeStore:
             conn.execute("UPDATE role_context_defaults SET active=0 WHERE role_id=? AND block_id=?", (role_id, block_id))
             self._event(conn, project_id=row["project_id"], event_type="role-context.removed", subject_type="context-block", subject_id=block_id, payload={"role_id": role_id})
 
-    def _insert_context_block(self, conn: sqlite3.Connection, value: ContextBlockCreate, *, block_id: str, content: bytes, digest: str, now: str) -> None:
+    def _insert_context_block(
+        self,
+        conn: sqlite3.Connection,
+        value: ContextBlockCreate,
+        *,
+        block_id: str,
+        content: bytes,
+        digest: str,
+        now: str,
+        issuer_kind: str = "operator",
+        issuer_ref: str | None = None,
+    ) -> None:
         if value.producing_invocation_id is not None:
             producer = self._row(conn.execute("SELECT project_id FROM invocations WHERE invocation_id=?", (value.producing_invocation_id,)).fetchone(), value.producing_invocation_id)
             if producer["project_id"] != value.project_id:
                 raise LatticeConflict("context block producer belongs to another project")
         conn.execute(
             """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
-               producing_invocation_id,source_ref,source_sha256,authority,evidence_level,sensitivity,transformation_json,created_at)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               producing_invocation_id,source_ref,source_sha256,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,transformation_json,created_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (block_id, value.project_id, value.semantic_type, digest, len(content), value.status.value,
              value.producing_invocation_id, value.source_ref, value.source_sha256, value.authority,
-             value.evidence_level, value.sensitivity,
+             value.evidence_level, issuer_kind, issuer_ref, value.sensitivity,
              canonical_bytes(value.transformation).decode() if value.transformation is not None else None, now),
         )
         event_id = self._event(conn, project_id=value.project_id, event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": digest, "semantic_type": value.semantic_type, "status": value.status.value})
@@ -1353,6 +1401,98 @@ class LatticeStore:
             if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (value.project_id,)).fetchone() is None:
                 raise LatticeNotFound(value.project_id)
             self._insert_context_block(conn, value, block_id=block_id, content=content, digest=digest, now=now)
+        return self.get_block(block_id, include_content=False)
+
+    def create_context_module_block(
+        self,
+        value: ContextBlockCreate,
+        *,
+        module_id: str,
+        module_version: int,
+        receipt_sha256: str,
+    ) -> dict[str, Any]:
+        """Persist a server-resolved module without mislabelling it as operator-authored."""
+
+        if not module_id or module_version < 1 or len(receipt_sha256) != 64 or any(character not in "0123456789abcdef" for character in receipt_sha256):
+            raise ValueError("context module issuer receipt is malformed")
+        block_id = opaque_id("block")
+        content = value.content.encode("utf-8")
+        digest = self.blobs.put(content)
+        now = stamp()
+        with self.transaction() as conn:
+            if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (value.project_id,)).fetchone() is None:
+                raise LatticeNotFound(value.project_id)
+            self._insert_context_block(
+                conn,
+                value,
+                block_id=block_id,
+                content=content,
+                digest=digest,
+                now=now,
+                issuer_kind="context-module",
+                issuer_ref=f"{module_id}@{module_version}:{receipt_sha256}",
+            )
+        return self.get_block(block_id, include_content=False)
+
+    def create_workflow_adapter_evidence(
+        self,
+        value: ContextBlockCreate,
+        *,
+        pack_id: str,
+        expected_workflow_revision: int,
+        issuer_ref: str,
+    ) -> dict[str, Any]:
+        """Admit evidence only from registered, server-side workflow machinery.
+
+        This method is intentionally absent from the HTTP surface. The pack and
+        workflow revision binding prevents a stale adapter receipt from being
+        transplanted into another governed state.
+        """
+
+        if not issuer_ref or len(issuer_ref) > 500 or any(character in issuer_ref for character in "\r\n"):
+            raise ValueError("workflow adapter evidence requires a bounded issuer receipt reference")
+        block_id = opaque_id("block")
+        content = value.content.encode("utf-8")
+        digest = self.blobs.put(content)
+        now = stamp()
+        with self.transaction() as conn:
+            instance = self._row(
+                conn.execute(
+                    """SELECT p.workflow_pack,w.pack_id,w.revision,w.pack_canonical_sha256
+                       FROM projects p JOIN workflow_instances w USING(project_id)
+                       WHERE p.project_id=?""",
+                    (value.project_id,),
+                ).fetchone(),
+                value.project_id,
+            )
+            if instance["workflow_pack"] != pack_id or instance["pack_id"] != pack_id:
+                raise LatticeConflict("workflow adapter evidence belongs to another workflow pack")
+            if instance["revision"] != expected_workflow_revision:
+                raise LatticeConflict("workflow state changed before adapter evidence became durable")
+            self._insert_context_block(
+                conn,
+                value,
+                block_id=block_id,
+                content=content,
+                digest=digest,
+                now=now,
+                issuer_kind="workflow-adapter",
+                issuer_ref=f"{pack_id}:{issuer_ref}",
+            )
+            self._event(
+                conn,
+                project_id=value.project_id,
+                event_type="workflow.adapter-evidence-admitted",
+                subject_type="context-block",
+                subject_id=block_id,
+                payload={
+                    "pack_id": pack_id,
+                    "pack_canonical_sha256": instance["pack_canonical_sha256"],
+                    "workflow_revision": expected_workflow_revision,
+                    "issuer_ref": issuer_ref,
+                    "content_sha256": digest,
+                },
+            )
         return self.get_block(block_id, include_content=False)
 
     def create_derived_text_block(self, value: DerivedTextBlockCreate) -> dict[str, Any]:
@@ -1457,7 +1597,7 @@ class LatticeStore:
         role_id = opaque_id("role")
         conn.execute(
             """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
-               authority,evidence_level,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-or-operator','governing-instruction','private',?)""",
+               authority,evidence_level,issuer_kind,issuer_ref,sensitivity,created_at) VALUES(?,?,?,?,?,'active','workflow-or-operator','governing-instruction','operator',NULL,'private',?)""",
             (instruction_id, project_id, "role-instruction", instruction_sha, len(instructions), now),
         )
         instruction_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=instruction_id, payload={"sha256": instruction_sha, "semantic_type": "role-instruction", "status": "active"})
@@ -1824,9 +1964,9 @@ class LatticeStore:
         row["actor_binding"] = {"kind": row["actor_kind"], **({"role_session_id": row["role_session_id"]} if row["role_session_id"] is not None else {})}
         if row["manifest"].get("invocation_id") != row["invocation_id"] or row["manifest"].get("manifest_sha256") != row["manifest_sha256"] or row["manifest"].get("generated_object", {}).get("artifact_id") != row["manifest_artifact_id"] or row["manifest"].get("compilation", {}).get("compiled_prompt_sha256") != row["compiled_prompt_sha256"] or row["manifest"].get("execution") != row["route"]:
             raise LatticeConflict("stored invocation columns disagree with its immutable manifest")
-        if row["manifest"].get("contract_version") in {"LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LatticeContextManifest/7.0", "LatticeContextManifest/8.0", "LatticeContextManifest/9.0"} and row["manifest"].get("actor_binding") != row["actor_binding"]:
+        if row["manifest"].get("contract_version") in {"LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LatticeContextManifest/7.0", "LatticeContextManifest/8.0", "LatticeContextManifest/9.0", "LatticeContextManifest/10.0"} and row["manifest"].get("actor_binding") != row["actor_binding"]:
             raise LatticeConflict("stored invocation actor binding disagrees with its immutable manifest")
-        if row["manifest"].get("contract_version") in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LatticeContextManifest/7.0", "LatticeContextManifest/8.0", "LatticeContextManifest/9.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} and row["manifest"].get("response_contract") != row["response_schema"]:
+        if row["manifest"].get("contract_version") in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LatticeContextManifest/7.0", "LatticeContextManifest/8.0", "LatticeContextManifest/9.0", "LatticeContextManifest/10.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} and row["manifest"].get("response_contract") != row["response_schema"]:
             raise LatticeConflict("stored invocation response contract disagrees with its immutable manifest")
         for attempt in row["attempts"]:
             attempt["runtime_receipt"] = json.loads(attempt.pop("runtime_receipt_json")) if attempt.get("runtime_receipt_json") else None
@@ -1850,9 +1990,9 @@ class LatticeStore:
             block_id = opaque_id("block")
             conn.execute(
                 """INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,
-                   producing_invocation_id,authority,evidence_level,sensitivity,created_at)
-                   VALUES(?,?,?,?,?,'active',?,'model-proposal','generated','private',?)""",
-                (block_id, attempt["project_id"], "model-response", response_sha, len(response_bytes), attempt["invocation_id"], now),
+                   producing_invocation_id,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,created_at)
+                   VALUES(?,?,?,?,?,'active',?,'model-proposal','generated','invocation',?,'private',?)""",
+                (block_id, attempt["project_id"], "model-response", response_sha, len(response_bytes), attempt["invocation_id"], attempt["invocation_id"], now),
             )
             block_event = self._event(conn, project_id=attempt["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": response_sha, "semantic_type": "model-response", "status": "active"})
             conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, block_event))
@@ -1864,6 +2004,7 @@ class LatticeStore:
                 self._insert_edge(conn, project_id=attempt["project_id"], relation=EdgeRelation.produced, source_type="invocation", source_id=attempt["invocation_id"], source_revision=attempt["manifest_sha256"], target_type="artifact", target_id=artifact_id, target_revision=content_sha, metadata={"name": artifact["name"], "media_type": artifact["media_type"]})
             conn.execute("UPDATE attempts SET state='succeeded',journal_path=?,output_sha256=?,runtime_receipt_json=?,completed_at=? WHERE attempt_id=?", (journal_path, response_sha, canonical_bytes(runtime_receipt).decode(), now, attempt_id))
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
+            conn.execute("UPDATE native_session_leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             conn.execute("UPDATE invocations SET state='succeeded',output_block_id=?,terminal_kind='succeeded',completed_at=? WHERE invocation_id=?", (block_id, now, attempt["invocation_id"]))
             completed_triggers = conn.execute("UPDATE workflow_triggers SET state='completed',error_text=NULL,completed_at=? WHERE result_ref=? AND state IN ('planned','execution_failed')", (now, attempt["invocation_id"])).rowcount
             self._event(conn, project_id=attempt["project_id"], event_type="attempt.succeeded", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": block_id, "artifact_ids": [item[1] for item in prepared_artifacts]})
@@ -2008,7 +2149,7 @@ class LatticeStore:
                 if prior["invocation_id"] != invocation_id:
                     raise LatticeConflict("idempotency key belongs to another invocation")
                 return dict(prior)
-            invocation = self._row(conn.execute("SELECT project_id,state FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
+            invocation = self._row(conn.execute("SELECT project_id,state,route_json FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
             if invocation["state"] not in {InvocationState.sealed.value, InvocationState.failed.value, InvocationState.interrupted.value}:
                 raise LatticeConflict(f"invocation cannot execute from {invocation['state']}")
             active = conn.execute("SELECT 1 FROM leases WHERE invocation_id=? AND state='active'", (invocation_id,)).fetchone()
@@ -2018,8 +2159,22 @@ class LatticeStore:
             attempt_id = opaque_id("attempt")
             lease_id = opaque_id("lease")
             now = stamp()
+            route = json.loads(invocation["route_json"])
+            native_session_id = route.get("native_session_id") if route.get("execution_profile") == "native-continuation" else None
+            if native_session_id is not None:
+                native_owner = conn.execute(
+                    "SELECT invocation_id,attempt_id FROM native_session_leases WHERE provider=? AND native_session_id=? AND state='active'",
+                    (route["provider"], native_session_id),
+                ).fetchone()
+                if native_owner is not None:
+                    raise LatticeConflict(f"provider-native session is already executing through {native_owner['invocation_id']}")
             conn.execute("INSERT INTO attempts(attempt_id,invocation_id,attempt_number,idempotency_key,state,owner_boot_id,lease_id,started_at,heartbeat_at) VALUES(?,?,?,?,?,?,?,?,?)", (attempt_id, invocation_id, number, idempotency_key, AttemptState.leased.value, boot_id, lease_id, now, now))
             conn.execute("INSERT INTO leases(lease_id,invocation_id,attempt_id,owner_boot_id,state,acquired_at,expires_at) VALUES(?,?,?,?,?,?,?)", (lease_id, invocation_id, attempt_id, boot_id, "active", now, expires_at))
+            if native_session_id is not None:
+                conn.execute(
+                    "INSERT INTO native_session_leases(native_session_lease_id,provider,native_session_id,invocation_id,attempt_id,owner_boot_id,state,acquired_at,expires_at) VALUES(?,?,?,?,?,?,'active',?,?)",
+                    (opaque_id("native_session_lease"), route["provider"], native_session_id, invocation_id, attempt_id, boot_id, now, expires_at),
+                )
             conn.execute("UPDATE invocations SET state=? WHERE invocation_id=?", (InvocationState.leased.value, invocation_id))
             self._event(conn, project_id=invocation["project_id"], event_type="attempt.leased", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": invocation_id, "lease_id": lease_id, "attempt_number": number})
             return dict(conn.execute("SELECT * FROM attempts WHERE attempt_id=?", (attempt_id,)).fetchone())
@@ -2038,6 +2193,7 @@ class LatticeStore:
             changed = conn.execute("UPDATE attempts SET heartbeat_at=? WHERE attempt_id=? AND state='running'", (stamp(), attempt_id)).rowcount
             if changed:
                 conn.execute("UPDATE leases SET expires_at=? WHERE attempt_id=? AND state='active'", (expires_at, attempt_id))
+                conn.execute("UPDATE native_session_leases SET expires_at=? WHERE attempt_id=? AND state='active'", (expires_at, attempt_id))
 
     def finish_attempt(self, attempt_id: str, *, state: AttemptState, output_block_id: str | None = None, output_sha256: str | None = None, failure_kind: str | None = None, error_text: str | None = None, journal_path: str | None = None, runtime_receipt: dict[str, Any] | None = None) -> dict[str, Any]:
         if state not in {AttemptState.succeeded, AttemptState.failed, AttemptState.interrupted, AttemptState.orphaned}:
@@ -2049,6 +2205,7 @@ class LatticeStore:
             now = stamp()
             conn.execute("UPDATE attempts SET state=?,journal_path=COALESCE(?,journal_path),output_sha256=?,failure_kind=?,error_text=?,runtime_receipt_json=?,completed_at=? WHERE attempt_id=?", (state.value, journal_path, output_sha256, failure_kind, error_text, canonical_bytes(runtime_receipt).decode() if runtime_receipt else None, now, attempt_id))
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
+            conn.execute("UPDATE native_session_leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             invocation_state = InvocationState.succeeded if state == AttemptState.succeeded else InvocationState.interrupted if state in {AttemptState.interrupted, AttemptState.orphaned} else InvocationState.failed
             conn.execute("UPDATE invocations SET state=?,output_block_id=COALESCE(?,output_block_id),terminal_kind=?,completed_at=? WHERE invocation_id=?", (invocation_state.value, output_block_id, failure_kind or state.value, now, attempt["invocation_id"]))
             failed_triggers = conn.execute("UPDATE workflow_triggers SET state='execution_failed',error_text=?,completed_at=NULL WHERE result_ref=? AND state='planned'", (error_text or failure_kind or state.value, attempt["invocation_id"])).rowcount
@@ -2694,8 +2851,8 @@ class LatticeStore:
             if role is None:
                 instruction_id = opaque_id("block")
                 role_id = opaque_id("role")
-                conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,authority,evidence_level,sensitivity,created_at)
-                              VALUES(?,?,?,?,?,'active','octopus-import','governing-instruction','private',?)""", (instruction_id, import_row["project_id"], "role-instruction", instruction_sha, len(instruction_bytes), now))
+                conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,created_at)
+                              VALUES(?,?,?,?,?,'active','octopus-import','governing-instruction','importer',?,'private',?)""", (instruction_id, import_row["project_id"], "role-instruction", instruction_sha, len(instruction_bytes), import_id, now))
                 instruction_event = self._event(conn, project_id=import_row["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=instruction_id, payload={"sha256": instruction_sha, "semantic_type": "role-instruction", "status": "active"})
                 conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (instruction_id, instruction_event))
                 conn.execute("INSERT INTO roles(role_id,project_id,name,instructions_block_id,incentives_json,authority_limits_json,workflow_role_key,route_policy_json,created_at) VALUES(?,?,?,?,?,'[\"read-only historical import\"]',NULL,'{\"kind\":\"operator-selectable\"}',?)", (role_id, import_row["project_id"], role_name, instruction_id, "[]", now))
@@ -2706,8 +2863,8 @@ class LatticeStore:
             conn.execute("INSERT INTO role_sessions(role_session_id,project_id,role_id,label,created_at) VALUES(?,?,?,?,?)", (session_id, import_row["project_id"], role_id, session_label, now))
             self._event(conn, project_id=import_row["project_id"], event_type="role-session.created", subject_type="role-session", subject_id=session_id, payload={"project_id": import_row["project_id"], "role_id": role_id, "label": session_label})
             proof_id = opaque_id("block")
-            conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,sensitivity,transformation_json,created_at)
-                          VALUES(?,?,?,?,?,'unknown',?,?,?,'explicit-proof-limit','private',?,?)""", (proof_id, import_row["project_id"], "provider-proof-limit", proof_sha, len(proof_bytes), f"lattice:blob/{proof_sha}", proof_sha, "octopus-projection", canonical_bytes(provenance).decode(), now))
+            conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,transformation_json,created_at)
+                          VALUES(?,?,?,?,?,'unknown',?,?,?,'explicit-proof-limit','importer',?,'private',?,?)""", (proof_id, import_row["project_id"], "provider-proof-limit", proof_sha, len(proof_bytes), f"lattice:blob/{proof_sha}", proof_sha, "octopus-projection", import_id, canonical_bytes(provenance).decode(), now))
             proof_event = self._event(conn, project_id=import_row["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=proof_id, payload={"sha256": proof_sha, "semantic_type": "provider-proof-limit", "status": "unknown"})
             conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'unknown',1,?)", (proof_id, proof_event))
             conn.execute("UPDATE conversation_imports SET role_session_id=?,proof_limit_block_id=? WHERE import_id=? AND role_session_id IS NULL AND proof_limit_block_id IS NULL", (session_id, proof_id, import_id))
@@ -2756,8 +2913,8 @@ class LatticeStore:
                 invocation = self._row(conn.execute("SELECT project_id,state,manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
                 if invocation["state"] != InvocationState.sealed.value:
                     raise LatticeConflict("only newly sealed invocations can become imported history")
-                conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,producing_invocation_id,source_ref,source_sha256,authority,evidence_level,sensitivity,transformation_json,created_at)
-                          VALUES(?,?,?,?,?,'active',?,?,?,'octopus-projection','captured-provider-output','private',?,?)""", (block_id, invocation["project_id"], "imported-model-response", response_sha, len(response_bytes), turn["invocation_id"], f"lattice:blob/{response_sha}", response_sha, canonical_bytes(provenance).decode(), now))
+                conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,producing_invocation_id,source_ref,source_sha256,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,transformation_json,created_at)
+                          VALUES(?,?,?,?,?,'active',?,?,?,'octopus-projection','captured-provider-output','importer',?,'private',?,?)""", (block_id, invocation["project_id"], "imported-model-response", response_sha, len(response_bytes), turn["invocation_id"], f"lattice:blob/{response_sha}", response_sha, import_id, canonical_bytes(provenance).decode(), now))
                 block_event = self._event(conn, project_id=invocation["project_id"], event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": response_sha, "semantic_type": "imported-model-response", "status": "active"})
                 conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, block_event))
                 conn.execute("UPDATE invocations SET state='imported',output_block_id=?,terminal_kind='historical-import',completed_at=? WHERE invocation_id=?", (block_id, now, invocation_id))
@@ -2952,7 +3109,7 @@ class LatticeStore:
             terminal_invocation_outputs = 0
             evidence: list[dict[str, Any]] = []
             for block_id in evidence_block_ids:
-                block = self._row(conn.execute("""SELECT b.block_id,b.project_id,b.semantic_type,b.authority,b.evidence_level,b.producing_invocation_id,s.status,e.seq AS created_seq
+                block = self._row(conn.execute("""SELECT b.block_id,b.project_id,b.semantic_type,b.authority,b.evidence_level,b.issuer_kind,b.issuer_ref,b.producing_invocation_id,s.status,e.seq AS created_seq
                                                   FROM context_blocks b JOIN block_status s USING(block_id)
                                                   JOIN events e ON e.subject_type='context-block' AND e.subject_id=b.block_id AND e.event_type='context-block.created'
                                                   WHERE b.block_id=?""", (block_id,)).fetchone(), block_id)
@@ -2972,12 +3129,16 @@ class LatticeStore:
                                                  WHERE i.invocation_id=?""", (block["producing_invocation_id"],)).fetchone()
                     invocation_fresh = invocation is not None and int(invocation["sealed_seq"]) > state_entry_seq and int(block["created_seq"]) > state_entry_seq
                     fresh_enough = not terminal_outputs_after_current_state_entry or invocation_fresh
-                    if invocation is not None and invocation["output_block_id"] == block_id and invocation["state"] in {InvocationState.succeeded.value, InvocationState.imported.value} and fresh_enough:
+                    issuer_matches_terminal_state = invocation is not None and (
+                        invocation["state"] == InvocationState.succeeded.value and block["issuer_kind"] == "invocation"
+                        or invocation["state"] == InvocationState.imported.value and block["issuer_kind"] == "importer"
+                    )
+                    if invocation is not None and invocation["output_block_id"] == block_id and invocation["state"] in {InvocationState.succeeded.value, InvocationState.imported.value} and issuer_matches_terminal_state and fresh_enough:
                         terminal_invocation_outputs += 1
                     if invocation is not None:
                         block["invocation_state"] = invocation["state"]
                         block["workflow_role_key"] = invocation["workflow_role_key"]
-                        block["is_terminal_output"] = invocation["output_block_id"] == block_id and invocation["state"] in {InvocationState.succeeded.value, InvocationState.imported.value}
+                        block["is_terminal_output"] = invocation["output_block_id"] == block_id and invocation["state"] in {InvocationState.succeeded.value, InvocationState.imported.value} and issuer_matches_terminal_state
                         block["invocation_fresh_after_state_entry"] = invocation_fresh
             if terminal_invocation_outputs < minimum_terminal_invocation_outputs:
                 raise LatticeConflict(f"workflow transition requires {minimum_terminal_invocation_outputs} exact terminal invocation output(s)")
@@ -2986,7 +3147,7 @@ class LatticeStore:
                 if len(matching) < requirement["minimum_count"]:
                     raise LatticeConflict(f"workflow transition lacks role-bound terminal output requirement: {requirement}")
             for requirement in evidence_requirements or []:
-                matching = [block for block in evidence if (requirement.get("semantic_type") is None or block["semantic_type"] == requirement["semantic_type"]) and (requirement.get("authority") is None or block["authority"] == requirement["authority"]) and (requirement.get("evidence_level") is None or block["evidence_level"] == requirement["evidence_level"]) and (requirement.get("status") is None or block["status"] == requirement["status"]) and (requirement.get("provenance") != "current_workflow_blackboard" or block["block_id"] == instance["current_blackboard_block_id"]) and (not requirement.get("after_current_state_entry") or int(block["created_seq"]) > state_entry_seq)]
+                matching = [block for block in evidence if block["issuer_kind"] == requirement["issuer_kind"] and (requirement.get("semantic_type") is None or block["semantic_type"] == requirement["semantic_type"]) and (requirement.get("authority") is None or block["authority"] == requirement["authority"]) and (requirement.get("evidence_level") is None or block["evidence_level"] == requirement["evidence_level"]) and (requirement.get("status") is None or block["status"] == requirement["status"]) and (requirement.get("provenance") != "current_workflow_blackboard" or block["block_id"] == instance["current_blackboard_block_id"]) and (not requirement.get("after_current_state_entry") or int(block["created_seq"]) > state_entry_seq)]
                 if len(matching) < requirement["minimum_count"]:
                     raise LatticeConflict(f"workflow transition lacks typed evidence requirement: {requirement}")
             if requires_completed_trigger:
@@ -3077,8 +3238,8 @@ class LatticeStore:
                                        JOIN events e ON e.subject_type='context-block' AND e.subject_id=b.block_id AND e.event_type='context-block.created'
                                        WHERE b.project_id=? AND b.semantic_type='workflow-blackboard-snapshot' AND s.status='active'
                                        ORDER BY e.seq DESC LIMIT 1""", (project_id,)).fetchone()
-            conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,sensitivity,created_at)
-                         VALUES(?,?,?,?,?,'active',?,?,?,'authoritative-read','private',?)""", (block_id, project_id, "workflow-blackboard-snapshot", content_sha, len(content), source_ref, content_sha, instance["pack_id"], now))
+            conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,created_at)
+                         VALUES(?,?,?,?,?,'active',?,?,?,'authoritative-read','workflow-engine',?,'private',?)""", (block_id, project_id, "workflow-blackboard-snapshot", content_sha, len(content), source_ref, content_sha, instance["pack_id"], instance["pack_id"], now))
             created_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": content_sha, "semantic_type": "workflow-blackboard-snapshot", "status": "active"})
             conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (block_id, created_event))
             if previous:

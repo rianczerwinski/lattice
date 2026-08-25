@@ -1,9 +1,18 @@
 let csrf = '';
 
 export async function beginSession(): Promise<void> {
-  const response = await fetch('/api/session');
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const bootstrap = fragment.get('operator-bootstrap');
+  const response = bootstrap
+    ? await fetch('/api/session/redeem', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ bootstrap_token: bootstrap }),
+      })
+    : await fetch('/api/session');
   if (!response.ok) throw new Error(`Lattice session failed (${response.status})`);
   csrf = (await response.json()).csrf;
+  if (bootstrap) window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {

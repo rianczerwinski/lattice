@@ -609,7 +609,8 @@ def test_negative_control_workflow_rejects_wrong_or_pre_state_evidence(lattice_e
     project_id = created["project"]["project_id"]
     store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="native-query-proposal", to_state="frozen-query", evidence_block_ids=[], payload={"query_bytes": "exact"}, trigger=None)
     operator_note = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="workflow-blackboard-snapshot", content="operator claim", authority="quaternary", evidence_level="authoritative-read"))
-    requirement = [{"semantic_type": "workflow-blackboard-snapshot", "authority": "quaternary", "status": "active", "provenance": "current_workflow_blackboard", "minimum_count": 1, "after_current_state_entry": True}]
+    requirement = [{"issuer_kind": "workflow-engine", "semantic_type": "workflow-blackboard-snapshot", "authority": "quaternary", "status": "active", "provenance": "current_workflow_blackboard", "minimum_count": 1, "after_current_state_entry": True}]
+    assert store.get_block(operator_note["block_id"], include_content=False)["issuer_kind"] == "operator"
 
     with pytest.raises(Exception, match="typed evidence requirement"):
         store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=2, from_state="frozen-query", to_state="search-receipts", evidence_block_ids=[created["blackboard"]["block_id"]], payload={}, trigger=None, minimum_evidence_blocks=1, evidence_requirements=requirement)
@@ -619,6 +620,27 @@ def test_negative_control_workflow_rejects_wrong_or_pre_state_evidence(lattice_e
     current = store.refresh_workflow_blackboard(project_id, content=b'{"stage":"after"}', source_ref="fixture:after")
     accepted = store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=2, from_state="frozen-query", to_state="search-receipts", evidence_block_ids=[current["block_id"]], payload={}, trigger=None, minimum_evidence_blocks=1, evidence_requirements=requirement)
     assert accepted["workflow"]["state"] == "search-receipts"
+
+
+@pytest.mark.oracle
+def test_workflow_adapter_evidence_has_a_server_controlled_issuer_and_revision(lattice_env):
+    store = lattice_env["store"]
+    created = store.create_workflow_project_atomic(title="adapter evidence", purpose="", workflow_pack="quaternary", initial_state="native-query-proposal", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
+    project_id = created["project"]["project_id"]
+    value = ContextBlockCreate(project_id=project_id, semantic_type="native-query-validation", content='{"accepted":true}', authority="quaternary-query-validator", evidence_level="accepted")
+    operator_forgery = store.create_context_block(value)
+    adapter_receipt = store.create_workflow_adapter_evidence(value, pack_id="quaternary", expected_workflow_revision=1, issuer_ref="fixture-validator:receipt-1")
+    requirement = [{"issuer_kind": "workflow-adapter", "semantic_type": "native-query-validation", "authority": "quaternary-query-validator", "evidence_level": "accepted", "status": "active", "minimum_count": 1}]
+
+    with pytest.raises(Exception, match="typed evidence requirement"):
+        store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="native-query-proposal", to_state="frozen-query", evidence_block_ids=[operator_forgery["block_id"]], payload={}, trigger=None, minimum_evidence_blocks=1, evidence_requirements=requirement)
+
+    accepted = store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="native-query-proposal", to_state="frozen-query", evidence_block_ids=[adapter_receipt["block_id"]], payload={}, trigger=None, minimum_evidence_blocks=1, evidence_requirements=requirement)
+    assert accepted["workflow"]["state"] == "frozen-query"
+    assert adapter_receipt["issuer_kind"] == "workflow-adapter"
+    assert adapter_receipt["issuer_ref"] == "quaternary:fixture-validator:receipt-1"
+    with pytest.raises(Exception, match="state changed"):
+        store.create_workflow_adapter_evidence(value, pack_id="quaternary", expected_workflow_revision=1, issuer_ref="fixture-validator:stale")
 
 
 @pytest.mark.concurrency

@@ -502,6 +502,7 @@ class WorkflowTriggerDefinition(StrictModel):
 
 
 class WorkflowEvidenceRequirement(StrictModel):
+    issuer_kind: Literal["workflow-engine", "workflow-adapter", "invocation", "context-module", "importer", "system"]
     semantic_type: str | None = Field(default=None, min_length=1, max_length=120)
     authority: str | None = Field(default=None, min_length=1, max_length=200)
     evidence_level: str | None = Field(default=None, min_length=1, max_length=200)

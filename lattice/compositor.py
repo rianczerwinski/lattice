@@ -14,8 +14,8 @@ from .store import LatticeConflict, LatticeStore
 
 PLANE_ORDER = {"instruction": 0, "knowledge": 1, "state": 2, "ancestry": 3, "current_prompt": 4}
 MAX_COMPILED_CONTEXT_BYTES = 64 * 1024 * 1024
-CONTEXT_PROTOCOL_V9 = (
-    b"LATTICE-CONVERSATION/9\n"
+CONTEXT_PROTOCOL_V10 = (
+    b"LATTICE-CONVERSATION/10\n"
     b"The user sent this message through their local Lattice conversation-routing client. Each "
     b"following line is a JSON object whose content string contains one exact selected piece of the "
     b"conversation. Parent harness labels were locally resolved from immutable Lattice invocation "
@@ -40,7 +40,7 @@ CLAUDE_SYSTEM_INSTRUCTIONS_V1 = (
 
 def _segment_bytes(segment: dict[str, Any], content: str) -> bytes:
     record = {
-        "kind": "lattice-conversation-segment-v9",
+        "kind": "lattice-conversation-segment-v10",
         "ordinal": segment["ordinal"],
         "plane": segment["plane"],
         "label": segment["label"],
@@ -190,8 +190,8 @@ class ContextCompositor:
 
         segments: list[dict[str, Any]] = []
         omitted: list[dict[str, Any]] = []
-        prompt_parts: list[bytes] = [CONTEXT_PROTOCOL_V9]
-        prompt_byte_count = len(CONTEXT_PROTOCOL_V9)
+        prompt_parts: list[bytes] = [CONTEXT_PROTOCOL_V10]
+        prompt_byte_count = len(CONTEXT_PROTOCOL_V10)
         sources: list[dict[str, str | None]] = []
         source_identities: set[tuple[str, str | None, str]] = set()
         for ordinal, (_selection_index, selection, block) in enumerate(entries):
@@ -226,6 +226,8 @@ class ContextCompositor:
                 "semantic_type": block["semantic_type"],
                 "authority": block["authority"],
                 "evidence_level": block["evidence_level"],
+                "issuer_kind": block["issuer_kind"],
+                "issuer_ref": block["issuer_ref"],
                 "sensitivity": block["sensitivity"],
                 "source_ref": block["source_ref"],
                 "source_sha256": block["source_sha256"],
@@ -254,6 +256,21 @@ class ContextCompositor:
             proof_limits.append("workspace execution exposes only the authority the official harness reports; provider-owned tool internals remain opaque")
         if effective_policy and effective_policy["network_policy"] == "provider_managed":
             proof_limits.append("network access is provider-managed and is not an exact host allowlist")
+        opaque_contexts: list[dict[str, Any]] = []
+        if effective_policy and effective_policy["execution_profile"] == "native-continuation":
+            opaque_contexts.append(
+                {
+                    "kind": "provider-native-session-history",
+                    "disposition": "provider_opaque",
+                    "provider": route["provider"],
+                    "harness": route["harness"],
+                    "native_session_id": effective_policy["native_session_id"],
+                    "native_parent_invocation_id": route["native_parent_invocation_id"],
+                    "continuation_mode": effective_policy["continuation_mode"],
+                    "statement": "The official provider harness may add prior native-session messages and compaction state that Lattice cannot inspect byte-for-byte.",
+                }
+            )
+            proof_limits.append("provider-native session history and compaction state are added beyond the exact compiled Lattice prompt and are not byte-disclosed")
         system_instructions = None
         if route["provider"] == "anthropic" and route["harness"] == "claude":
             system_bytes = CLAUDE_SYSTEM_INSTRUCTIONS_V1.encode("utf-8")
@@ -267,7 +284,7 @@ class ContextCompositor:
         invocation_id = f"invocation_{invocation_identity[:32]}"
         manifest_artifact_id = f"artifact:{uuid.uuid5(uuid.NAMESPACE_URL, f'lattice-manifest:{invocation_identity}')}"
         preflight: dict[str, Any] = {
-            "contract_version": "LatticeContextPreflight/7.0",
+            "contract_version": "LatticeContextPreflight/8.0",
             "invocation_id": invocation_id,
             "project_id": draft["project_id"],
             "actor_binding": draft["actor_binding"],
@@ -285,8 +302,8 @@ class ContextCompositor:
             "execution": route,
             "response_contract": draft["response_schema"],
             "compilation": {
-                "format": "lattice-context-jsonl-v9",
-                "protocol_sha256": sha256_bytes(CONTEXT_PROTOCOL_V9),
+                "format": "lattice-context-jsonl-v10",
+                "protocol_sha256": sha256_bytes(CONTEXT_PROTOCOL_V10),
                 "compiled_prompt_ref": f"lattice:blob/{prompt_sha}",
                 "compiled_prompt_sha256": prompt_sha,
                 "byte_count": len(compiled_prompt),
@@ -296,6 +313,7 @@ class ContextCompositor:
             "provider_boundary": {
                 "observable_request": "compiled prompt over stdin plus declared CLI flags" + (" plus exact system instructions through the official file surface" if system_instructions else ""),
                 "system_instructions": system_instructions,
+                "opaque_contexts": opaque_contexts,
                 "proof_limits": proof_limits,
             },
         }
@@ -305,8 +323,8 @@ class ContextCompositor:
 
         manifest: dict[str, Any] = {
             **preflight,
-            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=9, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
-            "contract_version": "LatticeContextManifest/9.0",
+            "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=10, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
+            "contract_version": "LatticeContextManifest/10.0",
             "result": {"state": "pending", "attempts_ref": f"lattice:invocation/{invocation_id}/attempts"},
         }
         manifest["manifest_sha256"] = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})
