@@ -166,7 +166,22 @@ def _verify_runtime_receipt(data_root: Path, receipt: Any, route: dict[str, Any]
     return refs
 
 
-def verify_database(data_root: Path, *, require_terminal_external: bool = True) -> dict[str, Any]:
+def _verify_historical_source(source: Path, expected_files: Any, *, label: str) -> None:
+    if source.is_symlink() or not source.is_dir():
+        raise ConsolidationVerificationError(f"{label} source directory is missing or indirect: {source}")
+    if not isinstance(expected_files, list) or not expected_files:
+        raise ConsolidationVerificationError(f"{label} source census is empty or malformed")
+    actual: list[dict[str, Any]] = []
+    for path in sorted(source.rglob("*"), key=lambda item: item.relative_to(source).as_posix()):
+        if path.is_symlink():
+            raise ConsolidationVerificationError(f"{label} source contains a symlink: {path}")
+        if path.is_file():
+            actual.append({"relative_path": path.relative_to(source).as_posix(), "content_sha256": sha256_file(path), "byte_count": path.stat().st_size})
+    if actual != expected_files:
+        raise ConsolidationVerificationError(f"{label} source bytes no longer match the imported census")
+
+
+def verify_database(data_root: Path, *, require_terminal_external: bool = True, historical_roots: dict[str, Path] | None = None) -> dict[str, Any]:
     database = data_root / "lattice.sqlite3"
     connection = sqlite3.connect(f"file:{database.resolve(strict=True)}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
@@ -222,6 +237,7 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True) 
             refs.add(require_digest(row["content_sha256"], label=f"artifact {row['artifact_id']}"))
             _collect_blob_refs(parse_json(row["generated_json"], label=f"artifact {row['artifact_id']}"), refs)
         historical_count = 0
+        historical_sources_verified = 0
         for row in connection.execute("SELECT * FROM historical_execution_imports ORDER BY import_id"):
             historical_count += 1
             files = parse_json(row["census_json"], label=f"historical import {row['import_id']}")
@@ -241,6 +257,19 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True) 
             }
             if sha256_bytes(canonical_bytes(request_material)) != row["request_sha256"]:
                 raise ConsolidationVerificationError(f"historical execution request identity is corrupt: {row['import_id']}")
+            base = historical_roots.get(row["external_project_key"]) if historical_roots is not None else None
+            if base is None:
+                raise ConsolidationVerificationError(f"historical execution source has no verifier-owned root: {row['import_id']}")
+            source_ref = Path(row["source_ref"])
+            if source_ref.is_absolute():
+                source = source_ref.resolve(strict=True)
+            else:
+                base = base.resolve(strict=True)
+                source = (base / source_ref).resolve(strict=True)
+                if not source.is_relative_to(base):
+                    raise ConsolidationVerificationError(f"historical execution source escapes its verifier-owned root: {row['import_id']}")
+            _verify_historical_source(source, files, label=f"historical import {row['import_id']}")
+            historical_sources_verified += 1
         for table, column in (("context_blocks", "content_sha256"), ("attempts", "output_sha256"), ("workflow_commands", "result_sha256"), ("conversation_imports", "result_sha256"), ("workflow_transitions", "payload_sha256"), ("workflow_instances", "pack_definition_sha256")):
             for row in connection.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL'):
                 refs.add(require_digest(row[0], label=f"{table}.{column}"))
@@ -250,7 +279,7 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True) 
     finally:
         connection.close()
     blob_bytes = sum(verify_blob(data_root, digest) for digest in sorted(refs))
-    return {"schema_version": EXPECTED_SCHEMA_VERSION, "provider_profiles": len(profiles), "invocations": len(invocations), "external_operations": external_count, "historical_imports": historical_count, "referenced_blobs": len(refs), "referenced_blob_bytes": blob_bytes}
+    return {"schema_version": EXPECTED_SCHEMA_VERSION, "provider_profiles": len(profiles), "invocations": len(invocations), "external_operations": external_count, "historical_imports": historical_count, "historical_sources_verified": historical_sources_verified, "referenced_blobs": len(refs), "referenced_blob_bytes": blob_bytes}
 
 
 def verify_runtime_manifest(path: Path, *, database_profiles: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -387,17 +416,21 @@ def _database_profiles(data_root: Path) -> dict[str, dict[str, Any]]:
 
 
 def verify(*, data_root: Path, runtime_manifest: Path | None, axisvi_root: Path, forbidden_files: list[Path]) -> dict[str, Any]:
-    database = verify_database(data_root)
+    if runtime_manifest is None:
+        raise ConsolidationVerificationError("an installed runtime manifest is required for lattice_execution_ready")
+    historical_roots = {
+        "field-survey.research-pipeline": axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline",
+    }
+    database = verify_database(data_root, historical_roots=historical_roots)
     census = verify_consumer_census(axisvi_root)
-    runtime = verify_runtime_manifest(runtime_manifest, database_profiles=_database_profiles(data_root)) if runtime_manifest is not None else None
+    runtime = verify_runtime_manifest(runtime_manifest, database_profiles=_database_profiles(data_root))
     forbidden = [path.read_bytes().rstrip(b"\r\n") for path in forbidden_files]
     secret_scan = scan_forbidden_bytes((data_root / "lattice.sqlite3", data_root / "blobs", data_root / "model-runs"), forbidden) if forbidden else {"files": 0, "bytes": 0, "canaries": 0}
     sources = [
         {"ref": f"file:{data_root / 'lattice.sqlite3'}", "revision": None, "sha256": sha256_file(data_root / "lattice.sqlite3")},
         {"ref": f"tree:{axisvi_root}", "revision": None, "sha256": sha256_bytes(canonical_bytes(census))},
     ]
-    if runtime_manifest is not None:
-        sources.append({"ref": f"file:{runtime_manifest}", "revision": None, "sha256": sha256_file(runtime_manifest)})
+    sources.append({"ref": f"file:{runtime_manifest}", "revision": None, "sha256": sha256_file(runtime_manifest)})
     generated_at = time.strftime("%Y%m%dT%H%M%S", time.localtime())
     return {
         "generated_object": {
@@ -425,7 +458,7 @@ def verify(*, data_root: Path, runtime_manifest: Path | None, axisvi_root: Path,
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, required=True)
-    parser.add_argument("--runtime-manifest", type=Path)
+    parser.add_argument("--runtime-manifest", type=Path, required=True)
     parser.add_argument("--axisvi-root", type=Path, required=True)
     parser.add_argument("--forbidden-byte-file", type=Path, action="append", default=[])
     parser.add_argument("--output", type=Path)

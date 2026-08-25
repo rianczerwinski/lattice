@@ -120,3 +120,39 @@ def test_negative_control_forbidden_credential_canary_is_detected(tmp_path) -> N
 
     with pytest.raises(verifier.ConsolidationVerificationError, match="credential canary"):
         verifier.scan_forbidden_bytes((root,), (b"planted-secret",))
+
+
+@pytest.mark.regression
+def test_negative_control_closure_requires_an_installed_runtime_manifest(lattice_env, tmp_path) -> None:
+    with pytest.raises(verifier.ConsolidationVerificationError, match="installed runtime manifest is required"):
+        verifier.verify(data_root=lattice_env["config"].data_root, runtime_manifest=None, axisvi_root=tmp_path, forbidden_files=[])
+
+
+@pytest.mark.regression
+def test_negative_control_historical_import_must_still_resolve_to_exact_source_bytes(lattice_env, tmp_path) -> None:
+    history_root = tmp_path / "history"
+    run = history_root / "run-fixture"
+    run.mkdir(parents=True)
+    source = run / "terminal.json"
+    source.write_text('{"status":"success"}\n', encoding="utf-8")
+    files = [{"relative_path": "terminal.json", "content_sha256": verifier.sha256_file(source), "byte_count": source.stat().st_size}]
+    request = {
+        "contract_version": "HistoricalExecutionImport/1.0",
+        "external_project_key": "fixture.history",
+        "operation_key": "historical:run-fixture",
+        "source_ref": "run-fixture",
+        "source_census_sha256": sha256_bytes(canonical_bytes(files)),
+        "files": files,
+        "provider": "openai",
+        "model": "historical-codex",
+        "original_invocation_id": "fixture-run",
+        "terminal_state": "success",
+    }
+    lattice_env["store"].import_historical_execution(request, sha256_bytes(canonical_bytes(request)))
+
+    verified = verifier.verify_database(lattice_env["config"].data_root, historical_roots={"fixture.history": history_root})
+    assert verified["historical_sources_verified"] == 1
+
+    source.write_text('{"status":"rewritten"}\n', encoding="utf-8")
+    with pytest.raises(verifier.ConsolidationVerificationError, match="no longer match"):
+        verifier.verify_database(lattice_env["config"].data_root, historical_roots={"fixture.history": history_root})
