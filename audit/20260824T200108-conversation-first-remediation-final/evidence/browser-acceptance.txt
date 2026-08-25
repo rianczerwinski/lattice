@@ -1,0 +1,13 @@
+
+> test:browser
+> playwright test
+
+
+
+Running 2 tests using 1 worker
+
+
+
+[1/2] e2e/conversation.spec.ts:183:1 › browser acceptance: freestyle one-edge lattice stays conversational and source-bound
+[2/2] e2e/conversation.spec.ts:256:1 › browser regression: secondary surface outages do not erase the conversation
+  2 passed (14.1s)

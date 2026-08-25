@@ -1,0 +1,142 @@
+{
+  "checks": [
+    {
+      "detail": {
+        "frame_origins": [
+          "https://slate.axisvi.test"
+        ],
+        "hostname": "lattice.axisvi.test",
+        "instance": "main",
+        "name": "lattice",
+        "port": 9010,
+        "project": "axisvi",
+        "up": true,
+        "url": "https://lattice.axisvi.test"
+      },
+      "name": "outport",
+      "state": "pass"
+    },
+    {
+      "detail": {
+        "backup": {
+          "label": "com.axisvi.lattice.backup",
+          "loaded": true,
+          "running": false
+        },
+        "service": {
+          "label": "com.axisvi.lattice",
+          "loaded": true,
+          "running": true
+        }
+      },
+      "name": "launchd",
+      "state": "pass"
+    },
+    {
+      "detail": {
+        "boot_id": "boot_da6d1678f9cf487984a2be917ac799af",
+        "data_root": "/Users/rian/Library/Application Support/Lattice",
+        "port": 9010,
+        "runtime_id": "0.2.0-cb5e27b25e30-eeef1ba475f6",
+        "service": "lattice",
+        "startup_recovery_failures": [],
+        "status": "ok",
+        "version": "0.2.0",
+        "workflow_pack_failures": []
+      },
+      "name": "service",
+      "state": "pass"
+    },
+    {
+      "detail": {
+        "active_work": {
+          "attempts": 0,
+          "commands": 0,
+          "imports": 0,
+          "leases": 0
+        },
+        "data_root": "/Users/rian/Library/Application Support/Lattice",
+        "database": "/Users/rian/Library/Application Support/Lattice/lattice.sqlite3",
+        "expected_schema_version": 9,
+        "model_runs": {
+          "journal_bytes": 1715575,
+          "run_count": 102,
+          "terminal_count": 102
+        },
+        "referenced_blob_bytes": 1698648,
+        "referenced_blob_count": 1033,
+        "schema_version": 9,
+        "state_digest": "c41d9b84366ca2ad976b46104987cfac47493367625b2db70f45281c4d1dcfcb",
+        "tracked_table_count": 22
+      },
+      "name": "database-blobs-and-journals",
+      "state": "pass"
+    },
+    {
+      "detail": {
+        "artifact_id": "artifact:138bd4d7-7fc6-4f53-8e6a-99020a28b8b4",
+        "editable": false,
+        "executable": "/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+        "module": "/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-cb5e27b25e30-eeef1ba475f6/.venv/lib/python3.14/site-packages/lattice/cli.py",
+        "runtime_id": "0.2.0-cb5e27b25e30-eeef1ba475f6",
+        "version": "0.2.0"
+      },
+      "name": "runtime",
+      "state": "pass"
+    },
+    {
+      "detail": {
+        "anthropic": {
+          "cli": "claude",
+          "model": "opus",
+          "profiles": [
+            "compiled-fresh",
+            "workspace-agent",
+            "native-continuation"
+          ]
+        },
+        "openai": {
+          "cli": "codex",
+          "model": "gpt-5.6-sol",
+          "profiles": [
+            "compiled-fresh",
+            "workspace-agent",
+            "native-continuation"
+          ]
+        }
+      },
+      "name": "provider-adapters",
+      "state": "pass"
+    },
+    {
+      "detail": {
+        "active_work": {
+          "attempts": 0,
+          "commands": 0,
+          "imports": 0,
+          "leases": 0
+        },
+        "age_seconds": 1343,
+        "artifact_id": "artifact:bb8eeb55-ed7e-42c0-9f64-3b463ac90345",
+        "data_root": "/Users/rian/Library/Application Support/Lattice/backups/20260824T194152-bb8eeb55-ed7",
+        "database": "/Users/rian/Library/Application Support/Lattice/backups/20260824T194152-bb8eeb55-ed7/lattice.sqlite3",
+        "expected_schema_version": 9,
+        "generated_at": "20260824T194152",
+        "model_runs": {
+          "journal_bytes": 1715575,
+          "run_count": 102,
+          "terminal_count": 102
+        },
+        "referenced_blob_bytes": 1698648,
+        "referenced_blob_count": 1033,
+        "schema_version": 9,
+        "snapshot_root": "/Users/rian/Library/Application Support/Lattice/backups/20260824T194152-bb8eeb55-ed7",
+        "state_digest": "c41d9b84366ca2ad976b46104987cfac47493367625b2db70f45281c4d1dcfcb",
+        "tracked_table_count": 22
+      },
+      "name": "backup-and-recovery",
+      "state": "pass"
+    }
+  ],
+  "status": "pass"
+}
