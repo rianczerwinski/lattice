@@ -203,7 +203,7 @@ def test_independent_reader_rejects_forged_excerpt_receipts(lattice_env, mutatio
     overridden = store.get_block(excerpt["block_id"])
     overridden["transformation_json"] = canonical_bytes(segment["transformation"]).decode("utf-8")
     preflight_keys = {"invocation_id", "project_id", "actor_binding", "role_session_id", "draft_id", "draft_revision", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "capabilities", "execution", "response_contract", "compilation", "provider_boundary"}
-    forged["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/6.0", **{key: forged[key] for key in preflight_keys}})
+    forged["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/7.0", **{key: forged[key] for key in preflight_keys}})
     forged["manifest_sha256"] = sha256_json({key: value for key, value in forged.items() if key != "manifest_sha256"})
 
     with pytest.raises(ManifestVerificationError, match="exact excerpt bytes"):

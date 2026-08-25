@@ -146,9 +146,11 @@ class ExecutionSupervisor:
         project_id = invocation["project_id"]
         try:
             self.store.mark_attempt_running(attempt_id)
-            if invocation["manifest"].get("contract_version") not in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LatticeContextManifest/7.0", "LatticeContextManifest/8.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} or invocation["manifest"].get("response_contract") != invocation["response_schema"]:
+            if invocation["manifest"].get("contract_version") not in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LatticeContextManifest/7.0", "LatticeContextManifest/8.0", "LatticeContextManifest/9.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} or invocation["manifest"].get("response_contract") != invocation["response_schema"]:
                 raise LatticeConflict("invocation response contract is not execution-bound by an executable context manifest")
             prompt = verify_and_reconstruct(self.store, invocation["manifest"]).decode("utf-8")
+            declared_system = invocation["manifest"].get("provider_boundary", {}).get("system_instructions")
+            system_prompt = declared_system["content"] if isinstance(declared_system, dict) else None
             adapter = self._adapter(invocation["route"])
 
             def on_chunk(channel: str, chunk: bytes) -> None:
@@ -160,6 +162,7 @@ class ExecutionSupervisor:
                 invoke_subscription,
                 adapter,
                 prompt=prompt,
+                system_prompt=system_prompt,
                 schema=invocation["response_schema"],
                 runs_dir=self.store.config.runs,
                 subject=invocation["invocation_id"],
