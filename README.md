@@ -4,9 +4,7 @@ Lattice is a local-first conversational lattice harness: a user progressively au
 
 The graph is not primarily a workflow drawn in advance. It is the durable, inspectable record of thought and action as it develops. A successful path may later be extracted into a reusable workflow, but automation is downstream of understanding the path.
 
-This document is the canonical product and architecture contract for Lattice. The current software version is `0.2.0`; publishing the repository does not imply a 1.0 stability claim. Lattice is an independent repository developed in place inside AXISVI, which supplies personal integrations without owning or pinning Lattice's source revision. The implementation is a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, subscription-authenticated Claude and Codex routes, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
-
-The active implementation and assurance program is [`CONVERSATION-FIRST-REMEDIATION-PLAN.md`](CONVERSATION-FIRST-REMEDIATION-PLAN.md).
+This document is the canonical product and architecture contract for Lattice. The current software version is `0.3.0`; publishing the repository does not imply a 1.0 stability claim. Lattice is an independent repository developed in place inside AXISVI, which supplies personal integrations without owning or pinning Lattice's source revision. The implementation is a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, provider-neutral subscription execution kernel, Claude/Codex/Antigravity/Grok adapters, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
 
 ## Run it
 
@@ -19,6 +17,15 @@ lattice open
 lattice doctor
 ```
 
+Submit an ordinary model call as a one-node graph through the same boundary used by compound workflows:
+
+```bash
+lattice invoke --request execution-submission.json --wait
+lattice result <external-project-key> <operation-key>
+```
+
+Python consumers use `lattice.execution.LatticeClient`; local services may submit the same `ExecutionSubmission/1.0` contract to the authenticated execution endpoint. Reusing an external operation key with identical bytes returns the existing invocation, while different bytes fail rather than purchasing a second or ambiguous execution.
+
 Outport owns Lattice's `lattice.axisvi.test` identity and current port allocation; launchd keeps the installed, version-pinned runtime alive across crashes and login. `lattice` works from any shell directory. Canonical private state and verified backups live under `~/Library/Application Support/Lattice/`; logs live under `~/Library/Logs/Lattice/`. The former repository-local store is not active; it remains byte-preserved only as the pre-cutover recovery source. The source layout is:
 
 ```text
@@ -27,12 +34,13 @@ tests/            truth-typed kernel, API, supervisor, workflow, and mutation ch
 web/              response-first Svelte cockpit and production build
 workflow_packs/   bundled definitions owned by Lattice itself; project packs load from explicit external roots
 assurance/        frozen remediation baseline and permanent finding-to-proof ledger
+decisions/        durable architecture decisions and their verification boundaries
 ops/              verified runtime installation, launchd supervision, upgrades, backups, and recovery
 ```
 
 Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additional pack roots in a standalone installation. Inside AXISVI, the existing Canon adapter adds `sui/mission/projects/canon/dev/quaternary-exhaustion/workflows/` automatically. A duplicate `pack_id` across roots is a startup error, so an external project can never be silently shadowed by a bundled definition.
 
-Lattice `0.2.0` separates source assurance from installed-runtime qualification. The current source passes 269 backend checks, 24 frontend checks, two rendered-browser acceptance paths, 44 model-runner checks, and the Canon-owned quaternary pack's 16 contract and mutation checks. These checks cover possession-bound browser pairing, server-issued workflow evidence, explicit provider-native context opacity, exclusive native-session execution, and truthful degraded or partial results. Installed runtime `0.2.0-cb5e27b25e30-eeef1ba475f6` remains the latest byte-attested deployment and retains its authenticated Claude/Codex, launchd, doctor, and separate-root restore receipts; those receipts certify that exact prior source tree and are not silently reused as evidence for later source changes. No personal corpus was imported. The governed German workflow machinery is implemented, but its authenticated native Gemini lane remains unavailable: the installed official CLI rejects the consumer tier and cannot presently meet Lattice's exact-context isolation contract.
+Lattice `0.3.0` separates source assurance from installed-runtime qualification. The source suite currently contains 291 passing backend checks plus the frontend and rendered-browser acceptance paths. The execution-consolidation verifier independently reads base SQLite rows, blob bytes, runtime attestations, consumer source, provider receipts, and historical journal censuses; source tests alone cannot declare the installed execution boundary ready. Operational qualification and its exact current evidence live under [`assurance/execution-consolidation/`](assurance/execution-consolidation/).
 
 ## Telos
 
@@ -81,7 +89,7 @@ Lattice owns the canonical conversational graph, context-manifest contract, rout
 
 | Neighbor | What it owns | Lattice relation |
 |---|---|---|
-| [`model-runner`](https://github.com/rianczerwinski/AXISVI/tree/main/axis/tools/model-runner) | Durable provider-neutral invocation, raw journals, checkpoints, resumability, provider session identity, and subscription-authenticated CLI adapters | Direct invocation kernel beneath Lattice; it does not own topology or prompts |
+| `lattice.execution` | Durable provider-neutral invocation, raw journals, checkpoints, retries, redaction, provider attestation, and subscription-authenticated CLI adapters | Internal execution boundary owned by Lattice; domain projects reach it only through Lattice submissions and retain their own semantic policy |
 | Smithers ontology and upstream clone | Durable job-scale workflows, scheduling, attempts, recovery, approvals, rewind, fork, and replay | Prior art and optional adapter for compound jobs; a Smithers task imports as an expandable execution subgraph rather than defining Lattice’s canonical node scale |
 | [Octopus](https://github.com/rianczerwinski/AXISVI/tree/main/axis/soma/octopus) | Captured source events, raw provenance, retrieval, and cross-platform sensory continuity | Supplies and receives evidence-bearing artifacts and interaction events |
 | [Axial](https://github.com/rianczerwinski/AXISVI/tree/main/sui/console/axial) | Enduring semantic entities such as projects, people, concepts, and tasks | Supplies world-model context and receives simplified analytical projections; it is not the authoritative temporal execution ledger |
@@ -90,7 +98,7 @@ Lattice owns the canonical conversational graph, context-manifest contract, rout
 | [Panels](https://github.com/rianczerwinski/AXISVI/tree/main/axis/panel) | Persistent host for project-specific control surfaces | Natural home for the Lattice cockpit and project-grown interfaces |
 | [Quaternary exhaustion](https://github.com/rianczerwinski/AXISVI/tree/main/sui/mission/projects/canon/dev/quaternary-exhaustion) | Domain protocol, source/search ledgers, corpus evidence, executable workflow pack, and closure claims | First externally owned workflow pack and end-to-end qualification case |
 
-Lattice does not fork Smithers by default, does not absorb the quaternary database, and does not make model-runner responsible for routing. These are seams, not unfinished mergers.
+Lattice does not fork Smithers by default, does not absorb the quaternary database, and does not make its execution kernel responsible for domain routing. These are seams, not unfinished mergers.
 
 ## Canonical ontology
 
@@ -178,7 +186,7 @@ At minimum it records:
 
 The manifest must distinguish “not selected,” “selected but summarized,” “excluded because superseded,” “unavailable,” and “silently unknown.” These states are not interchangeable. An agent given a polished but distorted slice of history can produce a coherent answer to the wrong world; preventing that is a correctness requirement, not merely a transparency feature.
 
-The v10 manifest also binds exact client-owned provider instructions separately from the user-message bytes. Claude receives the Lattice routing protocol through its qualified official system-prompt file surface, and model-runner journals and hashes both channels independently; Codex receives no claimed system channel because its qualified CLI route does not expose one. A native continuation additionally records the selected provider session as provider-opaque context: Lattice can prove which session it resumed or forked, but not the exact hidden message history or compaction state that the provider supplied. Provider-owned instructions and admin policy remain named proof limits rather than being represented as exact.
+The v10 manifest also binds exact client-owned provider instructions separately from the user-message bytes. Claude receives the Lattice routing protocol through its qualified official system-prompt file surface, and `lattice.execution` journals and hashes both channels independently; Codex receives no claimed system channel because its qualified CLI route does not expose one. A native continuation additionally records the selected provider session as provider-opaque context: Lattice can prove which session it resumed or forked, but not the exact hidden message history or compaction state that the provider supplied. Provider-owned instructions and admin policy remain named proof limits rather than being represented as exact.
 
 ### Artifact
 
@@ -510,7 +518,7 @@ The compositor is independently testable. Provider adapters may not silently app
 
 ### 3. Execution adapters
 
-Simple invocations use `model-runner` for durable subscription-authenticated execution. Compound agent jobs may delegate to Smithers through an adapter. Deterministic tools such as catalogue search execute through workflow-specific adapters. Every path returns the same Lattice-level invocation, trace, and artifact contracts.
+Simple invocations use the internal `lattice.execution` kernel for durable subscription-authenticated execution. A singleton submission is automatically one invocation node; related submissions may form a batch or a governed workflow without creating a second execution path. Compound agent jobs may delegate to Smithers through an adapter. Deterministic tools such as catalogue search execute through workflow-specific adapters. Every path returns the same Lattice-level invocation, trace, and artifact contracts.
 
 The runtime must support interruption, typed failures, lease recovery, idempotent request reuse, append-only retries, and restart without provider-specific state becoming canonical.
 
@@ -546,7 +554,7 @@ Closure evidence:
 
 ### Phase B — One-edge manual Lattice
 
-Connect model-runner, create persistent role sessions, implement `invoke`, `fork`, `join`, `inspect`, `diff`, and `replay`, and expose a minimal conversational surface plus context tray. Use direct provider calls before integrating compound Smithers jobs.
+Connect the internal execution kernel, create persistent role sessions, implement `invoke`, `fork`, `join`, `inspect`, `diff`, and `replay`, and expose a minimal conversational surface plus context tray. Use ordinary singleton submissions before integrating compound Smithers jobs.
 
 Closure evidence:
 
@@ -655,13 +663,13 @@ The novelty claim that survives is the integrated object: a local-first, cross-p
 - Canonical state lives outside every model and provider session.
 - Roles receive derived views rather than the full graph.
 - Role identity is separate from model identity.
-- The quaternary workflow uses Sol for coverage orchestration and a Gemini 3.1 Pro versus Gemini 3.7 native-role bake-off; Fable is absent.
+- The quaternary workflow uses Sol for coverage orchestration, Gemini 3.7 through Antigravity for the German native role, and Opus 5 for blinded countersearch; Fable is absent.
 - Native consultation occurs before and after retrieval.
 - Searching is deterministic and executes exact accepted bytes.
 - Validated static language state complements rather than replaces dynamic native consultation.
 - Result-derived terminology may propose new search space but cannot adjudicate works.
 - A stopping inclination triggers blinded countersearch and cannot directly close the run.
-- Smithers remains an optional job-scale substrate through an adapter; model-runner remains the direct invocation kernel.
+- Smithers remains an optional job-scale substrate through an adapter; `lattice.execution` is the sole direct subscription-model invocation kernel.
 - Slate topics are tagged slices, not copied conversations.
 - KV reuse is optimized but never relied upon for correctness.
 
@@ -709,5 +717,5 @@ At that point Lattice is no longer a diagrammatic idea. It is the reusable cogni
 ## Design sources
 
 - [Quaternary corpus protocol](https://github.com/rianczerwinski/AXISVI/blob/main/sui/mission/projects/canon/dev/quaternary-exhaustion/PROTOCOL.md)
-- [`model-runner` execution contract](https://github.com/rianczerwinski/AXISVI/blob/main/axis/tools/model-runner/README.md)
+- [Execution submission and result contracts](lattice/contracts.py)
 - [Octopus evidence-bound Platform Foundry decision](https://github.com/rianczerwinski/AXISVI/blob/main/axis/soma/octopus/decisions/061-evidence-bound-platform-foundry.md)
