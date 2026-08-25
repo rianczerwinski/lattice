@@ -114,13 +114,13 @@ def test_antigravity_probe_rejects_silent_model_fallback(monkeypatch, tmp_path: 
             flags = " ".join(antigravity_required for antigravity_required in ("--print", "--model", "--effort", "--sandbox", "--mode", "--log-file", "--json-schema", "--output-format", "--disable-slash-commands"))
             return subprocess.CompletedProcess(command, 0, flags, "")
         if command[-1] == "models":
-            return subprocess.CompletedProcess(command, 0, "gemini-3.7\tGemini 3.7\n", "")
+            return subprocess.CompletedProcess(command, 0, "gemini-3.7-flash-high\tGemini 3.7 Flash (High)\n", "")
         return subprocess.CompletedProcess(command, 0, "gemini-3.6-flash-high\n", "")
 
     monkeypatch.setattr(antigravity, "run_bounded", fake_run)
     monkeypatch.setattr(antigravity, "isolated_home", lambda root, allow_web: (root, {"PATH": os.environ.get("PATH", "")}))
 
-    qualified, detail = antigravity.capability_probe(str(binary), model="gemini-3.7", effort="high", allow_web=False)
+    qualified, detail = antigravity.capability_probe(str(binary), model="gemini-3.7-flash-high", effort="high", allow_web=False)
     assert qualified is False
     assert "would execute as" in detail
 

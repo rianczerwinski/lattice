@@ -174,7 +174,7 @@ DEFAULT_ADAPTERS = (
         "google",
         "antigravity",
         "agy",
-        "gemini-3.7",
+        "gemini-3.7-flash-high",
         "antigravity_json_envelope",
         (
             "temporary-home",
@@ -187,7 +187,7 @@ DEFAULT_ADAPTERS = (
         ),
         ("provider-managed system context and macOS keychain behavior are not byte-disclosed",),
         ("compiled-fresh", "research-fresh"),
-        supported_models=("gemini-3.6-flash-high", "gemini-3.7"),
+        supported_models=("gemini-3.7-flash-high",),
         supported_efforts=("high",),
         capability_compiler="antigravity-isolation/1",
         parser_revision="antigravity-json-envelope/1",
