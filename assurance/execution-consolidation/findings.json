@@ -1,0 +1,41 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "canonical",
+    "kind": "lattice-execution-consolidation-findings",
+    "schema": {"name": "lattice-execution-consolidation-findings", "version": 1},
+    "artifact_id": "artifact:a6418804-1fde-4399-902e-c71cb2f5336e",
+    "generated_at": "20260825T015111",
+    "producer": {"name": "lattice-execution-consolidation", "version": "1.0.0"},
+    "subject": "lattice:execution-consolidation-findings",
+    "sources": [
+      {"ref": "file:/Users/rian/AXISVI/axis/chariots/lattice/assurance/execution-consolidation/baseline.json", "revision": "artifact:1fc48294-8217-4d50-9ae9-02cba25c480d", "sha256": null},
+      {"ref": "git:/Users/rian/AXISVI/axis/chariots/lattice", "revision": "8c471fa16178cf032cea4694a2e30a82090fd819", "sha256": null},
+      {"ref": "git:/Users/rian/AXISVI", "revision": "3d49a01e6d7d78c61b32facfe30a63bbea6ce5b3", "sha256": null}
+    ]
+  },
+  "contract_version": "LatticeExecutionConsolidationFindings/1.0",
+  "status_vocabulary": ["open", "implemented-pending-verification", "closed"],
+  "findings": [
+    {
+      "finding_id": "627260b7-43b4-4bbf-8e3f-b9bcec88a3b2",
+      "severity": "S2",
+      "status": "open",
+      "relationship": "new",
+      "claim": "Subscription-model execution has two active authorities: Lattice installs a private sibling model-runner whose Google route is obsolete, while field-survey independently carries working Antigravity, Grok, Claude, and Codex transports.",
+      "evidence": [
+        "axis/chariots/lattice/pyproject.toml depends on editable ../../tools/model-runner",
+        "axis/tools/model-runner/axis_model_runner/adapters.py binds Google to the retired gemini CLI",
+        "sui/mission/typology/abduction/field-survey/research-pipeline/domain_research/generation/antigravity.py executes the subscription-authenticated agy route"
+      ],
+      "counterevidence": [
+        "The common journal, checkpoint, and bounded-process mechanisms are already shared through axis-model-runner.",
+        "Lattice already owns durable invocation identities, manifests, attempts, leases, and runtime receipts."
+      ],
+      "failure_mode": "A provider can be operational in one project and unavailable in Lattice, while route isolation, model selection, credentials, failures, and provenance silently diverge between implementations.",
+      "consequence": "The multilingual runner can falsely stop at a nonexistent provider block, public Lattice is not independently installable, and successful project-local calls can bypass the canonical conversational graph and its recovery guarantees.",
+      "response": "Make Lattice the sole execution authority, preserve an internal mechanism/policy seam, consolidate the strongest provider implementations, route all consumers through immutable Lattice submissions, and retire the sibling package only after independent closure.",
+      "broader_investigation_trigger": "The duplicated Google transport predicts sibling divergence across Claude, Codex, Grok, journaling, provider qualification, and every direct consumer; the consolidation census therefore covers all providers and callers rather than patching Gemini alone."
+    }
+  ]
+}

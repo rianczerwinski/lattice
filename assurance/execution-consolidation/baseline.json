@@ -1,0 +1,54 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "canonical",
+    "kind": "lattice-execution-consolidation-baseline",
+    "schema": {"name": "lattice-execution-consolidation-baseline", "version": 1},
+    "artifact_id": "artifact:1fc48294-8217-4d50-9ae9-02cba25c480d",
+    "generated_at": "20260825T015111",
+    "producer": {"name": "lattice-execution-consolidation", "version": "1.0.0"},
+    "subject": "lattice:execution-consolidation",
+    "sources": [
+      {"ref": "git:/Users/rian/AXISVI/axis/chariots/lattice", "revision": "8c471fa16178cf032cea4694a2e30a82090fd819", "sha256": null},
+      {"ref": "git:/Users/rian/AXISVI", "revision": "3d49a01e6d7d78c61b32facfe30a63bbea6ce5b3", "sha256": null},
+      {"ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260825T015003-f6cb6adf-847/snapshot.json", "revision": "artifact:f6cb6adf-847e-42eb-a5ea-09e9c61ed049", "sha256": "710830bd69f9a1576554c09cb2ffe7d8d96fd79ae921ee75d926d03d3c86923c"}
+    ],
+    "commitment": {
+      "fields": ["revisions", "source_trees", "installed_runtime", "recovery_snapshot", "baseline_tests"],
+      "sealed_at": "20260825T015111",
+      "supersedes": null,
+      "change_reason": null
+    }
+  },
+  "contract_version": "LatticeExecutionConsolidationBaseline/1.0",
+  "revisions": {
+    "lattice": "8c471fa16178cf032cea4694a2e30a82090fd819",
+    "axisvi": "3d49a01e6d7d78c61b32facfe30a63bbea6ce5b3",
+    "model_runner_tree": "b1c2ce17028f9b5e3ec48dd63aaeb95c8ceace05",
+    "canon_quaternary_tree": "0e92e1cd9492a8b4f5836e5ea7a924fb5d8e0858",
+    "field_survey_pipeline_tree": "8904957c03fa4fd217b7a1e8cb7467c449aa2d74"
+  },
+  "source_trees": {
+    "lattice_packaging_sha256": "e41b4703af2cf9179bf4785c19744f27fa41b4dafa1ecbe9887e677eb6e74470",
+    "model_runner_adapter_sha256": "23000143f043f84a65eb074109f78e5c749635fdca6c8e0210cb2226714a6055",
+    "field_survey_antigravity_sha256": "b82bb947df60c7dc33da16a4aaae3f600432751161fa071e9d49f8f1db7ce77f",
+    "field_survey_grok_sha256": "22ccea67f5210f5f923c8ed0c582b4532eb2471766dedeafc8f28146f5bebb6e",
+    "field_survey_claude_sha256": "51c1c50c21ca15550a5900ba391f6cd5b86ab9b9ef6bc720ae873cebae3ea822"
+  },
+  "installed_runtime": {
+    "version": "0.2.0",
+    "runtime_id": "0.2.0-cb5e27b25e30-eeef1ba475f6",
+    "artifact_id": "artifact:138bd4d7-7fc6-4f53-8e6a-99020a28b8b4",
+    "state_digest": "c41d9b84366ca2ad976b46104987cfac47493367625b2db70f45281c4d1dcfcb"
+  },
+  "recovery_snapshot": {
+    "path": "/Users/rian/Library/Application Support/Lattice/backups/20260825T015003-f6cb6adf-847",
+    "artifact_id": "artifact:f6cb6adf-847e-42eb-a5ea-09e9c61ed049",
+    "state_digest": "c41d9b84366ca2ad976b46104987cfac47493367625b2db70f45281c4d1dcfcb",
+    "restore_rehearsal": "/private/tmp/lattice-execution-consolidation-baseline-restore"
+  },
+  "baseline_tests": {
+    "lattice": {"truth_kind": "mixed-regression-contract-property-smoke", "passed": 269, "failed": 0},
+    "model_runner": {"truth_kind": "mixed-regression-contract-property-smoke", "passed": 44, "subtests_passed": 5, "failed": 0}
+  }
+}
