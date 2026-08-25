@@ -1,0 +1,122 @@
+"""Adversarial checks for independent execution-consolidation closure."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import sqlite3
+from pathlib import Path
+
+import pytest
+
+from lattice.canonical import canonical_bytes, sha256_bytes
+from lattice.contracts import AttemptState, ExecutionSubmissionV1, OutputContractV2
+
+
+VERIFIER_PATH = Path(__file__).parents[1] / "ops" / "verify_execution_consolidation.py"
+SPEC = importlib.util.spec_from_file_location("verify_execution_consolidation", VERIFIER_PATH)
+assert SPEC and SPEC.loader
+verifier = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(verifier)
+
+
+def _blob(store, value: dict) -> dict:
+    content = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    digest = store.blobs.put(content)
+    return {"ref": f"lattice:blob/{digest}", "sha256": digest, "byte_count": len(content)}
+
+
+def _completed_external(lattice_env) -> str:
+    request = ExecutionSubmissionV1(
+        external_project_key="fixture.consumer",
+        operation_key="verified-operation",
+        actor="fixture",
+        workflow_role="fixture:worker",
+        prompt="Return exact output.",
+        route=lattice_env["route"],
+        output_contract=OutputContractV2(mode="text"),
+        idempotency_key="fixture:verified-operation",
+    )
+    operation = lattice_env["lattice"].seal_execution_submission(request)
+    attempt = lattice_env["store"].create_attempt(operation["invocation_id"], "verified-attempt", "fixture-boot", 9_999_999_999)
+    lattice_env["store"].mark_attempt_running(attempt["attempt_id"])
+    request_file = _blob(lattice_env["store"], {"driver": "codex", "model": "gpt-5.6-sol"})
+    checkpoint_file = _blob(lattice_env["store"], {"request_sha256": request_file["sha256"]})
+    terminal_file = _blob(lattice_env["store"], {"status": "success"})
+    receipt = {
+        "kind": "lattice-model-runtime-receipt",
+        "journal_path": "fixture:journal",
+        "request_sha256": request_file["sha256"],
+        "checkpoint_sha256": checkpoint_file["sha256"],
+        "terminal_sha256": terminal_file["sha256"],
+        "driver": "codex",
+        "model": "gpt-5.6-sol",
+        "cli_version": "fixture",
+        "binary": "/fixture/codex",
+        "isolation": {},
+        "native_session": None,
+        "observed": {},
+        "terminal": {"status": "success"},
+        "files": {"request.json": request_file, "checkpoint.json": checkpoint_file, "terminal.json": terminal_file},
+    }
+    lattice_env["store"].finish_successful_attempt(attempt["attempt_id"], response="exact output", artifacts=[{"name": "result.txt", "media_type": "text/plain", "content": "exact output"}], journal_path="fixture:journal", runtime_receipt=receipt)
+    return operation["invocation_id"]
+
+
+@pytest.mark.oracle
+def test_independent_verifier_reconciles_external_execution_from_base_records(lattice_env) -> None:
+    _completed_external(lattice_env)
+
+    result = verifier.verify_database(lattice_env["config"].data_root)
+
+    assert result["external_operations"] == 1
+    assert result["referenced_blobs"] >= 5
+
+
+@pytest.mark.regression
+def test_negative_control_verifier_rejects_changed_runtime_receipt_blob(lattice_env) -> None:
+    invocation_id = _completed_external(lattice_env)
+    with sqlite3.connect(lattice_env["config"].database) as connection:
+        receipt = json.loads(connection.execute("SELECT runtime_receipt_json FROM attempts WHERE invocation_id=?", (invocation_id,)).fetchone()[0])
+    digest = receipt["files"]["terminal.json"]["sha256"]
+    path = lattice_env["config"].blobs / digest[:2] / digest
+    path.write_bytes(b'{"status":"failed"}\n')
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="changed or disagrees"):
+        verifier.verify_database(lattice_env["config"].data_root)
+
+
+@pytest.mark.regression
+def test_negative_control_verifier_rejects_external_operation_without_lattice_receipt(lattice_env) -> None:
+    invocation_id = _completed_external(lattice_env)
+    with lattice_env["store"]._connect() as connection:
+        connection.create_function("lattice_replaying", 0, lambda: 1)
+        connection.execute("UPDATE attempts SET runtime_receipt_json=? WHERE invocation_id=?", (canonical_bytes({"kind": "project-local-result"}).decode(), invocation_id))
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="full Lattice runtime receipt"):
+        verifier.verify_database(lattice_env["config"].data_root)
+
+
+@pytest.mark.regression
+def test_negative_control_consumer_census_rejects_direct_provider_launcher(tmp_path) -> None:
+    canon = tmp_path / "sui/mission/projects/canon/dev/quaternary-exhaustion"
+    survey = tmp_path / "sui/mission/typology/abduction/field-survey/research-pipeline"
+    lattice = tmp_path / "axis/chariots/lattice"
+    canon.mkdir(parents=True)
+    survey.mkdir(parents=True)
+    lattice.mkdir(parents=True)
+    (lattice / "pyproject.toml").write_text('[project]\nname="lattice"\n', encoding="utf-8")
+    (canon / "direct.py").write_text('import subprocess\nsubprocess.run(["claude", "-p", "prompt"])\n', encoding="utf-8")
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="direct provider executable"):
+        verifier.verify_consumer_census(tmp_path)
+
+
+@pytest.mark.regression
+def test_negative_control_forbidden_credential_canary_is_detected(tmp_path) -> None:
+    root = tmp_path / "state"
+    root.mkdir()
+    root.joinpath("receipt").write_bytes(b"prefix-planted-secret-suffix")
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="credential canary"):
+        verifier.scan_forbidden_bytes((root,), (b"planted-secret",))
