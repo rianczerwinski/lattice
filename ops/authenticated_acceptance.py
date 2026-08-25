@@ -230,11 +230,26 @@ class AcceptanceRun:
         graft = {"block_id": excerpt["block_id"], "disposition": "selected", "plane": "knowledge", "label": "authenticated-exact-graft", "derived_from_block_ids": [by_provider["anthropic"]["output_block_id"]]}
 
         crossfeed = self.create_batch([
-            specification("claude-reads-codex", assembly(self.project_id, "Critique the selected Codex answer in one sentence and include marker XFEED-CLAUDE.", parents=[by_provider["openai"]["invocation_id"]], selections=[graft]), route("anthropic")),
-            specification("codex-reads-claude", assembly(self.project_id, "Critique the selected Claude answer in one sentence and include marker XFEED-CODEX.", parents=[by_provider["anthropic"]["invocation_id"]], selections=[graft]), route("openai")),
+            specification("claude-reads-codex", assembly(self.project_id, "Critique the Codex-produced ancestry response in exactly one sentence beginning `XFEED-CLAUDE: `.", parents=[by_provider["openai"]["invocation_id"]], selections=[graft]), route("anthropic")),
+            specification("codex-reads-claude", assembly(self.project_id, "Critique the Claude-produced ancestry response in exactly one sentence beginning `XFEED-CODEX: `.", parents=[by_provider["anthropic"]["invocation_id"]], selections=[graft]), route("openai")),
         ], "reciprocal-crossfeed")
-        self.assert_marker("reciprocal-crossfeed-claude", next(item for item in crossfeed if item["route"]["provider"] == "anthropic"), "XFEED-CLAUDE")
-        self.assert_marker("reciprocal-crossfeed-codex", next(item for item in crossfeed if item["route"]["provider"] == "openai"), "XFEED-CODEX")
+        claude_crossfeed = next(item for item in crossfeed if item["route"]["provider"] == "anthropic")
+        codex_crossfeed = next(item for item in crossfeed if item["route"]["provider"] == "openai")
+        self.assert_marker("reciprocal-crossfeed-claude", claude_crossfeed, "XFEED-CLAUDE")
+        self.assert_marker("reciprocal-crossfeed-codex", codex_crossfeed, "XFEED-CODEX")
+        for label, invocation, source, harness in (
+            ("reciprocal-crossfeed-claude-parent", claude_crossfeed, by_provider["openai"], "codex"),
+            ("reciprocal-crossfeed-codex-parent", codex_crossfeed, by_provider["anthropic"], "claude"),
+        ):
+            ancestry_segments = [item for item in invocation["manifest"]["segments"] if item["plane"] == "ancestry"]
+            expected_label = f"parent:{harness}:{source['invocation_id']}"
+            self.assert_truth(
+                label,
+                len(ancestry_segments) == 1
+                and ancestry_segments[0]["label"] == expected_label
+                and ancestry_segments[0]["producing_invocation_id"] == source["invocation_id"],
+                {"expected_label": expected_label, "ancestry_segments": ancestry_segments},
+            )
 
         joined = self.create_batch([specification("codex-join", assembly(self.project_id, "Join the two critiques into one practical recommendation and include marker JOINED-CODEX.", parents=[item["invocation_id"] for item in crossfeed], selections=[graft]), route("openai"), concerns=[main_episode["concern_ref"]])], "fan-in-return")[0]
         self.assert_marker("fan-in-return", joined, "JOINED-CODEX")

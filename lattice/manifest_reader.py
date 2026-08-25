@@ -254,10 +254,12 @@ def verify_and_reconstruct(
             raise ManifestVerificationError(f"manifest execution policy is not enforceable: {error}") from error
     if manifest["capabilities"] != effective_policy:
         raise ManifestVerificationError("manifest capabilities do not match the enforced provider policy")
+    ancestry_invocations: dict[str, dict[str, Any]] = {}
     for parent in manifest["ancestry"]:
         invocation = store.get_invocation(parent["invocation_id"])
         if invocation["project_id"] != manifest["project_id"] or invocation["manifest_sha256"] != parent["manifest_sha256"]:
             raise ManifestVerificationError(f"manifest ancestry does not resolve exactly: {parent['invocation_id']}")
+        ancestry_invocations[parent["invocation_id"]] = invocation
     output: list[bytes] = []
     expected_contract = {f"{slug}-segment-stream-v1": (f"{title}ContextManifest/1.0", 1), f"{slug}-context-jsonl-v2": (f"{title}ContextManifest/2.0", 2), f"{slug}-context-jsonl-v3": (f"{title}ContextManifest/3.0", 3), f"{slug}-context-jsonl-v4": (f"{title}ContextManifest/4.0", 4), f"{slug}-context-jsonl-v5": (f"{title}ContextManifest/5.0", 5), f"{slug}-context-jsonl-v6": (f"{title}ContextManifest/6.0", 6), f"{slug}-context-jsonl-v7": (f"{title}ContextManifest/7.0", 7), f"{slug}-context-jsonl-v8": (f"{title}ContextManifest/8.0", 8)}.get(compilation_format)
     if expected_contract is None or manifest.get("contract_version") != expected_contract[0] or schema_version != expected_contract[1]:
@@ -281,6 +283,15 @@ def verify_and_reconstruct(
             provenance = {"authority": block["authority"], "evidence_level": block["evidence_level"], "sensitivity": block["sensitivity"], "source_ref": block["source_ref"], "source_sha256": block["source_sha256"], "producing_invocation_id": block["producing_invocation_id"], "transformation": transformation}
             if any(segment.get(key) != value for key, value in provenance.items()):
                 raise ManifestVerificationError(f"context provenance is not ledger-bound: {segment['block_id']}")
+        if compilation_format == f"{slug}-context-jsonl-v8" and segment["plane"] == "ancestry" and segment["label"].startswith("parent:"):
+            producer_id = segment.get("producing_invocation_id")
+            parent = ancestry_invocations.get(producer_id)
+            if parent is None or parent.get("output_block_id") != segment["block_id"]:
+                raise ManifestVerificationError(f"provider-facing parent ancestry does not resolve exactly: {segment['block_id']}")
+            legacy_label = f"parent:{producer_id}"
+            attributed_label = f"parent:{parent['route']['harness']}:{producer_id}"
+            if segment["label"] not in {legacy_label, attributed_label}:
+                raise ManifestVerificationError(f"provider-facing parent harness attribution is false: {segment['block_id']}")
         try:
             historical_status = block["status"] if segment["block_id"] in block_overrides and segment["status_revision"] == block["status_revision"] else store.get_block_status_revision(segment["block_id"], segment["status_revision"])
         except (KeyError, TypeError) as error:

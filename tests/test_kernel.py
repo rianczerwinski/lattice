@@ -380,6 +380,43 @@ def test_property_two_parent_join_survives_restart_with_exact_ancestry(lattice_e
     assert b"left answer" in compiled and b"right answer" in compiled
 
 
+@pytest.mark.oracle
+def test_parent_context_exposes_its_resolvable_harness_identity(lattice_env) -> None:
+    parent = completed_invocation(lattice_env, "P1", "Codex answer")
+    draft = lattice_env["lattice"].fork(parent["invocation_id"], prompt="Review the Codex answer", route=lattice_env["route"], role_session_id=lattice_env["session"]["role_session_id"])
+    child = lattice_env["lattice"].seal(draft["draft_id"])
+    ancestry = child["manifest"]["ancestry"]
+
+    assert [item["invocation_id"] for item in ancestry] == [parent["invocation_id"]]
+    assert ancestry[0]["manifest_sha256"] == parent["manifest_sha256"]
+    parent_segment = next(item for item in child["manifest"]["segments"] if item["plane"] == "ancestry")
+    assert parent_segment["label"] == f"parent:codex:{parent['invocation_id']}"
+    assert parent_segment["producing_invocation_id"] == parent["invocation_id"]
+
+
+@pytest.mark.oracle
+def test_negative_control_independent_reader_rejects_false_parent_harness(lattice_env) -> None:
+    parent = completed_invocation(lattice_env, "P1", "Codex answer")
+    draft = lattice_env["lattice"].fork(parent["invocation_id"], prompt="Review it", route=lattice_env["route"], role_session_id=lattice_env["session"]["role_session_id"])
+    child = lattice_env["lattice"].seal(draft["draft_id"])
+    mutated = json.loads(json.dumps(child["manifest"]))
+    parent_segment = next(item for item in mutated["segments"] if item["plane"] == "ancestry")
+    parent_segment["label"] = f"parent:claude:{parent['invocation_id']}"
+    blocks = {item["block_id"]: lattice_env["store"].get_block(item["block_id"]) for item in mutated["segments"]}
+    compiled = EXPECTED_CONTEXT_PROTOCOL_V8 + b"".join(
+        canonical_bytes({"kind": "lattice-conversation-segment-v8", "ordinal": item["ordinal"], "plane": item["plane"], "label": item["label"], "content": blocks[item["block_id"]]["content"]}) + b"\n"
+        for item in mutated["segments"]
+    )
+    digest = lattice_env["store"].blobs.put(compiled)
+    mutated["compilation"].update({"compiled_prompt_ref": f"lattice:blob/{digest}", "compiled_prompt_sha256": digest, "byte_count": len(compiled)})
+    preflight_keys = {"invocation_id", "project_id", "actor_binding", "role_session_id", "draft_id", "draft_revision", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "capabilities", "execution", "response_contract", "compilation", "provider_boundary"}
+    mutated["preflight_sha256"] = sha256_json({"contract_version": "LatticeContextPreflight/6.0", **{key: mutated[key] for key in preflight_keys}})
+    mutated["manifest_sha256"] = sha256_json({key: value for key, value in mutated.items() if key != "manifest_sha256"})
+
+    with pytest.raises(ManifestVerificationError, match="parent harness attribution is false"):
+        verify_and_reconstruct(lattice_env["store"], mutated)
+
+
 @pytest.mark.contract
 def test_contract_event_ledger_rejects_update_and_delete(lattice_env) -> None:
     database = lattice_env["config"].database

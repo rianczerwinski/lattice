@@ -59,7 +59,11 @@ class ContextCompositor:
             parent = self.store.get_invocation(parent_id)
             if not parent.get("output_block_id"):
                 raise LatticeConflict(f"parent {parent_id} has no consumable output")
-            selections.append(ContextSelection(block_id=parent["output_block_id"], disposition=BlockDisposition.selected, plane="ancestry", label=f"parent:{parent_id}"))
+            # The consuming model needs the observed harness identity to understand
+            # conversational routes such as "send the Codex answer to Claude".
+            # The immutable invocation ID keeps that human-readable label resolvable.
+            harness = parent["route"]["harness"]
+            selections.append(ContextSelection(block_id=parent["output_block_id"], disposition=BlockDisposition.selected, plane="ancestry", label=f"parent:{harness}:{parent_id}"))
         selections.append(ContextSelection(block_id=draft["prompt_block_id"], disposition=BlockDisposition.selected, plane="current_prompt", label="user-prompt"))
         return selections
 
