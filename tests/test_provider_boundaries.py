@@ -101,6 +101,37 @@ def test_antigravity_isolation_copies_only_subscription_state_and_replaces_polic
         assert copied.stat().st_mode & 0o077 == 0
 
 
+@pytest.mark.regression
+def test_antigravity_preserves_the_exact_caller_schema_without_private_finish_fields() -> None:
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["content"],
+        "properties": {"content": {"type": "string"}},
+    }
+
+    emitted = json.loads(antigravity.augmented_schema(schema))
+
+    assert emitted == schema
+    assert len(emitted["required"]) == len(set(emitted["required"]))
+
+
+@pytest.mark.regression
+def test_antigravity_parser_preserves_caller_fields_that_resemble_cli_envelope_fields() -> None:
+    payload = {
+        "response": "caller value",
+        "toolSummary": "caller summary",
+        "toolAction": "caller action",
+    }
+    outer = {
+        "conversation_id": "fixture-conversation",
+        "status": "SUCCESS",
+        "response": json.dumps(payload),
+    }
+
+    assert antigravity.parse_output(json.dumps(outer)) == payload
+
+
 @pytest.mark.oracle
 def test_antigravity_probe_rejects_silent_model_fallback(monkeypatch, tmp_path: Path) -> None:
     binary = tmp_path / "agy"

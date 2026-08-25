@@ -22,7 +22,6 @@ SUBSCRIPTION_STATE_FILES = (
     "antigravity-cli/installation_id",
     "antigravity-cli/jetski_state.pbtxt",
 )
-ENVELOPE_FIELDS = ("toolSummary", "toolAction")
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
@@ -133,20 +132,15 @@ def capability_probe(binary: str, *, model: str, effort: str, allow_web: bool) -
 
 
 def augmented_schema(schema: dict[str, Any]) -> str:
-    value = json.loads(json.dumps(schema))
-    properties = value.setdefault("properties", {})
-    required = value.setdefault("required", [])
-    for field in ENVELOPE_FIELDS:
-        properties.setdefault(field, {"type": "string"})
-        if field not in required:
-            required.append(field)
-    if value.get("additionalProperties") is False:
-        value["additionalProperties"] = True
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    """Pass the caller contract through without adding agy's private fields.
 
+    Antigravity builds its ``finish`` tool around the supplied schema. Adding
+    the CLI's own ``toolSummary`` or ``toolAction`` fields duplicates entries
+    in that generated contract and prevents execution. Exact pass-through also
+    prevents Lattice from deleting legitimate caller fields with those names.
+    """
 
-def strip_envelope(payload: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in payload.items() if key not in ENVELOPE_FIELDS}
+    return json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
 
 
 def parse_output(text: str) -> dict[str, Any]:
@@ -162,13 +156,14 @@ def parse_output(text: str) -> dict[str, Any]:
             continue
         if not isinstance(value, dict):
             continue
-        if "response" not in value:
-            return strip_envelope(value)
+        is_cli_envelope = {"conversation_id", "status", "response"}.issubset(value)
+        if not is_cli_envelope:
+            return value
         if value.get("error"):
             raise AntigravityBoundaryError(f"Antigravity reported an error: {value['error']}")
         response = value.get("response")
         if isinstance(response, dict):
-            return strip_envelope(response)
+            return response
         if isinstance(response, str):
             return parse_output(response)
     raise AntigravityBoundaryError("Antigravity response did not contain one JSON object")
