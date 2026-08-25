@@ -9,7 +9,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from axis_model_runner import bind_request, create_run_journal
 from fastapi.testclient import TestClient
 
 from lattice import cli
@@ -19,8 +18,9 @@ from lattice.canonical import canonical_bytes, generated_object
 from lattice.config import LatticeConfig, user_data_root
 from lattice.contracts import DraftCreate, ProjectCreate
 from lattice.diagnostics import assess_backup, assess_data_root
+from lattice.execution import bind_request, create_run_journal
 from lattice.outport import OutportService, outport_executable, resolve_lattice_service
-from lattice.runtime_attestation import mapped_inventory, tree_inventory
+from lattice.runtime_attestation import mapped_inventory, tree_inventory, validate_provider_attestations, verify_provider_attestation_freshness
 from lattice.security import ensure_cli_token
 from lattice.server import create_app
 from lattice import snapshot as snapshot_runtime
@@ -46,7 +46,7 @@ def outport_payload(*, port: int = 9010, url: str = "https://lattice.axisvi.test
 
 @pytest.mark.contract
 def test_release_identity_has_one_package_owned_source() -> None:
-    assert __version__ == "0.2.0"
+    assert __version__ == "0.3.0"
     assert cli._version() == __version__
     assert deployment.release_version() == __version__
 
@@ -57,7 +57,7 @@ def test_cli_exposes_the_release_identity(capsys) -> None:
         cli.parser().parse_args(["--version"])
 
     assert exit_info.value.code == 0
-    assert capsys.readouterr().out == "lattice 0.2.0\n"
+    assert capsys.readouterr().out == "lattice 0.3.0\n"
 
 
 @pytest.mark.regression
@@ -454,7 +454,7 @@ def test_negative_control_doctor_rejects_service_version_disagreement(monkeypatc
     monkeypatch.setattr(cli, "_service", lambda _config: service)
     monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime", "version": "0.1.0"})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
-    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime", "version": "0.2.0"})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime", "version": "0.3.0"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 10, "expected_schema_version": 10})
@@ -466,7 +466,7 @@ def test_negative_control_doctor_rejects_service_version_disagreement(monkeypatc
     assert status == 1
     check = next(item for item in output["checks"] if item["name"] == "service")
     assert check["state"] == "fail"
-    assert "0.1.0" in check["detail"] and "0.2.0" in check["detail"]
+    assert "0.1.0" in check["detail"] and "0.3.0" in check["detail"]
 
 
 @pytest.mark.regression
@@ -520,9 +520,9 @@ def test_doctor_qualifies_the_live_daemon_with_operator_authority(monkeypatch, t
     token_path.write_text("x" * 64 + "\n", encoding="utf-8")
     token_path.chmod(0o600)
     monkeypatch.setattr(cli, "_service", lambda _config: service)
-    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime", "version": "0.2.0", "startup_recovery_failures": [], "workflow_pack_failures": []})
+    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime", "version": "0.3.0", "startup_recovery_failures": [], "workflow_pack_failures": []})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"service": {"loaded": True, "running": True}, "backup": {"loaded": True, "running": False}})
-    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime", "version": "0.2.0"})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime", "version": "0.3.0"})
     monkeypatch.setattr(cli, "_service_routes", lambda _service, token: [
         {"provider_code": "anthropic", "official_cli": "claude", "model_code": "opus", "qualified": True, "operational": token == "x" * 64, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
         {"provider_code": "openai", "official_cli": "codex", "model_code": "gpt-5.6-sol", "qualified": True, "operational": token == "x" * 64, "qualified_profiles": ["compiled-fresh", "workspace-agent", "native-continuation"]},
@@ -573,7 +573,7 @@ def test_negative_control_runtime_probe_executes_outside_the_source_checkout(mon
 
     def fake_run(arguments, *, cwd, capture):
         observed.update({"arguments": arguments, "cwd": cwd, "capture": capture})
-        return argparse.Namespace(stdout=b'{"lattice":"/installed/lattice/__init__.py","model_runner":"/installed/axis_model_runner/__init__.py"}')
+        return argparse.Namespace(stdout=b'{"lattice":"/installed/lattice/__init__.py"}')
 
     monkeypatch.setattr(deployment, "run", fake_run)
     locations = deployment.probe_runtime(tmp_path)
@@ -619,12 +619,11 @@ def test_installer_verification_includes_static_cockpit_diagnostics(monkeypatch)
 
 
 @pytest.mark.contract
-def test_runtime_sync_forces_both_local_packages_to_rebuild() -> None:
+def test_runtime_sync_forces_the_self_contained_package_to_rebuild() -> None:
     arguments = deployment.runtime_sync_arguments()
 
-    assert arguments.count("--reinstall-package") == 2
+    assert arguments.count("--reinstall-package") == 1
     assert arguments[arguments.index("--reinstall-package") + 1] == "lattice"
-    assert arguments[arguments.index("--reinstall-package", arguments.index("--reinstall-package") + 1) + 1] == "axis-model-runner"
 
 
 @pytest.mark.oracle
@@ -679,9 +678,10 @@ def test_runtime_manifest_binds_complete_sources_and_executing_modules(monkeypat
     executable = target / ".venv" / "bin" / "lattice"
     executable.write_text("#!/bin/sh\n", encoding="utf-8")
     executable.chmod(0o755)
-    locations = {"lattice": str(target / "lattice/__init__.py"), "model_runner": str(target / "axis_model_runner/__init__.py")}
-    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}], "model_runner": [{"path": "process.py", "sha256": "d" * 64, "byte_count": 1}]}
-    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=["lattice==0.2.0"], module_locations=locations, source_trees=source_trees)
+    locations = {"lattice": str(target / "lattice/__init__.py")}
+    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}]}
+    provider_attestations = deployment.provider_runtime_attestations(probe_versions=False)
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, packages=["lattice==0.3.0"], module_locations=locations, source_trees=source_trees, provider_attestations=provider_attestations)
     raw = canonical_bytes(manifest)
     (target / "runtime.json").write_bytes(raw)
     monkeypatch.setattr(deployment, "probe_runtime", lambda _target: locations)
@@ -689,12 +689,37 @@ def test_runtime_manifest_binds_complete_sources_and_executing_modules(monkeypat
     monkeypatch.setattr(deployment, "source_tree_inventories", lambda: source_trees)
     monkeypatch.setattr(deployment, "installed_tree_inventories", lambda _locations: source_trees)
 
-    deployment.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
+    deployment.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40)
     assert all(set(source) == {"ref", "revision", "sha256"} for source in manifest["generated_object"]["sources"])
 
     (target / "runtime.json").write_bytes(raw + b"\n")
     with pytest.raises(RuntimeError, match="not exact RFC 8785"):
-        deployment.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
+        deployment.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40)
+
+
+@pytest.mark.regression
+def test_negative_control_runtime_manifest_rejects_changed_provider_profile() -> None:
+    attestations = deployment.provider_runtime_attestations(probe_versions=False)
+    attestations[0]["parser_revision"] = "planted-incompatible-parser"
+
+    with pytest.raises(ValueError, match="profile disagrees"):
+        validate_provider_attestations(attestations)
+
+
+@pytest.mark.oracle
+def test_negative_control_runtime_rejects_provider_binary_changed_after_qualification(monkeypatch, tmp_path) -> None:
+    binary = tmp_path / "codex"
+    binary.write_bytes(b"qualified bytes")
+    binary.chmod(0o755)
+    attestations = deployment.provider_runtime_attestations(probe_versions=False)
+    selected = next(item for item in attestations if item["provider_code"] == "openai")
+    selected.update({"binary": str(binary), "binary_sha256": deployment.exact_sha256(binary), "installed": True})
+    installed = {item["official_cli"]: item["binary"] for item in attestations}
+    monkeypatch.setattr("lattice.runtime_attestation.shutil.which", lambda executable: installed[executable])
+    binary.write_bytes(b"different bytes")
+
+    with pytest.raises(ValueError, match="executable changed"):
+        verify_provider_attestation_freshness(attestations)
 
 
 @pytest.mark.regression
@@ -703,12 +728,12 @@ def test_negative_control_runtime_manifest_rejects_incomplete_generated_source(t
     python = target / ".venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
     python.symlink_to(Path(__import__("sys").executable))
-    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}], "model_runner": [{"path": "process.py", "sha256": "d" * 64, "byte_count": 1}]}
-    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=[], module_locations={"lattice": "/runtime/lattice", "model_runner": "/runtime/model-runner"}, source_trees=source_trees)
+    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}]}
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, packages=[], module_locations={"lattice": "/runtime/lattice"}, source_trees=source_trees, provider_attestations=deployment.provider_runtime_attestations(probe_versions=False))
     del manifest["generated_object"]["sources"][0]["sha256"]
 
     with pytest.raises(RuntimeError, match="provenance"):
-        deployment._validate_runtime_manifest(manifest, target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
+        deployment._validate_runtime_manifest(manifest, target=target, runtime_id="test-runtime", lattice_revision="a" * 40)
 
 
 @pytest.mark.regression
@@ -717,12 +742,12 @@ def test_negative_control_runtime_manifest_rejects_missing_package_attestation(t
     python = target / ".venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
     python.symlink_to(Path(__import__("sys").executable))
-    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}], "model_runner": [{"path": "process.py", "sha256": "d" * 64, "byte_count": 1}]}
-    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40, packages=[], module_locations={"lattice": "/runtime/lattice", "model_runner": "/runtime/model-runner"}, source_trees=source_trees)
-    del manifest["source_trees"]["model_runner"]
+    source_trees = {"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}]}
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40, packages=[], module_locations={"lattice": "/runtime/lattice"}, source_trees=source_trees, provider_attestations=deployment.provider_runtime_attestations(probe_versions=False))
+    del manifest["source_trees"]["lattice"]
 
     with pytest.raises(RuntimeError, match="source-tree attestation is malformed"):
-        deployment._validate_runtime_manifest(manifest, target=target, runtime_id="test-runtime", lattice_revision="a" * 40, runner_revision="b" * 40)
+        deployment._validate_runtime_manifest(manifest, target=target, runtime_id="test-runtime", lattice_revision="a" * 40)
 
 
 @pytest.mark.regression

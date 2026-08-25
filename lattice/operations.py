@@ -16,8 +16,10 @@ from .contracts import (
     DirectActorBinding,
     DraftCreate,
     EdgeRelation,
+    ExecutionSubmissionV1,
     InvocationBatchCreateV1,
     InvocationBatchPreviewV1,
+    InvocationSpecV1,
     ProviderRoute,
     TagRequest,
 )
@@ -33,6 +35,48 @@ class Lattice:
 
     def invoke(self, value: DraftCreate) -> dict[str, Any]:
         return self.store.create_draft(value)
+
+    def seal_execution_submission(self, value: ExecutionSubmissionV1) -> dict[str, Any]:
+        """Resolve a caller identity and seal its singleton graph before dispatch."""
+
+        request = value.model_dump(mode="json")
+        request_sha = sha256_json(request)
+        operation = self.store.reserve_external_submission(request, request_sha)
+        if operation.get("invocation_id") is not None:
+            return operation
+        selections = [
+            ContextSelection(
+                block_id=block_id,
+                disposition="selected",
+                plane="knowledge",
+                label=f"external-context-{ordinal}",
+            )
+            for ordinal, block_id in enumerate(value.context_block_ids)
+        ]
+        assembly = ContextAssemblyV1(
+            project_id=operation["project_id"],
+            actor_binding=DirectActorBinding(),
+            prompt=value.prompt,
+            selections=selections,
+            parent_invocation_ids=value.parent_invocation_ids,
+            response_schema=value.output_contract.model_dump(mode="json"),
+        )
+        batch_identity = sha256_json({"external_project_key": value.external_project_key, "operation_key": value.operation_key, "request_sha256": request_sha})
+        batch_id = f"batch_{batch_identity[:32]}"
+        preview_request = InvocationBatchPreviewV1(
+            batch_id=batch_id,
+            specifications=[InvocationSpecV1(spec_id="direct", assembly=assembly, route=value.route)],
+        )
+        preview = self.preview_invocation_batch(preview_request)
+        receipt = self.create_invocation_batch(InvocationBatchCreateV1(
+            batch_id=batch_id,
+            specifications=preview_request.specifications,
+            idempotency_key=f"external:{batch_identity}",
+            expected_preview_sha256=preview["preview_sha256"],
+            confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
+        ))
+        invocation_id = receipt["invocation_ids"][0]
+        return self.store.bind_external_submission(value.external_project_key, value.operation_key, invocation_id)
 
     @staticmethod
     def _batch_prompt_block(assembly: ContextAssemblyV1) -> tuple[str, dict[str, Any], bytes]:

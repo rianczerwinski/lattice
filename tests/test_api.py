@@ -67,7 +67,7 @@ def test_negative_control_provider_process_probe_requires_operator_authority(mon
         calls.append(probe_versions)
         return []
 
-    monkeypatch.setattr("axis_model_runner.installed_adapter_status", fake_status)
+    monkeypatch.setattr("lattice.execution.installed_adapter_status", fake_status)
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
         denied_get = client.get("/api/v1/routes?probe=true")
@@ -153,6 +153,23 @@ def test_operator_token_rejects_a_symlink_even_when_its_target_has_safe_permissi
 
     with pytest.raises(PermissionError, match="non-symlink"):
         ensure_cli_token(link)
+
+
+@pytest.mark.contract
+def test_content_addressed_blob_endpoint_returns_exact_authenticated_bytes(lattice_env) -> None:
+    content = b"exact raw provider bytes\x00\xff"
+    digest = lattice_env["store"].blobs.put(content)
+    token = ensure_cli_token(lattice_env["config"].operator_token)
+    app = create_app(lattice_env["config"])
+    with TestClient(app) as client:
+        denied = client.get(f"/api/v1/blobs/{digest}")
+        accepted = client.get(f"/api/v1/blobs/{digest}", headers={"authorization": f"Bearer {token}"})
+        malformed = client.get("/api/v1/blobs/not-a-digest", headers={"authorization": f"Bearer {token}"})
+
+    assert denied.status_code == 403
+    assert accepted.status_code == 200
+    assert accepted.content == content
+    assert malformed.status_code == 422
 
 
 @pytest.mark.concurrency

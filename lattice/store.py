@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from axis_model_runner import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_execution_policy
+from .execution import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_execution_policy
 
 from .blob_store import BlobStore
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, stamp
@@ -34,7 +34,7 @@ from .contracts import (
     EpisodeCreate,
     EpisodeMemberCreate,
     InvocationState,
-    model_runner_policy,
+    execution_policy,
     ProjectCreate,
     RoleCreate,
     RolePinCreate,
@@ -48,7 +48,7 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 12
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
 
@@ -339,6 +339,79 @@ CREATE TABLE IF NOT EXISTS artifacts(
     created_at TEXT NOT NULL
 ) STRICT;
 
+CREATE TABLE IF NOT EXISTS provider_profiles(
+    profile_id TEXT PRIMARY KEY,
+    provider_code TEXT NOT NULL,
+    harness TEXT NOT NULL,
+    model_code TEXT NOT NULL,
+    definition_json TEXT NOT NULL CHECK(json_valid(definition_json)),
+    definition_sha256 TEXT NOT NULL CHECK(length(definition_sha256)=64),
+    created_at TEXT NOT NULL
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS provider_profiles_no_update BEFORE UPDATE ON provider_profiles
+BEGIN SELECT RAISE(ABORT, 'referenced provider profiles are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS provider_profiles_no_delete BEFORE DELETE ON provider_profiles
+BEGIN SELECT RAISE(ABORT, 'referenced provider profiles are immutable'); END;
+
+CREATE TABLE IF NOT EXISTS provider_qualifications(
+    qualification_id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL REFERENCES provider_profiles(profile_id),
+    binary_sha256 TEXT NOT NULL CHECK(length(binary_sha256)=64),
+    receipt_json TEXT NOT NULL CHECK(json_valid(receipt_json)),
+    receipt_sha256 TEXT NOT NULL CHECK(length(receipt_sha256)=64),
+    state TEXT NOT NULL CHECK(state IN ('passed','failed')),
+    created_at TEXT NOT NULL
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS provider_qualifications_no_update BEFORE UPDATE ON provider_qualifications
+BEGIN SELECT RAISE(ABORT, 'provider qualifications are immutable receipts'); END;
+CREATE TRIGGER IF NOT EXISTS provider_qualifications_no_delete BEFORE DELETE ON provider_qualifications
+BEGIN SELECT RAISE(ABORT, 'provider qualifications are immutable receipts'); END;
+
+CREATE TABLE IF NOT EXISTS external_projects(
+    external_project_key TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL UNIQUE REFERENCES projects(project_id),
+    created_at TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS external_operations(
+    external_project_key TEXT NOT NULL REFERENCES external_projects(external_project_key),
+    operation_key TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    request_sha256 TEXT NOT NULL CHECK(length(request_sha256)=64),
+    request_json TEXT NOT NULL CHECK(json_valid(request_json)),
+    actor TEXT NOT NULL,
+    workflow_role TEXT,
+    state TEXT NOT NULL CHECK(state IN ('reserved','sealed','dispatched','terminal')),
+    invocation_id TEXT UNIQUE REFERENCES invocations(invocation_id),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(external_project_key,operation_key)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS historical_execution_imports(
+    import_id TEXT PRIMARY KEY,
+    external_project_key TEXT NOT NULL REFERENCES external_projects(external_project_key),
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    operation_key TEXT NOT NULL,
+    source_ref TEXT NOT NULL,
+    source_census_sha256 TEXT NOT NULL CHECK(length(source_census_sha256)=64),
+    census_json TEXT NOT NULL CHECK(json_valid(census_json)),
+    request_sha256 TEXT NOT NULL CHECK(length(request_sha256)=64),
+    provider TEXT,
+    model TEXT,
+    original_invocation_id TEXT,
+    terminal_state TEXT,
+    imported_at TEXT NOT NULL,
+    UNIQUE(external_project_key,operation_key)
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS historical_execution_imports_no_update BEFORE UPDATE ON historical_execution_imports
+BEGIN SELECT RAISE(ABORT, 'historical execution imports are immutable receipts'); END;
+CREATE TRIGGER IF NOT EXISTS historical_execution_imports_no_delete BEFORE DELETE ON historical_execution_imports
+BEGIN SELECT RAISE(ABORT, 'historical execution imports are immutable receipts'); END;
+
 CREATE TABLE IF NOT EXISTS workflow_commands(
     command_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(project_id),
@@ -470,6 +543,7 @@ CHANGE_TABLES = (
     "projects", "context_blocks", "block_status", "roles", "role_sessions", "drafts", "invocations", "edges",
     "invocation_batches", "invocation_batch_members", "attempts", "leases", "native_session_leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
     "workflow_triggers", "role_context_defaults", "project_context_defaults", "conversation_imports", "conversation_import_turns",
+    "provider_profiles", "provider_qualifications", "external_projects", "external_operations", "historical_execution_imports",
 )
 
 
@@ -630,8 +704,65 @@ class LatticeStore:
                 # block so replay resolves to the migrated truth.
                 self._baseline_tables(conn, ("context_blocks",))
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(10,?)", (stamp(),))
+            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(11,?)", (stamp(),))
+            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(12,?)", (stamp(),))
+            self._register_provider_profiles(conn)
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
+
+    @staticmethod
+    def _register_provider_profiles(conn: sqlite3.Connection) -> None:
+        """Materialize every admitted model binding once and reject definition drift."""
+
+        for base in DEFAULT_ADAPTERS:
+            for model in base.supported_models or (base.model_code,):
+                profile = base.select_model(model)
+                definition = profile.definition()
+                encoded = canonical_bytes(definition)
+                digest = sha256_bytes(encoded)
+                existing = conn.execute(
+                    "SELECT definition_sha256,definition_json FROM provider_profiles WHERE profile_id=?",
+                    (profile.profile_id,),
+                ).fetchone()
+                if existing is not None:
+                    if existing["definition_sha256"] != digest or existing["definition_json"].encode("utf-8") != encoded:
+                        raise OSError(f"immutable provider profile definition drifted: {profile.profile_id}")
+                    continue
+                conn.execute(
+                    """INSERT INTO provider_profiles(profile_id,provider_code,harness,model_code,definition_json,definition_sha256,created_at)
+                       VALUES(?,?,?,?,?,?,?)""",
+                    (profile.profile_id, profile.provider_code, profile.harness, profile.model_code, encoded.decode("utf-8"), digest, stamp()),
+                )
+
+    def record_provider_qualification(self, profile_id: str, binary_sha256: str, receipt: dict[str, Any], *, state: str) -> dict[str, Any]:
+        """Append one exact capability-probe receipt for an immutable provider profile."""
+
+        if state not in {"passed", "failed"}:
+            raise ValueError("provider qualification state must be passed or failed")
+        encoded = canonical_bytes(receipt)
+        receipt_sha256 = sha256_bytes(encoded)
+        qualification_id = f"qualification_{sha256_bytes(canonical_bytes([profile_id, binary_sha256, receipt_sha256, state]))[:32]}"
+        with self.transaction() as conn:
+            if conn.execute("SELECT 1 FROM provider_profiles WHERE profile_id=?", (profile_id,)).fetchone() is None:
+                raise LatticeNotFound(profile_id)
+            existing = conn.execute("SELECT * FROM provider_qualifications WHERE qualification_id=?", (qualification_id,)).fetchone()
+            if existing is None:
+                conn.execute(
+                    "INSERT INTO provider_qualifications(qualification_id,profile_id,binary_sha256,receipt_json,receipt_sha256,state,created_at) VALUES(?,?,?,?,?,?,?)",
+                    (qualification_id, profile_id, binary_sha256, encoded.decode("utf-8"), receipt_sha256, state, stamp()),
+                )
+        return self.get_provider_qualification(qualification_id)
+
+    def get_provider_qualification(self, qualification_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute("SELECT * FROM provider_qualifications WHERE qualification_id=?", (qualification_id,)).fetchone(), qualification_id)
+        row["receipt"] = json.loads(row.pop("receipt_json"))
+        return row
+
+    def latest_provider_qualification(self, profile_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT qualification_id FROM provider_qualifications WHERE profile_id=? ORDER BY created_at DESC,qualification_id DESC LIMIT 1", (profile_id,)).fetchone()
+        return self.get_provider_qualification(row["qualification_id"]) if row else None
 
     def _migrate_actor_bindings(self, conn: sqlite3.Connection) -> None:
         """Atomically add direct actors without rewriting any sealed manifest bytes."""
@@ -1027,6 +1158,7 @@ class LatticeStore:
         route: dict[str, Any],
         parent_invocation_ids: list[str] | tuple[str, ...] = (),
     ) -> dict[str, Any]:
+        role = None
         if actor_kind == "direct":
             if role_session_id is not None:
                 raise LatticeConflict("direct actor bindings cannot carry a role session")
@@ -1045,10 +1177,14 @@ class LatticeStore:
                     raise LatticeConflict(f"{role['name']} does not authorize model {route['model']}")
         else:
             raise LatticeConflict(f"unsupported actor binding: {actor_kind}")
+        normalized = dict(route)
+        if normalized.get("route_kind", "execution") == "historical-import":
+            if role is None or "read-only historical import" not in role["authority_limits"]:
+                raise LatticeConflict("historical routes are reserved for the read-only conversation importer")
+            return normalized
         adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
         if adapter is None:
             raise LatticeConflict("provider and official CLI route are not qualified together")
-        normalized = dict(route)
         execution_profile = normalized.get("execution_profile", "native-continuation" if normalized.get("session_policy") == "visible_native_continuation" else "compiled-fresh")
         native_parent = None
         if execution_profile == "native-continuation":
@@ -1069,7 +1205,7 @@ class LatticeStore:
                 raise LatticeConflict("caller-supplied native session identity disagrees with the parent receipt")
             normalized["native_session_id"] = observed_session_id
         try:
-            effective_policy = validate_execution_policy(adapter, **model_runner_policy(normalized))
+            effective_policy = validate_execution_policy(adapter, **execution_policy(normalized))
         except SubscriptionRouteUnavailable as error:
             raise LatticeConflict(str(error)) from error
         for key in ("execution_profile", "session_policy", "continuation_mode", "native_session_id", "tools", "permissions", "workspace", "sandbox", "approval_policy", "network_policy"):
@@ -1157,6 +1293,176 @@ class LatticeStore:
             # size in the project view; retrieve private bytes only on inspection.
             project["workflow"]["blackboard"] = self.get_block(blackboard_id, include_content=False)
         return project
+
+    def reserve_external_submission(self, request: dict[str, Any], request_sha256: str) -> dict[str, Any]:
+        """Reserve one external operation before any provider-visible action occurs."""
+
+        external_key = request["external_project_key"]
+        operation_key = request["operation_key"]
+        idempotency_key = request["idempotency_key"]
+        encoded = canonical_bytes(request).decode("utf-8")
+        now = stamp()
+        with self.transaction() as conn:
+            existing = conn.execute(
+                "SELECT * FROM external_operations WHERE external_project_key=? AND operation_key=?",
+                (external_key, operation_key),
+            ).fetchone()
+            same_idempotency = conn.execute(
+                "SELECT external_project_key,operation_key,request_sha256 FROM external_operations WHERE idempotency_key=?",
+                (idempotency_key,),
+            ).fetchone()
+            if existing is not None:
+                if existing["request_sha256"] != request_sha256 or existing["request_json"] != encoded or existing["idempotency_key"] != idempotency_key:
+                    raise LatticeConflict("external operation key was reused with different bytes")
+                mapping = self._row(conn.execute("SELECT project_id FROM external_projects WHERE external_project_key=?", (external_key,)).fetchone(), external_key)
+                result = dict(existing)
+                result["project_id"] = mapping["project_id"]
+                result["request"] = json.loads(result.pop("request_json"))
+                return result
+            if same_idempotency is not None:
+                raise LatticeConflict("external idempotency key was reused for another operation")
+            mapping = conn.execute(
+                "SELECT project_id FROM external_projects WHERE external_project_key=?",
+                (external_key,),
+            ).fetchone()
+            if mapping is None:
+                project_id = opaque_id("project")
+                conn.execute(
+                    "INSERT INTO projects(project_id,title,purpose,workflow_pack,created_at) VALUES(?,?,?,NULL,?)",
+                    (project_id, external_key, f"Lattice execution project for {external_key}", now),
+                )
+                self._event(conn, project_id=project_id, event_type="project.created", subject_type="project", subject_id=project_id, payload={"title": external_key, "purpose": f"Lattice execution project for {external_key}", "workflow_pack": None, "external_project_key": external_key})
+                conn.execute(
+                    "INSERT INTO external_projects(external_project_key,project_id,created_at) VALUES(?,?,?)",
+                    (external_key, project_id, now),
+                )
+            else:
+                project_id = mapping["project_id"]
+            conn.execute(
+                """INSERT INTO external_operations(external_project_key,operation_key,idempotency_key,request_sha256,request_json,actor,workflow_role,state,created_at,updated_at)
+                   VALUES(?,?,?,?,?,?,?,'reserved',?,?)""",
+                (external_key, operation_key, idempotency_key, request_sha256, encoded, request["actor"], request.get("workflow_role"), now, now),
+            )
+            self._event(conn, project_id=project_id, event_type="execution-submission.reserved", subject_type="external-operation", subject_id=f"{external_key}:{operation_key}", payload={"request_sha256": request_sha256, "actor": request["actor"], "workflow_role": request.get("workflow_role")})
+        return self.get_external_submission(external_key, operation_key)
+
+    def import_historical_execution(self, request: dict[str, Any], request_sha256: str) -> dict[str, Any]:
+        """Register an immutable file census without rewriting the historical journal bytes."""
+
+        external_key = request["external_project_key"]
+        operation_key = request["operation_key"]
+        census_json = canonical_bytes(request["files"]).decode("utf-8")
+        now = stamp()
+        with self.transaction() as conn:
+            existing = conn.execute(
+                "SELECT * FROM historical_execution_imports WHERE external_project_key=? AND operation_key=?",
+                (external_key, operation_key),
+            ).fetchone()
+            if existing is not None:
+                if existing["request_sha256"] != request_sha256 or existing["census_json"] != census_json:
+                    raise LatticeConflict("historical execution operation key was reused with different bytes")
+                return dict(existing)
+            mapping = conn.execute("SELECT project_id FROM external_projects WHERE external_project_key=?", (external_key,)).fetchone()
+            if mapping is None:
+                project_id = opaque_id("project")
+                purpose = f"Lattice execution project for {external_key}"
+                conn.execute(
+                    "INSERT INTO projects(project_id,title,purpose,workflow_pack,created_at) VALUES(?,?,?,NULL,?)",
+                    (project_id, external_key, purpose, now),
+                )
+                self._event(conn, project_id=project_id, event_type="project.created", subject_type="project", subject_id=project_id, payload={"title": external_key, "purpose": purpose, "workflow_pack": None, "external_project_key": external_key})
+                conn.execute("INSERT INTO external_projects(external_project_key,project_id,created_at) VALUES(?,?,?)", (external_key, project_id, now))
+            else:
+                project_id = mapping["project_id"]
+            import_id = opaque_id("historical_execution")
+            conn.execute(
+                """INSERT INTO historical_execution_imports(import_id,external_project_key,project_id,operation_key,source_ref,source_census_sha256,census_json,request_sha256,provider,model,original_invocation_id,terminal_state,imported_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (import_id, external_key, project_id, operation_key, request["source_ref"], request["source_census_sha256"], census_json, request_sha256, request.get("provider"), request.get("model"), request.get("original_invocation_id"), request.get("terminal_state"), now),
+            )
+            self._event(conn, project_id=project_id, event_type="historical-execution.imported", subject_type="historical-execution", subject_id=import_id, payload={"external_project_key": external_key, "operation_key": operation_key, "source_ref": request["source_ref"], "source_census_sha256": request["source_census_sha256"], "file_count": len(request["files"])})
+        return self.get_historical_execution_import(external_key, operation_key)
+
+    def get_historical_execution_import(self, external_project_key: str, operation_key: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute(
+                "SELECT * FROM historical_execution_imports WHERE external_project_key=? AND operation_key=?",
+                (external_project_key, operation_key),
+            ).fetchone(), f"{external_project_key}:{operation_key}")
+        row["files"] = json.loads(row.pop("census_json"))
+        return row
+
+    def bind_external_submission(self, external_project_key: str, operation_key: str, invocation_id: str) -> dict[str, Any]:
+        """Bind the reserved external identity before dispatch, idempotently."""
+
+        with self.transaction() as conn:
+            row = self._row(conn.execute(
+                """SELECT o.*,p.project_id FROM external_operations o JOIN external_projects p USING(external_project_key)
+                   WHERE o.external_project_key=? AND o.operation_key=?""",
+                (external_project_key, operation_key),
+            ).fetchone(), f"{external_project_key}:{operation_key}")
+            invocation = self._row(conn.execute("SELECT project_id FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
+            if invocation["project_id"] != row["project_id"]:
+                raise LatticeConflict("external operation invocation belongs to another project")
+            if row["invocation_id"] is not None and row["invocation_id"] != invocation_id:
+                raise LatticeConflict("external operation is already bound to another invocation")
+            if row["invocation_id"] is None:
+                now = stamp()
+                conn.execute(
+                    "UPDATE external_operations SET invocation_id=?,state='sealed',updated_at=? WHERE external_project_key=? AND operation_key=? AND state='reserved'",
+                    (invocation_id, now, external_project_key, operation_key),
+                )
+                self._event(conn, project_id=row["project_id"], event_type="execution-submission.sealed", subject_type="external-operation", subject_id=f"{external_project_key}:{operation_key}", payload={"invocation_id": invocation_id})
+        return self.get_external_submission(external_project_key, operation_key)
+
+    def mark_external_submission_dispatched(self, external_project_key: str, operation_key: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            row = self._row(conn.execute(
+                """SELECT o.*,p.project_id FROM external_operations o JOIN external_projects p USING(external_project_key)
+                   WHERE o.external_project_key=? AND o.operation_key=?""",
+                (external_project_key, operation_key),
+            ).fetchone(), f"{external_project_key}:{operation_key}")
+            if row["state"] == "sealed":
+                conn.execute("UPDATE external_operations SET state='dispatched',updated_at=? WHERE external_project_key=? AND operation_key=?", (stamp(), external_project_key, operation_key))
+            elif row["state"] not in {"dispatched", "terminal"}:
+                raise LatticeConflict("external operation is not sealed for dispatch")
+        return self.get_external_submission(external_project_key, operation_key)
+
+    def get_external_submission(self, external_project_key: str, operation_key: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute(
+                """SELECT o.*,p.project_id FROM external_operations o JOIN external_projects p USING(external_project_key)
+                   WHERE o.external_project_key=? AND o.operation_key=?""",
+                (external_project_key, operation_key),
+            ).fetchone(), f"{external_project_key}:{operation_key}")
+        row["request"] = json.loads(row.pop("request_json"))
+        return row
+
+    def external_execution_result(self, external_project_key: str, operation_key: str) -> dict[str, Any]:
+        operation = self.get_external_submission(external_project_key, operation_key)
+        invocation_id = operation.get("invocation_id")
+        if invocation_id is None:
+            return {**operation, "invocation": None, "attempt": None, "artifacts": []}
+        invocation = self.get_invocation(invocation_id)
+        attempt = invocation["attempts"][-1] if invocation["attempts"] else None
+        with self._connect() as conn:
+            artifacts = [dict(row) for row in conn.execute(
+                """SELECT a.artifact_id,a.content_sha256,a.generated_json FROM artifacts a JOIN edges e
+                   ON e.target_type='artifact' AND e.target_id=a.artifact_id
+                   WHERE e.source_type='invocation' AND e.source_id=? AND e.relation='produced'
+                   ORDER BY a.created_at,a.artifact_id""",
+                (invocation_id,),
+            )]
+        for artifact in artifacts:
+            artifact["generated"] = json.loads(artifact.pop("generated_json"))
+        return {**operation, "invocation": invocation, "attempt": attempt, "artifacts": artifacts}
+
+    def _terminalize_external_operation(self, conn: sqlite3.Connection, *, invocation_id: str, project_id: str, terminal_kind: str, now: str) -> None:
+        operation = conn.execute("SELECT external_project_key,operation_key FROM external_operations WHERE invocation_id=? AND state<>'terminal'", (invocation_id,)).fetchone()
+        if operation is None:
+            return
+        conn.execute("UPDATE external_operations SET state='terminal',updated_at=? WHERE invocation_id=?", (now, invocation_id))
+        self._event(conn, project_id=project_id, event_type="execution-submission.terminal", subject_type="external-operation", subject_id=f"{operation['external_project_key']}:{operation['operation_key']}", payload={"invocation_id": invocation_id, "terminal_kind": terminal_kind})
 
     def project_enduring_graph(self, project_id: str) -> dict[str, Any]:
         """Return the bounded enduring identities Axial may mirror from Lattice."""
@@ -2006,6 +2312,7 @@ class LatticeStore:
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             conn.execute("UPDATE native_session_leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             conn.execute("UPDATE invocations SET state='succeeded',output_block_id=?,terminal_kind='succeeded',completed_at=? WHERE invocation_id=?", (block_id, now, attempt["invocation_id"]))
+            self._terminalize_external_operation(conn, invocation_id=attempt["invocation_id"], project_id=attempt["project_id"], terminal_kind="succeeded", now=now)
             completed_triggers = conn.execute("UPDATE workflow_triggers SET state='completed',error_text=NULL,completed_at=? WHERE result_ref=? AND state IN ('planned','execution_failed')", (now, attempt["invocation_id"])).rowcount
             self._event(conn, project_id=attempt["project_id"], event_type="attempt.succeeded", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": block_id, "artifact_ids": [item[1] for item in prepared_artifacts]})
             if completed_triggers:
@@ -2208,6 +2515,7 @@ class LatticeStore:
             conn.execute("UPDATE native_session_leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             invocation_state = InvocationState.succeeded if state == AttemptState.succeeded else InvocationState.interrupted if state in {AttemptState.interrupted, AttemptState.orphaned} else InvocationState.failed
             conn.execute("UPDATE invocations SET state=?,output_block_id=COALESCE(?,output_block_id),terminal_kind=?,completed_at=? WHERE invocation_id=?", (invocation_state.value, output_block_id, failure_kind or state.value, now, attempt["invocation_id"]))
+            self._terminalize_external_operation(conn, invocation_id=attempt["invocation_id"], project_id=attempt["project_id"], terminal_kind=failure_kind or state.value, now=now)
             failed_triggers = conn.execute("UPDATE workflow_triggers SET state='execution_failed',error_text=?,completed_at=NULL WHERE result_ref=? AND state='planned'", (error_text or failure_kind or state.value, attempt["invocation_id"])).rowcount
             self._event(conn, project_id=attempt["project_id"], event_type=f"attempt.{state.value}", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": output_block_id, "failure_kind": failure_kind})
             if failed_triggers:

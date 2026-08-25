@@ -211,6 +211,9 @@ class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
         session_cookie = request.cookies.get("lattice_operator")
         if request.url.path == "/api/session" and not bearer_ok and self.sessions.csrf_for(session_cookie) is None:
             return Response("operator authority required", status_code=403)
+        sensitive_read = request.url.path == "/api/v1/executions" or request.url.path.startswith(("/api/v1/artifacts/", "/api/v1/blobs/"))
+        if request.method in SAFE_METHODS and sensitive_read and not bearer_ok and self.sessions.csrf_for(session_cookie) is None:
+            return Response("operator authority required", status_code=403)
         if request.method not in SAFE_METHODS and request.url.path.startswith("/api/") and request.url.path != "/api/session/redeem":
             origin = request.headers.get("origin")
             if origin is not None and origin.rstrip("/") not in self.allowed_origins:

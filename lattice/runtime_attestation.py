@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 from pathlib import Path
 from typing import Iterable
 
@@ -57,8 +58,8 @@ def mapped_inventory(mappings: Iterable[tuple[Path, str]]) -> list[dict[str, str
 
 
 def validate_tree_set(value: object) -> dict[str, list[dict[str, str | int]]]:
-    if not isinstance(value, dict) or set(value) != {"lattice", "model_runner"}:
-        raise ValueError("runtime source-tree attestation requires lattice and model_runner inventories")
+    if not isinstance(value, dict) or set(value) != {"lattice"}:
+        raise ValueError("runtime source-tree attestation requires exactly the Lattice package inventory")
     validated: dict[str, list[dict[str, str | int]]] = {}
     for name, inventory in value.items():
         if not isinstance(inventory, list) or not inventory:
@@ -81,3 +82,54 @@ def validate_tree_set(value: object) -> dict[str, list[dict[str, str | int]]]:
             raise ValueError(f"runtime source-tree inventory is not canonically ordered for {name}")
         validated[name] = inventory
     return validated
+
+
+def validate_provider_attestations(value: object) -> list[dict]:
+    """Validate exact provider profiles and their observed subscription-CLI bindings."""
+
+    from .execution import DEFAULT_ADAPTERS
+
+    if not isinstance(value, list) or len(value) != len(DEFAULT_ADAPTERS):
+        raise ValueError("runtime provider attestation set is incomplete")
+    expected = {profile.provider_code: profile.definition() for profile in DEFAULT_ADAPTERS}
+    seen: set[str] = set()
+    status_keys = {"model_code", "binary", "binary_sha256", "installed", "qualified", "operational", "version", "control_surface_qualified", "control_surface_detail"}
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError("runtime provider attestation is malformed")
+        provider = item.get("provider_code")
+        if provider not in expected or provider in seen:
+            raise ValueError("runtime provider attestation identity is invalid")
+        definition = expected[provider]
+        if {key: item.get(key) for key in definition} != definition or set(item) != set(definition) | status_keys:
+            raise ValueError(f"runtime provider profile disagrees with source: {provider}")
+        binary = item["binary"]
+        digest = item["binary_sha256"]
+        if not isinstance(item["installed"], bool) or not isinstance(item["qualified"], bool):
+            raise ValueError(f"runtime provider status is malformed: {provider}")
+        if item["installed"]:
+            if not isinstance(binary, str) or not Path(binary).is_absolute() or not isinstance(digest, str) or len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+                raise ValueError(f"runtime provider binary attestation is malformed: {provider}")
+        elif binary is not None or digest is not None:
+            raise ValueError(f"uninstalled runtime provider claims binary evidence: {provider}")
+        if item["operational"] not in {True, False, None} or item["control_surface_qualified"] not in {True, False, None}:
+            raise ValueError(f"runtime provider qualification state is malformed: {provider}")
+        if item["version"] is not None and not isinstance(item["version"], str):
+            raise ValueError(f"runtime provider version is malformed: {provider}")
+        if item["control_surface_detail"] is not None and not isinstance(item["control_surface_detail"], str):
+            raise ValueError(f"runtime provider qualification detail is malformed: {provider}")
+        seen.add(provider)
+    return value
+
+
+def verify_provider_attestation_freshness(value: object) -> list[dict]:
+    """Reject a runtime whose effective provider executable changed after qualification."""
+
+    attestations = validate_provider_attestations(value)
+    for item in attestations:
+        current = shutil.which(item["official_cli"])
+        if current != item["binary"]:
+            raise ValueError(f"runtime provider entrypoint changed after qualification: {item['provider_code']}")
+        if current is not None and _digest(Path(current))[0] != item["binary_sha256"]:
+            raise ValueError(f"runtime provider executable changed after qualification: {item['provider_code']}")
+    return attestations

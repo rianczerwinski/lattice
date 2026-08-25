@@ -17,16 +17,17 @@ from pathlib import Path
 from typing import Any
 
 import uvicorn
-import axis_model_runner as model_runner_package
 import lattice as lattice_package
-from axis_model_runner import installed_adapter_status
+from .execution import installed_adapter_status
 
 from .canonical import canonical_bytes, strict_json_loads
+from .client import LatticeClient
+from .contracts import ExecutionSubmissionV1, HistoricalExecutionImportV1
 from .__about__ import __version__
 from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
 from .outport import OutportService, outport_executable, resolve_lattice_service
-from .runtime_attestation import tree_inventory, validate_tree_set
+from .runtime_attestation import tree_inventory, validate_tree_set, verify_provider_attestation_freshness
 from .security import ensure_cli_token
 from .server import create_app
 from .snapshot import create_snapshot, restore_snapshot
@@ -147,11 +148,11 @@ def _runtime_status() -> dict[str, Any]:
         manifest = strict_json_loads(raw)
     except (OSError, ValueError, UnicodeDecodeError) as error:
         raise RuntimeError(f"installed runtime manifest is unreadable: {manifest_path}") from error
-    if not isinstance(manifest, dict) or canonical_bytes(manifest) != raw or set(manifest) != {"generated_object", "contract_version", "runtime_id", "python", "packages", "module_locations", "source_trees"}:
-        raise RuntimeError("installed runtime manifest is not exact canonical LatticeInstalledRuntime/2.0 JSON")
+    if not isinstance(manifest, dict) or canonical_bytes(manifest) != raw or set(manifest) != {"generated_object", "contract_version", "runtime_id", "python", "packages", "module_locations", "source_trees", "provider_attestations"}:
+        raise RuntimeError("installed runtime manifest is not exact canonical LatticeInstalledRuntime/4.0 JSON")
     envelope = manifest.get("generated_object")
     required = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
-    if not isinstance(envelope, dict) or set(envelope) != required or envelope.get("contract_version") != 1 or envelope.get("role") != "canonical" or envelope.get("kind") != "lattice-installed-runtime" or envelope.get("schema") != {"name": "lattice-installed-runtime", "version": 2} or envelope.get("producer") != {"name": "lattice-installer", "version": "2.0.0"}:
+    if not isinstance(envelope, dict) or set(envelope) != required or envelope.get("contract_version") != 1 or envelope.get("role") != "canonical" or envelope.get("kind") != "lattice-installed-runtime" or envelope.get("schema") != {"name": "lattice-installed-runtime", "version": 4} or envelope.get("producer") != {"name": "lattice-installer", "version": "4.0.0"}:
         raise RuntimeError("installed runtime generated-object envelope is invalid")
     artifact_id = envelope.get("artifact_id")
     try:
@@ -161,23 +162,27 @@ def _runtime_status() -> dict[str, Any]:
     if artifact_id != f"artifact:{artifact_uuid}" or envelope.get("subject") != f"lattice:installed-runtime:{runtime_root.name}":
         raise RuntimeError("installed runtime artifact does not describe the selected generation")
     sources = envelope.get("sources")
-    if not isinstance(sources, list) or len(sources) < 4:
+    if not isinstance(sources, list) or len(sources) != 2:
         raise RuntimeError("installed runtime lacks exact source provenance")
     for source in sources:
         if not isinstance(source, dict) or set(source) != {"ref", "revision", "sha256"} or not isinstance(source["ref"], str) or not source["ref"] or source["revision"] is None and source["sha256"] is None:
             raise RuntimeError("installed runtime carries a malformed source binding")
     locations = manifest.get("module_locations")
-    actual_locations = {"lattice": str(Path(lattice_package.__file__).resolve()), "model_runner": str(Path(model_runner_package.__file__).resolve())}
-    if manifest.get("contract_version") != "LatticeInstalledRuntime/2.0" or manifest.get("runtime_id") != runtime_root.name or manifest.get("python") != str(executable) or locations != actual_locations:
+    actual_locations = {"lattice": str(Path(lattice_package.__file__).resolve())}
+    if manifest.get("contract_version") != "LatticeInstalledRuntime/4.0" or manifest.get("runtime_id") != runtime_root.name or manifest.get("python") != str(executable) or locations != actual_locations:
         raise RuntimeError("installed runtime manifest disagrees with the executing environment")
     try:
         expected_trees = validate_tree_set(manifest.get("source_trees"))
     except ValueError as error:
         raise RuntimeError("installed runtime source-tree attestation is malformed") from error
-    actual_trees = {"lattice": tree_inventory(Path(lattice_package.__file__).resolve().parent), "model_runner": tree_inventory(Path(model_runner_package.__file__).resolve().parent)}
+    actual_trees = {"lattice": tree_inventory(Path(lattice_package.__file__).resolve().parent)}
     if actual_trees != expected_trees:
         raise RuntimeError("installed runtime application bytes disagree with its source-tree attestation")
-    return {"version": _version(), "runtime_id": runtime_root.name, "artifact_id": artifact_id, "executable": str(executable), "module": str(module), "editable": False}
+    try:
+        provider_attestations = verify_provider_attestation_freshness(manifest.get("provider_attestations"))
+    except ValueError as error:
+        raise RuntimeError(str(error)) from error
+    return {"version": _version(), "runtime_id": runtime_root.name, "artifact_id": artifact_id, "executable": str(executable), "module": str(module), "editable": False, "provider_profiles": {item["provider_code"]: item["profile_id"] for item in provider_attestations}}
 
 
 def _adapter_status(service: OutportService | None = None, cli_token: str | None = None) -> dict[str, Any]:
@@ -296,6 +301,57 @@ def command_restore(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_invoke(args: argparse.Namespace) -> int:
+    path = Path(args.request).expanduser()
+    raw = path.read_bytes()
+    try:
+        payload = strict_json_loads(raw)
+    except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError(f"execution request is not exact JSON: {error}") from error
+    if not isinstance(payload, dict):
+        raise ValueError("execution request must be a JSON object")
+    result = LatticeClient.from_environment().submit(ExecutionSubmissionV1.model_validate(payload), wait=args.wait, timeout=args.timeout)
+    _emit(result.model_dump(mode="json"), as_json=True)
+    return 0 if result.state.value not in {"failed", "interrupted"} else 1
+
+
+def command_execution_result(args: argparse.Namespace) -> int:
+    result = LatticeClient.from_environment().result(args.external_project_key, args.operation_key)
+    _emit(result.model_dump(mode="json"), as_json=True)
+    return 0 if result.state.value not in {"failed", "interrupted"} else 1
+
+
+def command_artifact(args: argparse.Namespace) -> int:
+    _emit(LatticeClient.from_environment().artifact(args.artifact_id), as_json=True)
+    return 0
+
+
+def command_blob(args: argparse.Namespace) -> int:
+    content = LatticeClient.from_environment().blob(args.content_sha256)
+    sys.stdout.buffer.write(content)
+    sys.stdout.buffer.flush()
+    return 0
+
+
+def command_routes(args: argparse.Namespace) -> int:
+    _emit(LatticeClient.from_environment().routes(probe=args.probe), as_json=True)
+    return 0
+
+
+def command_import_history(args: argparse.Namespace) -> int:
+    path = Path(args.request).expanduser()
+    raw = path.read_bytes()
+    try:
+        payload = strict_json_loads(raw)
+    except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError(f"historical execution request is not exact JSON: {error}") from error
+    if not isinstance(payload, dict):
+        raise ValueError("historical execution request must be a JSON object")
+    result = LatticeClient.from_environment().import_history(HistoricalExecutionImportV1.model_validate(payload))
+    _emit(result.model_dump(mode="json"), as_json=True)
+    return 0
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     config = LatticeConfig.from_environment()
     service_box: dict[str, OutportService] = {}
@@ -375,6 +431,33 @@ def parser() -> argparse.ArgumentParser:
     restore.add_argument("--to", required=True, help="new, nonexistent destination directory")
     restore.add_argument("--json", action="store_true")
     restore.set_defaults(handler=command_restore)
+
+    invoke = subparsers.add_parser("invoke", help="submit one execution as a one-node Lattice graph")
+    invoke.add_argument("--request", required=True, help="ExecutionSubmission/1.0 JSON file")
+    invoke.add_argument("--wait", action="store_true", help="follow the Lattice event stream until terminal")
+    invoke.add_argument("--timeout", type=float, default=1800.0)
+    invoke.set_defaults(handler=command_invoke)
+
+    result = subparsers.add_parser("result", help="read one external execution result")
+    result.add_argument("--external-project-key", required=True)
+    result.add_argument("--operation-key", required=True)
+    result.set_defaults(handler=command_execution_result)
+
+    artifact = subparsers.add_parser("artifact", help="read one content-addressed execution artifact")
+    artifact.add_argument("artifact_id")
+    artifact.set_defaults(handler=command_artifact)
+
+    blob = subparsers.add_parser("blob", help="write exact content-addressed bytes to stdout")
+    blob.add_argument("content_sha256")
+    blob.set_defaults(handler=command_blob)
+
+    routes = subparsers.add_parser("routes", help="read Lattice provider profiles and qualification state")
+    routes.add_argument("--probe", action="store_true", help="run the bounded official-CLI capability probes")
+    routes.set_defaults(handler=command_routes)
+
+    import_history = subparsers.add_parser("import-history", help="register an immutable census of historical execution files")
+    import_history.add_argument("--request", required=True, help="HistoricalExecutionImport/1.0 JSON file")
+    import_history.set_defaults(handler=command_import_history)
     return root
 
 

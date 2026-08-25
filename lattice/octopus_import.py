@@ -165,7 +165,7 @@ class OctopusImporter:
             role_name = f"Imported {bound_provider}"
             import_provenance = {"kind": "octopus-format-3-import-v1", "conversation_id": conversation_id, "declared_archive_source_sha256": source_sha, "archive_source_hash_state": "declared-by-projection-not-recomputed", "transcript_ref": f"lattice:blob/{transcript_blob}", "transcript_sha256": transcript_sha, "reference_catalogue_ref": f"lattice:blob/{refs_blob}", "reference_catalogue_sha256": refs_sha, "map_sha256": map_sha}
             setup = self.store.ensure_conversation_import_setup(claim["import_id"], role_name=role_name, session_label=f"{bound_provider}:{conversation_id}", proof_limit=f"The historical provider and harness context for this invocation is unavailable. Visible transcript ancestry does not prove what the model received. The exact transcript is lattice:blob/{transcript_blob}; its verified format-3 reference catalogue is lattice:blob/{refs_blob}. The archive source hash was declared by that projection and was not independently recomputed by Lattice.", provenance={**import_provenance, "kind": "octopus-provider-proof-limit-v1"})
-            route = ProviderRoute(provider=route_identity[0], model=f"historical-{bound_provider}", harness=route_identity[1], effort="high")
+            route = ProviderRoute(route_kind="historical-import", provider=route_identity[0], model=f"historical-{bound_provider}", harness=route_identity[1], effort="high")
             invocations: list[str] = []
             pending_prompts: list[str] = []
             previous: str | None = None

@@ -743,13 +743,13 @@ def test_workflow_role_route_is_enforced_instead_of_treated_as_cockpit_decoratio
         purpose="",
         workflow_pack="quaternary",
         initial_state="semantic-intent",
-        role_specs=[{"role_id": "native-partner", "name": "German native-language partner", "provider": "google", "harness": "gemini", "allowed_models": [], "authority": "language-proposal-only", "instructions": "Interpret German."}],
+        role_specs=[{"role_id": "native-partner", "name": "German native-language partner", "provider": "google", "harness": "antigravity", "allowed_models": [], "authority": "language-proposal-only", "instructions": "Interpret German."}],
         blackboard_content=b"{}",
         blackboard_source_ref="fixture:state",
         slice_external_ref=None,
     )
     session = created["project"]["sessions"][0]
-    with pytest.raises(Exception, match="bound to google through gemini"):
+    with pytest.raises(Exception, match="bound to google through antigravity"):
         store.create_draft(DraftCreate(project_id=created["project"]["project_id"], role_session_id=session["role_session_id"], prompt="pretend to be native", route=ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex")))
 
 
@@ -769,7 +769,7 @@ def test_workflow_role_route_cannot_be_changed_after_draft_creation_or_sealed_fr
     project = created["project"]
     session = project["sessions"][0]
     draft = store.create_draft(DraftCreate(project_id=project["project_id"], role_session_id=session["role_session_id"], prompt="work", route=ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex")))
-    forbidden = ProviderRoute(provider="anthropic", model="claude-opus-4-1", harness="claude")
+    forbidden = ProviderRoute(provider="anthropic", model="claude-opus-5", harness="claude")
 
     with pytest.raises(Exception, match="bound to openai through codex"):
         store.patch_draft(draft["draft_id"], DraftPatch(expected_revision=1, route=forbidden))

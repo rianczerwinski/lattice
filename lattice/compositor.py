@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from axis_model_runner import DEFAULT_ADAPTERS, validate_execution_policy
+from .execution import DEFAULT_ADAPTERS, validate_execution_policy
 
 from .canonical import canonical_bytes, generated_object, sha256_bytes, sha256_json
-from .contracts import BlockDisposition, ContextSelection, model_runner_policy
+from .contracts import BlockDisposition, ContextSelection, execution_policy
 from .store import LatticeConflict, LatticeStore
 
 
@@ -249,15 +249,16 @@ class ContextCompositor:
         compiled_prompt = b"".join(prompt_parts)
         prompt_sha = sha256_bytes(compiled_prompt)
         route = draft["route"]
-        adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
-        proof_limits = list(adapter.proof_limits) if adapter else ["provider route has not been qualified"]
-        effective_policy = validate_execution_policy(adapter, **model_runner_policy(route)) if adapter else None
-        if effective_policy and effective_policy["execution_profile"] != "compiled-fresh":
+        historical_import = route.get("route_kind", "execution") == "historical-import"
+        adapter = None if historical_import else next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
+        proof_limits = ["This is an imported historical turn, not an executable provider route; its original model, effort, tools, instructions, and hidden context are unverified."] if historical_import else list(adapter.proof_limits) if adapter else ["provider route has not been qualified"]
+        effective_policy = {"route_kind": "historical-import", "executable": False} if historical_import else validate_execution_policy(adapter, **execution_policy(route)) if adapter else None
+        if not historical_import and effective_policy and effective_policy["execution_profile"] != "compiled-fresh":
             proof_limits.append("workspace execution exposes only the authority the official harness reports; provider-owned tool internals remain opaque")
-        if effective_policy and effective_policy["network_policy"] == "provider_managed":
+        if not historical_import and effective_policy and effective_policy["network_policy"] == "provider_managed":
             proof_limits.append("network access is provider-managed and is not an exact host allowlist")
         opaque_contexts: list[dict[str, Any]] = []
-        if effective_policy and effective_policy["execution_profile"] == "native-continuation":
+        if not historical_import and effective_policy and effective_policy["execution_profile"] == "native-continuation":
             opaque_contexts.append(
                 {
                     "kind": "provider-native-session-history",
@@ -272,7 +273,7 @@ class ContextCompositor:
             )
             proof_limits.append("provider-native session history and compaction state are added beyond the exact compiled Lattice prompt and are not byte-disclosed")
         system_instructions = None
-        if route["provider"] == "anthropic" and route["harness"] == "claude":
+        if not historical_import and route["provider"] == "anthropic" and route["harness"] == "claude":
             system_bytes = CLAUDE_SYSTEM_INSTRUCTIONS_V1.encode("utf-8")
             system_instructions = {
                 "channel": "official-system-prompt-file",

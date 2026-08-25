@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 
 class StrictModel(BaseModel):
@@ -68,11 +70,13 @@ class AttemptState(StrEnum):
 
 
 class ProviderRoute(StrictModel):
+    route_kind: Literal["execution", "historical-import"] = "execution"
     provider: Literal["anthropic", "openai", "google", "xai"]
     model: str = Field(min_length=1)
-    harness: Literal["claude", "codex", "gemini", "grok"]
+    harness: Literal["claude", "codex", "antigravity", "grok"]
+    provider_profile_id: str | None = Field(default=None, pattern=r"^provider-profile:[0-9a-f]{64}$")
     effort: Literal["low", "medium", "high", "xhigh", "max", "ultra"] = "high"
-    execution_profile: Literal["compiled-fresh", "workspace-agent", "native-continuation"] = "compiled-fresh"
+    execution_profile: Literal["compiled-fresh", "research-fresh", "workspace-agent", "native-continuation"] = "compiled-fresh"
     session_policy: Literal["fresh", "visible_native_continuation"] = "fresh"
     continuation_mode: Literal["resume", "fork"] | None = None
     native_parent_invocation_id: str | None = None
@@ -86,9 +90,30 @@ class ProviderRoute(StrictModel):
 
     @model_validator(mode="after")
     def provider_matches_official_harness(self) -> "ProviderRoute":
-        expected = {"anthropic": "claude", "openai": "codex", "google": "gemini", "xai": "grok"}
+        expected = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "xai": "grok"}
         if expected[self.provider] != self.harness:
             raise ValueError(f"{self.provider} is qualified only through {expected[self.provider]}")
+        if self.route_kind == "historical-import":
+            if self.provider_profile_id is not None:
+                raise ValueError("historical imports cannot claim a current executable provider profile")
+            if not self.model.startswith("historical-"):
+                raise ValueError("historical imports must name their unverified historical model explicitly")
+            if self.execution_profile != "compiled-fresh" or self.session_policy != "fresh" or self.continuation_mode is not None or self.native_parent_invocation_id is not None or self.native_session_id is not None or self.tools or self.permissions or self.workspace is not None or self.sandbox != "read-only" or self.approval_policy != "never" or self.network_policy != "disabled":
+                raise ValueError("historical imports cannot carry executable authority")
+            return self
+        from .execution import DEFAULT_ADAPTERS
+
+        base = next((profile for profile in DEFAULT_ADAPTERS if profile.provider_code == self.provider and profile.harness == self.harness), None)
+        if base is None:
+            raise ValueError(f"{self.provider}/{self.harness} has no immutable provider profile")
+        try:
+            profile = base.select_model(self.model)
+        except RuntimeError as error:
+            raise ValueError(str(error)) from error
+        if self.provider_profile_id is None:
+            self.provider_profile_id = profile.profile_id
+        elif self.provider_profile_id != profile.profile_id:
+            raise ValueError("provider profile identity disagrees with provider, harness, and model")
         native = self.execution_profile == "native-continuation"
         if native:
             if self.session_policy != "visible_native_continuation":
@@ -100,8 +125,8 @@ class ProviderRoute(StrictModel):
         return self
 
 
-def model_runner_policy(route: dict[str, Any]) -> dict[str, Any]:
-    """Project a stored Lattice route into model-runner's enforceable policy surface."""
+def execution_policy(route: dict[str, Any]) -> dict[str, Any]:
+    """Project a stored Lattice route into the enforceable execution-policy surface."""
 
     execution_profile = route.get("execution_profile", "native-continuation" if route.get("session_policy") == "visible_native_continuation" else "compiled-fresh")
     return {
@@ -224,6 +249,76 @@ def standard_response_contract() -> dict[str, Any]:
     }
 
 
+class OutputContractV2(StrictModel):
+    """Lossless result shape requested by a caller.
+
+    Providers still receive a strict JSON Schema in every mode. Text and
+    Markdown are wrapped only at the provider boundary, then persisted as
+    their exact UTF-8 content and a content-addressed artifact.
+    """
+
+    contract_version: Literal["OutputContract/2.0"] = "OutputContract/2.0"
+    mode: Literal["conversation", "json", "text", "markdown"] = "conversation"
+    json_schema: dict[str, Any] | None = None
+    media_type: str | None = Field(default=None, min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def mode_has_exact_payload_contract(self) -> "OutputContractV2":
+        if self.mode == "json":
+            if self.json_schema is None:
+                raise ValueError("JSON output requires an arbitrary strict JSON Schema")
+            if self.media_type not in {None, "application/json"}:
+                raise ValueError("JSON output media type is application/json")
+            self.media_type = "application/json"
+        elif self.json_schema is not None:
+            raise ValueError(f"{self.mode} output cannot carry a JSON payload schema")
+        elif self.mode == "markdown":
+            if self.media_type not in {None, "text/markdown"}:
+                raise ValueError("Markdown output media type is text/markdown")
+            self.media_type = "text/markdown"
+        elif self.mode == "text":
+            if self.media_type not in {None, "text/plain"}:
+                raise ValueError("text output media type is text/plain")
+            self.media_type = "text/plain"
+        elif self.media_type is not None:
+            raise ValueError("conversation output uses its response-and-artifacts envelope")
+        return self
+
+    def provider_schema(self) -> dict[str, Any]:
+        if self.mode == "conversation":
+            return standard_response_contract()
+        if self.mode == "json":
+            assert self.json_schema is not None
+            return {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["payload"],
+                "properties": {"payload": self.json_schema},
+            }
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["content"],
+            "properties": {"content": {"type": "string", "maxLength": 67_108_864}},
+        }
+
+    @classmethod
+    def from_stored(cls, value: dict[str, Any]) -> "OutputContractV2":
+        if value == standard_response_contract():
+            return cls()
+        return cls.model_validate(value)
+
+
+def validate_stored_output_contract(value: dict[str, Any]) -> dict[str, Any]:
+    """Accept the exact legacy envelope or a versioned OutputContract/2.0."""
+
+    try:
+        OutputContractV2.from_stored(value)
+    except ValidationError as error:
+        raise ValueError("output must use the lossless response-and-artifacts envelope or OutputContract/2.0") from error
+    return value
+
+
 class DraftCreate(StrictModel):
     project_id: str
     actor_binding: ActorBindingV1 | None = None
@@ -267,9 +362,7 @@ class DraftCreate(StrictModel):
     @field_validator("response_schema")
     @classmethod
     def response_contract_is_losslessly_supported(cls, value: dict[str, Any]) -> dict[str, Any]:
-        if value != standard_response_contract():
-            raise ValueError("Lattice currently supports only its lossless response-and-artifacts envelope")
-        return value
+        return validate_stored_output_contract(value)
 
 
 class DraftPatch(StrictModel):
@@ -312,9 +405,98 @@ class ContextAssemblyV1(StrictModel):
             prompts = [item for item in self.selections if item.plane == "current_prompt"]
             if len(prompts) != 1 or prompts[0].disposition != BlockDisposition.selected:
                 raise ValueError("explicit context requires exactly one directly selected current-prompt block")
-        if self.response_schema != standard_response_contract():
-            raise ValueError("Lattice currently supports only its lossless response-and-artifacts envelope")
+        validate_stored_output_contract(self.response_schema)
         return self
+
+
+class ExecutionSubmissionV1(StrictModel):
+    """Atomic direct-call contract shared by the service, CLI, and clients."""
+
+    contract_version: Literal["ExecutionSubmission/1.0"] = "ExecutionSubmission/1.0"
+    external_project_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    operation_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    actor: str = Field(min_length=1, max_length=200, pattern=r"^[^\x00-\x1f\x7f]+$")
+    workflow_role: str | None = Field(default=None, min_length=1, max_length=200, pattern=r"^[^\x00-\x1f\x7f]+$")
+    prompt: str = Field(max_length=1_000_000)
+    context_block_ids: list[str] = Field(default_factory=list, max_length=1000)
+    parent_invocation_ids: list[str] = Field(default_factory=list, max_length=32)
+    route: ProviderRoute
+    output_contract: OutputContractV2 = Field(default_factory=OutputContractV2)
+    idempotency_key: str = Field(min_length=8, max_length=300)
+
+    @model_validator(mode="after")
+    def identities_and_references_are_unique(self) -> "ExecutionSubmissionV1":
+        if len(self.context_block_ids) != len(set(self.context_block_ids)):
+            raise ValueError("submission context block IDs must be unique")
+        if len(self.parent_invocation_ids) != len(set(self.parent_invocation_ids)):
+            raise ValueError("submission parent invocation IDs must be unique")
+        return self
+
+
+class ExecutionResultV1(StrictModel):
+    contract_version: Literal["ExecutionResult/1.0"] = "ExecutionResult/1.0"
+    external_project_key: str
+    operation_key: str
+    project_id: str
+    invocation_id: str
+    attempt_id: str | None = None
+    state: InvocationState
+    terminal_kind: str | None = None
+    typed_failure: str | None = None
+    output_block_id: str | None = None
+    output_sha256: str | None = None
+    output_artifact_ids: list[str] = Field(default_factory=list)
+    manifest_sha256: str
+    journal_receipt: dict[str, Any] | None = None
+    provider_attestation: dict[str, Any]
+
+
+class HistoricalExecutionFileV1(StrictModel):
+    relative_path: str = Field(min_length=1, max_length=1000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    byte_count: int = Field(ge=0)
+
+    @field_validator("relative_path")
+    @classmethod
+    def path_is_relative_and_contained(cls, value: str) -> str:
+        if value.startswith(("/", "\\")) or ".." in value.replace("\\", "/").split("/"):
+            raise ValueError("historical execution file paths must be relative and contained")
+        return value
+
+
+class HistoricalExecutionImportV1(StrictModel):
+    contract_version: Literal["HistoricalExecutionImport/1.0"] = "HistoricalExecutionImport/1.0"
+    external_project_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    operation_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    source_ref: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    source_census_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    files: list[HistoricalExecutionFileV1] = Field(min_length=1, max_length=10000)
+    provider: str | None = Field(default=None, max_length=100)
+    model: str | None = Field(default=None, max_length=200)
+    original_invocation_id: str | None = Field(default=None, max_length=300)
+    terminal_state: str | None = Field(default=None, max_length=100)
+
+    @model_validator(mode="after")
+    def census_is_unique(self) -> "HistoricalExecutionImportV1":
+        paths = [item.relative_path for item in self.files]
+        if len(paths) != len(set(paths)):
+            raise ValueError("historical execution file paths must be unique")
+        canonical_files = [item.model_dump(mode="json") for item in sorted(self.files, key=lambda item: item.relative_path)]
+        encoded = json.dumps(canonical_files, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        if hashlib.sha256(encoded).hexdigest() != self.source_census_sha256:
+            raise ValueError("historical execution census hash does not bind its exact file inventory")
+        return self
+
+
+class HistoricalExecutionImportResultV1(StrictModel):
+    contract_version: Literal["HistoricalExecutionImportResult/1.0"] = "HistoricalExecutionImportResult/1.0"
+    import_id: str
+    external_project_key: str
+    project_id: str
+    operation_key: str
+    source_ref: str
+    source_census_sha256: str
+    imported_at: str
 
 
 class InvocationSpecV1(StrictModel):
@@ -467,14 +649,14 @@ class WorkflowRoleDefinition(StrictModel):
     role_id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
     name: str = Field(min_length=1, max_length=120)
     provider: Literal["anthropic", "openai", "google", "xai", "local", "operator"]
-    harness: Literal["claude", "codex", "gemini", "grok"] | None = None
+    harness: Literal["claude", "codex", "antigravity", "grok"] | None = None
     allowed_models: list[str] = Field(default_factory=list)
     authority: str = Field(min_length=1)
     instructions: str | None = Field(default=None, min_length=1, max_length=100_000)
 
     @model_validator(mode="after")
     def execution_boundary_is_explicit(self) -> "WorkflowRoleDefinition":
-        expected = {"anthropic": "claude", "openai": "codex", "google": "gemini", "xai": "grok"}
+        expected = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "xai": "grok"}
         if self.provider in expected and self.harness != expected[self.provider]:
             raise ValueError(f"{self.provider} workflow roles require the {expected[self.provider]} harness")
         if self.provider in {"local", "operator"} and self.harness is not None:

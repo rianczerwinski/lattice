@@ -1,4 +1,4 @@
-"""Durable leased execution of sealed Lattice invocations through model-runner."""
+"""Durable leased execution of sealed Lattice invocations."""
 
 from __future__ import annotations
 
@@ -7,17 +7,17 @@ import json
 import threading
 import time
 import uuid
-from dataclasses import replace
 from typing import Any
 
-from axis_model_runner import (
+from .execution import (
     DEFAULT_ADAPTERS,
     SubscriptionInvocationFailed,
     SubscriptionRouteUnavailable,
     invoke_subscription,
 )
 
-from .contracts import AttemptState, ExecuteRequest, model_runner_policy
+from .canonical import canonical_bytes
+from .contracts import AttemptState, ExecuteRequest, OutputContractV2, execution_policy
 from .manifest_reader import verify_and_reconstruct
 from .store import LatticeConflict, LatticeStore
 
@@ -105,10 +105,15 @@ class ExecutionSupervisor:
             await asyncio.gather(*self._tasks.values(), return_exceptions=True)
 
     def _adapter(self, route: dict[str, Any]):
+        if route.get("route_kind", "execution") != "execution":
+            raise SubscriptionRouteUnavailable("historical imports are evidence records and cannot execute")
         base = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"]), None)
         if base is None or base.cli != route["harness"]:
             raise SubscriptionRouteUnavailable("provider and official CLI route are not qualified together")
-        return replace(base, model_code=route["model"])
+        selected = base.select_model(route["model"])
+        if route.get("provider_profile_id") not in {None, selected.profile_id}:
+            raise SubscriptionRouteUnavailable("sealed provider profile identity disagrees with the installed execution profile")
+        return selected
 
     async def execute(self, invocation_id: str, request: ExecuteRequest) -> dict[str, Any]:
         expires_at = int(time.time()) + self.store.config.lease_seconds
@@ -152,6 +157,7 @@ class ExecutionSupervisor:
             declared_system = invocation["manifest"].get("provider_boundary", {}).get("system_instructions")
             system_prompt = declared_system["content"] if isinstance(declared_system, dict) else None
             adapter = self._adapter(invocation["route"])
+            output_contract = OutputContractV2.from_stored(invocation["response_schema"])
 
             def on_chunk(channel: str, chunk: bytes) -> None:
                 digest = self.store.blobs.put(chunk)
@@ -163,21 +169,38 @@ class ExecutionSupervisor:
                 adapter,
                 prompt=prompt,
                 system_prompt=system_prompt,
-                schema=invocation["response_schema"],
+                schema=output_contract.provider_schema(),
                 runs_dir=self.store.config.runs,
                 subject=invocation["invocation_id"],
                 effort=invocation["route"]["effort"],
                 timeout=float(self.store.config.lease_seconds),
                 cancel_event=cancel,
                 on_chunk=on_chunk,
-                **model_runner_policy(invocation["route"]),
+                **execution_policy(invocation["route"]),
             )
-            response = payload.get("response")
-            if not isinstance(response, str):
-                raise SubscriptionInvocationFailed("malformed_output", "provider response lacked response text", journal=journal)
-            artifacts = payload.get("artifacts")
-            if not isinstance(artifacts, list) or any(not isinstance(item, dict) or set(item) != {"name", "media_type", "content"} or not all(isinstance(item[key], str) for key in item) for item in artifacts):
-                raise SubscriptionInvocationFailed("malformed_output", "provider response contained invalid artifacts", journal=journal)
+            if output_contract.mode == "conversation":
+                response = payload.get("response")
+                if not isinstance(response, str):
+                    raise SubscriptionInvocationFailed("malformed_output", "provider response lacked response text", journal=journal)
+                artifacts = payload.get("artifacts")
+                if not isinstance(artifacts, list) or any(
+                    not isinstance(item, dict)
+                    or set(item) != {"name", "media_type", "content"}
+                    or not all(isinstance(item[key], str) for key in ("name", "media_type", "content"))
+                    for item in artifacts
+                ):
+                    raise SubscriptionInvocationFailed("malformed_output", "provider response contained invalid artifacts", journal=journal)
+            elif output_contract.mode == "json":
+                if set(payload) != {"payload"}:
+                    raise SubscriptionInvocationFailed("malformed_output", "provider response lacked the contracted JSON payload", journal=journal)
+                response = canonical_bytes(payload["payload"]).decode("utf-8")
+                artifacts = [{"name": "result.json", "media_type": "application/json", "content": response}]
+            else:
+                response = payload.get("content")
+                if not isinstance(response, str):
+                    raise SubscriptionInvocationFailed("malformed_output", f"provider response lacked contracted {output_contract.mode} content", journal=journal)
+                extension = "md" if output_contract.mode == "markdown" else "txt"
+                artifacts = [{"name": f"result.{extension}", "media_type": output_contract.media_type or "text/plain", "content": response}]
             self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal), runtime_receipt=_runtime_receipt(journal, self.store.blobs))
         except SubscriptionInvocationFailed as error:
             terminal = AttemptState.interrupted if error.kind == "operator_interruption" else AttemptState.failed

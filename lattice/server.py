@@ -26,6 +26,10 @@ from .contracts import (
     DraftCreate,
     DraftPatch,
     ExecuteRequest,
+    ExecutionResultV1,
+    ExecutionSubmissionV1,
+    HistoricalExecutionImportResultV1,
+    HistoricalExecutionImportV1,
     ImportConversationRequest,
     InvocationBatchCreateV1,
     InvocationBatchPreviewV1,
@@ -305,15 +309,26 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/v1/routes")
     async def routes(probe: bool = Query(default=False)) -> list[dict[str, Any]]:
-        from axis_model_runner import installed_adapter_status
+        from .execution import installed_adapter_status
         if probe:
             raise HTTPException(status_code=405, detail="provider probes require an authenticated POST")
-        return await asyncio.to_thread(installed_adapter_status, probe_versions=False)
+        statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=False)
+        for status in statuses:
+            status["latest_qualification"] = store.latest_provider_qualification(status["profile_id"])
+        return statuses
 
     @app.post("/api/v1/routes/probe")
     async def probe_routes() -> list[dict[str, Any]]:
-        from axis_model_runner import installed_adapter_status
-        return await asyncio.to_thread(installed_adapter_status, probe_versions=True)
+        from .execution import installed_adapter_status
+        statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=True)
+        for status in statuses:
+            binary_sha256 = status.get("binary_sha256")
+            if isinstance(binary_sha256, str):
+                passed = bool(status.get("qualified")) and status.get("operational") is True and status.get("control_surface_qualified") is not False
+                status["latest_qualification"] = store.record_provider_qualification(status["profile_id"], binary_sha256, status, state="passed" if passed else "failed")
+            else:
+                status["latest_qualification"] = None
+        return statuses
 
     async def resolve_trigger_route(project_id: str, action: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         project = store.get_project(project_id)
@@ -324,7 +339,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         policy = role["route_policy"]
         if policy["kind"] != "model":
             raise LatticeConflict("automatic invocation trigger requires a model-bound role")
-        from axis_model_runner import installed_adapter_status
+        from .execution import installed_adapter_status
         statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=False)
         route_status = next((item for item in statuses if item["qualified"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
         if route_status is None:
@@ -457,6 +472,64 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
                     failure["receipt_error"] = f"{type(receipt_error).__name__}: {receipt_error}"
         return {**store.get_invocation_batch(value.batch_id), "execution_attempts": attempts, "dispatch_failures": dispatch_failures}
 
+    def external_result(external_project_key: str, operation_key: str) -> dict[str, Any]:
+        resolved = store.external_execution_result(external_project_key, operation_key)
+        invocation = resolved.get("invocation")
+        if invocation is None:
+            raise LatticeConflict("external execution was reserved but has no sealed invocation")
+        attempt = resolved.get("attempt")
+        receipt = attempt.get("runtime_receipt") if isinstance(attempt, dict) else None
+        observed = receipt.get("observed") if isinstance(receipt, dict) else None
+        return ExecutionResultV1(
+            external_project_key=external_project_key,
+            operation_key=operation_key,
+            project_id=resolved["project_id"],
+            invocation_id=invocation["invocation_id"],
+            attempt_id=attempt.get("attempt_id") if isinstance(attempt, dict) else None,
+            state=invocation["state"],
+            terminal_kind=invocation.get("terminal_kind"),
+            typed_failure=attempt.get("failure_kind") if isinstance(attempt, dict) else None,
+            output_block_id=invocation.get("output_block_id"),
+            output_sha256=attempt.get("output_sha256") if isinstance(attempt, dict) else None,
+            output_artifact_ids=[item["artifact_id"] for item in invocation.get("artifacts", [])],
+            manifest_sha256=invocation["manifest_sha256"],
+            journal_receipt=receipt,
+            provider_attestation={
+                "profile_id": invocation["route"].get("provider_profile_id"),
+                "provider": invocation["route"]["provider"],
+                "harness": invocation["route"]["harness"],
+                "requested_model": invocation["route"]["model"],
+                "observed": observed,
+            },
+        ).model_dump(mode="json")
+
+    @app.post("/api/v1/executions", status_code=202)
+    async def submit_execution(value: ExecutionSubmissionV1):
+        operation = lattice.seal_execution_submission(value)
+        invocation = store.get_invocation(operation["invocation_id"])
+        if invocation["state"] == "sealed" and not invocation["attempts"]:
+            store.mark_external_submission_dispatched(value.external_project_key, value.operation_key)
+            await supervisor.execute(invocation["invocation_id"], ExecuteRequest(idempotency_key=f"external:{value.idempotency_key}"))
+        return external_result(value.external_project_key, value.operation_key)
+
+    @app.get("/api/v1/executions")
+    async def get_execution(external_project_key: str = Query(min_length=1), operation_key: str = Query(min_length=1)):
+        return external_result(external_project_key, operation_key)
+
+    @app.post("/api/v1/historical-executions", status_code=201)
+    async def import_historical_execution(value: HistoricalExecutionImportV1):
+        request = value.model_dump(mode="json")
+        row = store.import_historical_execution(request, sha256_bytes(canonical_bytes(request)))
+        return HistoricalExecutionImportResultV1(
+            import_id=row["import_id"],
+            external_project_key=row["external_project_key"],
+            project_id=row["project_id"],
+            operation_key=row["operation_key"],
+            source_ref=row["source_ref"],
+            source_census_sha256=row["source_census_sha256"],
+            imported_at=row["imported_at"],
+        ).model_dump(mode="json")
+
     @app.get("/api/v1/invocation-batches/{batch_id}")
     async def get_invocation_batch(batch_id: str):
         return store.get_invocation_batch(batch_id)
@@ -488,6 +561,12 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.get("/api/v1/artifacts/{artifact_id}")
     async def inspect_artifact(artifact_id: str):
         return store.get_artifact(artifact_id)
+
+    @app.get("/api/v1/blobs/{content_sha256}")
+    async def inspect_blob(content_sha256: str):
+        if len(content_sha256) != 64 or any(character not in "0123456789abcdef" for character in content_sha256):
+            raise HTTPException(status_code=422, detail="blob identity must be a lowercase SHA-256 digest")
+        return Response(content=store.blobs.get(content_sha256), media_type="application/octet-stream")
 
     @app.post("/api/v1/artifacts/{artifact_id}/context-blocks")
     async def graft_artifact(artifact_id: str):

@@ -8,7 +8,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from axis_model_runner import load_checkpoint
+from .execution import load_checkpoint
 
 from .canonical import canonical_bytes
 from .snapshot import verify_snapshot

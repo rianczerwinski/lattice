@@ -9,9 +9,9 @@
   ],
   "roles": [
     {"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "authority": "propose-only"},
-    {"role_id": "native-partner", "name": "German native-language partner", "provider": "google", "harness": "gemini", "authority": "language-proposal-only"},
+    {"role_id": "native-partner", "name": "German native-language partner", "provider": "google", "harness": "antigravity", "authority": "language-proposal-only"},
     {"role_id": "deterministic-searcher", "name": "Deterministic searcher", "provider": "local", "authority": "execute-frozen-query-bytes"},
-    {"role_id": "terminology-surfacer", "name": "Terminology surfacer", "provider": "google", "harness": "gemini", "authority": "terminology-proposal-only"},
+    {"role_id": "terminology-surfacer", "name": "Terminology surfacer", "provider": "google", "harness": "antigravity", "authority": "terminology-proposal-only"},
     {"role_id": "countersearcher", "name": "Countersearcher", "provider": "local", "authority": "execute-frozen-counterqueries"},
     {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "authority": "challenge-only"},
     {"role_id": "human-peephole", "name": "Human peephole", "provider": "operator", "authority": "judgment"}

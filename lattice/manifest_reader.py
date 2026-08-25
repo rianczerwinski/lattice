@@ -5,10 +5,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from axis_model_runner import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_execution_policy
+from .execution import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_execution_policy
 
 from .canonical import canonical_bytes, sha256_bytes, sha256_json
-from .contracts import model_runner_policy
+from .contracts import execution_policy
 from .store import LatticeStore
 
 
@@ -268,7 +268,8 @@ def verify_and_reconstruct(
         if not isinstance(boundary, dict) or set(boundary) != expected_boundary_keys:
             raise ManifestVerificationError("provider boundary is incomplete or carries undeclared fields")
         system_instructions = boundary["system_instructions"]
-        if route["provider"] == "anthropic" and route["harness"] == "claude":
+        historical_import = route.get("route_kind", "execution") == "historical-import"
+        if not historical_import and route["provider"] == "anthropic" and route["harness"] == "claude":
             content = INDEPENDENT_CLAUDE_SYSTEM_INSTRUCTIONS_V1
             expected_system = {
                 "channel": "official-system-prompt-file",
@@ -297,13 +298,18 @@ def verify_and_reconstruct(
                     raise ManifestVerificationError("native continuation does not disclose its provider-opaque session history")
             if boundary["opaque_contexts"] != expected_opaque_contexts:
                 raise ManifestVerificationError("provider-opaque context does not match the selected execution route")
-    adapter = next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
-    if adapter is None:
-        raise ManifestVerificationError("manifest execution route is not qualified")
     schema_version = manifest["generated_object"]["schema"]["version"]
-    if schema_version == 1:
+    historical_import = route.get("route_kind", "execution") == "historical-import"
+    adapter = None if historical_import else next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
+    if historical_import:
+        if route.get("provider_profile_id") is not None or not str(route.get("model", "")).startswith("historical-"):
+            raise ManifestVerificationError("historical import falsely claims an executable provider identity")
+        effective_policy = {"route_kind": "historical-import", "executable": False}
+    elif adapter is None:
+        raise ManifestVerificationError("manifest execution route is not qualified")
+    elif schema_version == 1:
         # Version 1 sealed only the operator-requested capability surface. Later
-        # model-runner releases added derived enforcement and session fields;
+        # Later execution profiles added derived enforcement and session fields;
         # applying that newer shape retroactively would make valid history fail.
         effective_policy = {key: route[key] for key in ("network_policy", "permissions", "tools", "workspace")}
     elif schema_version <= 4:
@@ -321,7 +327,7 @@ def verify_and_reconstruct(
         effective_policy = {key: current_policy[key] for key in ("session_policy", "tools", "permissions", "workspace", "network_policy", "enforcement")}
     else:
         try:
-            effective_policy = validate_execution_policy(adapter, **model_runner_policy(route))
+            effective_policy = validate_execution_policy(adapter, **execution_policy(route))
         except SubscriptionRouteUnavailable as error:
             raise ManifestVerificationError(f"manifest execution policy is not enforceable: {error}") from error
     if manifest["capabilities"] != effective_policy:
