@@ -78,6 +78,8 @@ REQUIRED_PROVIDER_PROFILES = {
     ("xai", "compiled-fresh"),
     ("xai", "research-fresh"),
 }
+HISTORICAL_EXECUTION_KEY = "field-survey.research-pipeline.historical-topology-v2"
+LEGACY_HISTORICAL_EXECUTION_KEY = "field-survey.research-pipeline"
 
 
 class ConsolidationVerificationError(RuntimeError):
@@ -502,7 +504,7 @@ def verify_consumer_registry(axisvi_root: Path, value: dict[str, Any]) -> tuple[
 
 def verify_historical_execution_set(value: dict[str, Any], *, data_root: Path, axisvi_root: Path) -> dict[str, Any]:
     verify_generated_object(value, role="snapshot", label="historical execution set")
-    if value.get("contract_version") != "HistoricalExecutionSet/1.0" or value.get("external_project_key") != "field-survey.research-pipeline":
+    if value.get("contract_version") != "HistoricalExecutionSet/1.0" or value.get("external_project_key") != HISTORICAL_EXECUTION_KEY:
         raise ConsolidationVerificationError("historical execution set contract or consumer is unsupported")
     source_root_value = value.get("source_root")
     run_root_value = value.get("run_root")
@@ -1172,7 +1174,8 @@ def verify(
     if bound_sources != expected_sources:
         raise ConsolidationVerificationError("closure bundle envelope does not bind every evidence byte exactly once")
 
-    historical_roots = {"field-survey.research-pipeline": axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline"}
+    historical_source_root = axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline"
+    historical_roots = {HISTORICAL_EXECUTION_KEY: historical_source_root, LEGACY_HISTORICAL_EXECUTION_KEY: historical_source_root}
     runtime_manifest_path, _runtime_manifest, _runtime_raw = resolved["runtime_manifest"]
     runtime = verify_runtime_manifest(runtime_manifest_path, database_profiles=_database_profiles(data_root))
     if not runtime["runtime_id"].startswith("0.3.1-"):
