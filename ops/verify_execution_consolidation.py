@@ -50,6 +50,18 @@ REQUIRED_BROWSER_ACTIONS = {
     "dormant-branch-return",
     "slate-tag",
 }
+REQUIRED_BROWSER_ACTION_ORDER = (
+    "blank-project",
+    "claude-send",
+    "codex-side-quest",
+    "fan-out",
+    "exact-excerpt-graft",
+    "reciprocal-cross-feed",
+    "fan-in",
+    "context-inspection",
+    "dormant-branch-return",
+    "slate-tag",
+)
 REQUIRED_PROVIDER_PROFILES = {
     ("anthropic", "compiled-fresh"),
     ("anthropic", "workspace-agent"),
@@ -642,13 +654,44 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
     return {"suites": len(suites), "provider_canaries": len(canaries), "consumers": len(consumer_canaries)}
 
 
-def verify_browser_receipt(value: dict[str, Any], *, data_root: Path) -> dict[str, Any]:
+def _blob_content(data_root: Path, digest: str, *, label: str) -> bytes:
+    digest = require_digest(digest, label=label)
+    path = data_root / "blobs" / digest[:2] / digest
+    try:
+        content = path.read_bytes()
+    except OSError as error:
+        raise ConsolidationVerificationError(f"{label} blob is absent") from error
+    if sha256_bytes(content) != digest:
+        raise ConsolidationVerificationError(f"{label} blob bytes disagree with identity")
+    return content
+
+
+def verify_browser_receipt(value: dict[str, Any], *, data_root: Path, runtime: dict[str, Any]) -> dict[str, Any]:
     verify_generated_object(value, role="snapshot", label="browser acceptance receipt")
-    if value.get("contract_version") != "LatticeBrowserAcceptanceReceipt/1.0":
-        raise ConsolidationVerificationError("browser acceptance receipt contract is unsupported")
+    if value.get("contract_version") != "LatticeBrowserAcceptanceReceipt/1.0" or value.get("runtime_artifact_id") != runtime["runtime_artifact_id"]:
+        raise ConsolidationVerificationError("browser acceptance receipt contract or installed runtime is wrong")
     actions = value.get("actions")
-    if not isinstance(actions, list) or {item.get("action") for item in actions if isinstance(item, dict)} != REQUIRED_BROWSER_ACTIONS:
+    if not isinstance(actions, list) or tuple(item.get("action") for item in actions if isinstance(item, dict)) != REQUIRED_BROWSER_ACTION_ORDER:
         raise ConsolidationVerificationError("browser acceptance did not traverse the complete conversational journey")
+    action_map = {item["action"]: item.get("invocation_ids") for item in actions}
+    required_counts = {"blank-project": 0, "claude-send": 1, "codex-side-quest": 1, "fan-out": 2, "exact-excerpt-graft": 1, "reciprocal-cross-feed": 2, "fan-in": 1, "context-inspection": 1, "dormant-branch-return": 1, "slate-tag": 1}
+    if any(not isinstance(action_map[name], list) or len(action_map[name]) != count for name, count in required_counts.items()):
+        raise ConsolidationVerificationError("browser action identities are incomplete")
+    if action_map["exact-excerpt-graft"] != action_map["codex-side-quest"] or action_map["context-inspection"] != action_map["fan-in"] or action_map["slate-tag"] != action_map["dormant-branch-return"]:
+        raise ConsolidationVerificationError("browser action aliases do not resolve to their consequential invocation")
+    driver = value.get("driver")
+    run_id = driver.get("run_id") if isinstance(driver, dict) else None
+    if not isinstance(run_id, str) or re.fullmatch(r"[0-9]{8}T[0-9]{6}-[0-9a-f]{8}", run_id) is None or driver.get("single_use_bootstrap") is not True or driver.get("ephemeral_browser_profile") is not True:
+        raise ConsolidationVerificationError("browser driver identity or isolation is malformed")
+    markers = {
+        "root": f"BROWSER-ROOT-{run_id}",
+        "excerpt": f"BROWSER-EXCERPT-{run_id}",
+        "side": f"BROWSER-SIDE-{run_id}",
+        "fanout": f"BROWSER-FANOUT-{run_id}",
+        "crossfeed": f"BROWSER-XFEED-{run_id}",
+        "join": f"BROWSER-JOIN-{run_id}",
+        "dormant": f"BROWSER-DORMANT-{run_id}",
+    }
     connection = sqlite3.connect(f"file:{(data_root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
@@ -662,12 +705,56 @@ def verify_browser_receipt(value: dict[str, Any], *, data_root: Path) -> dict[st
         manifests = value.get("manifest_sha256s")
         if not isinstance(manifests, dict) or set(manifests) != referenced_invocations:
             raise ConsolidationVerificationError("browser receipt does not bind every referenced invocation manifest")
+        if len(referenced_invocations) != 8:
+            raise ConsolidationVerificationError("browser journey did not produce the exact eight consequential invocations")
+        rows: dict[str, dict[str, Any]] = {}
         for invocation_id, expected in manifests.items():
-            row = connection.execute("SELECT project_id,manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
-            if row is None or row["project_id"] != project_id or row["manifest_sha256"] != expected:
+            row = connection.execute("""SELECT i.project_id,i.actor_kind,i.manifest_sha256,i.manifest_json,i.route_json,i.state,i.output_block_id,
+                                               d.parents_json,d.selections_json,p.content_sha256 AS prompt_sha256,
+                                               bm.batch_id,bm.assembly_sha256
+                                        FROM invocations i JOIN drafts d USING(draft_id) JOIN context_blocks p ON p.block_id=d.prompt_block_id
+                                        LEFT JOIN invocation_batch_members bm USING(invocation_id)
+                                        WHERE i.invocation_id=?""", (invocation_id,)).fetchone()
+            if row is None or row["project_id"] != project_id or row["manifest_sha256"] != expected or row["state"] != "succeeded" or row["actor_kind"] != "direct":
                 raise ConsolidationVerificationError(f"browser invocation does not resolve exactly: {invocation_id}")
+            decoded = dict(row)
+            decoded["manifest"] = parse_json(decoded.pop("manifest_json"), label=f"browser manifest {invocation_id}")
+            decoded["route"] = parse_json(decoded.pop("route_json"), label=f"browser route {invocation_id}")
+            decoded["parents"] = parse_json(decoded.pop("parents_json"), label=f"browser parents {invocation_id}")
+            decoded["selections"] = parse_json(decoded.pop("selections_json"), label=f"browser selections {invocation_id}")
+            decoded["prompt"] = _blob_content(data_root, decoded.pop("prompt_sha256"), label=f"browser prompt {invocation_id}").decode("utf-8", errors="strict")
+            rows[invocation_id] = decoded
+        groups = {
+            "root": [rows[item] for item in action_map["claude-send"]],
+            "side": [rows[item] for item in action_map["codex-side-quest"]],
+            "fanout": [rows[item] for item in action_map["fan-out"]],
+            "crossfeed": [rows[item] for item in action_map["reciprocal-cross-feed"]],
+            "join": [rows[item] for item in action_map["fan-in"]],
+            "dormant": [rows[item] for item in action_map["dormant-branch-return"]],
+        }
+        prompt_markers = {"root": markers["root"], "side": markers["side"], "fanout": markers["fanout"], "crossfeed": markers["crossfeed"], "join": markers["join"], "dormant": markers["dormant"]}
+        for name, group in groups.items():
+            if any(prompt_markers[name] not in row["prompt"] for row in group):
+                raise ConsolidationVerificationError(f"browser {name} marker does not resolve from exact prompt bytes")
+        root = groups["root"][0]
+        side = groups["side"][0]
+        joined = groups["join"][0]
+        dormant = groups["dormant"][0]
+        if root["route"].get("provider") != "anthropic" or root["parents"] or side["route"].get("provider") != "openai" or side["parents"] != [action_map["claude-send"][0]]:
+            raise ConsolidationVerificationError("browser Claude root or Codex side-quest topology is wrong")
+        if {row["route"].get("provider") for row in groups["fanout"]} != {"anthropic", "openai"} or len({row["batch_id"] for row in groups["fanout"]}) != 1 or None in {row["batch_id"] for row in groups["fanout"]} or len({row["assembly_sha256"] for row in groups["fanout"]}) != 1 or any(row["parents"] for row in groups["fanout"]):
+            raise ConsolidationVerificationError("browser fan-out is not one shared atomic Claude/Codex assembly")
+        if {row["route"].get("provider") for row in groups["crossfeed"]} != {"anthropic", "openai"} or len({row["batch_id"] for row in groups["crossfeed"]}) != 1 or None in {row["batch_id"] for row in groups["crossfeed"]}:
+            raise ConsolidationVerificationError("browser reciprocal cross-feed is not one atomic Claude/Codex batch")
+        fanout_by_provider = {row["route"]["provider"]: invocation_id for invocation_id, row in rows.items() if row in groups["fanout"]}
+        for row in groups["crossfeed"]:
+            opposite = {"anthropic": "openai", "openai": "anthropic"}[row["route"]["provider"]]
+            if row["parents"] != [fanout_by_provider[opposite]]:
+                raise ConsolidationVerificationError("browser reciprocal cross-feed consumed the wrong provider branch")
+        if set(joined["parents"]) != set(action_map["reciprocal-cross-feed"]) or dormant["parents"] != [action_map["claude-send"][0]]:
+            raise ConsolidationVerificationError("browser fan-in or dormant return ancestry is wrong")
         slate = value.get("slate")
-        if not isinstance(slate, dict):
+        if not isinstance(slate, dict) or slate.get("invocation_id") != action_map["dormant-branch-return"][0]:
             raise ConsolidationVerificationError("browser receipt has no live Slate evidence")
         slice_row = connection.execute("SELECT external_ref FROM slices WHERE slice_id=?", (slate.get("slice_id"),)).fetchone()
         edge_row = connection.execute("SELECT 1 FROM edges WHERE relation='concerns' AND source_id=? AND target_id=?", (slate.get("invocation_id"), slate.get("external_ref"))).fetchone()
@@ -676,24 +763,149 @@ def verify_browser_receipt(value: dict[str, Any], *, data_root: Path) -> dict[st
         excerpt = value.get("excerpt")
         if not isinstance(excerpt, dict):
             raise ConsolidationVerificationError("browser receipt has no exact excerpt evidence")
-        block = connection.execute("SELECT source_sha256,content_sha256,transformation_json FROM context_blocks WHERE block_id=?", (excerpt.get("block_id"),)).fetchone()
+        block = connection.execute("SELECT source_ref,source_sha256,content_sha256,transformation_json FROM context_blocks WHERE block_id=?", (excerpt.get("block_id"),)).fetchone()
         transformation = parse_json(block["transformation_json"], label="browser excerpt transformation") if block is not None and block["transformation_json"] else None
         expected_transformation = {key: excerpt[key] for key in ("source_block_id", "source_sha256", "start_byte", "end_byte", "excerpt_sha256")}
-        if block is None or block["source_sha256"] != excerpt.get("source_sha256") or block["content_sha256"] != excerpt.get("excerpt_sha256") or not isinstance(transformation, dict) or transformation.get("kind") != "exact-utf8-byte-range-v1" or {key: transformation.get(key) for key in expected_transformation} != expected_transformation:
+        source = connection.execute("SELECT content_sha256 FROM context_blocks WHERE block_id=?", (excerpt.get("source_block_id"),)).fetchone()
+        if block is None or source is None or excerpt.get("source_block_id") != root["output_block_id"] or block["source_ref"] != f"lattice:block/{excerpt.get('source_block_id')}" or block["source_sha256"] != excerpt.get("source_sha256") or source["content_sha256"] != excerpt.get("source_sha256") or block["content_sha256"] != excerpt.get("excerpt_sha256") or not isinstance(transformation, dict) or transformation.get("kind") != "exact-utf8-byte-range-v1" or {key: transformation.get(key) for key in expected_transformation} != expected_transformation:
             raise ConsolidationVerificationError("browser excerpt does not resolve to exact stored byte ranges")
+        source_bytes = _blob_content(data_root, excerpt["source_sha256"], label="browser excerpt source")
+        excerpt_bytes = _blob_content(data_root, excerpt["excerpt_sha256"], label="browser exact excerpt")
+        if source_bytes[excerpt["start_byte"]:excerpt["end_byte"]] != excerpt_bytes or excerpt_bytes.decode("utf-8", errors="strict") != markers["excerpt"]:
+            raise ConsolidationVerificationError("browser exact excerpt bytes disagree with their source range")
+        root_output = _blob_content(data_root, source["content_sha256"], label="browser root output").decode("utf-8", errors="strict")
+        if markers["root"] not in root_output or markers["excerpt"] not in root_output:
+            raise ConsolidationVerificationError("browser root provider output omitted its semantic markers")
+        side_segments = {item.get("block_id") for item in side["manifest"].get("segments", []) if isinstance(item, dict)}
+        if excerpt["block_id"] not in side_segments:
+            raise ConsolidationVerificationError("browser side-quest manifest omitted the selected exact excerpt")
+        episode = connection.execute("""SELECT e.target_id FROM edges e JOIN slices s ON json_extract(s.query_json,'$.concern_ref')=e.target_id
+                                      WHERE e.relation='concerns' AND e.source_type='invocation' AND e.source_id=?
+                                        AND e.target_type='external-concern' AND e.target_id GLOB 'lattice:episode_*'""", (action_map["codex-side-quest"][0],)).fetchone()
+        topology = value.get("topology")
+        expected_topology = {
+            "root_invocation_id": action_map["claude-send"][0],
+            "side_episode_ref": episode["target_id"] if episode is not None else None,
+            "fanout_batch_id": groups["fanout"][0]["batch_id"],
+            "fanout_assembly_sha256": groups["fanout"][0]["assembly_sha256"],
+            "crossfeed_batch_id": groups["crossfeed"][0]["batch_id"],
+            "crossfeed_assembly_sha256s": sorted(row["assembly_sha256"] for row in groups["crossfeed"]),
+            "join_parent_invocation_ids": sorted(joined["parents"]),
+            "dormant_parent_invocation_id": action_map["claude-send"][0],
+        }
+        if episode is None or topology != expected_topology:
+            raise ConsolidationVerificationError("browser episode or topology receipt disagrees with base graph records")
     finally:
         connection.close()
     return {"actions": len(actions), "invocations": len(referenced_invocations), "slate_slice": value["slate"]["slice_id"]}
 
 
-def verify_restore_receipt(value: dict[str, Any], *, historical_roots: dict[str, Path]) -> dict[str, Any]:
+def _database_state_digest(database: Path) -> str:
+    connection = sqlite3.connect(f"file:{database.resolve(strict=True)}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    digest = hashlib.sha256()
+
+    def bind(item: Any) -> None:
+        encoded = canonical_bytes(item)
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+
+    try:
+        tracked = sorted(str(row[0]) for row in connection.execute("SELECT tbl_name FROM sqlite_master WHERE type='trigger' AND name LIKE 'ledger_%_insert'"))
+        if not tracked:
+            raise ConsolidationVerificationError("restore database has no change-ledger table contracts")
+        bind({"kind": "LatticeStateDigest", "version": 2})
+        for table in tracked:
+            columns = list(connection.execute(f'PRAGMA table_info("{table}")'))
+            primary = [str(item[1]) for item in sorted((row for row in columns if int(row[5]) > 0), key=lambda row: int(row[5]))]
+            if not primary:
+                raise ConsolidationVerificationError(f"restore database table has no stable primary identity: {table}")
+            bind({"stream": "current-view", "table": table})
+            order = ",".join(f'"{name}"' for name in primary)
+            for row in connection.execute(f'SELECT * FROM "{table}" ORDER BY {order}'):
+                bind(dict(row))
+        for name, query in (("events", "SELECT * FROM events ORDER BY seq"), ("ledger-changes", "SELECT * FROM ledger_changes ORDER BY seq"), ("append-integrity", "SELECT * FROM append_integrity ORDER BY seq")):
+            bind({"stream": name})
+            for row in connection.execute(query):
+                bind(dict(row))
+    finally:
+        connection.close()
+    return digest.hexdigest()
+
+
+def _verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
+    manifest_path = snapshot_root / "snapshot.json"
+    value, _raw = exact_json(manifest_path, label="restore snapshot manifest")
+    verify_generated_object(value, role="snapshot", label="restore snapshot manifest")
+    if value.get("contract_version") != "LatticeBackup/2.0" or not isinstance(value.get("state_digest"), str) or value.get("active_work") != {"attempts": 0, "commands": 0, "imports": 0, "leases": 0}:
+        raise ConsolidationVerificationError("restore snapshot is not an idle exact LatticeBackup/2.0")
+    inventory = value.get("inventory")
+    if not isinstance(inventory, list) or not inventory:
+        raise ConsolidationVerificationError("restore snapshot inventory is empty")
+    declared: set[str] = set()
+    for item in inventory:
+        if not isinstance(item, dict) or set(item) != {"path", "sha256", "byte_count", "mode"} or item["path"] in declared:
+            raise ConsolidationVerificationError("restore snapshot inventory is malformed")
+        path = snapshot_root / str(item["path"])
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError as error:
+            raise ConsolidationVerificationError(f"restore snapshot file is absent: {item['path']}") from error
+        if not resolved.is_relative_to(snapshot_root) or path.is_symlink() or not path.is_file() or sha256_file(path) != item["sha256"] or path.stat().st_size != item["byte_count"] or path.stat().st_mode & 0o7777 != item["mode"]:
+            raise ConsolidationVerificationError(f"restore snapshot file disagrees with inventory: {item['path']}")
+        declared.add(str(item["path"]))
+    actual = {path.relative_to(snapshot_root).as_posix() for path in snapshot_root.rglob("*") if path.is_file() and not path.is_symlink() and path.name != "snapshot.json"}
+    if actual != declared or "lattice.sqlite3" not in declared:
+        raise ConsolidationVerificationError("restore snapshot has undeclared or missing files")
+    if _database_state_digest(snapshot_root / "lattice.sqlite3") != value["state_digest"]:
+        raise ConsolidationVerificationError("restore snapshot state digest disagrees with its database")
+    return value
+
+
+def _verify_snapshot_prefix(snapshot_database: Path, restored_database: Path) -> None:
+    before = sqlite3.connect(f"file:{snapshot_database.resolve(strict=True)}?mode=ro", uri=True)
+    after = sqlite3.connect(f"file:{restored_database.resolve(strict=True)}?mode=ro", uri=True)
+    try:
+        tables = sorted(str(row[0]) for row in before.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"))
+        after_tables = sorted(str(row[0]) for row in after.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"))
+        if tables != after_tables:
+            raise ConsolidationVerificationError("restored database schema does not equal its snapshot")
+        for table in tables:
+            prior = {tuple(row) for row in before.execute(f'SELECT * FROM "{table}"')}
+            current = {tuple(row) for row in after.execute(f'SELECT * FROM "{table}"')}
+            if not prior.issubset(current):
+                raise ConsolidationVerificationError(f"restored continuation rewrote or lost snapshotted rows: {table}")
+    finally:
+        before.close()
+        after.close()
+
+
+def verify_restore_receipt(value: dict[str, Any], *, historical_roots: dict[str, Path], runtime: dict[str, Any], canonical_data_root: Path, browser: dict[str, Any]) -> dict[str, Any]:
     verify_generated_object(value, role="snapshot", label="restore continuation receipt")
-    if value.get("contract_version") != "LatticeRestoreContinuationReceipt/1.0":
-        raise ConsolidationVerificationError("restore continuation receipt contract is unsupported")
+    if value.get("contract_version") != "LatticeRestoreContinuationReceipt/1.0" or value.get("runtime_artifact_id") != runtime["runtime_artifact_id"]:
+        raise ConsolidationVerificationError("restore continuation receipt contract or installed runtime is wrong")
     restored_root = Path(str(value.get("restored_root", ""))).resolve(strict=True)
-    if not restored_root.is_dir() or value.get("source_state_digest") != value.get("restored_state_digest"):
-        raise ConsolidationVerificationError("restore continuation did not preserve the source state identity")
+    snapshot_root = Path(str(value.get("snapshot_root", ""))).resolve(strict=True)
+    if not restored_root.is_dir() or restored_root == canonical_data_root.resolve() or restored_root.is_relative_to(canonical_data_root.resolve()):
+        raise ConsolidationVerificationError("restore continuation did not use a separate durable root")
+    snapshot = _verify_snapshot(snapshot_root)
+    if value.get("snapshot_artifact_id") != snapshot["generated_object"]["artifact_id"] or value.get("snapshot_manifest_sha256") != sha256_file(snapshot_root / "snapshot.json") or value.get("source_state_digest") != snapshot["state_digest"] or value.get("restored_pre_continuation_state_digest") != snapshot["state_digest"]:
+        raise ConsolidationVerificationError("restore continuation does not bind the exact snapshot generation")
+    if value.get("pre_restart_boot_id") == value.get("post_restart_boot_id") or not all(isinstance(value.get(name), str) and value.get(name) for name in ("pre_restart_boot_id", "post_restart_boot_id")):
+        raise ConsolidationVerificationError("restore qualification did not restart the canonical service")
+    dormant = [item for item in browser.get("actions", []) if isinstance(item, dict) and item.get("action") == "dormant-branch-return"]
+    if len(dormant) != 1 or dormant[0].get("invocation_ids") != [value.get("browser_parent_invocation_id")]:
+        raise ConsolidationVerificationError("restore qualification does not descend from the browser-qualified dormant branch")
     verified = verify_database(restored_root, require_terminal_external=False, historical_roots=historical_roots)
+    if _database_state_digest(restored_root / "lattice.sqlite3") != value.get("restored_post_continuation_state_digest"):
+        raise ConsolidationVerificationError("restored post-continuation state digest is not independently reproducible")
+    _verify_snapshot_prefix(snapshot_root / "lattice.sqlite3", restored_root / "lattice.sqlite3")
+    for item in snapshot["inventory"]:
+        if item["path"] == "lattice.sqlite3":
+            continue
+        restored_path = restored_root / item["path"]
+        if not restored_path.is_file() or restored_path.is_symlink() or sha256_file(restored_path) != item["sha256"]:
+            raise ConsolidationVerificationError(f"restored continuation lost snapshotted bytes: {item['path']}")
     connection = sqlite3.connect(f"file:{(restored_root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
@@ -707,6 +919,13 @@ def verify_restore_receipt(value: dict[str, Any], *, historical_roots: dict[str,
             raise ConsolidationVerificationError("restored continuation did not consume restored ancestry")
         if connection.execute("SELECT 1 FROM invocations WHERE invocation_id=?", (parent_id,)).fetchone() is None:
             raise ConsolidationVerificationError("restored continuation parent is absent")
+        canonical = connection.execute("SELECT state,manifest_json,manifest_sha256 FROM invocations WHERE invocation_id=?", (value.get("canonical_continuation_invocation_id"),)).fetchone()
+        if canonical is None or canonical["state"] != "succeeded" or canonical["manifest_sha256"] != value.get("canonical_continuation_manifest_sha256") or value.get("canonical_continuation_invocation_id") != parent_id:
+            raise ConsolidationVerificationError("canonical post-restart continuation does not resolve from the snapshot")
+        canonical_manifest = parse_json(canonical["manifest_json"], label="canonical restart continuation manifest")
+        canonical_parents = {segment.get("producing_invocation_id") for segment in canonical_manifest.get("segments", []) if isinstance(segment, dict)}
+        if value.get("browser_parent_invocation_id") not in canonical_parents:
+            raise ConsolidationVerificationError("canonical restart continuation omitted browser-qualified ancestry")
     finally:
         connection.close()
     return {"restored_root": str(restored_root), "child_invocation_id": value["child_invocation_id"], "database": verified}
@@ -927,8 +1146,8 @@ def verify(
     historical = verify_historical_execution_set(resolved["historical_execution_set"][1], data_root=data_root, axisvi_root=axisvi_root)
     doctor = verify_doctor_receipt(resolved["doctor"][1], runtime)
     qualification = verify_qualification_receipt(resolved["qualification"][1], runtime=runtime, consumer_inventories=inventories, data_root=data_root)
-    browser = verify_browser_receipt(resolved["browser_acceptance"][1], data_root=data_root)
-    restore = verify_restore_receipt(resolved["restore_continuation"][1], historical_roots=historical_roots)
+    browser = verify_browser_receipt(resolved["browser_acceptance"][1], data_root=data_root, runtime=runtime)
+    restore = verify_restore_receipt(resolved["restore_continuation"][1], historical_roots=historical_roots, runtime=runtime, canonical_data_root=data_root, browser=resolved["browser_acceptance"][1])
     findings = verify_findings(resolved["findings"][1], allow_pending=allow_pending)
 
     forbidden = [path.read_bytes().rstrip(b"\r\n") for path in forbidden_files]
