@@ -113,6 +113,7 @@ def run_suites(axisvi_root: Path) -> list[dict[str, Any]]:
 
 def _route(provider: str, *, profile: str, workspace: Path | None = None, parent_id: str | None = None, continuation_mode: str | None = None) -> dict[str, Any]:
     base = PROVIDERS[provider]
+    native = profile == "native-continuation"
     value: dict[str, Any] = {
         "provider": provider,
         "model": base["model"],
@@ -120,8 +121,8 @@ def _route(provider: str, *, profile: str, workspace: Path | None = None, parent
         "effort": base["effort"],
         "execution_profile": profile,
         "session_policy": "visible_native_continuation" if profile == "native-continuation" else "fresh",
-        "continuation_mode": continuation_mode,
-        "native_parent_invocation_id": parent_id,
+        "continuation_mode": continuation_mode if native else None,
+        "native_parent_invocation_id": parent_id if native else None,
         "tools": [],
         "permissions": [],
         "workspace": str(workspace) if workspace is not None else None,

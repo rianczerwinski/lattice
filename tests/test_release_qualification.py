@@ -78,3 +78,13 @@ def test_antigravity_canary_uses_the_exact_collision_regression_schema() -> None
     schema = request["output_contract"]["json_schema"]
     assert schema["required"] == ["response", "toolSummary", "toolAction"]
     assert set(schema["properties"]) == {"response", "toolSummary", "toolAction"}
+
+
+@pytest.mark.regression
+def test_portable_and_workspace_ancestry_does_not_claim_native_session_state() -> None:
+    for profile in ("compiled-fresh", "workspace-agent"):
+        request = qualify_release._submission("openai", profile, route_profile=profile, marker="MARKER", parent_id="invocation_parent")
+
+        assert request["parent_invocation_ids"] == ["invocation_parent"]
+        assert request["route"]["native_parent_invocation_id"] is None
+        assert request["route"]["continuation_mode"] is None
