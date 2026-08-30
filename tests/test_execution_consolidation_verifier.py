@@ -73,6 +73,62 @@ def test_independent_verifier_reconciles_external_execution_from_base_records(la
     assert result["referenced_blobs"] >= 5
 
 
+@pytest.mark.contract
+def test_pre_profile_manifest_is_reported_without_rewriting_history(lattice_env) -> None:
+    route = lattice_env["route"].model_dump(mode="json")
+    route.pop("provider_profile_id")
+    with lattice_env["store"]._connect() as connection:
+        profiles = verifier._verify_provider_profiles(connection)
+
+    result = verifier._verify_route(route, profiles, label="legacy fixture", allow_legacy_profileless=True)
+
+    assert result == "legacy-profileless-matched"
+
+
+@pytest.mark.regression
+def test_negative_control_current_manifest_cannot_drop_its_provider_profile(lattice_env) -> None:
+    invocation_id = _completed_external(lattice_env)
+    with lattice_env["store"]._connect() as connection:
+        connection.create_function("lattice_replaying", 0, lambda: 1)
+        row = connection.execute("SELECT route_json,manifest_json FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+        route = json.loads(row["route_json"])
+        manifest = json.loads(row["manifest_json"])
+        route.pop("provider_profile_id")
+        manifest["execution"] = route
+        manifest_without_hash = {key: value for key, value in manifest.items() if key != "manifest_sha256"}
+        manifest["manifest_sha256"] = sha256_bytes(canonical_bytes(manifest_without_hash))
+        connection.execute(
+            "UPDATE invocations SET route_json=?,manifest_json=?,manifest_sha256=? WHERE invocation_id=?",
+            (canonical_bytes(route).decode(), canonical_bytes(manifest).decode(), manifest["manifest_sha256"], invocation_id),
+        )
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="no immutable provider profile"):
+        verifier.verify_database(lattice_env["config"].data_root)
+
+
+@pytest.mark.regression
+def test_negative_control_successful_legacy_invocation_cannot_claim_an_unqualified_model(lattice_env) -> None:
+    invocation_id = _completed_external(lattice_env)
+    with lattice_env["store"]._connect() as connection:
+        connection.create_function("lattice_replaying", 0, lambda: 1)
+        row = connection.execute("SELECT route_json,manifest_json FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+        route = json.loads(row["route_json"])
+        manifest = json.loads(row["manifest_json"])
+        route.pop("provider_profile_id")
+        route["model"] = "unqualified-legacy-model"
+        manifest["contract_version"] = "LatticeContextManifest/9.0"
+        manifest["execution"] = route
+        manifest_without_hash = {key: value for key, value in manifest.items() if key != "manifest_sha256"}
+        manifest["manifest_sha256"] = sha256_bytes(canonical_bytes(manifest_without_hash))
+        connection.execute(
+            "UPDATE invocations SET route_json=?,manifest_json=?,manifest_sha256=?,created_at=? WHERE invocation_id=?",
+            (canonical_bytes(route).decode(), canonical_bytes(manifest).decode(), manifest["manifest_sha256"], "20260824T000000", invocation_id),
+        )
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="used an unqualified legacy route successfully"):
+        verifier.verify_database(lattice_env["config"].data_root)
+
+
 @pytest.mark.regression
 def test_negative_control_verifier_rejects_changed_runtime_receipt_blob(lattice_env) -> None:
     invocation_id = _completed_external(lattice_env)
@@ -215,6 +271,35 @@ def test_negative_control_historical_import_must_still_resolve_to_exact_source_b
     source.write_text('{"status":"rewritten"}\n', encoding="utf-8")
     with pytest.raises(verifier.ConsolidationVerificationError, match="no longer match"):
         verifier.verify_database(lattice_env["config"].data_root, historical_roots={"fixture.history": history_root})
+
+
+@pytest.mark.contract
+def test_superseded_historical_namespace_preserves_claim_without_claiming_live_source_equality(lattice_env, tmp_path) -> None:
+    history_root = tmp_path / "history"
+    run = history_root / "run-fixture"
+    run.mkdir(parents=True)
+    source = run / "terminal.json"
+    source.write_text('{"status":"success"}\n', encoding="utf-8")
+    files = [{"relative_path": "terminal.json", "content_sha256": verifier.sha256_file(source), "byte_count": source.stat().st_size}]
+    request = {
+        "contract_version": "HistoricalExecutionImport/1.0",
+        "external_project_key": verifier.LEGACY_HISTORICAL_EXECUTION_KEY,
+        "operation_key": "historical:run-fixture",
+        "source_ref": "run-fixture",
+        "source_census_sha256": sha256_bytes(canonical_bytes(files)),
+        "files": files,
+        "provider": "openai",
+        "model": "historical-codex",
+        "original_invocation_id": "fixture-run",
+        "terminal_state": "success",
+    }
+    lattice_env["store"].import_historical_execution(request, sha256_bytes(canonical_bytes(request)))
+    source.write_text('{"status":"changed-after-snapshot"}\n', encoding="utf-8")
+
+    result = verifier.verify_database(lattice_env["config"].data_root, historical_roots={})
+
+    assert result["legacy_historical_sources_unavailable"] == 1
+    assert result["historical_sources_verified"] == 0
 
 
 @pytest.mark.regression

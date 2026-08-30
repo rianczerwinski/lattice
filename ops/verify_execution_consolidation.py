@@ -80,6 +80,14 @@ REQUIRED_PROVIDER_PROFILES = {
 }
 HISTORICAL_EXECUTION_KEY = "field-survey.research-pipeline.historical-topology-v2"
 LEGACY_HISTORICAL_EXECUTION_KEY = "field-survey.research-pipeline"
+LEGACY_PROFILELESS_MANIFESTS = {
+    "LoomContextManifest/1.0",
+    "LatticeContextManifest/5.0",
+    "LatticeContextManifest/6.0",
+    "LatticeContextManifest/7.0",
+    "LatticeContextManifest/8.0",
+    "LatticeContextManifest/9.0",
+}
 
 
 class ConsolidationVerificationError(RuntimeError):
@@ -218,7 +226,7 @@ def _verify_provider_profiles(connection: sqlite3.Connection) -> dict[str, dict[
     return profiles
 
 
-def _verify_route(route: Any, profiles: dict[str, dict[str, Any]], *, label: str) -> None:
+def _verify_route(route: Any, profiles: dict[str, dict[str, Any]], *, label: str, allow_legacy_profileless: bool = False) -> str:
     if not isinstance(route, dict):
         raise ConsolidationVerificationError(f"{label} route is not an object")
     provider = route.get("provider")
@@ -228,13 +236,27 @@ def _verify_route(route: Any, profiles: dict[str, dict[str, Any]], *, label: str
     if route.get("route_kind", "execution") == "historical-import":
         if route.get("provider_profile_id") is not None or not str(route.get("model", "")).startswith("historical-"):
             raise ConsolidationVerificationError(f"{label} historical route claims executable authority")
-        return
+        return "historical"
     profile_id = route.get("provider_profile_id")
     definition = profiles.get(profile_id)
     if definition is None:
-        raise ConsolidationVerificationError(f"{label} has no immutable provider profile")
+        if not allow_legacy_profileless:
+            raise ConsolidationVerificationError(f"{label} has no immutable provider profile")
+        matching = [
+            item
+            for item in profiles.values()
+            if item.get("provider_code") == provider
+            and item.get("harness") == harness
+            and item.get("default_model") == route.get("model")
+        ]
+        if len(matching) == 1:
+            return "legacy-profileless-matched"
+        if matching:
+            raise ConsolidationVerificationError(f"{label} ambiguously matches multiple immutable provider profiles")
+        return "legacy-profileless-unmatched"
     if definition.get("provider_code") != provider or definition.get("harness") != harness or definition.get("default_model") != route.get("model"):
         raise ConsolidationVerificationError(f"{label} route disagrees with its provider profile")
+    return "bound"
 
 
 def _collect_blob_refs(value: Any, refs: set[str]) -> None:
@@ -248,7 +270,7 @@ def _collect_blob_refs(value: Any, refs: set[str]) -> None:
             _collect_blob_refs(child, refs)
 
 
-def _verify_runtime_receipt(data_root: Path, receipt: Any, route: dict[str, Any], *, label: str) -> set[str]:
+def _verify_runtime_receipt(data_root: Path, receipt: Any, route: dict[str, Any], *, label: str, expected_terminal_status: str = "success") -> set[str]:
     if not isinstance(receipt, dict) or receipt.get("kind") != "lattice-model-runtime-receipt":
         raise ConsolidationVerificationError(f"{label} lacks a full Lattice runtime receipt")
     if receipt.get("driver") != route.get("harness") or receipt.get("model") != route.get("model"):
@@ -275,8 +297,8 @@ def _verify_runtime_receipt(data_root: Path, receipt: Any, route: dict[str, Any]
     terminal = decoded["terminal.json"]
     if request.get("driver") != route.get("harness") or request.get("model") != route.get("model") or checkpoint.get("request_sha256") != files["request.json"]["sha256"]:
         raise ConsolidationVerificationError(f"{label} checkpoint does not bind the executed request")
-    if terminal.get("status") != "success":
-        raise ConsolidationVerificationError(f"{label} successful attempt has a non-success terminal journal")
+    if terminal.get("status") != expected_terminal_status:
+        raise ConsolidationVerificationError(f"{label} terminal journal does not report {expected_terminal_status}")
     return refs
 
 
@@ -319,8 +341,11 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True, 
         if schema != EXPECTED_SCHEMA_VERSION:
             raise ConsolidationVerificationError(f"database schema is {schema}, expected {EXPECTED_SCHEMA_VERSION}")
         profiles = _verify_provider_profiles(connection)
+        profile_registry_started_at = connection.execute("SELECT MIN(created_at) FROM provider_profiles").fetchone()[0]
         invocations: dict[str, sqlite3.Row] = {}
         routes: dict[str, dict[str, Any]] = {}
+        legacy_profileless = 0
+        legacy_unqualified_failures = 0
         for row in connection.execute("SELECT * FROM invocations ORDER BY invocation_id"):
             invocation_id = str(row["invocation_id"])
             manifest = parse_json(row["manifest_json"], label=f"invocation manifest {invocation_id}")
@@ -328,7 +353,33 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True, 
             expected_manifest = sha256_bytes(canonical_bytes({key: value for key, value in manifest.items() if key != "manifest_sha256"}))
             if row["manifest_sha256"] != expected_manifest or manifest.get("manifest_sha256") != expected_manifest or manifest.get("execution") != route:
                 raise ConsolidationVerificationError(f"invocation manifest is not self-consistent: {invocation_id}")
-            _verify_route(route, profiles, label=f"invocation {invocation_id}")
+            legacy_contract = manifest.get("contract_version") in LEGACY_PROFILELESS_MANIFESTS
+            allow_legacy_profileless = bool(
+                route.get("provider_profile_id") is None
+                and legacy_contract
+                and isinstance(profile_registry_started_at, str)
+                and row["created_at"] < profile_registry_started_at
+            )
+            route_class = _verify_route(
+                route,
+                profiles,
+                label=f"invocation {invocation_id}",
+                allow_legacy_profileless=allow_legacy_profileless,
+            )
+            if route_class.startswith("legacy-profileless"):
+                legacy_profileless += 1
+            if route_class == "legacy-profileless-unmatched":
+                attempts = list(connection.execute("SELECT state,output_sha256,runtime_receipt_json FROM attempts WHERE invocation_id=?", (invocation_id,)))
+                if row["state"] not in {"failed", "interrupted"} or any(
+                    attempt["state"] not in {"failed", "interrupted"} or attempt["output_sha256"] is not None
+                    for attempt in attempts
+                ):
+                    raise ConsolidationVerificationError(f"{invocation_id} used an unqualified legacy route successfully")
+                for ordinal, attempt in enumerate(attempts):
+                    if attempt["runtime_receipt_json"] is not None:
+                        receipt = parse_json(attempt["runtime_receipt_json"], label=f"legacy failed attempt {invocation_id}:{ordinal}")
+                        refs.update(_verify_runtime_receipt(data_root, receipt, route, label=f"legacy failed attempt {invocation_id}:{ordinal}", expected_terminal_status="failed"))
+                legacy_unqualified_failures += 1
             refs.add(require_digest(row["compiled_prompt_sha256"], label=f"compiled prompt {invocation_id}"))
             _collect_blob_refs(manifest, refs)
             invocations[invocation_id] = row
@@ -361,6 +412,7 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True, 
             _collect_blob_refs(parse_json(row["generated_json"], label=f"artifact {row['artifact_id']}"), refs)
         historical_count = 0
         historical_sources_verified = 0
+        legacy_historical_sources_unavailable = 0
         for row in connection.execute("SELECT * FROM historical_execution_imports ORDER BY import_id"):
             historical_count += 1
             files = parse_json(row["census_json"], label=f"historical import {row['import_id']}")
@@ -380,6 +432,9 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True, 
             }
             if sha256_bytes(canonical_bytes(request_material)) != row["request_sha256"]:
                 raise ConsolidationVerificationError(f"historical execution request identity is corrupt: {row['import_id']}")
+            if row["external_project_key"] == LEGACY_HISTORICAL_EXECUTION_KEY:
+                legacy_historical_sources_unavailable += 1
+                continue
             base = historical_roots.get(row["external_project_key"]) if historical_roots is not None else None
             if base is None:
                 raise ConsolidationVerificationError(f"historical execution source has no verifier-owned root: {row['import_id']}")
@@ -402,7 +457,7 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True, 
     finally:
         connection.close()
     blob_bytes = sum(verify_blob(data_root, digest) for digest in sorted(refs))
-    return {"schema_version": EXPECTED_SCHEMA_VERSION, "provider_profiles": len(profiles), "invocations": len(invocations), "external_operations": external_count, "historical_imports": historical_count, "historical_sources_verified": historical_sources_verified, "referenced_blobs": len(refs), "referenced_blob_bytes": blob_bytes}
+    return {"schema_version": EXPECTED_SCHEMA_VERSION, "provider_profiles": len(profiles), "invocations": len(invocations), "legacy_profileless_invocations": legacy_profileless, "legacy_unqualified_failures": legacy_unqualified_failures, "external_operations": external_count, "historical_imports": historical_count, "historical_sources_verified": historical_sources_verified, "legacy_historical_sources_unavailable": legacy_historical_sources_unavailable, "referenced_blobs": len(refs), "referenced_blob_bytes": blob_bytes}
 
 
 def verify_runtime_manifest(path: Path, *, database_profiles: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
