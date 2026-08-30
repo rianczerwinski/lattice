@@ -83,6 +83,23 @@ def release_version() -> str:
     return match.group(1).decode("ascii")
 
 
+def installed_runtime_version(target: Path) -> str:
+    """Read the exact Lattice package version attested by an installed runtime."""
+
+    raw = target.joinpath("runtime.json").read_bytes()
+    manifest = json.loads(raw)
+    if canonical_runtime_manifest(manifest, target / ".venv" / "bin" / "python") != raw or manifest.get("contract_version") != "LatticeInstalledRuntime/4.0" or manifest.get("runtime_id") != target.name:
+        raise RuntimeError(f"installed runtime manifest is not exact for {target}")
+    match = re.fullmatch(r"([0-9]+\.[0-9]+\.[0-9]+)-[0-9a-f]{12}", target.name)
+    if match is None:
+        raise RuntimeError(f"installed runtime identity has no stable package version: {target}")
+    expected = match.group(1)
+    observed = run([str(target / ".venv" / "bin" / "python"), "-c", "import lattice; print(lattice.__version__)"], cwd=target, capture=True).stdout.decode("utf-8", errors="strict").strip()
+    if observed != expected:
+        raise RuntimeError(f"installed runtime package version disagrees with its identity: expected {expected}, observed {observed}")
+    return expected
+
+
 def source_tree_inventories() -> dict[str, list[dict[str, str | int]]]:
     from lattice.runtime_attestation import mapped_inventory
 
@@ -700,12 +717,12 @@ def publish_runtime(target: Path) -> None:
     try:
         install_links(target)
         install_launchd(target)
-        verify_live_service(target.name)
+        verify_live_service(target.name, installed_runtime_version(target))
     except BaseException as publication_error:
         try:
             restore_publication_state(prior)
             if prior.current_target is not None and prior.service_loaded:
-                verify_live_service(prior.current_target.name)
+                verify_live_service(prior.current_target.name, installed_runtime_version(prior.current_target))
         except BaseException as rollback_error:
             raise BaseExceptionGroup("Lattice publication and automatic rollback both failed", [publication_error, rollback_error])
         raise publication_error
@@ -771,7 +788,7 @@ def install_launchd(target: Path) -> None:
     reload_job(SERVICE_LABEL, service_path)
 
 
-def verify_live_service(expected_runtime_id: str, timeout_seconds: int = 90) -> None:
+def verify_live_service(expected_runtime_id: str, expected_version: str, timeout_seconds: int = 90) -> None:
     import_source_modules()
     from lattice.outport import resolve_lattice_service
 
@@ -782,7 +799,7 @@ def verify_live_service(expected_runtime_id: str, timeout_seconds: int = 90) -> 
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{service.port}/api/health", timeout=2) as response:
                 payload = json.loads(response.read())
-            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and payload.get("version") == release_version() and not payload.get("startup_recovery_failures") and not payload.get("workflow_pack_failures"):
+            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and payload.get("version") == expected_version and not payload.get("startup_recovery_failures") and not payload.get("workflow_pack_failures"):
                 return
             last_error = RuntimeError(f"health identity mismatch: {payload}")
         except Exception as error:

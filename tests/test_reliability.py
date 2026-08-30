@@ -24,6 +24,7 @@ from lattice.runtime_attestation import mapped_inventory, tree_inventory, valida
 from lattice.security import ensure_cli_token
 from lattice.server import create_app
 from lattice import snapshot as snapshot_runtime
+from lattice import runtime_identity
 from lattice.snapshot import create_snapshot, restore_snapshot, verify_snapshot
 from ops import install as deployment
 
@@ -42,6 +43,68 @@ def outport_payload(*, port: int = 9010, url: str = "https://lattice.axisvi.test
             },
         },
     }).encode()
+
+
+def installed_identity_fixture(root: Path, runtime_id: str) -> Path:
+    runtime_root = root / "versions" / runtime_id
+    environment = runtime_root / ".venv"
+    environment.joinpath("bin").mkdir(parents=True)
+    manifest = {
+        "generated_object": generated_object(
+            kind="lattice-installed-runtime",
+            schema_name="lattice-installed-runtime",
+            schema_version=4,
+            subject=f"lattice:installed-runtime:{runtime_id}",
+            role="canonical",
+            sources=[{"ref": "fixture:runtime-source", "revision": "fixture", "sha256": "a" * 64}],
+            producer_name="lattice-installer",
+            producer_version="4.0.0",
+        ),
+        "contract_version": "LatticeInstalledRuntime/4.0",
+        "runtime_id": runtime_id,
+        "python": str(Path(__import__("sys").base_prefix) / "bin" / "python3"),
+        "packages": ["lattice==0.3.1"],
+        "module_locations": {"lattice": str(environment / "lib/python/site-packages/lattice/__init__.py")},
+        "source_trees": {"lattice": [{"path": "__init__.py", "sha256": "b" * 64, "byte_count": 1}]},
+        "provider_attestations": [],
+    }
+    runtime_root.joinpath("runtime.json").write_bytes(canonical_bytes(manifest))
+    return environment
+
+
+@pytest.mark.regression
+def test_runtime_identity_uses_the_venv_prefix_when_python_resolves_to_homebrew(monkeypatch, tmp_path) -> None:
+    runtime_id = "0.3.1-fixture"
+    environment = installed_identity_fixture(tmp_path, runtime_id)
+    executable = environment / "bin" / "python"
+    executable.symlink_to(Path(__import__("sys").executable).resolve())
+    assert executable.resolve() != executable
+    monkeypatch.setattr(runtime_identity.sys, "prefix", str(environment))
+    monkeypatch.setattr(runtime_identity.sys, "executable", str(executable))
+    runtime_identity.installed_runtime_identity.cache_clear()
+
+    try:
+        identity = runtime_identity.installed_runtime_identity(runtime_id)
+    finally:
+        runtime_identity.installed_runtime_identity.cache_clear()
+
+    assert identity["runtime_id"] == runtime_id
+    assert identity["runtime_manifest_path"] == str(environment.parent / "runtime.json")
+
+
+@pytest.mark.regression
+def test_negative_control_runtime_identity_rejects_an_executable_outside_its_venv(monkeypatch, tmp_path) -> None:
+    runtime_id = "0.3.1-fixture"
+    environment = installed_identity_fixture(tmp_path, runtime_id)
+    monkeypatch.setattr(runtime_identity.sys, "prefix", str(environment))
+    monkeypatch.setattr(runtime_identity.sys, "executable", str(tmp_path / "foreign-python"))
+    runtime_identity.installed_runtime_identity.cache_clear()
+
+    try:
+        with pytest.raises(RuntimeError, match="does not belong"):
+            runtime_identity.installed_runtime_identity(runtime_id)
+    finally:
+        runtime_identity.installed_runtime_identity.cache_clear()
 
 
 @pytest.mark.contract
@@ -658,6 +721,32 @@ def test_runtime_sync_forces_the_self_contained_package_to_rebuild() -> None:
     assert arguments[arguments.index("--reinstall-package") + 1] == "lattice"
 
 
+@pytest.mark.contract
+def test_installed_runtime_version_matches_identity_and_executing_package(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "0.3.1-aaaaaaaaaaaa"
+    target.mkdir()
+    manifest = {"contract_version": "LatticeInstalledRuntime/4.0", "runtime_id": target.name}
+    raw = canonical_bytes(manifest)
+    target.joinpath("runtime.json").write_bytes(raw)
+    monkeypatch.setattr(deployment, "canonical_runtime_manifest", lambda value, _python: canonical_bytes(value))
+    monkeypatch.setattr(deployment, "run", lambda *_args, **_kwargs: argparse.Namespace(stdout=b"0.3.1\n"))
+
+    assert deployment.installed_runtime_version(target) == "0.3.1"
+
+
+@pytest.mark.regression
+def test_negative_control_installed_runtime_version_rejects_package_drift(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "0.3.1-aaaaaaaaaaaa"
+    target.mkdir()
+    manifest = {"contract_version": "LatticeInstalledRuntime/4.0", "runtime_id": target.name}
+    target.joinpath("runtime.json").write_bytes(canonical_bytes(manifest))
+    monkeypatch.setattr(deployment, "canonical_runtime_manifest", lambda value, _python: canonical_bytes(value))
+    monkeypatch.setattr(deployment, "run", lambda *_args, **_kwargs: argparse.Namespace(stdout=b"0.3.0\n"))
+
+    with pytest.raises(RuntimeError, match="expected 0.3.1, observed 0.3.0"):
+        deployment.installed_runtime_version(target)
+
+
 @pytest.mark.oracle
 def test_runtime_tree_attestation_detects_a_stale_cached_package(tmp_path) -> None:
     source = tmp_path / "source"
@@ -681,7 +770,7 @@ def test_live_publication_probe_never_swallows_operator_interrupt(monkeypatch) -
     monkeypatch.setattr(deployment.urllib.request, "urlopen", lambda *_args, **_kwargs: (_ for _ in ()).throw(KeyboardInterrupt()))
 
     with pytest.raises(KeyboardInterrupt):
-        deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
+        deployment.verify_live_service("candidate-runtime", "0.3.1", timeout_seconds=1)
 
 
 @pytest.mark.contract
@@ -853,7 +942,7 @@ def test_negative_control_live_publication_rejects_the_prior_runtime(monkeypatch
     monkeypatch.setattr(deployment.time, "monotonic", lambda: next(ticks))
 
     with pytest.raises(RuntimeError, match="prior-runtime"):
-        deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
+        deployment.verify_live_service("candidate-runtime", "0.3.1", timeout_seconds=1)
 
 
 @pytest.mark.regression
@@ -877,7 +966,7 @@ def test_negative_control_live_publication_rejects_wrong_package_version(monkeyp
     monkeypatch.setattr(deployment.time, "monotonic", lambda: next(ticks))
 
     with pytest.raises(RuntimeError, match="0.1.0"):
-        deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
+        deployment.verify_live_service("candidate-runtime", "0.3.1", timeout_seconds=1)
 
 
 @pytest.mark.regression
@@ -901,7 +990,7 @@ def test_negative_control_live_publication_rejects_quarantined_workflows(monkeyp
     monkeypatch.setattr(deployment.time, "monotonic", lambda: next(ticks))
 
     with pytest.raises(RuntimeError, match="workflow_pack_failures"):
-        deployment.verify_live_service("candidate-runtime", timeout_seconds=1)
+        deployment.verify_live_service("candidate-runtime", "0.3.1", timeout_seconds=1)
 
 
 @pytest.mark.regression
@@ -1001,6 +1090,39 @@ def test_publication_failure_always_invokes_exact_state_rollback(monkeypatch, tm
         deployment.publish_runtime(target)
 
     assert calls == [("links", target), ("restore", prior)]
+
+
+@pytest.mark.regression
+def test_failed_upgrade_verifies_the_restored_runtime_against_its_own_version(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "candidate-runtime"
+    prior_target = tmp_path / "prior-runtime"
+    target.mkdir()
+    prior_target.mkdir()
+    prior = deployment.PublicationState(prior_target, None, None, None, None, True, False)
+    calls = []
+    monkeypatch.setattr(deployment, "capture_publication_state", lambda: prior)
+    monkeypatch.setattr(deployment, "install_links", lambda value: calls.append(("links", value.name)))
+    monkeypatch.setattr(deployment, "install_launchd", lambda value: calls.append(("launchd", value.name)))
+    monkeypatch.setattr(deployment, "restore_publication_state", lambda value: calls.append(("restore", value.current_target.name)))
+    monkeypatch.setattr(deployment, "installed_runtime_version", lambda value: {target: "0.3.1", prior_target: "0.3.0"}[value])
+
+    def verify(runtime_id, version):
+        calls.append(("verify", runtime_id, version))
+        if runtime_id == target.name:
+            raise RuntimeError("planted candidate health failure")
+
+    monkeypatch.setattr(deployment, "verify_live_service", verify)
+
+    with pytest.raises(RuntimeError, match="planted candidate"):
+        deployment.publish_runtime(target)
+
+    assert calls == [
+        ("links", target.name),
+        ("launchd", target.name),
+        ("verify", target.name, "0.3.1"),
+        ("restore", prior_target.name),
+        ("verify", prior_target.name, "0.3.0"),
+    ]
 
 
 @pytest.mark.regression
