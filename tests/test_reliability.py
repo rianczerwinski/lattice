@@ -46,7 +46,7 @@ def outport_payload(*, port: int = 9010, url: str = "https://lattice.axisvi.test
 
 @pytest.mark.contract
 def test_release_identity_has_one_package_owned_source() -> None:
-    assert __version__ == "0.3.0"
+    assert __version__ == "0.3.1"
     assert cli._version() == __version__
     assert deployment.release_version() == __version__
 
@@ -57,7 +57,7 @@ def test_cli_exposes_the_release_identity(capsys) -> None:
         cli.parser().parse_args(["--version"])
 
     assert exit_info.value.code == 0
-    assert capsys.readouterr().out == "lattice 0.3.0\n"
+    assert capsys.readouterr().out == "lattice 0.3.1\n"
 
 
 @pytest.mark.regression
