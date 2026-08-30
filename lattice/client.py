@@ -103,7 +103,7 @@ class LatticeClient:
 
     def import_history(self, request: HistoricalExecutionImportV1 | dict[str, Any]) -> HistoricalExecutionImportResultV1:
         value = request if isinstance(request, HistoricalExecutionImportV1) else HistoricalExecutionImportV1.model_validate(request)
-        return HistoricalExecutionImportResultV1.model_validate(self._request("POST", "/api/v1/historical-executions", value.model_dump(mode="json")))
+        return HistoricalExecutionImportResultV1.model_validate(self._request("POST", "/api/v1/historical-executions", value.model_dump(mode="json", exclude_unset=True)))
 
     def wait(self, external_project_key: str, operation_key: str, project_id: str, *, timeout: float = 1800.0) -> ExecutionResultV1:
         """Follow the canonical event stream and inspect only when it advances."""

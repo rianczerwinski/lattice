@@ -455,6 +455,7 @@ class HistoricalExecutionFileV1(StrictModel):
     relative_path: str = Field(min_length=1, max_length=1000, pattern=r"^[^\x00-\x1f\x7f]+$")
     content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     byte_count: int = Field(ge=0)
+    file_type: Literal["regular", "symlink"] = "regular"
 
     @field_validator("relative_path")
     @classmethod
@@ -481,7 +482,7 @@ class HistoricalExecutionImportV1(StrictModel):
         paths = [item.relative_path for item in self.files]
         if len(paths) != len(set(paths)):
             raise ValueError("historical execution file paths must be unique")
-        canonical_files = [item.model_dump(mode="json") for item in sorted(self.files, key=lambda item: item.relative_path)]
+        canonical_files = [item.model_dump(mode="json", exclude_unset=True) for item in sorted(self.files, key=lambda item: item.relative_path)]
         encoded = json.dumps(canonical_files, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         if hashlib.sha256(encoded).hexdigest() != self.source_census_sha256:
             raise ValueError("historical execution census hash does not bind its exact file inventory")

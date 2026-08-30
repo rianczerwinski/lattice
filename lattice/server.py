@@ -518,7 +518,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.post("/api/v1/historical-executions", status_code=201)
     async def import_historical_execution(value: HistoricalExecutionImportV1):
-        request = value.model_dump(mode="json")
+        request = value.model_dump(mode="json", exclude_unset=True)
         row = store.import_historical_execution(request, sha256_bytes(canonical_bytes(request)))
         return HistoricalExecutionImportResultV1(
             import_id=row["import_id"],

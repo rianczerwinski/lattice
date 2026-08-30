@@ -271,12 +271,21 @@ def _verify_historical_source(source: Path, expected_files: Any, *, label: str) 
         raise ConsolidationVerificationError(f"{label} source directory is missing or indirect: {source}")
     if not isinstance(expected_files, list):
         raise ConsolidationVerificationError(f"{label} source census is malformed")
+    modern = any(isinstance(item, dict) and "file_type" in item for item in expected_files)
     actual: list[dict[str, Any]] = []
     for path in sorted(source.rglob("*"), key=lambda item: item.relative_to(source).as_posix()):
         if path.is_symlink():
-            raise ConsolidationVerificationError(f"{label} source contains a symlink: {path}")
+            target = os.readlink(path).encode("utf-8")
+            item = {"relative_path": path.relative_to(source).as_posix(), "content_sha256": sha256_bytes(target), "byte_count": len(target)}
+            if modern:
+                item["file_type"] = "symlink"
+            actual.append(item)
+            continue
         if path.is_file():
-            actual.append({"relative_path": path.relative_to(source).as_posix(), "content_sha256": sha256_file(path), "byte_count": path.stat().st_size})
+            item = {"relative_path": path.relative_to(source).as_posix(), "content_sha256": sha256_file(path), "byte_count": path.stat().st_size}
+            if modern:
+                item["file_type"] = "regular"
+            actual.append(item)
     if actual != expected_files:
         raise ConsolidationVerificationError(f"{label} source bytes no longer match the imported census")
 

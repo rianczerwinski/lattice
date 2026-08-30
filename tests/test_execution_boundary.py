@@ -92,12 +92,12 @@ def test_historical_import_binds_exact_file_census_and_is_immutable(lattice_env)
         model="opus",
         terminal_state="success",
     )
-    material = request.model_dump(mode="json")
+    material = request.model_dump(mode="json", exclude_unset=True)
     imported = lattice_env["store"].import_historical_execution(material, sha256_json(material))
     replayed = lattice_env["store"].import_historical_execution(material, sha256_json(material))
     assert replayed["import_id"] == imported["import_id"]
 
-    altered = request.model_copy(update={"terminal_state": "failed"}).model_dump(mode="json")
+    altered = request.model_copy(update={"terminal_state": "failed"}).model_dump(mode="json", exclude_unset=True)
     with pytest.raises(LatticeConflict, match="different bytes"):
         lattice_env["store"].import_historical_execution(altered, sha256_json(altered))
     with lattice_env["store"]._connect() as conn, pytest.raises(sqlite3.IntegrityError, match="immutable"):
@@ -126,7 +126,7 @@ def test_empty_historical_directory_is_preserved_as_explicitly_incomplete(lattic
         files=[],
         terminal_state="incomplete-empty",
     )
-    material = request.model_dump(mode="json")
+    material = request.model_dump(mode="json", exclude_unset=True)
 
     imported = lattice_env["store"].import_historical_execution(material, sha256_json(material))
 
