@@ -284,6 +284,7 @@ def write_receipt(
     provider_canaries: list[dict[str, Any]],
     consumer_canaries: list[dict[str, Any]],
     interruption: dict[str, Any],
+    interruption_source: Path,
     credential_canary_files: list[Path],
 ) -> dict[str, Any]:
     runtime = _exact_runtime(runtime_manifest_path)
@@ -299,7 +300,7 @@ def write_receipt(
     expected_consumers = {item["consumer_id"] for item in registry["consumers"]}
     if {item.get("consumer_id") for item in consumer_canaries} != expected_consumers:
         raise QualificationFailure("qualification receipt requires one exact canary per registered consumer")
-    if interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id"):
+    if interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id") or not interruption.get("parent_invocation_id"):
         raise QualificationFailure("qualification receipt requires a completed active-work interruption proof")
     if not credential_canary_files or any(not path.is_file() or not path.read_bytes() for path in credential_canary_files):
         raise QualificationFailure("qualification requires nonempty isolated credential canaries")
@@ -307,6 +308,9 @@ def write_receipt(
     sources = [
         {"ref": f"file:{runtime_manifest_path}", "revision": runtime["runtime_id"], "sha256": _sha256_file(runtime_manifest_path)},
         {"ref": f"file:{consumer_registry_path}", "revision": registry["generated_object"]["artifact_id"], "sha256": sha256_bytes(registry_raw)},
+        {"ref": f"file:{interruption_source}", "revision": interruption.get("generated_object", {}).get("artifact_id"), "sha256": _sha256_file(interruption_source)},
+        *[{"ref": f"file:{item['report_path']}", "revision": item["consumer_id"], "sha256": item["report_sha256"]} for item in consumer_canaries],
+        *[{"ref": f"lattice:invocation:{item['invocation_id']}", "revision": item["profile"], "sha256": item["manifest_sha256"]} for item in provider_canaries],
     ]
     value = {
         "generated_object": generated_object(kind="lattice-qualification-receipt", schema_name="lattice-qualification-receipt", subject="lattice:release-qualification:0.3.1", role="snapshot", sources=sources, producer_name="lattice-release-qualification", producer_version="1.0.0"),
@@ -364,7 +368,7 @@ def main() -> int:
     interruption = strict_json_loads(interruption_raw)
     if not isinstance(interruption, dict) or canonical_bytes(interruption) != interruption_raw:
         raise QualificationFailure("interruption receipt is not exact canonical JSON")
-    receipt = write_receipt(args.output, runtime_manifest_path=runtime_manifest, consumer_registry_path=args.consumer_registry.resolve(strict=True), axisvi_root=axisvi_root, suites=suites, provider_canaries=providers, consumer_canaries=consumers, interruption=interruption, credential_canary_files=[path.resolve(strict=True) for path in args.credential_canary_file])
+    receipt = write_receipt(args.output, runtime_manifest_path=runtime_manifest, consumer_registry_path=args.consumer_registry.resolve(strict=True), axisvi_root=axisvi_root, suites=suites, provider_canaries=providers, consumer_canaries=consumers, interruption=interruption, interruption_source=args.interruption_receipt.resolve(strict=True), credential_canary_files=[path.resolve(strict=True) for path in args.credential_canary_file])
     print(json.dumps({"output": str(args.output.resolve()), "artifact_id": receipt["generated_object"]["artifact_id"], "provider_canaries": len(providers), "suites": len(suites)}, sort_keys=True))
     return 0
 

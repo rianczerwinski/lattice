@@ -610,8 +610,33 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
     finally:
         connection.close()
     interruption = value.get("interruption")
-    if not isinstance(interruption, dict) or interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id"):
+    if not isinstance(interruption, dict) or interruption.get("contract_version") != "LatticeInterruptionReceipt/1.0" or interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id") or not interruption.get("parent_invocation_id"):
         raise ConsolidationVerificationError("installed active-work interruption was not proven")
+    verify_generated_object(interruption, role="snapshot", label="interruption receipt")
+    if interruption.get("runtime_artifact_id") != runtime["runtime_artifact_id"] or interruption.get("pre_restart_boot_id") == interruption.get("post_restart_boot_id"):
+        raise ConsolidationVerificationError("interruption receipt belongs to another runtime or did not restart")
+    isolated_root = Path(str(interruption.get("isolated_root", ""))).resolve(strict=True)
+    isolated_database = isolated_root / "lattice.sqlite3"
+    if not isolated_database.is_file() or isolated_root == data_root.resolve() or isolated_root.is_relative_to(data_root.resolve()):
+        raise ConsolidationVerificationError("interruption evidence is not an isolated durable Lattice root")
+    isolated = sqlite3.connect(f"file:{isolated_database.resolve(strict=True)}?mode=ro", uri=True)
+    isolated.row_factory = sqlite3.Row
+    try:
+        attempt = isolated.execute("SELECT invocation_id,state FROM attempts WHERE attempt_id=?", (interruption.get("interrupted_attempt_id"),)).fetchone()
+        continuation = isolated.execute("SELECT state,manifest_json,manifest_sha256 FROM invocations WHERE invocation_id=?", (interruption.get("continuation_invocation_id"),)).fetchone()
+        parent = isolated.execute("SELECT state FROM invocations WHERE invocation_id=?", (interruption.get("parent_invocation_id"),)).fetchone()
+        if attempt is None or attempt["invocation_id"] != interruption.get("interrupted_invocation_id") or attempt["state"] != interruption.get("post_restart_state"):
+            raise ConsolidationVerificationError("interrupted attempt does not resolve to its post-restart terminal state")
+        if continuation is None or continuation["state"] != "succeeded" or continuation["manifest_sha256"] != interruption.get("continuation_manifest_sha256") or parent is None or parent["state"] != "succeeded":
+            raise ConsolidationVerificationError("interruption continuation or parent does not resolve exactly")
+        manifest = parse_json(continuation["manifest_json"], label="interruption continuation manifest")
+        parent_ids = {item.get("producing_invocation_id") for item in manifest.get("segments", []) if isinstance(item, dict) and item.get("plane") == "ancestry"}
+        if interruption["parent_invocation_id"] not in parent_ids:
+            raise ConsolidationVerificationError("interruption continuation did not consume its durable parent")
+    finally:
+        isolated.close()
+    if sorted(interruption.get("credential_canary_sha256s", [])) != sorted(value.get("credential_canary_sha256s", [])):
+        raise ConsolidationVerificationError("interruption environment used different credential canaries")
     if value.get("kimi") != {"state": "unavailable", "reason": "unqualified"}:
         raise ConsolidationVerificationError("Kimi availability is not represented truthfully")
     return {"suites": len(suites), "provider_canaries": len(canaries), "consumers": len(consumer_canaries)}

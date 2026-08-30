@@ -39,9 +39,14 @@ def _inputs(tmp_path: Path) -> dict:
     suites = [{"suite_id": identity, "truth_kinds": ["contract"], "command": [["fixture"]], "cwd": str(tmp_path), "exit_code": 0, "stdout_sha256": "1" * 64, "stderr_sha256": "2" * 64} for identity in qualify_release.SUITES]
     providers = [{"provider": provider, "profile": profile, "state": "succeeded", "invocation_id": f"invocation_{index}", "manifest_sha256": "3" * 64, "output_sha256": "4" * 64, "provider_profile_id": "provider-profile:fixture", "runtime_receipt_sha256": "5" * 64} for index, (provider, profile) in enumerate(sorted(qualify_release.EXPECTED_CANARY_PROFILES))]
     consumer_canaries = [{"consumer_id": item["consumer_id"], "external_project_key": f"{item['consumer_id']}.canary", "invocation_id": f"invocation_{item['consumer_id']}", "manifest_sha256": "6" * 64, "report_path": str(tmp_path / f"{item['consumer_id']}.json"), "report_sha256": "7" * 64} for item in consumers]
+    for item in consumer_canaries:
+        Path(item["report_path"]).write_bytes(b"consumer-report")
+        item["report_sha256"] = __import__("hashlib").sha256(b"consumer-report").hexdigest()
+    interruption_source = tmp_path / "interruption.json"
+    interruption_source.write_bytes(b"interruption")
     canary = tmp_path / "credential-canary"
     canary.write_bytes(b"LATTICE-SYNTHETIC-CREDENTIAL-CANARY")
-    return {"runtime_manifest_path": runtime_path, "consumer_registry_path": registry_path, "axisvi_root": tmp_path, "suites": suites, "provider_canaries": providers, "consumer_canaries": consumer_canaries, "interruption": {"pre_restart_state": "running", "post_restart_state": "orphaned", "continuation_invocation_id": "invocation_continuation"}, "credential_canary_files": [canary]}
+    return {"runtime_manifest_path": runtime_path, "consumer_registry_path": registry_path, "axisvi_root": tmp_path, "suites": suites, "provider_canaries": providers, "consumer_canaries": consumer_canaries, "interruption": {"pre_restart_state": "running", "post_restart_state": "orphaned", "parent_invocation_id": "invocation_parent", "continuation_invocation_id": "invocation_continuation"}, "interruption_source": interruption_source, "credential_canary_files": [canary]}
 
 
 @pytest.mark.contract
