@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from lattice import cli
 from lattice import durability
 from lattice import __version__
-from lattice.canonical import canonical_bytes, generated_object
+from lattice.canonical import canonical_bytes, generated_object, validate_generated_object_envelope
 from lattice.config import LatticeConfig, user_data_root
 from lattice.contracts import DraftCreate, ProjectCreate
 from lattice.diagnostics import assess_backup, assess_data_root
@@ -667,6 +667,50 @@ def test_negative_control_generated_objects_reject_partial_source_records() -> N
         generated_object(kind="lattice-test", schema_name="lattice-test", subject="lattice:test", sources=[{"ref": "lattice:test", "revision": "one"}])
     with pytest.raises(ValueError, match="durable identity"):
         generated_object(kind="lattice-test", schema_name="lattice-test", subject="lattice:test", sources=[{"ref": "lattice:test", "revision": "one", "sha256": None}], artifact_id="artifact:traversal")
+
+
+@pytest.mark.contract
+def test_generated_object_roles_preserve_their_distinct_authority() -> None:
+    target = "artifact:11111111-1111-4111-8111-111111111111"
+    binding = {"artifact_id": target, "sha256": "a" * 64}
+    attestation = generated_object(
+        kind="lattice-qualification-attestation",
+        schema_name="lattice-qualification-attestation",
+        subject="lattice:qualification",
+        role="attestation",
+        binding=binding,
+        validator={"name": "independent-verifier", "version": "2.0.0"},
+        result="pass",
+    )
+    view = generated_object(kind="lattice-context-view", schema_name="lattice-context-view", subject="lattice:context", role="derived-view", binding=binding)
+
+    validate_generated_object_envelope(attestation)
+    validate_generated_object_envelope(view)
+    assert attestation["role"] == "attestation"
+    assert view["role"] == "derived-view"
+
+
+@pytest.mark.regression
+def test_negative_control_attestation_rejects_unbound_or_producer_asserted_success() -> None:
+    with pytest.raises(ValueError, match="invalid fields"):
+        generated_object(
+            kind="lattice-qualification-attestation",
+            schema_name="lattice-qualification-attestation",
+            subject="lattice:qualification",
+            role="attestation",
+            validator={"name": "independent-verifier", "version": "2.0.0"},
+            result="pass",
+        )
+    with pytest.raises(ValueError, match="result must be pass or fail"):
+        generated_object(
+            kind="lattice-qualification-attestation",
+            schema_name="lattice-qualification-attestation",
+            subject="lattice:qualification",
+            role="attestation",
+            binding={"artifact_id": "artifact:11111111-1111-4111-8111-111111111111", "sha256": "a" * 64},
+            validator={"name": "independent-verifier", "version": "2.0.0"},
+            result="producer-says-pass",
+        )
 
 
 @pytest.mark.contract

@@ -23,6 +23,9 @@ GENERATED_KIND = re.compile(r"[a-z][a-z0-9.-]*")
 SEMVER = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 TRACKING_TIMESTAMP = re.compile(r"[0-9]{8}T[0-9]{6}(?:Z[+-][0-9]{2})?")
 GENERATED_SOURCE_KEYS = {"ref", "revision", "sha256"}
+GENERATED_BINDING_KEYS = {"artifact_id", "sha256"}
+GENERATED_VALIDATOR_KEYS = {"name", "version"}
+GENERATED_COMMITMENT_KEYS = {"fields", "sealed_at", "supersedes", "change_reason"}
 
 
 def stamp() -> str:
@@ -91,10 +94,23 @@ def validate_generated_object_envelope(envelope: Any) -> None:
     if not isinstance(envelope, dict):
         raise ValueError("generated-object envelope must be an object")
     role = envelope.get("role")
-    required = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
-    allowed = required | ({"parent_artifact_id"} if role == "canonical" else set())
-    if role not in {"canonical", "snapshot"} or set(envelope) != required and set(envelope) != allowed:
-        raise ValueError("source-bound generated-object envelope has invalid fields or role")
+    common = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject"}
+    if role == "canonical":
+        required = common | {"sources"}
+        allowed = required | {"parent_artifact_id", "commitment"}
+    elif role == "snapshot":
+        required = common | {"sources"}
+        allowed = required
+    elif role == "derived-view":
+        required = common | {"binding"}
+        allowed = required | {"sources"}
+    elif role == "attestation":
+        required = common | {"binding", "validator", "result"}
+        allowed = required | {"sources"}
+    else:
+        raise ValueError("generated-object envelope role is invalid")
+    if not required.issubset(envelope) or not set(envelope).issubset(allowed):
+        raise ValueError("generated-object envelope has invalid fields for its role")
     if envelope["contract_version"] != 1 or not isinstance(envelope["kind"], str) or GENERATED_KIND.fullmatch(envelope["kind"]) is None:
         raise ValueError("generated-object contract or kind is invalid")
     schema = envelope["schema"]
@@ -108,22 +124,48 @@ def validate_generated_object_envelope(envelope: Any) -> None:
     parent = envelope.get("parent_artifact_id")
     if parent is not None and (not isinstance(parent, str) or ARTIFACT_ID.fullmatch(parent) is None):
         raise ValueError("generated-object parent artifact identity is invalid")
-    sources = envelope["sources"]
-    if not isinstance(sources, list) or not sources:
-        raise ValueError("generated-object requires exact sources")
-    for source in sources:
-        if not isinstance(source, dict) or set(source) != GENERATED_SOURCE_KEYS:
-            raise ValueError("generated-object sources require exactly ref, revision, and sha256")
-        if not isinstance(source["ref"], str) or not source["ref"]:
-            raise ValueError("generated-object source refs must be non-empty strings")
-        revision = source["revision"]
-        digest = source["sha256"]
-        if revision is not None and (not isinstance(revision, str) or not revision):
-            raise ValueError("generated-object source revisions must be non-empty strings or null")
-        if digest is not None and (not isinstance(digest, str) or SHA256.fullmatch(digest) is None):
-            raise ValueError("generated-object source digests must be lowercase SHA-256 or null")
-        if revision is None and digest is None:
-            raise ValueError("generated-object sources require a revision or SHA-256")
+    sources = envelope.get("sources")
+    if sources is not None:
+        if not isinstance(sources, list) or not sources:
+            raise ValueError("generated-object sources must be a non-empty list when present")
+        for source in sources:
+            if not isinstance(source, dict) or set(source) != GENERATED_SOURCE_KEYS:
+                raise ValueError("generated-object sources require exactly ref, revision, and sha256")
+            if not isinstance(source["ref"], str) or not source["ref"]:
+                raise ValueError("generated-object source refs must be non-empty strings")
+            revision = source["revision"]
+            digest = source["sha256"]
+            if revision is not None and (not isinstance(revision, str) or not revision):
+                raise ValueError("generated-object source revisions must be non-empty strings or null")
+            if digest is not None and (not isinstance(digest, str) or SHA256.fullmatch(digest) is None):
+                raise ValueError("generated-object source digests must be lowercase SHA-256 or null")
+            if revision is None and digest is None:
+                raise ValueError("generated-object sources require a revision or SHA-256")
+    binding = envelope.get("binding")
+    if binding is not None:
+        if not isinstance(binding, dict) or set(binding) != GENERATED_BINDING_KEYS or not isinstance(binding["artifact_id"], str) or ARTIFACT_ID.fullmatch(binding["artifact_id"]) is None or not isinstance(binding["sha256"], str) or SHA256.fullmatch(binding["sha256"]) is None:
+            raise ValueError("generated-object binding must contain an artifact ID and exact SHA-256")
+    validator = envelope.get("validator")
+    if validator is not None:
+        if not isinstance(validator, dict) or set(validator) != GENERATED_VALIDATOR_KEYS or not isinstance(validator["name"], str) or not validator["name"] or not isinstance(validator["version"], str) or SEMVER.fullmatch(validator["version"]) is None:
+            raise ValueError("generated-object validator is invalid")
+    if "result" in envelope and envelope["result"] not in {"pass", "fail"}:
+        raise ValueError("generated-object attestation result must be pass or fail")
+    commitment = envelope.get("commitment")
+    if commitment is not None:
+        if not isinstance(commitment, dict) or set(commitment) != GENERATED_COMMITMENT_KEYS:
+            raise ValueError("generated-object commitment is malformed")
+        fields = commitment["fields"]
+        if not isinstance(fields, list) or not fields or any(not isinstance(field, str) or not field for field in fields) or len(set(fields)) != len(fields):
+            raise ValueError("generated-object commitment fields are invalid")
+        if not isinstance(commitment["sealed_at"], str) or TRACKING_TIMESTAMP.fullmatch(commitment["sealed_at"]) is None:
+            raise ValueError("generated-object commitment timestamp is invalid")
+        supersedes = commitment["supersedes"]
+        if supersedes is not None and (not isinstance(supersedes, str) or ARTIFACT_ID.fullmatch(supersedes) is None):
+            raise ValueError("generated-object commitment predecessor is invalid")
+        reason = commitment["change_reason"]
+        if reason is not None and (not isinstance(reason, str) or not reason):
+            raise ValueError("generated-object commitment change reason is invalid")
 
 
 def generated_object(
@@ -131,7 +173,7 @@ def generated_object(
     kind: str,
     schema_name: str,
     subject: str,
-    sources: list[dict[str, str | None]],
+    sources: list[dict[str, str | None]] | None = None,
     schema_version: int = 1,
     role: str = "canonical",
     producer_name: str = "lattice",
@@ -139,6 +181,10 @@ def generated_object(
     parent_artifact_id: str | None = None,
     artifact_id: str | None = None,
     generated_at: str | None = None,
+    binding: dict[str, str] | None = None,
+    validator: dict[str, str] | None = None,
+    result: str | None = None,
+    commitment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     envelope: dict[str, Any] = {
         "contract_version": 1,
@@ -149,9 +195,18 @@ def generated_object(
         "generated_at": generated_at or stamp(),
         "producer": {"name": producer_name, "version": producer_version},
         "subject": subject,
-        "sources": sources,
     }
+    if sources is not None:
+        envelope["sources"] = sources
     if parent_artifact_id is not None:
         envelope["parent_artifact_id"] = parent_artifact_id
+    if binding is not None:
+        envelope["binding"] = binding
+    if validator is not None:
+        envelope["validator"] = validator
+    if result is not None:
+        envelope["result"] = result
+    if commitment is not None:
+        envelope["commitment"] = commitment
     validate_generated_object_envelope(envelope)
     return envelope
