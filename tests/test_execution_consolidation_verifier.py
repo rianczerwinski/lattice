@@ -215,3 +215,28 @@ def test_negative_control_historical_import_must_still_resolve_to_exact_source_b
     source.write_text('{"status":"rewritten"}\n', encoding="utf-8")
     with pytest.raises(verifier.ConsolidationVerificationError, match="no longer match"):
         verifier.verify_database(lattice_env["config"].data_root, historical_roots={"fixture.history": history_root})
+
+
+@pytest.mark.regression
+def test_negative_control_consumer_canary_cannot_point_at_a_different_invocation(lattice_env, tmp_path) -> None:
+    invocation_id = _completed_external(lattice_env)
+    report = lattice_env["config"].data_root / "acceptance" / "consumer.json"
+    report.parent.mkdir(parents=True)
+    report.write_bytes(b"consumer receipt")
+    with sqlite3.connect(lattice_env["config"].database) as connection:
+        manifest_sha256 = connection.execute("SELECT manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()[0]
+    value = {
+        "generated_object": generated_object(kind="lattice-qualification-receipt", schema_name="lattice-qualification-receipt", subject="fixture", role="snapshot", sources=[{"ref": "fixture:qualification", "revision": "one", "sha256": None}]),
+        "contract_version": "LatticeQualificationReceipt/1.0",
+        "runtime_artifact_id": "artifact:00000000-0000-4000-8000-000000000000",
+        "suites": [{"suite_id": suite_id, "truth_kinds": ["contract"], "command": [["fixture"]], "cwd": str(tmp_path), "exit_code": 0, "stdout_sha256": "1" * 64, "stderr_sha256": "2" * 64} for suite_id in verifier.REQUIRED_SUITES],
+        "consumer_source_inventories": {"fixture.consumer": []},
+        "consumer_canaries": [{"consumer_id": "fixture.consumer", "external_project_key": "fixture.consumer", "invocation_id": "invocation_wrong", "manifest_sha256": manifest_sha256, "report_path": str(report), "report_sha256": verifier.sha256_file(report)}],
+        "provider_canaries": [{"provider": provider, "profile": profile, "state": "succeeded", "invocation_id": invocation_id, "manifest_sha256": manifest_sha256} for provider, profile in verifier.REQUIRED_PROVIDER_PROFILES],
+        "interruption": {"pre_restart_state": "running", "post_restart_state": "orphaned", "continuation_invocation_id": invocation_id},
+        "credential_canary_sha256s": [],
+        "kimi": {"state": "unavailable", "reason": "unqualified"},
+    }
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="absent, nonterminal, or inexact"):
+        verifier.verify_qualification_receipt(value, runtime={"runtime_artifact_id": value["runtime_artifact_id"]}, consumer_inventories={"fixture.consumer": []}, data_root=lattice_env["config"].data_root)

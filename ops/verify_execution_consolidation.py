@@ -580,6 +580,9 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
             raise ConsolidationVerificationError(f"qualification suite has no truth kind: {suite['suite_id']}")
     if value.get("consumer_source_inventories") != consumer_inventories:
         raise ConsolidationVerificationError("qualification receipt consumer sources are stale or incomplete")
+    consumer_canaries = value.get("consumer_canaries")
+    if not isinstance(consumer_canaries, list) or {item.get("consumer_id") for item in consumer_canaries if isinstance(item, dict)} != set(consumer_inventories):
+        raise ConsolidationVerificationError("qualification receipt omits a registered consumer canary")
     canaries = value.get("provider_canaries")
     if not isinstance(canaries, list):
         raise ConsolidationVerificationError("qualification receipt has no provider canaries")
@@ -593,10 +596,17 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
             invocation = connection.execute("SELECT state,manifest_sha256 FROM invocations WHERE invocation_id=?", (item.get("invocation_id"),)).fetchone()
             if invocation is None or invocation["state"] != "succeeded" or invocation["manifest_sha256"] != item.get("manifest_sha256"):
                 raise ConsolidationVerificationError(f"provider canary does not resolve to exact successful execution: {item.get('provider')}:{item.get('profile')}")
-        for consumer in ("canon.quaternary-exhaustion", "field-survey.research-pipeline"):
-            row = connection.execute("SELECT invocation_id,state FROM external_operations WHERE external_project_key=? ORDER BY updated_at DESC LIMIT 1", (consumer,)).fetchone()
-            if row is None or row["state"] != "terminal":
-                raise ConsolidationVerificationError(f"consumer canary is absent or nonterminal: {consumer}")
+        for item in consumer_canaries:
+            required = {"consumer_id", "external_project_key", "invocation_id", "manifest_sha256", "report_path", "report_sha256"}
+            if not isinstance(item, dict) or set(item) != required:
+                raise ConsolidationVerificationError("consumer canary receipt fields are malformed")
+            report_path = Path(item["report_path"]).resolve(strict=True)
+            if not report_path.is_relative_to((data_root / "acceptance").resolve()) or sha256_file(report_path) != item["report_sha256"]:
+                raise ConsolidationVerificationError(f"consumer canary report bytes do not resolve: {item['consumer_id']}")
+            row = connection.execute("SELECT invocation_id,state FROM external_operations WHERE external_project_key=? AND invocation_id=?", (item["external_project_key"], item["invocation_id"])).fetchone()
+            invocation = connection.execute("SELECT manifest_sha256,state FROM invocations WHERE invocation_id=?", (item["invocation_id"],)).fetchone()
+            if row is None or row["state"] != "terminal" or invocation is None or invocation["state"] != "succeeded" or invocation["manifest_sha256"] != item["manifest_sha256"]:
+                raise ConsolidationVerificationError(f"consumer canary is absent, nonterminal, or inexact: {item['consumer_id']}")
     finally:
         connection.close()
     interruption = value.get("interruption")
@@ -604,7 +614,7 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
         raise ConsolidationVerificationError("installed active-work interruption was not proven")
     if value.get("kimi") != {"state": "unavailable", "reason": "unqualified"}:
         raise ConsolidationVerificationError("Kimi availability is not represented truthfully")
-    return {"suites": len(suites), "provider_canaries": len(canaries), "consumers": len(consumer_inventories)}
+    return {"suites": len(suites), "provider_canaries": len(canaries), "consumers": len(consumer_canaries)}
 
 
 def verify_browser_receipt(value: dict[str, Any], *, data_root: Path) -> dict[str, Any]:
