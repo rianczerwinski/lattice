@@ -4,7 +4,7 @@ Lattice is a local-first conversational lattice harness: a user progressively au
 
 The graph is not primarily a workflow drawn in advance. It is the durable, inspectable record of thought and action as it develops. A successful path may later be extracted into a reusable workflow, but automation is downstream of understanding the path.
 
-This document is the canonical product and architecture contract for Lattice. The current software version is `0.3.0`; publishing the repository does not imply a 1.0 stability claim. Lattice is an independent repository developed in place inside AXISVI, which supplies personal integrations without owning or pinning Lattice's source revision. The implementation is a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, provider-neutral subscription execution kernel, Claude/Codex/Antigravity/Grok adapters, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
+This document is the canonical product and architecture contract for Lattice. The current software version is `0.3.1`; publishing the repository does not imply a 1.0 stability claim. Lattice is an independent repository developed in place inside AXISVI, which supplies personal integrations without owning or pinning Lattice's source revision. The implementation is a FastAPI service, Svelte cockpit, append-only SQLite ledger, content-addressed blob store, provider-neutral subscription execution kernel, Claude/Codex/Antigravity/Grok adapters, Octopus importer, first-party workflow-pack boundary, and live Slate/Axial projections. The multilingual quaternary-literature program is its first governed workflow.
 
 ## Run it
 
@@ -40,7 +40,7 @@ ops/              verified runtime installation, launchd supervision, upgrades, 
 
 Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additional pack roots in a standalone installation. Inside AXISVI, the existing Canon adapter adds `sui/mission/projects/canon/dev/quaternary-exhaustion/workflows/` automatically. A duplicate `pack_id` across roots is a startup error, so an external project can never be silently shadowed by a bundled definition.
 
-Lattice `0.3.0` separates source assurance from installed-runtime qualification. The source suite currently contains 291 passing backend checks plus the frontend and rendered-browser acceptance paths. The execution-consolidation verifier independently reads base SQLite rows, blob bytes, runtime attestations, consumer source, provider receipts, and historical journal censuses; source tests alone cannot declare the installed execution boundary ready. Operational qualification and its exact current evidence live under [`assurance/execution-consolidation/`](assurance/execution-consolidation/).
+Lattice `0.3.1` separates source assurance from installed-runtime qualification. Exact test counts belong to immutable qualification receipts rather than this living document. The execution-consolidation verifier independently reads base SQLite rows, blob bytes, runtime attestations, consumer source, provider receipts, and historical journal censuses; source tests alone cannot declare the installed execution boundary ready. Operational qualification and its exact current evidence live under [`assurance/execution-consolidation/`](assurance/execution-consolidation/).
 
 ## Telos
 
