@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from lattice.canonical import canonical_bytes, sha256_bytes
+from lattice.canonical import canonical_bytes, generated_object, sha256_bytes
 from lattice.contracts import AttemptState, ExecutionSubmissionV1, OutputContractV2
 
 
@@ -108,8 +108,13 @@ def test_negative_control_consumer_census_rejects_direct_provider_launcher(tmp_p
     (lattice / "pyproject.toml").write_text('[project]\nname="lattice"\n', encoding="utf-8")
     (canon / "direct.py").write_text('import subprocess\nsubprocess.run(["claude", "-p", "prompt"])\n', encoding="utf-8")
 
+    consumers = [
+        {"consumer_id": "canon", "source_root": "sui/mission/projects/canon/dev/quaternary-exhaustion", "client_boundary": "sui/mission/projects/canon/dev/quaternary-exhaustion/direct.py", "forbidden_direct_authorities": ["provider-cli", "provider-sdk", "developer-api"]},
+        {"consumer_id": "survey", "source_root": "sui/mission/typology/abduction/field-survey/research-pipeline", "client_boundary": "sui/mission/typology/abduction/field-survey/research-pipeline/client.py", "forbidden_direct_authorities": ["provider-cli", "provider-sdk", "developer-api"]},
+    ]
+
     with pytest.raises(verifier.ConsolidationVerificationError, match="direct provider executable"):
-        verifier.verify_consumer_census(tmp_path)
+        verifier.verify_consumer_census(tmp_path, consumers, require_retired_model_runner=False)
 
 
 @pytest.mark.regression
@@ -123,9 +128,62 @@ def test_negative_control_forbidden_credential_canary_is_detected(tmp_path) -> N
 
 
 @pytest.mark.regression
-def test_negative_control_closure_requires_an_installed_runtime_manifest(lattice_env, tmp_path) -> None:
-    with pytest.raises(verifier.ConsolidationVerificationError, match="installed runtime manifest is required"):
-        verifier.verify(data_root=lattice_env["config"].data_root, runtime_manifest=None, axisvi_root=tmp_path, forbidden_files=[])
+def test_negative_control_closure_requires_every_evidence_plane(lattice_env, tmp_path) -> None:
+    bundle = {
+        "generated_object": generated_object(
+            kind="lattice-execution-closure-bundle",
+            schema_name="lattice-execution-closure-bundle",
+            subject="lattice:execution-consolidation",
+            sources=[{"ref": "fixture:missing-evidence", "revision": "fixture", "sha256": None}],
+        ),
+        "contract_version": "LatticeExecutionClosureBundle/1.0",
+        "target_version": "0.3.1",
+        "evidence": {},
+    }
+    path = tmp_path / "bundle.json"
+    path.write_bytes(canonical_bytes(bundle))
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="omits or adds evidence"):
+        verifier.verify(bundle_path=path, data_root=lattice_env["config"].data_root, axisvi_root=tmp_path, forbidden_files=[], rerun_suites=False, rerun_doctor=False)
+
+
+@pytest.mark.regression
+def test_negative_control_zero_historical_execution_set_cannot_pass(lattice_env, tmp_path) -> None:
+    value = {
+        "generated_object": generated_object(
+            kind="lattice-historical-execution-set",
+            schema_name="lattice-historical-execution-set",
+            subject="lattice:historical-execution:field-survey",
+            role="snapshot",
+            sources=[{"ref": "fixture:history", "revision": "empty", "sha256": None}],
+        ),
+        "contract_version": "HistoricalExecutionSet/1.0",
+        "external_project_key": "field-survey.research-pipeline",
+        "source_root": "history",
+        "runs": [],
+    }
+    (tmp_path / "history").mkdir()
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="is empty"):
+        verifier.verify_historical_execution_set(value, data_root=lattice_env["config"].data_root, axisvi_root=tmp_path)
+
+
+@pytest.mark.regression
+def test_negative_control_open_s2_prevents_final_attestation() -> None:
+    value = {
+        "generated_object": generated_object(
+            kind="lattice-execution-consolidation-findings",
+            schema_name="lattice-execution-consolidation-findings",
+            subject="lattice:execution-consolidation-findings",
+            sources=[{"ref": "fixture:findings", "revision": "one", "sha256": None}],
+        ),
+        "contract_version": "LatticeExecutionConsolidationFindings/2.0",
+        "findings": [{"finding_id": "fixture-s2", "severity": "S2", "status": "implemented-pending-verification"}],
+    }
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="remain open"):
+        verifier.verify_findings(value, allow_pending=False)
+    assert verifier.verify_findings(value, allow_pending=True)["blockers"] == 1
 
 
 @pytest.mark.regression

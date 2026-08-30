@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sqlite3
+import subprocess
 import sys
 import time
 import uuid
@@ -25,6 +26,46 @@ TERMINAL_ATTEMPT_STATES = {"succeeded", "failed", "interrupted", "orphaned"}
 PROVIDER_HARNESSES = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "moonshot": "kimi", "xai": "grok"}
 PROVIDER_EXECUTABLES = {"claude", "codex", "agy", "grok"}
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
+ARTIFACT_ID = re.compile(r"artifact:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
+REQUIRED_EVIDENCE = {
+    "runtime_manifest": "LatticeInstalledRuntime/4.0",
+    "consumer_registry": "ExecutionConsumerRegistry/1.0",
+    "historical_execution_set": "HistoricalExecutionSet/1.0",
+    "doctor": "LatticeDoctorReceipt/1.0",
+    "qualification": "LatticeQualificationReceipt/1.0",
+    "browser_acceptance": "LatticeBrowserAcceptanceReceipt/1.0",
+    "restore_continuation": "LatticeRestoreContinuationReceipt/1.0",
+    "findings": "LatticeExecutionConsolidationFindings/2.0",
+}
+REQUIRED_SUITES = {"lattice-backend", "lattice-frontend", "lattice-browser", "canon", "field-survey", "slate-mirror"}
+REQUIRED_BROWSER_ACTIONS = {
+    "blank-project",
+    "claude-send",
+    "codex-side-quest",
+    "fan-out",
+    "exact-excerpt-graft",
+    "reciprocal-cross-feed",
+    "fan-in",
+    "context-inspection",
+    "dormant-branch-return",
+    "slate-tag",
+}
+REQUIRED_PROVIDER_PROFILES = {
+    ("anthropic", "compiled-fresh"),
+    ("anthropic", "workspace-agent"),
+    ("anthropic", "native-continuation:resume"),
+    ("anthropic", "native-continuation:fork"),
+    ("anthropic", "portable-fallback"),
+    ("openai", "compiled-fresh"),
+    ("openai", "workspace-agent"),
+    ("openai", "native-continuation:resume"),
+    ("openai", "native-continuation:fork"),
+    ("openai", "portable-fallback"),
+    ("google", "compiled-fresh"),
+    ("google", "research-fresh"),
+    ("xai", "compiled-fresh"),
+    ("xai", "research-fresh"),
+}
 
 
 class ConsolidationVerificationError(RuntimeError):
@@ -48,10 +89,69 @@ def sha256_file(path: Path) -> str:
 
 
 def parse_json(raw: bytes | str, *, label: str) -> Any:
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, child in pairs:
+            if key in value:
+                raise ConsolidationVerificationError(f"{label} contains duplicate key {key!r}")
+            value[key] = child
+        return value
+
     try:
-        return json.loads(raw)
+        return json.loads(raw, object_pairs_hook=unique_object, parse_constant=lambda value: (_ for _ in ()).throw(ConsolidationVerificationError(f"{label} contains non-finite number {value}")))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ConsolidationVerificationError(f"{label} is not valid UTF-8 JSON") from error
+
+
+def exact_json(path: Path, *, label: str) -> tuple[dict[str, Any], bytes]:
+    raw = path.read_bytes()
+    value = parse_json(raw, label=label)
+    if not isinstance(value, dict) or canonical_bytes(value) != raw:
+        raise ConsolidationVerificationError(f"{label} is not exact canonical JSON")
+    return value, raw
+
+
+def verify_generated_object(value: dict[str, Any], *, role: str, label: str, binding: tuple[str, str] | None = None) -> dict[str, Any]:
+    envelope = value.get("generated_object")
+    if not isinstance(envelope, dict) or envelope.get("contract_version") != 1 or envelope.get("role") != role:
+        raise ConsolidationVerificationError(f"{label} has the wrong generated-object role")
+    artifact_id = envelope.get("artifact_id")
+    if not isinstance(artifact_id, str) or ARTIFACT_ID.fullmatch(artifact_id) is None:
+        raise ConsolidationVerificationError(f"{label} has an invalid artifact identity")
+    if role in {"canonical", "snapshot"}:
+        sources = envelope.get("sources")
+        if not isinstance(sources, list) or not sources:
+            raise ConsolidationVerificationError(f"{label} has no exact source bindings")
+        for source in sources:
+            if not isinstance(source, dict) or set(source) != {"ref", "revision", "sha256"} or source.get("revision") is None and source.get("sha256") is None:
+                raise ConsolidationVerificationError(f"{label} has a malformed source binding")
+            digest = source.get("sha256")
+            if digest is not None:
+                require_digest(digest, label=f"{label} source digest")
+    if role == "attestation":
+        bound = envelope.get("binding")
+        validator = envelope.get("validator")
+        if binding is None or bound != {"artifact_id": binding[0], "sha256": binding[1]}:
+            raise ConsolidationVerificationError(f"{label} is not bound to the exact target artifact")
+        if not isinstance(validator, dict) or not validator.get("name") or not validator.get("version") or envelope.get("result") not in {"pass", "fail"}:
+            raise ConsolidationVerificationError(f"{label} has an invalid validator or result")
+    return envelope
+
+
+def resolve_evidence(bundle_path: Path, item: Any, *, label: str) -> tuple[Path, dict[str, Any], bytes]:
+    if not isinstance(item, dict) or set(item) != {"ref", "artifact_id", "sha256"}:
+        raise ConsolidationVerificationError(f"closure bundle evidence entry is malformed: {label}")
+    digest = require_digest(item["sha256"], label=f"{label} evidence digest")
+    ref = item["ref"]
+    if not isinstance(ref, str) or not ref.startswith("file:"):
+        raise ConsolidationVerificationError(f"{label} evidence must use an exact file ref")
+    candidate = Path(ref.removeprefix("file:"))
+    path = candidate if candidate.is_absolute() else bundle_path.parent / candidate
+    path = path.resolve(strict=True)
+    value, raw = exact_json(path, label=label)
+    if sha256_bytes(raw) != digest or value.get("generated_object", {}).get("artifact_id") != item["artifact_id"]:
+        raise ConsolidationVerificationError(f"{label} evidence bytes or artifact identity disagree with the bundle")
+    return path, value, raw
 
 
 def require_digest(value: object, *, label: str) -> str:
@@ -327,7 +427,250 @@ def verify_runtime_manifest(path: Path, *, database_profiles: dict[str, dict[str
                 raise ConsolidationVerificationError(f"installed provider binary changed: {item.get('provider_code')}")
         elif binary is not None or item.get("binary_sha256") is not None:
             raise ConsolidationVerificationError(f"uninstalled provider claims binary evidence: {item.get('provider_code')}")
-    return {"runtime_id": manifest["runtime_id"], "provider_profiles": len(attestations), "package_files": len(actual)}
+    runtime_tree_digest = sha256_bytes(canonical_bytes(expected))
+    provider_attestation_digest = sha256_bytes(canonical_bytes(attestations))
+    return {
+        "runtime_id": manifest["runtime_id"],
+        "runtime_artifact_id": manifest["generated_object"]["artifact_id"],
+        "runtime_tree_digest": runtime_tree_digest,
+        "provider_attestation_digest": provider_attestation_digest,
+        "provider_profiles": len(attestations),
+        "package_files": len(actual),
+    }
+
+
+def _source_inventory(root: Path) -> list[dict[str, Any]]:
+    excluded_parts = {".git", ".venv", "node_modules", "__pycache__", "runtime", "results", "archive", "dist", ".svelte-kit", ".pytest_cache"}
+    inventory: list[dict[str, Any]] = []
+    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
+        relative = path.relative_to(root)
+        if any(part in excluded_parts for part in relative.parts) or path.is_symlink() or not path.is_file():
+            continue
+        inventory.append({"path": relative.as_posix(), "sha256": sha256_file(path), "byte_count": path.stat().st_size})
+    return inventory
+
+
+def verify_consumer_registry(axisvi_root: Path, value: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
+    verify_generated_object(value, role="canonical", label="execution consumer registry")
+    if value.get("contract_version") != "ExecutionConsumerRegistry/1.0":
+        raise ConsolidationVerificationError("execution consumer registry contract is unsupported")
+    consumers = value.get("consumers")
+    if not isinstance(consumers, list) or not consumers:
+        raise ConsolidationVerificationError("execution consumer registry is empty")
+    identities: set[str] = set()
+    inventories: dict[str, list[dict[str, Any]]] = {}
+    for consumer in consumers:
+        if not isinstance(consumer, dict) or set(consumer) != {"consumer_id", "source_root", "client_boundary", "forbidden_direct_authorities"}:
+            raise ConsolidationVerificationError("execution consumer registry entry is malformed")
+        identity = consumer["consumer_id"]
+        if not isinstance(identity, str) or not identity or identity in identities:
+            raise ConsolidationVerificationError("execution consumer registry identity is missing or duplicated")
+        identities.add(identity)
+        root = (axisvi_root / consumer["source_root"]).resolve(strict=True)
+        boundary = (axisvi_root / consumer["client_boundary"]).resolve(strict=True)
+        if not root.is_relative_to(axisvi_root.resolve()) or not boundary.is_relative_to(root) or not boundary.is_file():
+            raise ConsolidationVerificationError(f"consumer boundary does not resolve beneath its registered root: {identity}")
+        if consumer["forbidden_direct_authorities"] != ["provider-cli", "provider-sdk", "developer-api"]:
+            raise ConsolidationVerificationError(f"consumer authority prohibition is incomplete: {identity}")
+        inventory = _source_inventory(root)
+        if not inventory:
+            raise ConsolidationVerificationError(f"consumer source inventory is empty: {identity}")
+        inventories[identity] = inventory
+    return consumers, inventories
+
+
+def verify_historical_execution_set(value: dict[str, Any], *, data_root: Path, axisvi_root: Path) -> dict[str, Any]:
+    verify_generated_object(value, role="snapshot", label="historical execution set")
+    if value.get("contract_version") != "HistoricalExecutionSet/1.0" or value.get("external_project_key") != "field-survey.research-pipeline":
+        raise ConsolidationVerificationError("historical execution set contract or consumer is unsupported")
+    source_root_value = value.get("source_root")
+    if not isinstance(source_root_value, str):
+        raise ConsolidationVerificationError("historical execution set has no source root")
+    source_root = (axisvi_root / source_root_value).resolve(strict=True)
+    if not source_root.is_relative_to(axisvi_root.resolve()) or not source_root.is_dir():
+        raise ConsolidationVerificationError("historical execution set source root is invalid")
+    runs = value.get("runs")
+    if not isinstance(runs, list) or not runs:
+        raise ConsolidationVerificationError("historical execution set is empty")
+    expected: dict[tuple[str, str], dict[str, Any]] = {}
+    for run in runs:
+        if not isinstance(run, dict):
+            raise ConsolidationVerificationError("historical execution set contains a malformed run")
+        required = {"operation_key", "source_ref", "source_census_sha256", "files", "provider", "model", "original_invocation_id", "terminal_state"}
+        if set(run) != required:
+            raise ConsolidationVerificationError("historical execution set run fields are malformed")
+        source_ref = run["source_ref"]
+        if not isinstance(source_ref, str) or Path(source_ref).is_absolute():
+            raise ConsolidationVerificationError("historical execution set source ref must be relative")
+        source = (source_root / source_ref).resolve(strict=True)
+        if not source.is_relative_to(source_root):
+            raise ConsolidationVerificationError("historical execution set source escapes its root")
+        _verify_historical_source(source, run["files"], label=f"historical set {run['operation_key']}")
+        digest = sha256_bytes(canonical_bytes(run["files"]))
+        if digest != run["source_census_sha256"]:
+            raise ConsolidationVerificationError(f"historical execution set census digest is wrong: {run['operation_key']}")
+        key = (run["operation_key"], source_ref)
+        if key in expected:
+            raise ConsolidationVerificationError(f"historical execution set duplicates a run: {key}")
+        expected[key] = run
+    connection = sqlite3.connect(f"file:{(data_root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        actual_rows = list(connection.execute("SELECT operation_key,source_ref,source_census_sha256,provider,model,original_invocation_id,terminal_state FROM historical_execution_imports WHERE external_project_key=? ORDER BY operation_key,source_ref", (value["external_project_key"],)))
+    finally:
+        connection.close()
+    actual = {(row["operation_key"], row["source_ref"]): dict(row) for row in actual_rows}
+    if set(actual) != set(expected):
+        missing = sorted(set(expected) - set(actual))
+        extra = sorted(set(actual) - set(expected))
+        raise ConsolidationVerificationError(f"historical execution imports do not equal the frozen set; missing={missing[:5]} extra={extra[:5]}")
+    for key, run in expected.items():
+        row = actual[key]
+        for field in ("source_census_sha256", "provider", "model", "original_invocation_id", "terminal_state"):
+            if row[field] != run[field]:
+                raise ConsolidationVerificationError(f"historical execution import disagrees with frozen set: {key}:{field}")
+    return {"expected_runs": len(expected), "imported_runs": len(actual), "incomplete_runs": sum(run["terminal_state"] != "success" for run in runs)}
+
+
+def verify_doctor_receipt(value: dict[str, Any], runtime: dict[str, Any]) -> dict[str, Any]:
+    verify_generated_object(value, role="snapshot", label="doctor receipt")
+    if value.get("contract_version") != "LatticeDoctorReceipt/1.0" or value.get("status") != "pass":
+        raise ConsolidationVerificationError("doctor receipt is not a passing v1 receipt")
+    if value.get("runtime_artifact_id") != runtime["runtime_artifact_id"] or value.get("runtime_tree_digest") != runtime["runtime_tree_digest"] or value.get("provider_attestation_digest") != runtime["provider_attestation_digest"]:
+        raise ConsolidationVerificationError("doctor receipt belongs to a different installed runtime")
+    checks = value.get("checks")
+    expected_checks = {"outport", "launchd", "service", "database-blobs-and-journals", "runtime", "provider-adapters", "backup-and-recovery", "closure"}
+    if not isinstance(checks, list) or {item.get("name") for item in checks if isinstance(item, dict)} != expected_checks or any(item.get("state") != "pass" for item in checks):
+        raise ConsolidationVerificationError("doctor receipt does not contain every passing check")
+    return {"checks": len(checks), "runtime_id": value.get("runtime_id")}
+
+
+def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, Any], consumer_inventories: dict[str, list[dict[str, Any]]], data_root: Path) -> dict[str, Any]:
+    verify_generated_object(value, role="snapshot", label="qualification receipt")
+    if value.get("contract_version") != "LatticeQualificationReceipt/1.0" or value.get("runtime_artifact_id") != runtime["runtime_artifact_id"]:
+        raise ConsolidationVerificationError("qualification receipt belongs to a different runtime")
+    suites = value.get("suites")
+    if not isinstance(suites, list) or {item.get("suite_id") for item in suites if isinstance(item, dict)} != REQUIRED_SUITES:
+        raise ConsolidationVerificationError("qualification receipt omits a required source or consumer suite")
+    for suite in suites:
+        if set(suite) != {"suite_id", "truth_kinds", "command", "cwd", "exit_code", "stdout_sha256", "stderr_sha256"} or suite["exit_code"] != 0:
+            raise ConsolidationVerificationError(f"qualification suite did not pass exactly: {suite.get('suite_id')}")
+        require_digest(suite["stdout_sha256"], label=f"{suite['suite_id']} stdout")
+        require_digest(suite["stderr_sha256"], label=f"{suite['suite_id']} stderr")
+        if not isinstance(suite["truth_kinds"], list) or not suite["truth_kinds"]:
+            raise ConsolidationVerificationError(f"qualification suite has no truth kind: {suite['suite_id']}")
+    if value.get("consumer_source_inventories") != consumer_inventories:
+        raise ConsolidationVerificationError("qualification receipt consumer sources are stale or incomplete")
+    canaries = value.get("provider_canaries")
+    if not isinstance(canaries, list):
+        raise ConsolidationVerificationError("qualification receipt has no provider canaries")
+    observed = {(item.get("provider"), item.get("profile")) for item in canaries if isinstance(item, dict) and item.get("state") == "succeeded"}
+    if observed != REQUIRED_PROVIDER_PROFILES:
+        raise ConsolidationVerificationError(f"qualified provider profile set is incomplete: missing={sorted(REQUIRED_PROVIDER_PROFILES - observed)} extra={sorted(observed - REQUIRED_PROVIDER_PROFILES)}")
+    connection = sqlite3.connect(f"file:{(data_root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        for item in canaries:
+            invocation = connection.execute("SELECT state,manifest_sha256 FROM invocations WHERE invocation_id=?", (item.get("invocation_id"),)).fetchone()
+            if invocation is None or invocation["state"] != "succeeded" or invocation["manifest_sha256"] != item.get("manifest_sha256"):
+                raise ConsolidationVerificationError(f"provider canary does not resolve to exact successful execution: {item.get('provider')}:{item.get('profile')}")
+        for consumer in ("canon.quaternary-exhaustion", "field-survey.research-pipeline"):
+            row = connection.execute("SELECT invocation_id,state FROM external_operations WHERE external_project_key=? ORDER BY updated_at DESC LIMIT 1", (consumer,)).fetchone()
+            if row is None or row["state"] != "terminal":
+                raise ConsolidationVerificationError(f"consumer canary is absent or nonterminal: {consumer}")
+    finally:
+        connection.close()
+    interruption = value.get("interruption")
+    if not isinstance(interruption, dict) or interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id"):
+        raise ConsolidationVerificationError("installed active-work interruption was not proven")
+    if value.get("kimi") != {"state": "unavailable", "reason": "unqualified"}:
+        raise ConsolidationVerificationError("Kimi availability is not represented truthfully")
+    return {"suites": len(suites), "provider_canaries": len(canaries), "consumers": len(consumer_inventories)}
+
+
+def verify_browser_receipt(value: dict[str, Any], *, data_root: Path) -> dict[str, Any]:
+    verify_generated_object(value, role="snapshot", label="browser acceptance receipt")
+    if value.get("contract_version") != "LatticeBrowserAcceptanceReceipt/1.0":
+        raise ConsolidationVerificationError("browser acceptance receipt contract is unsupported")
+    actions = value.get("actions")
+    if not isinstance(actions, list) or {item.get("action") for item in actions if isinstance(item, dict)} != REQUIRED_BROWSER_ACTIONS:
+        raise ConsolidationVerificationError("browser acceptance did not traverse the complete conversational journey")
+    connection = sqlite3.connect(f"file:{(data_root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        project_id = value.get("project_id")
+        if connection.execute("SELECT 1 FROM projects WHERE project_id=?", (project_id,)).fetchone() is None:
+            raise ConsolidationVerificationError("browser project does not exist in the base ledger")
+        referenced_invocations: set[str] = set()
+        for action in actions:
+            for invocation_id in action.get("invocation_ids", []):
+                referenced_invocations.add(invocation_id)
+        manifests = value.get("manifest_sha256s")
+        if not isinstance(manifests, dict) or set(manifests) != referenced_invocations:
+            raise ConsolidationVerificationError("browser receipt does not bind every referenced invocation manifest")
+        for invocation_id, expected in manifests.items():
+            row = connection.execute("SELECT project_id,manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+            if row is None or row["project_id"] != project_id or row["manifest_sha256"] != expected:
+                raise ConsolidationVerificationError(f"browser invocation does not resolve exactly: {invocation_id}")
+        slate = value.get("slate")
+        if not isinstance(slate, dict):
+            raise ConsolidationVerificationError("browser receipt has no live Slate evidence")
+        slice_row = connection.execute("SELECT external_ref FROM slices WHERE slice_id=?", (slate.get("slice_id"),)).fetchone()
+        edge_row = connection.execute("SELECT 1 FROM edges WHERE relation='concerns' AND source_id=? AND target_id=?", (slate.get("invocation_id"), slate.get("external_ref"))).fetchone()
+        if slice_row is None or slice_row["external_ref"] != slate.get("external_ref") or edge_row is None or slate.get("copied_transcript_bytes") != 0:
+            raise ConsolidationVerificationError("browser Slate claim is not a live concern-backed slice")
+        excerpt = value.get("excerpt")
+        if not isinstance(excerpt, dict):
+            raise ConsolidationVerificationError("browser receipt has no exact excerpt evidence")
+        block = connection.execute("SELECT source_sha256,content_sha256,transformation_json FROM context_blocks WHERE block_id=?", (excerpt.get("block_id"),)).fetchone()
+        transformation = parse_json(block["transformation_json"], label="browser excerpt transformation") if block is not None and block["transformation_json"] else None
+        expected_transformation = {key: excerpt[key] for key in ("source_block_id", "source_sha256", "start_byte", "end_byte", "excerpt_sha256")}
+        if block is None or block["source_sha256"] != excerpt.get("source_sha256") or block["content_sha256"] != excerpt.get("excerpt_sha256") or not isinstance(transformation, dict) or transformation.get("kind") != "exact-utf8-byte-range-v1" or {key: transformation.get(key) for key in expected_transformation} != expected_transformation:
+            raise ConsolidationVerificationError("browser excerpt does not resolve to exact stored byte ranges")
+    finally:
+        connection.close()
+    return {"actions": len(actions), "invocations": len(referenced_invocations), "slate_slice": value["slate"]["slice_id"]}
+
+
+def verify_restore_receipt(value: dict[str, Any], *, historical_roots: dict[str, Path]) -> dict[str, Any]:
+    verify_generated_object(value, role="snapshot", label="restore continuation receipt")
+    if value.get("contract_version") != "LatticeRestoreContinuationReceipt/1.0":
+        raise ConsolidationVerificationError("restore continuation receipt contract is unsupported")
+    restored_root = Path(str(value.get("restored_root", ""))).resolve(strict=True)
+    if not restored_root.is_dir() or value.get("source_state_digest") != value.get("restored_state_digest"):
+        raise ConsolidationVerificationError("restore continuation did not preserve the source state identity")
+    verified = verify_database(restored_root, require_terminal_external=False, historical_roots=historical_roots)
+    connection = sqlite3.connect(f"file:{(restored_root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        child = connection.execute("SELECT manifest_json,manifest_sha256,state FROM invocations WHERE invocation_id=?", (value.get("child_invocation_id"),)).fetchone()
+        if child is None or child["state"] != "succeeded" or child["manifest_sha256"] != value.get("child_manifest_sha256"):
+            raise ConsolidationVerificationError("restored continuation child does not resolve exactly")
+        manifest = parse_json(child["manifest_json"], label="restored child manifest")
+        parent_id = value.get("parent_invocation_id")
+        parents = {segment.get("producing_invocation_id") for segment in manifest.get("segments", []) if isinstance(segment, dict)}
+        if parent_id not in parents:
+            raise ConsolidationVerificationError("restored continuation did not consume restored ancestry")
+        if connection.execute("SELECT 1 FROM invocations WHERE invocation_id=?", (parent_id,)).fetchone() is None:
+            raise ConsolidationVerificationError("restored continuation parent is absent")
+    finally:
+        connection.close()
+    return {"restored_root": str(restored_root), "child_invocation_id": value["child_invocation_id"], "database": verified}
+
+
+def verify_findings(value: dict[str, Any], *, allow_pending: bool) -> dict[str, Any]:
+    verify_generated_object(value, role="canonical", label="finding ledger")
+    if value.get("contract_version") != "LatticeExecutionConsolidationFindings/2.0":
+        raise ConsolidationVerificationError("finding ledger generation is stale")
+    findings = value.get("findings")
+    if not isinstance(findings, list) or not findings:
+        raise ConsolidationVerificationError("finding ledger is empty")
+    blockers = [item for item in findings if item.get("severity") in {"S0", "S1", "S2"} and item.get("status") != "closed"]
+    if blockers and not allow_pending:
+        raise ConsolidationVerificationError(f"in-scope findings remain open: {[item.get('finding_id') for item in blockers]}")
+    if allow_pending and any(item.get("status") not in {"implemented-pending-verification", "closed"} for item in blockers):
+        raise ConsolidationVerificationError("retirement readiness contains an unimplemented in-scope finding")
+    return {"findings": len(findings), "blockers": len(blockers)}
 
 
 def _provider_launches(path: Path) -> list[str]:
@@ -353,11 +696,7 @@ def _provider_launches(path: Path) -> list[str]:
     return findings
 
 
-def verify_consumer_census(axisvi_root: Path) -> dict[str, Any]:
-    roots = (
-        axisvi_root / "sui/mission/projects/canon/dev/quaternary-exhaustion",
-        axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline",
-    )
+def verify_consumer_census(axisvi_root: Path, consumers: list[dict[str, Any]], *, require_retired_model_runner: bool) -> dict[str, Any]:
     forbidden_files = {
         "domain_research/generation/antigravity.py",
         "domain_research/generation/claude.py",
@@ -366,9 +705,8 @@ def verify_consumer_census(axisvi_root: Path) -> dict[str, Any]:
     }
     violations: list[str] = []
     scanned = 0
-    for root in roots:
-        if not root.is_dir():
-            raise ConsolidationVerificationError(f"execution consumer is missing: {root}")
+    for consumer in consumers:
+        root = axisvi_root / consumer["source_root"]
         for path in sorted(root.rglob("*")):
             relative = path.relative_to(root).as_posix()
             if any(part in {".git", "runtime", "results", "archive", "tests", "__pycache__"} for part in path.relative_to(root).parts) or not path.is_file():
@@ -386,9 +724,43 @@ def verify_consumer_census(axisvi_root: Path) -> dict[str, Any]:
     pyproject = axisvi_root / "axis/chariots/lattice/pyproject.toml"
     if "axis-model-runner" in pyproject.read_text(encoding="utf-8"):
         violations.append("Lattice packaging still depends on the sibling model runner")
+    model_runner = axisvi_root / "axis/tools/model-runner"
+    if require_retired_model_runner and model_runner.exists():
+        violations.append(f"retired sibling execution tree remains: {model_runner}")
+    if not require_retired_model_runner and model_runner.exists():
+        references = []
+        for path in sorted(axisvi_root.rglob("*.py")):
+            relative = path.relative_to(axisvi_root)
+            if any(part in {".git", ".venv", "node_modules", "recollection", "runtime", "archive", "tests", "__pycache__"} for part in relative.parts) or path.is_relative_to(model_runner):
+                continue
+            if "axis_model_runner" in path.read_text(encoding="utf-8", errors="strict"):
+                references.append(str(path))
+        if references:
+            violations.extend(f"retired sibling execution package remains active: {path}" for path in references)
+
+    excluded = {".git", ".venv", "node_modules", "recollection", "runtime", "archive", "results", "tests", "fixtures", "__pycache__", "dist", "build", ".svelte-kit", ".pytest_cache"}
+    lattice_root = axisvi_root / "axis/chariots/lattice"
+    scanned_global = 0
+    for path in sorted(axisvi_root.rglob("*")):
+        relative = path.relative_to(axisvi_root)
+        if any(part in excluded for part in relative.parts) or path.is_relative_to(lattice_root) or path.is_relative_to(model_runner) or not path.is_file():
+            continue
+        if path.suffix == ".py":
+            scanned_global += 1
+            violations.extend(_provider_launches(path))
+        elif path.suffix in {".js", ".mjs", ".cjs", ".ts", ".sh", ".zsh"}:
+            scanned_global += 1
+            content = path.read_text(encoding="utf-8", errors="strict")
+            provider = r"(?:claude|codex|agy|grok)"
+            patterns = (
+                rf"(?:spawn|execFile|execFileSync)\s*\(\s*['\"]{provider}['\"]",
+                rf"(?:^|[;&|]\s*){provider}(?:\s|$)",
+            )
+            if any(re.search(pattern, content, re.MULTILINE) for pattern in patterns):
+                violations.append(f"{path}: direct provider executable outside Lattice")
     if violations:
         raise ConsolidationVerificationError("consumer census found competing execution authority:\n" + "\n".join(violations))
-    return {"consumer_roots": len(roots), "source_files_scanned": scanned, "violations": 0}
+    return {"consumer_roots": len(consumers), "consumer_source_files_scanned": scanned, "repository_source_files_scanned": scanned_global, "model_runner_retired": not model_runner.exists(), "violations": 0}
 
 
 def scan_forbidden_bytes(roots: Iterable[Path], forbidden: Iterable[bytes]) -> dict[str, int]:
@@ -415,52 +787,145 @@ def _database_profiles(data_root: Path) -> dict[str, dict[str, Any]]:
         connection.close()
 
 
-def verify(*, data_root: Path, runtime_manifest: Path | None, axisvi_root: Path, forbidden_files: list[Path]) -> dict[str, Any]:
-    if runtime_manifest is None:
-        raise ConsolidationVerificationError("an installed runtime manifest is required for lattice_execution_ready")
-    historical_roots = {
-        "field-survey.research-pipeline": axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline",
+def _fixed_suite_commands(axisvi_root: Path) -> dict[str, tuple[Path, list[list[str]]]]:
+    lattice = axisvi_root / "axis/chariots/lattice"
+    return {
+        "lattice-backend": (lattice, [[str(lattice / ".venv/bin/python"), "-m", "pytest", "-q"]]),
+        "lattice-frontend": (lattice / "web", [["npm", "run", "check"], ["npm", "test", "--", "--run"]]),
+        "lattice-browser": (lattice / "web", [["npm", "run", "test:browser"]]),
+        "canon": (axisvi_root / "sui/mission/projects/canon/dev/quaternary-exhaustion", [["uv", "run", "pytest", "-q", "tests/test_quaternary_workflow.py"]]),
+        "field-survey": (axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline", [["uv", "run", "pytest", "-q"]]),
+        "slate-mirror": (axisvi_root / "axis/tools/slate-mirror", [["node", "--test", "server.test.js"]]),
     }
+
+
+def rerun_source_suites(axisvi_root: Path, receipt: dict[str, Any]) -> dict[str, Any]:
+    fixed = _fixed_suite_commands(axisvi_root)
+    declared = {item["suite_id"]: item for item in receipt["suites"]}
+    results: dict[str, Any] = {}
+    for suite_id, (cwd, commands) in fixed.items():
+        if declared[suite_id]["command"] != commands or Path(declared[suite_id]["cwd"]).resolve() != cwd.resolve():
+            raise ConsolidationVerificationError(f"qualification receipt changed the fixed suite command: {suite_id}")
+        outputs: list[dict[str, Any]] = []
+        for command in commands:
+            completed = subprocess.run(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            outputs.append({"command": command, "exit_code": completed.returncode, "stdout_sha256": sha256_bytes(completed.stdout), "stderr_sha256": sha256_bytes(completed.stderr)})
+            if completed.returncode != 0:
+                detail = (completed.stderr or completed.stdout).decode("utf-8", errors="replace")[-4000:]
+                raise ConsolidationVerificationError(f"independent suite rerun failed: {suite_id}: {detail}")
+        results[suite_id] = outputs
+    return results
+
+
+def rerun_live_doctor(runtime_manifest_path: Path, receipt: dict[str, Any]) -> dict[str, Any]:
+    executable = runtime_manifest_path.parent / ".venv/bin/lattice"
+    if not executable.is_file():
+        raise ConsolidationVerificationError("installed Lattice executable is absent beside the runtime manifest")
+    completed = subprocess.run([str(executable), "doctor", "--json"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).decode("utf-8", errors="replace")[-4000:]
+        raise ConsolidationVerificationError(f"live installed doctor failed: {detail}")
+    live = parse_json(completed.stdout, label="live doctor output")
+    if not isinstance(live, dict) or live.get("status") != "pass":
+        raise ConsolidationVerificationError("live installed doctor did not report pass")
+    expected = receipt.get("doctor_output")
+    if not isinstance(expected, dict) or expected.get("status") != "pass" or {item.get("name") for item in expected.get("checks", [])} != {item.get("name") for item in live.get("checks", [])}:
+        raise ConsolidationVerificationError("doctor receipt does not represent the live doctor check set")
+    return {"status": "pass", "checks": len(live["checks"])}
+
+
+def verify(
+    *,
+    bundle_path: Path,
+    data_root: Path,
+    axisvi_root: Path,
+    forbidden_files: list[Path],
+    allow_pending: bool = False,
+    require_retired_model_runner: bool = True,
+    rerun_suites: bool = True,
+    rerun_doctor: bool = True,
+) -> dict[str, Any]:
+    bundle, bundle_raw = exact_json(bundle_path, label="execution closure bundle")
+    bundle_envelope = verify_generated_object(bundle, role="canonical", label="execution closure bundle")
+    if bundle.get("contract_version") != "LatticeExecutionClosureBundle/1.0" or bundle.get("target_version") != "0.3.1":
+        raise ConsolidationVerificationError("execution closure bundle contract or target version is wrong")
+    evidence = bundle.get("evidence")
+    if not isinstance(evidence, dict) or set(evidence) != set(REQUIRED_EVIDENCE):
+        raise ConsolidationVerificationError("execution closure bundle omits or adds evidence planes")
+    resolved: dict[str, tuple[Path, dict[str, Any], bytes]] = {}
+    for name, contract in REQUIRED_EVIDENCE.items():
+        resolved[name] = resolve_evidence(bundle_path, evidence[name], label=name)
+        if resolved[name][1].get("contract_version") != contract:
+            raise ConsolidationVerificationError(f"closure evidence has the wrong contract: {name}")
+    expected_sources = sorted((item["ref"], item["sha256"]) for item in evidence.values())
+    bound_sources = sorted((item["ref"], item["sha256"]) for item in bundle_envelope.get("sources", []))
+    if bound_sources != expected_sources:
+        raise ConsolidationVerificationError("closure bundle envelope does not bind every evidence byte exactly once")
+
+    historical_roots = {"field-survey.research-pipeline": axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline"}
+    runtime_manifest_path, _runtime_manifest, _runtime_raw = resolved["runtime_manifest"]
+    runtime = verify_runtime_manifest(runtime_manifest_path, database_profiles=_database_profiles(data_root))
+    if not runtime["runtime_id"].startswith("0.3.1-"):
+        raise ConsolidationVerificationError("installed runtime is not Lattice 0.3.1")
     database = verify_database(data_root, historical_roots=historical_roots)
-    census = verify_consumer_census(axisvi_root)
-    runtime = verify_runtime_manifest(runtime_manifest, database_profiles=_database_profiles(data_root))
+    consumers, inventories = verify_consumer_registry(axisvi_root, resolved["consumer_registry"][1])
+    census = verify_consumer_census(axisvi_root, consumers, require_retired_model_runner=require_retired_model_runner)
+    historical = verify_historical_execution_set(resolved["historical_execution_set"][1], data_root=data_root, axisvi_root=axisvi_root)
+    doctor = verify_doctor_receipt(resolved["doctor"][1], runtime)
+    qualification = verify_qualification_receipt(resolved["qualification"][1], runtime=runtime, consumer_inventories=inventories, data_root=data_root)
+    browser = verify_browser_receipt(resolved["browser_acceptance"][1], data_root=data_root)
+    restore = verify_restore_receipt(resolved["restore_continuation"][1], historical_roots=historical_roots)
+    findings = verify_findings(resolved["findings"][1], allow_pending=allow_pending)
+
     forbidden = [path.read_bytes().rstrip(b"\r\n") for path in forbidden_files]
-    secret_scan = scan_forbidden_bytes((data_root / "lattice.sqlite3", data_root / "blobs", data_root / "model-runs"), forbidden) if forbidden else {"files": 0, "bytes": 0, "canaries": 0}
-    sources = [
-        {"ref": f"file:{data_root / 'lattice.sqlite3'}", "revision": None, "sha256": sha256_file(data_root / "lattice.sqlite3")},
-        {"ref": f"tree:{axisvi_root}", "revision": None, "sha256": sha256_bytes(canonical_bytes(census))},
-    ]
-    sources.append({"ref": f"file:{runtime_manifest}", "revision": None, "sha256": sha256_file(runtime_manifest)})
+    expected_canaries = sorted(resolved["qualification"][1].get("credential_canary_sha256s", []))
+    if not forbidden or sorted(sha256_bytes(item) for item in forbidden) != expected_canaries:
+        raise ConsolidationVerificationError("exact isolated credential canaries are missing or disagree with qualification")
+    secret_scan = scan_forbidden_bytes((data_root / "lattice.sqlite3", data_root / "blobs", data_root / "model-runs", *[item[0] for item in resolved.values()]), forbidden)
+    suite_rerun = rerun_source_suites(axisvi_root, resolved["qualification"][1]) if rerun_suites else {"state": "not-rerun-in-this-call"}
+    live_doctor = rerun_live_doctor(runtime_manifest_path, resolved["doctor"][1]) if rerun_doctor else {"state": "not-rerun-in-this-call"}
+
     generated_at = time.strftime("%Y%m%dT%H%M%S", time.localtime())
+    bundle_digest = sha256_bytes(bundle_raw)
     return {
         "generated_object": {
             "contract_version": 1,
-            "role": "canonical",
-            "kind": "lattice-execution-consolidation-verification",
-            "schema": {"name": "lattice-execution-consolidation-verification", "version": 1},
+            "role": "attestation",
+            "kind": "lattice-execution-closure-attestation",
+            "schema": {"name": "lattice-execution-closure-attestation", "version": 2},
             "artifact_id": f"artifact:{uuid.uuid4()}",
             "generated_at": generated_at,
-            "producer": {"name": "independent-lattice-consolidation-verifier", "version": "1.0.0"},
+            "producer": {"name": "independent-lattice-consolidation-verifier", "version": "2.0.0"},
             "subject": "lattice:execution-consolidation",
-            "sources": sources,
+            "binding": {"artifact_id": bundle_envelope["artifact_id"], "sha256": bundle_digest},
+            "validator": {"name": "independent-lattice-consolidation-verifier", "version": "2.0.0"},
+            "result": "pass",
         },
-        "contract_version": "LatticeExecutionConsolidationVerification/1.0",
-        "verdict": "pass",
-        "closure_state": "lattice_execution_ready",
+        "contract_version": "LatticeExecutionClosureAttestation/2.0",
+        "closure_state": "retirement_ready" if allow_pending else "lattice_execution_ready",
         "database": database,
         "runtime": runtime,
         "consumer_census": census,
+        "historical_execution_set": historical,
+        "doctor": doctor,
+        "qualification": qualification,
+        "browser_acceptance": browser,
+        "restore_continuation": restore,
+        "findings": findings,
         "credential_canary_scan": secret_scan,
-        "proof_limits": ["Credential absence is proven only for supplied exact canary bytes; arbitrary unknown secrets cannot be recognized by content alone."],
+        "suite_rerun": suite_rerun,
+        "live_doctor": live_doctor,
+        "proof_limits": ["Credential absence is proven only for the exact isolated canary bytes; arbitrary unknown secrets cannot be recognized by content alone.", "Provider-owned ambient context remains bounded by each adapter's explicit proof limits."],
     }
 
 
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
-    parser.add_argument("--runtime-manifest", type=Path, required=True)
     parser.add_argument("--axisvi-root", type=Path, required=True)
     parser.add_argument("--forbidden-byte-file", type=Path, action="append", default=[])
+    parser.add_argument("--retirement-readiness", action="store_true", help="permit implemented-pending-verification findings and the inert legacy tree")
     parser.add_argument("--output", type=Path)
     return parser.parse_args()
 
@@ -468,7 +933,14 @@ def arguments() -> argparse.Namespace:
 def main() -> int:
     args = arguments()
     try:
-        report = verify(data_root=args.data_root.resolve(), runtime_manifest=args.runtime_manifest.resolve() if args.runtime_manifest else None, axisvi_root=args.axisvi_root.resolve(), forbidden_files=args.forbidden_byte_file)
+        report = verify(
+            bundle_path=args.bundle.resolve(),
+            data_root=args.data_root.resolve(),
+            axisvi_root=args.axisvi_root.resolve(),
+            forbidden_files=args.forbidden_byte_file,
+            allow_pending=args.retirement_readiness,
+            require_retired_model_runner=not args.retirement_readiness,
+        )
     except (ConsolidationVerificationError, OSError, sqlite3.Error, ValueError) as error:
         print(f"execution consolidation verification failed: {error}", file=sys.stderr)
         return 1
