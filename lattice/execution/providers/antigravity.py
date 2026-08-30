@@ -161,6 +161,9 @@ def parse_output(text: str) -> dict[str, Any]:
             return value
         if value.get("error"):
             raise AntigravityBoundaryError(f"Antigravity reported an error: {value['error']}")
+        structured = value.get("structured_output")
+        if isinstance(structured, dict):
+            return structured
         response = value.get("response")
         if isinstance(response, dict):
             return response

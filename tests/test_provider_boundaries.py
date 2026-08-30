@@ -132,6 +132,25 @@ def test_antigravity_parser_preserves_caller_fields_that_resemble_cli_envelope_f
     assert antigravity.parse_output(json.dumps(outer)) == payload
 
 
+@pytest.mark.regression
+def test_antigravity_parser_prefers_the_cli_validated_structured_output() -> None:
+    payload = {
+        "payload": {
+            "response": "caller value",
+            "toolSummary": "caller summary",
+            "toolAction": "caller action",
+        }
+    }
+    outer = {
+        "conversation_id": "fixture-conversation",
+        "status": "SUCCESS",
+        "response": '{"response":"unwrapped prose copy"}',
+        "structured_output": payload,
+    }
+
+    assert antigravity.parse_output(json.dumps(outer)) == payload
+
+
 @pytest.mark.oracle
 def test_antigravity_probe_rejects_silent_model_fallback(monkeypatch, tmp_path: Path) -> None:
     binary = tmp_path / "agy"
