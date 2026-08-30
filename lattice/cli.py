@@ -20,7 +20,7 @@ import uvicorn
 import lattice as lattice_package
 from .execution import installed_adapter_status
 
-from .canonical import canonical_bytes, strict_json_loads
+from .canonical import canonical_bytes, generated_object, sha256_bytes, strict_json_loads
 from .client import LatticeClient
 from .contracts import ExecutionSubmissionV1, HistoricalExecutionImportV1
 from .__about__ import __version__
@@ -28,6 +28,7 @@ from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
 from .outport import OutportService, outport_executable, resolve_lattice_service
 from .runtime_attestation import tree_inventory, validate_tree_set, verify_provider_attestation_freshness
+from .runtime_identity import latest_closure_state
 from .security import ensure_cli_token
 from .server import create_app
 from .snapshot import create_snapshot, restore_snapshot
@@ -182,7 +183,7 @@ def _runtime_status() -> dict[str, Any]:
         provider_attestations = verify_provider_attestation_freshness(manifest.get("provider_attestations"))
     except ValueError as error:
         raise RuntimeError(str(error)) from error
-    return {"version": _version(), "runtime_id": runtime_root.name, "artifact_id": artifact_id, "executable": str(executable), "module": str(module), "editable": False, "provider_profiles": {item["provider_code"]: item["profile_id"] for item in provider_attestations}}
+    return {"version": _version(), "runtime_id": runtime_root.name, "artifact_id": artifact_id, "runtime_artifact_id": artifact_id, "runtime_tree_digest": sha256_bytes(canonical_bytes(expected_trees["lattice"])), "provider_attestation_digest": sha256_bytes(canonical_bytes(provider_attestations)), "runtime_manifest_path": str(manifest_path), "runtime_manifest_sha256": sha256_bytes(raw), "executable": str(executable), "module": str(module), "editable": False, "provider_profiles": {item["provider_code"]: item["profile_id"] for item in provider_attestations}}
 
 
 def _adapter_status(service: OutportService | None = None, cli_token: str | None = None) -> dict[str, Any]:
@@ -214,6 +215,49 @@ def _database_status(config: LatticeConfig) -> dict[str, Any]:
     if report["schema_version"] != report["expected_schema_version"]:
         raise RuntimeError(f"Lattice schema generation is {report['schema_version']}, expected {report['expected_schema_version']}")
     return report
+
+
+def _closure_status(config: LatticeConfig) -> dict[str, Any]:
+    return latest_closure_state(config.data_root)
+
+
+def _write_doctor_receipt(path: Path, *, result: dict[str, Any], runtime: dict[str, Any], database: dict[str, Any]) -> None:
+    if result["status"] != "pass":
+        raise RuntimeError("a failing doctor run cannot mint a qualification receipt")
+    envelope = generated_object(
+        kind="lattice-doctor-receipt",
+        schema_name="lattice-doctor-receipt",
+        subject=f"lattice:installed-runtime:{runtime['runtime_id']}",
+        role="snapshot",
+        sources=[
+            {"ref": f"file:{runtime['runtime_manifest_path']}", "revision": runtime["runtime_id"], "sha256": runtime["runtime_manifest_sha256"]},
+            {"ref": "lattice:data-root", "revision": database["state_digest"], "sha256": None},
+        ],
+    )
+    value = {
+        "generated_object": envelope,
+        "contract_version": "LatticeDoctorReceipt/1.0",
+        "status": "pass",
+        "runtime_id": runtime["runtime_id"],
+        "runtime_artifact_id": runtime["runtime_artifact_id"],
+        "runtime_tree_digest": runtime["runtime_tree_digest"],
+        "provider_attestation_digest": runtime["provider_attestation_digest"],
+        "checks": result["checks"],
+        "doctor_output": result,
+    }
+    raw = canonical_bytes(value)
+    if path.exists():
+        if path.is_symlink() or path.read_bytes() != raw:
+            raise FileExistsError(f"doctor receipt path already contains different bytes: {path}")
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.pending")
+    with temporary.open("xb") as handle:
+        os.fchmod(handle.fileno(), 0o600)
+        handle.write(raw)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
 
 
 def command_serve(args: argparse.Namespace) -> int:
@@ -381,6 +425,9 @@ def command_doctor(args: argparse.Namespace) -> int:
             raise RuntimeError(f"running Lattice uses runtime {health.get('runtime_id')!r} but the selected runtime is {selected_runtime['runtime_id']!r}")
         if health.get("version") != selected_runtime["version"]:
             raise RuntimeError(f"running Lattice reports version {health.get('version')!r} but the selected runtime contains {selected_runtime['version']!r}")
+        for field in ("runtime_artifact_id", "runtime_tree_digest", "provider_attestation_digest"):
+            if field in selected_runtime and health.get(field) != selected_runtime[field]:
+                raise RuntimeError(f"running Lattice {field} disagrees with the selected runtime")
         return health
 
     checks = [
@@ -391,8 +438,16 @@ def command_doctor(args: argparse.Namespace) -> int:
         _check("runtime", _runtime_status),
         _check("provider-adapters", lambda: _adapter_status(service_box.get("value") or _service(config), ensure_cli_token(config.operator_token))),
         _check("backup-and-recovery", lambda: _backup_status(config)),
+        _check("closure", lambda: _closure_status(config)),
     ]
     result = {"status": "pass" if all(item["state"] == "pass" for item in checks) else "fail", "checks": checks}
+    receipt = getattr(args, "receipt", None)
+    if receipt is not None:
+        runtime_check = next(item for item in checks if item["name"] == "runtime")
+        database_check = next(item for item in checks if item["name"] == "database-blobs-and-journals")
+        if runtime_check["state"] != "pass" or database_check["state"] != "pass":
+            raise RuntimeError("doctor receipt requires passing runtime and data checks")
+        _write_doctor_receipt(Path(receipt).expanduser(), result=result, runtime=runtime_check["detail"], database=database_check["detail"])
     _emit(result, as_json=args.json)
     return 0 if result["status"] == "pass" else 1
 
@@ -418,6 +473,7 @@ def parser() -> argparse.ArgumentParser:
 
     doctor = subparsers.add_parser("doctor", help="verify service, state, runtime, providers, and recovery")
     doctor.add_argument("--json", action="store_true")
+    doctor.add_argument("--receipt", help="write an immutable LatticeDoctorReceipt/1.0 after a passing run")
     doctor.set_defaults(handler=command_doctor)
 
     backup = subparsers.add_parser("backup", help="create and verify a consistent Lattice snapshot")

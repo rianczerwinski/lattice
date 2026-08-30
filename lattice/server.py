@@ -51,6 +51,7 @@ from .context_modules import ContextModuleError, ContextModuleRunner, read_bound
 from .operations import Lattice
 from .quaternary import QuaternaryAdapter, QuaternaryBoundaryError, QuaternaryOutcomeUnknown
 from .platform_foundry import PlatformFoundryAdapter
+from .runtime_identity import installed_runtime_identity, latest_closure_state
 from .security import OperatorBoundaryMiddleware, OperatorSessions, ServiceInstanceLock, configured_development_origin, ensure_cli_token
 from .store import LatticeConflict, LatticeNotFound, LatticeStore
 from .supervisor import ExecutionSupervisor
@@ -281,7 +282,9 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
         degraded = bool(supervisor.startup_recovery_failures or workflow_pack_failures)
-        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, "runtime_id": config.runtime_id, "startup_recovery_failures": supervisor.startup_recovery_failures, "workflow_pack_failures": workflow_pack_failures}
+        runtime = installed_runtime_identity(config.runtime_id)
+        closure = latest_closure_state(config.data_root)
+        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, **{key: runtime[key] for key in ("runtime_id", "runtime_artifact_id", "runtime_tree_digest", "provider_attestation_digest")}, "closure": closure, "startup_recovery_failures": supervisor.startup_recovery_failures, "workflow_pack_failures": workflow_pack_failures}
 
     def set_operator_cookie(response: Response, session: str) -> None:
         response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=bool(config.public_url and config.public_url.startswith("https://")), path="/", max_age=sessions.ttl_seconds)

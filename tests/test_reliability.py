@@ -537,6 +537,38 @@ def test_doctor_qualifies_the_live_daemon_with_operator_authority(monkeypatch, t
     assert status == 0
     assert output["status"] == "pass"
     assert all(check["state"] == "pass" for check in output["checks"])
+    assert {check["name"] for check in output["checks"]} >= {"closure", "runtime", "provider-adapters"}
+
+
+@pytest.mark.contract
+def test_doctor_receipt_binds_runtime_and_data_generations(tmp_path) -> None:
+    manifest = tmp_path / "runtime.json"
+    manifest.write_bytes(b"runtime")
+    runtime = {
+        "runtime_id": "0.3.1-fixture",
+        "runtime_artifact_id": "artifact:11111111-1111-4111-8111-111111111111",
+        "runtime_tree_digest": "1" * 64,
+        "provider_attestation_digest": "2" * 64,
+        "runtime_manifest_path": str(manifest),
+        "runtime_manifest_sha256": __import__("hashlib").sha256(b"runtime").hexdigest(),
+    }
+    database = {"state_digest": "3" * 64}
+    result = {"status": "pass", "checks": [{"name": "runtime", "state": "pass", "detail": runtime}, {"name": "database-blobs-and-journals", "state": "pass", "detail": database}]}
+    path = tmp_path / "doctor.json"
+
+    cli._write_doctor_receipt(path, result=result, runtime=runtime, database=database)
+    receipt = json.loads(path.read_bytes())
+
+    assert receipt["contract_version"] == "LatticeDoctorReceipt/1.0"
+    assert receipt["generated_object"]["role"] == "snapshot"
+    assert receipt["runtime_artifact_id"] == runtime["runtime_artifact_id"]
+    assert receipt["runtime_tree_digest"] == runtime["runtime_tree_digest"]
+
+
+@pytest.mark.regression
+def test_negative_control_doctor_receipt_refuses_a_failing_run(tmp_path) -> None:
+    with pytest.raises(RuntimeError, match="failing doctor"):
+        cli._write_doctor_receipt(tmp_path / "doctor.json", result={"status": "fail", "checks": []}, runtime={}, database={})
 
 
 @pytest.mark.contract

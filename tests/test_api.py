@@ -203,6 +203,11 @@ def test_smoke_health_and_cockpit_have_distinct_responses(lattice_env) -> None:
         cockpit = client.get("/")
 
     assert health.json()["status"] == "ok"
+    assert health.json()["runtime_id"] == "source"
+    assert health.json()["runtime_artifact_id"] is None
+    assert health.json()["runtime_tree_digest"] is None
+    assert health.json()["provider_attestation_digest"] is None
+    assert health.json()["closure"]["state"] == "unqualified"
     assert cockpit.status_code == 200
     assert '<div id="app"></div>' in cockpit.text
 
