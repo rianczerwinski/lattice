@@ -116,6 +116,37 @@ def test_historical_import_rejects_forged_census_hash() -> None:
         )
 
 
+@pytest.mark.contract
+def test_empty_historical_directory_is_preserved_as_explicitly_incomplete(lattice_env) -> None:
+    request = HistoricalExecutionImportV1(
+        external_project_key="field-survey.research-pipeline",
+        operation_key="history:empty-fixture",
+        source_ref="runtime/model-runs/empty-fixture",
+        source_census_sha256=sha256_json([]),
+        files=[],
+        terminal_state="incomplete-empty",
+    )
+    material = request.model_dump(mode="json")
+
+    imported = lattice_env["store"].import_historical_execution(material, sha256_json(material))
+
+    assert imported["files"] == []
+    assert imported["terminal_state"] == "incomplete-empty"
+
+
+@pytest.mark.regression
+def test_negative_control_empty_historical_directory_cannot_claim_success() -> None:
+    with pytest.raises(ValueError, match="incomplete-empty"):
+        HistoricalExecutionImportV1(
+            external_project_key="field-survey.research-pipeline",
+            operation_key="history:false-success",
+            source_ref="runtime/model-runs/false-success",
+            source_census_sha256=sha256_json([]),
+            files=[],
+            terminal_state="success",
+        )
+
+
 @pytest.mark.regression
 def test_historical_provider_route_cannot_claim_or_regain_execution_authority(lattice_env) -> None:
     with pytest.raises(ValueError, match="cannot claim"):

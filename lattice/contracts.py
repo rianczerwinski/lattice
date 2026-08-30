@@ -470,7 +470,7 @@ class HistoricalExecutionImportV1(StrictModel):
     operation_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
     source_ref: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
     source_census_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    files: list[HistoricalExecutionFileV1] = Field(min_length=1, max_length=10000)
+    files: list[HistoricalExecutionFileV1] = Field(max_length=10000)
     provider: str | None = Field(default=None, max_length=100)
     model: str | None = Field(default=None, max_length=200)
     original_invocation_id: str | None = Field(default=None, max_length=300)
@@ -485,6 +485,8 @@ class HistoricalExecutionImportV1(StrictModel):
         encoded = json.dumps(canonical_files, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         if hashlib.sha256(encoded).hexdigest() != self.source_census_sha256:
             raise ValueError("historical execution census hash does not bind its exact file inventory")
+        if not self.files and self.terminal_state != "incomplete-empty":
+            raise ValueError("an empty historical directory must be represented as incomplete-empty")
         return self
 
 

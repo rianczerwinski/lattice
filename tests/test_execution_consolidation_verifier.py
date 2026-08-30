@@ -160,6 +160,7 @@ def test_negative_control_zero_historical_execution_set_cannot_pass(lattice_env,
         "contract_version": "HistoricalExecutionSet/1.0",
         "external_project_key": "field-survey.research-pipeline",
         "source_root": "history",
+        "run_root": ".",
         "runs": [],
     }
     (tmp_path / "history").mkdir()

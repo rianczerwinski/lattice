@@ -269,8 +269,8 @@ def _verify_runtime_receipt(data_root: Path, receipt: Any, route: dict[str, Any]
 def _verify_historical_source(source: Path, expected_files: Any, *, label: str) -> None:
     if source.is_symlink() or not source.is_dir():
         raise ConsolidationVerificationError(f"{label} source directory is missing or indirect: {source}")
-    if not isinstance(expected_files, list) or not expected_files:
-        raise ConsolidationVerificationError(f"{label} source census is empty or malformed")
+    if not isinstance(expected_files, list):
+        raise ConsolidationVerificationError(f"{label} source census is malformed")
     actual: list[dict[str, Any]] = []
     for path in sorted(source.rglob("*"), key=lambda item: item.relative_to(source).as_posix()):
         if path.is_symlink():
@@ -484,15 +484,20 @@ def verify_historical_execution_set(value: dict[str, Any], *, data_root: Path, a
     if value.get("contract_version") != "HistoricalExecutionSet/1.0" or value.get("external_project_key") != "field-survey.research-pipeline":
         raise ConsolidationVerificationError("historical execution set contract or consumer is unsupported")
     source_root_value = value.get("source_root")
-    if not isinstance(source_root_value, str):
-        raise ConsolidationVerificationError("historical execution set has no source root")
+    run_root_value = value.get("run_root")
+    if not isinstance(source_root_value, str) or not isinstance(run_root_value, str):
+        raise ConsolidationVerificationError("historical execution set has no source or run root")
     source_root = (axisvi_root / source_root_value).resolve(strict=True)
     if not source_root.is_relative_to(axisvi_root.resolve()) or not source_root.is_dir():
         raise ConsolidationVerificationError("historical execution set source root is invalid")
     runs = value.get("runs")
     if not isinstance(runs, list) or not runs:
         raise ConsolidationVerificationError("historical execution set is empty")
+    run_root = (source_root / run_root_value).resolve(strict=True)
+    if not run_root.is_relative_to(source_root) or not run_root.is_dir():
+        raise ConsolidationVerificationError("historical execution set run root is invalid")
     expected: dict[tuple[str, str], dict[str, Any]] = {}
+    source_directories = {path.relative_to(source_root).as_posix() for path in run_root.iterdir() if path.is_dir() and not path.is_symlink()}
     for run in runs:
         if not isinstance(run, dict):
             raise ConsolidationVerificationError("historical execution set contains a malformed run")
@@ -513,6 +518,11 @@ def verify_historical_execution_set(value: dict[str, Any], *, data_root: Path, a
         if key in expected:
             raise ConsolidationVerificationError(f"historical execution set duplicates a run: {key}")
         expected[key] = run
+    represented_directories = {run["source_ref"] for run in runs}
+    if represented_directories != source_directories:
+        missing = sorted(source_directories - represented_directories)
+        extra = sorted(represented_directories - source_directories)
+        raise ConsolidationVerificationError(f"historical execution set does not census every run directory; missing={missing[:5]} extra={extra[:5]}")
     connection = sqlite3.connect(f"file:{(data_root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
