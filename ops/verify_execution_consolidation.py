@@ -604,10 +604,6 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
     connection = sqlite3.connect(f"file:{(data_root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
-        for item in canaries:
-            invocation = connection.execute("SELECT state,manifest_sha256 FROM invocations WHERE invocation_id=?", (item.get("invocation_id"),)).fetchone()
-            if invocation is None or invocation["state"] != "succeeded" or invocation["manifest_sha256"] != item.get("manifest_sha256"):
-                raise ConsolidationVerificationError(f"provider canary does not resolve to exact successful execution: {item.get('provider')}:{item.get('profile')}")
         for item in consumer_canaries:
             required = {"consumer_id", "external_project_key", "invocation_id", "manifest_sha256", "report_path", "report_sha256"}
             if not isinstance(item, dict) or set(item) != required:
@@ -619,6 +615,47 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
             invocation = connection.execute("SELECT manifest_sha256,state FROM invocations WHERE invocation_id=?", (item["invocation_id"],)).fetchone()
             if row is None or row["state"] != "terminal" or invocation is None or invocation["state"] != "succeeded" or invocation["manifest_sha256"] != item["manifest_sha256"]:
                 raise ConsolidationVerificationError(f"consumer canary is absent, nonterminal, or inexact: {item['consumer_id']}")
+        expected_canary_fields = {"provider", "profile", "state", "invocation_id", "manifest_sha256", "output_sha256", "provider_profile_id", "runtime_receipt_sha256"}
+        if any(not isinstance(item, dict) or set(item) != expected_canary_fields for item in canaries):
+            raise ConsolidationVerificationError("provider canary fields are malformed")
+        canary_map = {(item["provider"], item["profile"]): item for item in canaries}
+        for item in canaries:
+            invocation = connection.execute("""SELECT i.state,i.manifest_sha256,i.route_json,i.output_block_id,d.parents_json,b.content_sha256
+                                               FROM invocations i JOIN drafts d USING(draft_id) JOIN context_blocks b ON b.block_id=i.output_block_id
+                                               WHERE i.invocation_id=?""", (item["invocation_id"],)).fetchone()
+            attempt = connection.execute("SELECT output_sha256,runtime_receipt_json FROM attempts WHERE invocation_id=? AND state='succeeded' ORDER BY attempt_number DESC LIMIT 1", (item["invocation_id"],)).fetchone()
+            if invocation is None or attempt is None or invocation["state"] != "succeeded" or invocation["manifest_sha256"] != item["manifest_sha256"] or invocation["content_sha256"] != item["output_sha256"] or attempt["output_sha256"] != item["output_sha256"]:
+                raise ConsolidationVerificationError(f"provider canary does not resolve to exact successful execution: {item.get('provider')}:{item.get('profile')}")
+            route = parse_json(invocation["route_json"], label=f"provider canary route {item['provider']}:{item['profile']}")
+            parents = parse_json(invocation["parents_json"], label=f"provider canary parents {item['provider']}:{item['profile']}")
+            receipt = parse_json(attempt["runtime_receipt_json"], label=f"provider canary runtime receipt {item['provider']}:{item['profile']}")
+            if route.get("provider") != item["provider"] or route.get("harness") != PROVIDER_HARNESSES[item["provider"]] or route.get("provider_profile_id") != item["provider_profile_id"] or sha256_bytes(canonical_bytes(receipt)) != item["runtime_receipt_sha256"]:
+                raise ConsolidationVerificationError(f"provider canary route or runtime identity is false: {item['provider']}:{item['profile']}")
+            profile = item["profile"]
+            expected_execution_profile = "native-continuation" if profile.startswith("native-continuation:") else "compiled-fresh" if profile == "portable-fallback" else profile
+            if route.get("execution_profile") != expected_execution_profile:
+                raise ConsolidationVerificationError(f"provider canary exercised the wrong execution profile: {item['provider']}:{profile}")
+            expected_parents: list[str] = []
+            if item["provider"] in {"anthropic", "openai"} and profile != "compiled-fresh":
+                parent_profile = "compiled-fresh" if profile == "workspace-agent" else "workspace-agent"
+                expected_parents = [canary_map[(item["provider"], parent_profile)]["invocation_id"]]
+            if parents != expected_parents:
+                raise ConsolidationVerificationError(f"provider canary ancestry is wrong: {item['provider']}:{profile}")
+            if profile.startswith("native-continuation:"):
+                mode = profile.split(":", 1)[1]
+                if route.get("continuation_mode") != mode or route.get("native_parent_invocation_id") != expected_parents[0] or route.get("session_policy") != "visible_native_continuation":
+                    raise ConsolidationVerificationError(f"provider native continuation claim is false: {item['provider']}:{profile}")
+            elif route.get("continuation_mode") is not None or route.get("native_parent_invocation_id") is not None:
+                raise ConsolidationVerificationError(f"non-native provider canary carries hidden continuation state: {item['provider']}:{profile}")
+            marker_profile = {"workspace-agent": "WORKSPACE", "portable-fallback": "PORTABLE", "native-continuation:resume": "RESUME", "native-continuation:fork": "FORK"}.get(profile, profile.upper())
+            marker = f"QUAL-{item['provider'].upper()}-{marker_profile}"
+            output = _blob_content(data_root, item["output_sha256"], label=f"provider canary output {item['provider']}:{profile}").decode("utf-8", errors="strict")
+            if item["provider"] == "google":
+                payload = parse_json(output, label=f"Antigravity canary output {profile}")
+                if not isinstance(payload, dict) or set(payload) != {"response", "toolSummary", "toolAction"} or marker not in payload["response"]:
+                    raise ConsolidationVerificationError(f"Antigravity canary schema or semantic marker is false: {profile}")
+            elif marker not in output:
+                raise ConsolidationVerificationError(f"provider canary semantic marker is absent: {item['provider']}:{profile}")
     finally:
         connection.close()
     interruption = value.get("interruption")

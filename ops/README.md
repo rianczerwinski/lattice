@@ -6,12 +6,13 @@ This directory contains the source-checkout deployment boundary for Lattice. [`i
 
 [`qualify_release.py`](qualify_release.py) runs the fixed source and consumer suites plus the complete authenticated provider-profile matrix. [`qualify_interruption.py`](qualify_interruption.py) proves an installed daemon can reconcile an active provider lease after a process crash. [`qualify_browser.py`](qualify_browser.py) drives the installed cockpit and reconstructs its freestyle journey from base ledger records. [`qualify_restore.py`](qualify_restore.py) restarts the launchd service, continues a dormant browser-qualified branch, snapshots it, restores it into a separate root, and continues again from restored ancestry.
 
-[`verify_execution_consolidation.py`](verify_execution_consolidation.py) is the independent closure boundary for Lattice 0.3 execution. It reads base SQLite tables, content-addressed blobs, raw runtime receipts, immutable provider profiles, installed package and binary attestations, consumer source trees, historical journal bytes, and exact credential canaries. It refuses `lattice_execution_ready` when the installed runtime manifest is absent or any execution evidence is unresolved.
+[`build_execution_closure_bundle.py`](build_execution_closure_bundle.py) binds the exact generated-object evidence set into one canonical closure bundle. [`verify_execution_consolidation.py`](verify_execution_consolidation.py) is the independent closure boundary for Lattice 0.3 execution. It reads base SQLite tables, content-addressed blobs, raw runtime receipts, immutable provider profiles, installed package and binary attestations, consumer source trees, historical journal bytes, and exact credential canaries. It refuses `lattice_execution_ready` when the installed runtime manifest is absent or any execution evidence is unresolved.
 
 ```text
 ops/
 ├── README.md                    Operations-boundary map and deployment contract
 ├── authenticated_acceptance.py Authenticated freestyle graph and recovery acceptance
+├── build_execution_closure_bundle.py Exact immutable evidence-bundle assembler
 ├── install.py                   Verified installer, upgrade switch, state cutover, and launchd publisher
 ├── qualify_browser.py           Installed cockpit journey and ledger reconstruction
 ├── qualify_interruption.py      Active-work crash and lease-reconciliation proof
