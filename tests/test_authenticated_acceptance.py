@@ -33,29 +33,8 @@ def test_negative_control_acceptance_rejection_must_match_the_expected_boundary(
         api.expect_rejected("/preview", {}, contains="authority boundaries")
 
 
-@pytest.mark.regression
-def test_acceptance_driver_reexecs_before_optional_dependencies(monkeypatch, tmp_path) -> None:
-    source = tmp_path / "python"
-    source.write_text("", encoding="utf-8")
-    observed = {}
-
-    def fake_execv(executable, arguments):
-        observed.update({"executable": executable, "arguments": arguments})
-        raise RuntimeError("exec boundary")
-
-    monkeypatch.setattr(authenticated_acceptance, "SOURCE_PYTHON", source)
-    monkeypatch.setattr(authenticated_acceptance, "SOURCE_ENVIRONMENT", tmp_path / "source-environment")
-    monkeypatch.setattr(authenticated_acceptance.sys, "prefix", str(tmp_path / "system-prefix"))
-    monkeypatch.setattr(authenticated_acceptance.os, "execv", fake_execv)
-
-    with pytest.raises(RuntimeError, match="exec boundary"):
-        authenticated_acceptance.reexec_in_source_environment()
-
-    assert observed["executable"] == str(source.resolve())
-
-
 @pytest.mark.contract
-def test_acceptance_report_is_canonical_source_bound_and_parented(tmp_path) -> None:
+def test_acceptance_report_is_snapshot_source_bound_and_references_prior_run(tmp_path) -> None:
     class API:
         def get(self, _path):
             return {"status": "ok"}
@@ -70,7 +49,9 @@ def test_acceptance_report_is_canonical_source_bound_and_parented(tmp_path) -> N
     from lattice.canonical import canonical_bytes
 
     assert canonical_bytes(second_value) == second_raw
-    assert second_value["generated_object"]["parent_artifact_id"] == first_value["generated_object"]["artifact_id"]
+    assert second_value["generated_object"]["role"] == "snapshot"
+    assert second_value["contract_version"] == "LatticeAuthenticatedAcceptanceReport/2.0"
+    assert second_value["prior_report_artifact_id"] == first_value["generated_object"]["artifact_id"]
     assert all(set(source) == {"ref", "revision", "sha256"} for source in second_value["generated_object"]["sources"])
 
 

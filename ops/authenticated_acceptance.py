@@ -18,8 +18,6 @@ from typing import Any
 
 
 TERMINAL_STATES = {"succeeded", "failed", "interrupted", "imported"}
-SOURCE_PYTHON = Path(__file__).resolve().parents[1] / ".venv" / "bin" / "python"
-SOURCE_ENVIRONMENT = SOURCE_PYTHON.parent.parent
 
 
 def stamp() -> str:
@@ -30,15 +28,6 @@ def sha256_bytes(content: bytes) -> str:
     import hashlib
 
     return hashlib.sha256(content).hexdigest()
-
-
-def reexec_in_source_environment() -> None:
-    if not SOURCE_PYTHON.is_file():
-        raise AcceptanceFailure(f"Lattice source environment is unavailable: {SOURCE_PYTHON}")
-    target = SOURCE_PYTHON.resolve()
-    if Path(sys.prefix).resolve() == SOURCE_ENVIRONMENT.resolve():
-        return
-    os.execv(str(target), [str(target), str(Path(__file__).resolve()), *sys.argv[1:]])
 
 
 class AcceptanceFailure(RuntimeError):
@@ -383,19 +372,18 @@ class AcceptanceRun:
             schema_name="lattice-authenticated-acceptance-report",
             subject="lattice:authenticated-acceptance",
             sources=sources,
+            role="snapshot",
             artifact_id=artifact_id,
             producer_name="lattice-authenticated-acceptance",
-            producer_version="1.0.0",
+            producer_version="2.0.0",
         )
-        if parent_artifact_id:
-            report_envelope["parent_artifact_id"] = parent_artifact_id
         try:
             health_after = self.api.get("/api/health")
         except AcceptanceFailure as health_error:
             health_after = {"status": "unavailable", "error": str(health_error)}
         value = {
             "generated_object": report_envelope,
-            "contract_version": "LatticeAuthenticatedAcceptanceReport/1.0",
+            "contract_version": "LatticeAuthenticatedAcceptanceReport/2.0",
             "status": status,
             "started_at": self.started_at,
             "completed_at": stamp(),
@@ -411,6 +399,7 @@ class AcceptanceRun:
             "provider_failure_receipts": None if failure_recovery is None else {"failed_invocation_id": failure_recovery["failed"]["invocation_id"], "recovered_invocation_id": failure_recovery["recovered"]["invocation_id"]},
             "restart_receipt": restart,
             "error": error,
+            "prior_report_artifact_id": parent_artifact_id,
             "proof_limits": ["Provider-owned system context remains observable only through the adapter's declared proof limits.", "Browser rendering is a separate acceptance plane and is not inferred from this API run."],
         }
         path = report_root / f"{value['completed_at']}-{artifact_id.removeprefix('artifact:')[:12]}.json"
@@ -467,5 +456,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    reexec_in_source_environment()
     raise SystemExit(main())
