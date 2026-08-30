@@ -21,6 +21,11 @@ qualifier = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(qualifier)
 
 
+@pytest.mark.regression
+def test_restored_server_does_not_inherit_axisvi_outport_identity() -> None:
+    assert qualifier._standalone_environment({"AXISVI_ROOT": "/repo", "PATH": "/bin"}) == {"PATH": "/bin"}
+
+
 def _complete(store: LatticeStore, lattice: Lattice, project_id: str, route, prompt: str, response: str, parents: list[str] | None = None) -> dict:
     draft = store.create_draft(DraftCreate(project_id=project_id, actor_binding=DirectActorBinding(), prompt=prompt, route=route, parent_invocation_ids=parents or []))
     invocation = lattice.seal(draft["draft_id"])

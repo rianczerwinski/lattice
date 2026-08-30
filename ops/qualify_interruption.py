@@ -14,6 +14,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,10 @@ from lattice.client import LatticeClient
 
 class InterruptionFailure(RuntimeError):
     pass
+
+
+def _standalone_environment(environment: Mapping[str, str]) -> dict[str, str]:
+    return {key: value for key, value in environment.items() if key != "AXISVI_ROOT"}
 
 
 def _free_port() -> int:
@@ -108,7 +113,7 @@ def _submission(operation_key: str, marker: str, *, parent_id: str | None = None
 
 def _attempt_state(database: Path, invocation_id: str) -> tuple[str, str]:
     with sqlite3.connect(database) as connection:
-        row = connection.execute("SELECT attempt_id,state FROM attempts WHERE invocation_id=? ORDER BY ordinal DESC LIMIT 1", (invocation_id,)).fetchone()
+        row = connection.execute("SELECT attempt_id,state FROM attempts WHERE invocation_id=? ORDER BY attempt_number DESC LIMIT 1", (invocation_id,)).fetchone()
     if row is None:
         raise InterruptionFailure(f"invocation has no attempt: {invocation_id}")
     return str(row[0]), str(row[1])
@@ -159,9 +164,8 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, axisvi_root: Path, i
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
     environment = {
-        **os.environ,
+        **_standalone_environment(os.environ),
         "PATH": os.pathsep.join((str(fake_bin), os.environ.get("PATH", ""))),
-        "AXISVI_ROOT": str(axisvi_root.resolve(strict=True)),
         "LATTICE_DATA_DIR": str(isolated_root),
         "LATTICE_PORT": str(port),
         "LATTICE_RUNTIME_ID": runtime["runtime_id"],

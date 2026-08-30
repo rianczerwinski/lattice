@@ -2,12 +2,31 @@
 
 from __future__ import annotations
 
+import sqlite3
 import subprocess
 from pathlib import Path
 
 import pytest
 
 from ops import qualify_interruption
+
+
+@pytest.mark.regression
+def test_isolated_server_does_not_inherit_axisvi_outport_identity() -> None:
+    assert qualify_interruption._standalone_environment({"AXISVI_ROOT": "/repo", "PATH": "/bin"}) == {"PATH": "/bin"}
+
+
+@pytest.mark.regression
+def test_interruption_probe_reads_latest_attempt_from_current_schema(tmp_path) -> None:
+    database = tmp_path / "lattice.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE TABLE attempts(attempt_id TEXT, invocation_id TEXT, attempt_number INTEGER, state TEXT)")
+        connection.executemany(
+            "INSERT INTO attempts VALUES(?,?,?,?)",
+            [("attempt-1", "invocation-1", 1, "interrupted"), ("attempt-2", "invocation-1", 2, "running")],
+        )
+
+    assert qualify_interruption._attempt_state(database, "invocation-1") == ("attempt-2", "running")
 
 
 @pytest.mark.contract

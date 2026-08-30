@@ -14,6 +14,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,10 @@ SERVICE_LABEL = "com.axisvi.lattice"
 
 class RestoreQualificationFailure(RuntimeError):
     pass
+
+
+def _standalone_environment(environment: Mapping[str, str]) -> dict[str, str]:
+    return {key: value for key, value in environment.items() if key != "AXISVI_ROOT"}
 
 
 def _free_port() -> int:
@@ -209,7 +214,8 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, browser_receipt: Pat
     restored_base = f"http://127.0.0.1:{port}"
     logs = output.parent / f"restore-service-{uuid.uuid4().hex}"
     logs.mkdir(parents=True, mode=0o700)
-    restored_environment = {**environment, "LATTICE_DATA_DIR": str(restored_root), "LATTICE_PORT": str(port)}
+    restored_environment = _standalone_environment(environment)
+    restored_environment.update({"LATTICE_DATA_DIR": str(restored_root), "LATTICE_PORT": str(port)})
     process = _server(installed_lattice, restored_environment, port, logs)
     try:
         _wait_health(restored_base, timeout=timeout)
