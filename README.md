@@ -42,6 +42,8 @@ Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additiona
 
 Lattice `0.3.1` separates source assurance from installed-runtime qualification. Exact test counts belong to immutable qualification receipts rather than this living document. The execution-consolidation verifier independently reads base SQLite rows, blob bytes, runtime attestations, consumer source, provider receipts, and historical journal censuses; source tests alone cannot declare the installed execution boundary ready. Operational qualification and its exact current evidence live under [`assurance/execution-consolidation/`](assurance/execution-consolidation/).
 
+Future execution work to make Lattice the durable control plane and eventual primary UX for consequential computation and provider-backed coding is specified in [`DURABLE-WORK-AND-PRIMARY-UX-PLAN.md`](DURABLE-WORK-AND-PRIMARY-UX-PLAN.md).
+
 ## Telos
 
 Lattice should make the following interaction ordinary:
