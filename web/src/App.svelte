@@ -7,7 +7,10 @@
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
   import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, Episode, Invocation, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
-  import { resolveSelector, selectorReady, selectorSummary, selectorValue, workflowProjectTitle } from './workflowPresentation';
+  import { resolveSelector, selectorSummary, workflowProjectTitle } from './workflowPresentation';
+  import ConversationHistory from './components/ConversationHistory.svelte';
+  import ProjectRail from './components/ProjectRail.svelte';
+  import ResponsePane from './components/ResponsePane.svelte';
 
   let projects: Project[] = [];
   let project: Project | null = null;
@@ -867,35 +870,21 @@
     {#if error}<div class="error"><span>Execution boundary</span>{error}<button on:click={() => error = ''}>×</button></div>{/if}
 
     <div class="workspace">
-      <aside class="projects">
-        <div class="section-label">Projects</div>
-        {#each projects as item}
-          <button class:active={project?.project_id === item.project_id} on:click={() => openProject(item.project_id)}>
-            <span>{item.title}</span><small>{item.purpose || 'Open lattice'}</small>
-          </button>
-        {/each}
-        <div class="new-project">
-          <input bind:value={title} placeholder="New project" />
-          <textarea bind:value={purpose} rows="2" placeholder="What is this for?"></textarea>
-          <button class="quiet" disabled={working || !title.trim()} on:click={createProject}>Create</button>
-        </div>
-        <details class="secondary-control workflow-catalog">
-          <summary>Governed workflows</summary>
-          {#if workflowCatalogueError}<p class="surface-failure">Workflow catalogue unavailable: {workflowCatalogueError}</p>{/if}
-          {#each workflowPacks.filter((pack) => pack.available) as pack}
-            <div class="workflow-launch">
-              <strong>{pack.definition.title}</strong>
-              {#each pack.definition.project_selector as field}
-                <label>{field.label}<input type={field.value_type === 'integer' ? 'number' : 'text'} value={selectorValue(pack, field, workflowSelectorValues)} on:input={(event) => setWorkflowSelectorValue(pack.definition.pack_id, field.key, event.currentTarget.value)} /></label>
-              {/each}
-              <button class="quiet" disabled={working || !selectorReady(pack, workflowSelectorValues)} on:click={() => createWorkflowProject(pack)}>Open authoritative live view</button>
-            </div>
-          {/each}
-          {#each workflowPackFailures as failure}
-            <div class="workflow-launch workflow-unavailable"><strong>{failure.pack_id}</strong><small>Unavailable · {failure.detail}</small></div>
-          {/each}
-        </details>
-      </aside>
+      <ProjectRail
+        {projects}
+        {project}
+        bind:title
+        bind:purpose
+        {working}
+        {workflowCatalogueError}
+        {workflowPacks}
+        {workflowPackFailures}
+        {workflowSelectorValues}
+        onOpenProject={openProject}
+        onCreateProject={createProject}
+        onSetWorkflowSelectorValue={setWorkflowSelectorValue}
+        onCreateWorkflowProject={createWorkflowProject}
+      />
 
       <main class="conversation">
         {#if project}
@@ -986,37 +975,36 @@
             </details>
           {/if}
 
-          <section class="response-card" class:empty={!selected?.output_block && !activeAttemptIds.length}>
-            {#if selected}
-              <div class="response-meta"><span>{selected.state}</span><code>{selected.invocation_id.slice(-8)}</code></div>
-              {#if activeAttemptIds.length}<div class="live-progress"><div><strong>{liveProgressState}</strong><button class="quiet" on:click={cancelActiveAttempts}>Cancel running routes</button></div><pre>{liveProgress || 'Waiting for the first observable provider bytes…'}</pre></div>{/if}
-              {#if selected.output_block}<article>{@html responseHtml}</article>{:else if ['failed', 'interrupted'].includes(selected.state)}<p class="terminal-failure">Invocation ended {selected.state}: {terminalFailure(selected)}</p>{:else}<p class="muted">This invocation has not reached a terminal response.</p>{/if}
-              <div class="response-actions">
-                <button class="quiet" on:click={() => beginSideQuest()}>Side quest</button>
-                <button class="quiet" on:click={() => beginSideQuest('anthropic')}>Ask Claude</button>
-                <button class="quiet" on:click={() => beginSideQuest('openai')}>Ask Codex</button>
-                <button class="quiet" on:click={() => beginSideQuest('both')}>Ask both</button>
-                {#if selected.output_block_id}<details class="context-actions"><summary>Use exact response</summary><div><button class="quiet" disabled={working} on:click={() => graftResponseBlock('side-quest')}>Side quest</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('ask-claude')}>Ask Claude</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('ask-codex')}>Ask Codex</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('ask-both')}>Ask both</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('bring-here')}>Bring here</button><button class="quiet" disabled={working} on:click={() => graftResponseBlock('compare')}>Compare</button></div></details>{/if}
-                {#if selectedNativeEligible}<button class="quiet native" on:click={() => configureNativeContinuation('resume')}>Continue native session</button><button class="quiet native" on:click={() => configureNativeContinuation('fork')}>Fork native session</button>{/if}
-                {#if currentEpisode?.parent_episode_id}<button class="quiet return" on:click={returnToParentEpisode}>Return to {parentEpisode?.name ?? 'parent trail'}</button>{/if}
-                {#if selectedExcerpt}<details class="context-actions selected-text"><summary>Use “{selectedExcerpt.text.slice(0, 36)}{selectedExcerpt.text.length > 36 ? '…' : ''}”</summary><div><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('side-quest')}>Side quest</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('ask-claude')}>Ask Claude</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('ask-codex')}>Ask Codex</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('ask-both')}>Ask both</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('bring-here')}>Bring here</button><button class="quiet" disabled={working} on:click={() => graftSelectedExcerpt('compare')}>Compare</button></div></details>{/if}
-                {#if selectionProofLimit}<small class="selection-proof-limit">{selectionProofLimit}</small>{/if}
-              </div>
-            {:else}
-              <div class="empty-call"><span>Begin here</span><h3>Say what should happen next.</h3><p>Lattice will show the exact context before anything is sent.</p></div>
-            {/if}
-          </section>
+          <ResponsePane
+            {selected}
+            {activeAttemptIds}
+            {liveProgress}
+            {liveProgressState}
+            {responseHtml}
+            {working}
+            {selectedNativeEligible}
+            {currentEpisode}
+            {parentEpisode}
+            {selectedExcerpt}
+            {selectionProofLimit}
+            {terminalFailure}
+            onCancelActive={cancelActiveAttempts}
+            onBeginSideQuest={beginSideQuest}
+            onGraftResponse={graftResponseBlock}
+            onConfigureNative={configureNativeContinuation}
+            onReturnToParent={returnToParentEpisode}
+            onGraftExcerpt={graftSelectedExcerpt}
+          />
 
-          <section class="history">
-            <div class="section-label">Lattice trail</div>
-            {#if project.invocation_page?.has_older}<button class="quiet load-older" disabled={working} on:click={loadOlderInvocations}>Load older history</button>{/if}
-            {#each [...(project.invocations ?? [])].reverse() as item}
-              <div class="history-row" class:selected={selected?.invocation_id === item.invocation_id}>
-                <input type="checkbox" checked={selectedParents.has(item.invocation_id)} on:change={() => toggleParent(item.invocation_id)} aria-label="Select as parent" />
-                <button on:click={() => inspect(item.invocation_id)}><span>{item.state}</span><code>{item.invocation_id.slice(-8)}</code><time>{item.created_at}</time></button>
-              </div>
-            {/each}
-          </section>
+          <ConversationHistory
+            {project}
+            selectedInvocationId={selected?.invocation_id ?? null}
+            {selectedParents}
+            {working}
+            onLoadOlder={loadOlderInvocations}
+            onToggleParent={toggleParent}
+            onInspect={inspect}
+          />
 
           <section class="composer">
             <div class="composer-top">
