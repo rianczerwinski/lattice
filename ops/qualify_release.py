@@ -19,7 +19,7 @@ from lattice.client import LatticeClient
 
 SUITES: dict[str, tuple[str, list[list[str]], list[str]]] = {
     "lattice-backend": ("axis/chariots/lattice", [["{lattice-python}", "-m", "pytest", "-q"]], ["oracle", "property", "regression", "contract", "smoke", "fuzz", "concurrency"]),
-    "lattice-frontend": ("axis/chariots/lattice/web", [["npm", "run", "check"], ["npm", "test", "--", "--run"]], ["contract", "regression"]),
+    "lattice-frontend": ("axis/chariots/lattice/web", [["npm", "run", "check"], ["npm", "test", "--", "--run"], ["npm", "run", "build"]], ["contract", "regression"]),
     "lattice-browser": ("axis/chariots/lattice/web", [["npm", "run", "test:browser"]], ["browser-acceptance", "regression"]),
     "canon": ("sui/mission/projects/canon/dev/quaternary-exhaustion", [["uv", "run", "pytest", "-q", "tests/test_quaternary_workflow.py"]], ["oracle", "contract", "regression"]),
     "field-survey": ("sui/mission/typology/abduction/field-survey/research-pipeline", [["uv", "run", "pytest", "-q"]], ["oracle", "property", "contract", "regression", "concurrency"]),
@@ -97,7 +97,7 @@ def run_suites(axisvi_root: Path) -> list[dict[str, Any]]:
             stderr_parts.append(completed.stderr)
             if completed.returncode != 0:
                 exit_code = completed.returncode
-                detail = (completed.stderr or completed.stdout).decode("utf-8", errors="replace")[-4000:]
+                detail = (completed.stdout + b"\n" + completed.stderr).decode("utf-8", errors="replace")[-8000:]
                 raise QualificationFailure(f"suite failed: {suite_id}: {detail}")
         receipts.append({
             "suite_id": suite_id,

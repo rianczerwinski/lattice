@@ -179,13 +179,13 @@
     scheduleUiPersistence();
   }
 
-  function currentProjectUiState(): ProjectUiState | null {
+  function currentProjectUiState(selectedInvocationId = selected?.invocation_id ?? ''): ProjectUiState | null {
     if (!project) return null;
     return {
       prompt,
       selectedSession,
       selectedRunId,
-      selectedInvocationId: selected?.invocation_id ?? '',
+      selectedInvocationId,
       selectedParentIds: [...selectedParents],
       explicitSelections,
       currentEpisodeId: currentEpisode?.slice_id ?? '',
@@ -201,8 +201,8 @@
     };
   }
 
-  function persistCurrentProjectUiState() {
-    const state = currentProjectUiState();
+  function persistCurrentProjectUiState(selectedInvocationId?: string) {
+    const state = currentProjectUiState(selectedInvocationId);
     if (!project || !state) return;
     const result = writeProjectUiState(window.localStorage, project.project_id, state);
     uiPersistenceError = result.error;
@@ -796,6 +796,9 @@
       selectedParents = new Set();
       try { await Promise.all(batch.invocation_ids.map((invocationId) => pollInvocation(invocationId))); }
       finally { closeProgress.forEach((close) => close()); activeAttemptIds = []; }
+      const foregroundInvocationId = batch.invocation_ids.at(-1);
+      persistCurrentProjectUiState(foregroundInvocationId);
+      selected = null;
       await openProject(projectId);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -829,11 +832,10 @@
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
   }
 
-  async function pollInvocation(id: string) {
+  async function pollInvocation(id: string): Promise<Invocation> {
     for (;;) {
       const invocation = await api<Invocation>(`/api/v1/invocations/${id}`);
-      selected = invocation;
-      if (['succeeded', 'failed', 'interrupted'].includes(invocation.state)) return;
+      if (['succeeded', 'failed', 'interrupted'].includes(invocation.state)) return invocation;
       await new Promise((resolve) => setTimeout(resolve, 600));
     }
   }
@@ -841,8 +843,16 @@
   async function inspect(id: string) {
     const generation = ++inspectGeneration;
     error = '';
+    selectedExcerpt = null;
+    selectionProofLimit = '';
+    armedTransition = '';
     try {
       const invocation = await api<Invocation>(`/api/v1/invocations/${id}`);
+      if (generation !== inspectGeneration) return;
+      const [neighborhoodResult, navigationResult] = await Promise.allSettled([
+        api<{ nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } }>(`/api/v1/invocations/${id}/neighborhood?depth=2`),
+        api<InvocationNavigation>(`/api/v1/invocations/${id}/navigation`),
+      ]);
       if (generation !== inspectGeneration) return;
       selected = invocation;
       neighborhood = null;
@@ -851,14 +861,6 @@
       neighborhoodError = '';
       navigationError = '';
       slateSliceError = '';
-      selectedExcerpt = null;
-      selectionProofLimit = '';
-      armedTransition = '';
-      const [neighborhoodResult, navigationResult] = await Promise.allSettled([
-        api<{ nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } }>(`/api/v1/invocations/${id}/neighborhood?depth=2`),
-        api<InvocationNavigation>(`/api/v1/invocations/${id}/navigation`),
-      ]);
-      if (generation !== inspectGeneration) return;
       if (neighborhoodResult.status === 'fulfilled') neighborhood = neighborhoodResult.value;
       else neighborhoodError = neighborhoodResult.reason instanceof Error ? neighborhoodResult.reason.message : String(neighborhoodResult.reason);
       if (navigationResult.status === 'fulfilled') selectedNavigation = navigationResult.value;
