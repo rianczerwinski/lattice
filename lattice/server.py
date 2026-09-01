@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sqlite3
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .__about__ import __version__
 from .config import WEB_DIST, LatticeConfig
@@ -25,6 +28,8 @@ from .contracts import (
     DerivedTextBlockCreate,
     DraftCreate,
     DraftPatch,
+    DurableRunDeclarationV1,
+    DurableRunDeclarationV2,
     ExecuteRequest,
     ExecutionResultV1,
     ExecutionSubmissionV1,
@@ -46,20 +51,41 @@ from .contracts import (
     EpisodeCreate,
     EpisodeMemberCreate,
 )
+from .exact_file import ExactFileCaptureError, capture_exact_file
 from .octopus_import import OctopusImporter
 from .context_modules import ContextModuleError, ContextModuleRunner, read_bounded_local_file
 from .operations import Lattice
 from .quaternary import QuaternaryAdapter, QuaternaryBoundaryError, QuaternaryOutcomeUnknown
 from .platform_foundry import PlatformFoundryAdapter
 from .runtime_identity import installed_runtime_identity, latest_closure_state
+from .run_supervisor import DurableRunSupervisor
 from .security import OperatorBoundaryMiddleware, OperatorSessions, ServiceInstanceLock, configured_development_origin, ensure_cli_token
 from .store import LatticeConflict, LatticeNotFound, LatticeStore
 from .supervisor import ExecutionSupervisor
 from .workflows import WorkflowRegistry
+from .workspace_control import WorkspaceControl, WorkspaceControlError
 
 
 class StrictRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+def _attachment_headers(name: str, byte_count: int) -> dict[str, str]:
+    return {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{quote(name, safe='')}",
+        "Content-Length": str(byte_count),
+    }
+
+
+def _capture_external_artifact(path: Path, *, expected_sha256: str, expected_bytes: int, max_bytes: int) -> bytes:
+    """Capture verified bounded bytes from one external file descriptor."""
+
+    if expected_bytes > max_bytes:
+        raise LatticeConflict(f"external durable-run artifacts larger than {max_bytes} bytes require admission into Lattice CAS before retrieval")
+    try:
+        return capture_exact_file(path, expected_sha256=expected_sha256, expected_bytes=expected_bytes, max_bytes=max_bytes)
+    except ExactFileCaptureError as error:
+        raise LatticeConflict(f"external durable-run artifact is unavailable: {error}") from error
 
 
 class ForkRequest(StrictRequest):
@@ -140,10 +166,47 @@ class WorkflowProjectRequest(StrictRequest):
 class ResolveContextModuleRequest(StrictRequest):
     project_id: str
     definition: ContextModuleDefinition
+    expected_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    expected_byte_count: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def exact_file_precondition_is_complete(self) -> "ResolveContextModuleRequest":
+        if (self.expected_sha256 is None) != (self.expected_byte_count is None):
+            raise ValueError("exact-file capture requires both expected_sha256 and expected_byte_count")
+        if self.expected_sha256 is not None and self.definition.source_kind not in {"file", "surface"}:
+            raise ValueError("exact-file preconditions apply only to file-backed context modules")
+        return self
 
 
 class RedeemOperatorBootstrapRequest(StrictRequest):
     bootstrap_token: str = Field(min_length=32, max_length=256)
+
+
+class WorkspaceRequest(StrictRequest):
+    workspace: str = Field(min_length=1, max_length=4096)
+
+
+class WorkspaceDirectoryRequest(WorkspaceRequest):
+    path: str = Field(default="", max_length=4096)
+    limit: int = Field(default=500, ge=1, le=500)
+
+
+class WorkspaceFileRequest(WorkspaceRequest):
+    path: str = Field(min_length=1, max_length=4096)
+    start_line: int = Field(default=1, ge=1)
+    line_count: int = Field(default=240, ge=1, le=1000)
+
+
+class WorkspaceSearchRequest(WorkspaceRequest):
+    query: str = Field(min_length=1, max_length=1000)
+    mode: Literal["text", "path", "symbol"] = "text"
+    limit: int = Field(default=200, ge=1, le=500)
+
+
+class WorkspaceDiffRequest(WorkspaceRequest):
+    view: Literal["unstaged", "staged", "revision"] = "unstaged"
+    revision: str | None = Field(default=None, max_length=500)
+    path: str | None = Field(default=None, max_length=4096)
 
 
 def _initialize_runtime(config: LatticeConfig):
@@ -155,6 +218,7 @@ def _initialize_runtime(config: LatticeConfig):
         store = LatticeStore(config)
         lattice = Lattice(store)
         supervisor = ExecutionSupervisor(store)
+        run_supervisor = DurableRunSupervisor(store)
         sessions = OperatorSessions()
         importer = OctopusImporter(store, lattice, config.octopus_base_url)
         context_modules = ContextModuleRunner(allowed_file_roots=config.allowed_file_roots, octopus_base_url=config.octopus_base_url)
@@ -176,13 +240,13 @@ def _initialize_runtime(config: LatticeConfig):
     except BaseException:
         service_lock.release()
         raise
-    return store, lattice, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, workflow_pack_failures, service_lock
+    return store, lattice, supervisor, run_supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, workflow_pack_failures, service_lock
 
 
 def create_app(config: LatticeConfig | None = None) -> FastAPI:
     config = config or LatticeConfig.from_environment()
     configured_development_origin()
-    store, lattice, supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, workflow_pack_failures, service_lock = _initialize_runtime(config)
+    store, lattice, supervisor, run_supervisor, sessions, cli_token, importer, context_modules, workflows, loaded_packs, workflow_pack_failures, service_lock = _initialize_runtime(config)
 
     def load_workflow_pack(pack_id: str) -> dict[str, Any]:
         try:
@@ -252,9 +316,11 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             await asyncio.to_thread(store.reconcile_workflow_instances, {pack_id: loaded["definition"]["initial_state"] for pack_id, loaded in loaded_packs.items()})
             await asyncio.to_thread(store.reconcile_workflow_role_policies, {pack_id: {"canonical_sha256": loaded["canonical_sha256"], "roles": loaded["definition"]["roles"]} for pack_id, loaded in loaded_packs.items()})
             await supervisor.start()
+            await run_supervisor.start()
             try:
                 yield
             finally:
+                await run_supervisor.shutdown_for_restart()
                 await supervisor.stop()
         finally:
             service_lock.release()
@@ -264,6 +330,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     app.state.store = store
     app.state.lattice = lattice
     app.state.supervisor = supervisor
+    app.state.run_supervisor = run_supervisor
     app.state.workflows = workflows
     app.add_middleware(OperatorBoundaryMiddleware, cli_token=cli_token, sessions=sessions, port=config.port, public_url=config.public_url, frame_origins=config.frame_origins)
 
@@ -279,12 +346,16 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     async def quaternary_boundary(_request: Request, error: QuaternaryBoundaryError):
         return Response(json.dumps({"detail": str(error)}), status_code=422, media_type="application/json")
 
+    @app.exception_handler(WorkspaceControlError)
+    async def workspace_boundary(_request: Request, error: WorkspaceControlError):
+        return Response(json.dumps({"detail": str(error)}), status_code=422, media_type="application/json")
+
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
         degraded = bool(supervisor.startup_recovery_failures or workflow_pack_failures)
         runtime = installed_runtime_identity(config.runtime_id)
         closure = latest_closure_state(config.data_root)
-        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, **{key: runtime[key] for key in ("runtime_id", "runtime_artifact_id", "runtime_tree_digest", "provider_attestation_digest")}, "closure": closure, "startup_recovery_failures": supervisor.startup_recovery_failures, "workflow_pack_failures": workflow_pack_failures}
+        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures, "durable_run_ready": True, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "durable_run_boot_id": run_supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, **{key: runtime[key] for key in ("runtime_id", "runtime_artifact_id", "runtime_tree_digest", "provider_attestation_digest")}, "closure": closure, "startup_recovery_failures": supervisor.startup_recovery_failures, "durable_run_startup_reconciliation": run_supervisor.startup_reconciliation, "workflow_pack_failures": workflow_pack_failures}
 
     def set_operator_cookie(response: Response, session: str) -> None:
         response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=bool(config.public_url and config.public_url.startswith("https://")), path="/", max_age=sessions.ttl_seconds)
@@ -332,6 +403,35 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             else:
                 status["latest_qualification"] = None
         return statuses
+
+    def workspace_control(path: str) -> WorkspaceControl:
+        return WorkspaceControl(Path(path), allowed_roots=config.allowed_file_roots)
+
+    @app.post("/api/v1/workspaces/directory")
+    async def workspace_directory(value: WorkspaceDirectoryRequest) -> dict[str, object]:
+        control = workspace_control(value.workspace)
+        return await asyncio.to_thread(control.list_directory, value.path, limit=value.limit)
+
+    @app.post("/api/v1/workspaces/file")
+    async def workspace_file(value: WorkspaceFileRequest) -> dict[str, object]:
+        control = workspace_control(value.workspace)
+        view = await asyncio.to_thread(control.read_file, value.path, start_line=value.start_line, line_count=value.line_count)
+        return asdict(view)
+
+    @app.post("/api/v1/workspaces/search")
+    async def workspace_search(value: WorkspaceSearchRequest) -> list[dict[str, object]]:
+        control = workspace_control(value.workspace)
+        hits = await asyncio.to_thread(control.search, value.query, mode=value.mode, limit=value.limit)
+        return [asdict(hit) for hit in hits]
+
+    @app.post("/api/v1/workspaces/review/status")
+    async def workspace_review_status(value: WorkspaceRequest) -> dict[str, object]:
+        return await asyncio.to_thread(workspace_control(value.workspace).git_status)
+
+    @app.post("/api/v1/workspaces/review/diff")
+    async def workspace_review_diff(value: WorkspaceDiffRequest) -> dict[str, object]:
+        control = workspace_control(value.workspace)
+        return await asyncio.to_thread(control.git_diff, view=value.view, revision=value.revision, relative=value.path)
 
     async def resolve_trigger_route(project_id: str, action: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         project = store.get_project(project_id)
@@ -532,6 +632,119 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             source_census_sha256=row["source_census_sha256"],
             imported_at=row["imported_at"],
         ).model_dump(mode="json")
+
+    @app.post("/api/v1/runs", status_code=201)
+    async def declare_durable_run(value: DurableRunDeclarationV1 | DurableRunDeclarationV2):
+        return store.declare_run(value)
+
+    @app.get("/api/v1/runs")
+    async def list_durable_runs(project_id: str | None = None, limit: int = Query(default=200, ge=1, le=1000)):
+        return store.list_runs(project_id, limit=limit)
+
+    @app.get("/api/v1/projects/{project_id}/runs")
+    async def list_project_durable_runs(project_id: str, limit: int = Query(default=200, ge=1, le=1000)):
+        store.get_project(project_id)
+        return store.list_runs(project_id, limit=limit)
+
+    @app.get("/api/v1/runs/{run_id}")
+    async def inspect_durable_run(run_id: str):
+        return store.get_run(run_id)
+
+    @app.post("/api/v1/runs/{run_id}/admit")
+    async def admit_durable_run(run_id: str):
+        return store.admit_run(run_id)
+
+    @app.post("/api/v1/runs/{run_id}/start", status_code=202)
+    async def start_durable_run(run_id: str, value: ExecuteRequest):
+        return await run_supervisor.execute(run_id, value.idempotency_key)
+
+    @app.post("/api/v1/runs/{run_id}/stop", status_code=202)
+    async def stop_durable_run(run_id: str):
+        return await run_supervisor.request_stop(run_id)
+
+    @app.post("/api/v1/runs/{run_id}/resume", status_code=202)
+    async def resume_durable_run(run_id: str, value: ExecuteRequest):
+        return await run_supervisor.execute(run_id, value.idempotency_key)
+
+    @app.get("/api/v1/runs/{run_id}/artifacts")
+    async def durable_run_artifacts(run_id: str):
+        return store.get_run(run_id)["artifacts"]
+
+    @app.get("/api/v1/runs/{run_id}/attempts/{attempt_id}/logs/{stream}")
+    async def durable_run_attempt_log(run_id: str, attempt_id: str, stream: Literal["stdout", "stderr"]):
+        descriptor, byte_count = run_supervisor.open_attempt_log(run_id, attempt_id, stream)
+
+        async def generate():
+            remaining = byte_count
+            try:
+                while remaining:
+                    chunk = await asyncio.to_thread(os.read, descriptor, min(64 * 1024, remaining))
+                    if not chunk:
+                        return
+                    remaining -= len(chunk)
+                    yield chunk
+            finally:
+                os.close(descriptor)
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/plain",
+            headers=_attachment_headers(f"{attempt_id}-{stream}.log", byte_count),
+        )
+
+    @app.get("/api/v1/runs/{run_id}/events")
+    async def durable_run_events(run_id: str, after: int = Query(default=0, ge=0), limit: int = Query(default=200, ge=1, le=1000)):
+        return store.run_events_after(run_id, after=after, limit=limit)
+
+    @app.get("/api/v1/runs/{run_id}/events/stream")
+    async def durable_run_event_stream(run_id: str, after: int = Query(default=0, ge=0)):
+        store.get_run(run_id)
+
+        async def generate():
+            cursor = after
+            while True:
+                batch = store.run_events_after(run_id, after=cursor)
+                if batch:
+                    for event in batch:
+                        cursor = event["seq"]
+                        yield f"id: {cursor}\nevent: {event['event_type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+                else:
+                    yield ": keepalive\n\n"
+                await asyncio.sleep(1)
+
+        return StreamingResponse(generate(), media_type="text/event-stream")
+
+    @app.get("/api/v1/run-artifacts/{artifact_id}")
+    async def inspect_durable_run_artifact(artifact_id: str):
+        return store.get_run_artifact(artifact_id)
+
+    @app.get("/api/v1/run-artifacts/{artifact_id}/content")
+    async def retrieve_durable_run_artifact(artifact_id: str):
+        artifact = store.get_run_artifact(artifact_id)
+        if artifact["state"] != "present":
+            raise LatticeConflict("durable-run artifact is no longer present")
+        locator = artifact["storage_locator"]
+        if locator.startswith("lattice:blob/"):
+            path, byte_count = store.blobs.verify_file(artifact["content_sha256"])
+            if byte_count != artifact["byte_count"]:
+                raise LatticeConflict("durable-run artifact byte count disagrees with its Lattice CAS object")
+            return FileResponse(path, media_type=artifact["media_type"], filename=artifact["name"])
+        elif locator.startswith("file:"):
+            path = Path(locator.removeprefix("file:"))
+            content = await asyncio.to_thread(
+                _capture_external_artifact,
+                path,
+                expected_sha256=artifact["content_sha256"],
+                expected_bytes=artifact["byte_count"],
+                max_bytes=store.SLICE_INLINE_RESPONSE_BYTES,
+            )
+            return Response(content=content, media_type=artifact["media_type"], headers=_attachment_headers(artifact["name"], len(content)))
+        else:
+            raise LatticeConflict("durable-run artifact locator cannot be retrieved by this Lattice service")
+
+    @app.post("/api/v1/run-artifacts/{artifact_id}/context-blocks")
+    async def graft_durable_run_artifact(artifact_id: str):
+        return store.create_run_artifact_context_block(artifact_id)
 
     @app.get("/api/v1/invocation-batches/{batch_id}")
     async def get_invocation_batch(batch_id: str):
@@ -901,6 +1114,11 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             receipt = context_modules.failure_receipt(value.definition, error)
             store.record_event(project_id=value.project_id, event_type="context-module.failed", subject_type="context-module", subject_id=value.definition.module_id, payload={"receipt": receipt})
             raise HTTPException(422, str(error)) from error
+        if value.expected_sha256 is not None and (
+            result.receipt["content_sha256"] != value.expected_sha256
+            or result.receipt["byte_count"] != value.expected_byte_count
+        ):
+            raise LatticeConflict("file changed after workspace inspection; reopen it before adding it to context")
         block = store.create_context_module_block(
             ContextBlockCreate(project_id=value.project_id, semantic_type=f"context-module:{value.definition.module_id}", content=result.content.decode("utf-8"), source_ref=result.receipt["source_ref"], source_sha256=result.receipt["content_sha256"], authority=value.definition.module_id, evidence_level="module-receipt", sensitivity="private", transformation=result.receipt),
             module_id=value.definition.module_id,

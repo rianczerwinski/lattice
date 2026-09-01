@@ -76,7 +76,7 @@ Lattice must not become a generic scheduler whose primary object is a predefined
 
 ### The durable-run executor owns
 
-- process launch, liveness, signal handling, and exit classification;
+- process launch, liveness, signal handling, and exit classification for trusted foreground work that remains in the guardian-owned process group;
 - atomic persistence of current run state;
 - append-only progress and lifecycle events;
 - recovery after process or machine interruption;
@@ -92,7 +92,8 @@ Lattice must not become a generic scheduler whose primary object is a predefined
 - whether a completed unit is still valid under the bound code, configuration, and inputs;
 - which intermediate outputs are meaningful evidence;
 - domain-specific aggregation and conclusions;
-- any domain-specific resource or exposure boundary.
+- any domain-specific resource or exposure boundary;
+- keeping all computation represented as local guardian-owned work in the foreground process group; detached sessions, double-fork daemons, reparented descendants, and independently managed services require a different adapter and are not claimed as controlled by the local executor.
 
 Lattice never infers a project's evidence population by walking its filesystem or archive store. The project supplies an exact, bound unit manifest; Lattice preserves that population as part of run identity, exposes its restrictions, and refuses a stop, resume, retry, or adapter action that would silently add or substitute units. Bytes being present does not mean they are authorized inputs.
 
@@ -121,6 +122,8 @@ The current code and tool boundaries support one default architecture:
 | Smithers or another compound executor | Optional adapter for a real job whose internal graph needs exposure; never the default ontology or a prerequisite for local durable runs |
 
 The default local durable-run protocol and its canonical projection therefore live in Lattice. A project may host its own worker process and state, but it reports through a small Lattice-owned protocol. The first implementation extends Lattice's existing ledger, supervisor, event stream, and artifact relations rather than growing `runjob` into a second application or installing a separate workflow engine.
+
+The default local adapter is deliberately narrower than an operating-system process sandbox. Its guardian durably identifies and controls the direct trusted worker and the foreground process group inherited by that worker. The project contract forbids moving represented run work into a detached session or reparented daemon; Lattice does not claim to discover, terminate, or recover work that violates that boundary. This keeps ordinary project-worker recovery exact without implying hostile same-user containment.
 
 ### Daily-driver quality contract
 
@@ -207,6 +210,8 @@ Every produced artifact is classified at creation:
 
 Unclassified outputs default to durable. A successful run does not retroactively convert its intermediates into disposable material.
 
+When a local worker reports a file locator, Lattice verifies the emitted content identity and streams every non-disposable artifact into Lattice's content-addressed store before admitting the ledger record. Later mutation, deletion, or relocation of the project file therefore cannot weaken evidence or checkpoint recovery. A disposable artifact may retain its verified external file locator only because its declaration includes an explicit regeneration method.
+
 Disposable material must be physically or logically isolated. Removal requires that downstream use is complete and loss cannot weaken resumption, diagnosis, provenance, or the final claim. The durable record retains the removed artifact's identity, reason for disposability, byte size, regeneration method, and removal event.
 
 ### Evidence relationships
@@ -269,7 +274,7 @@ Define a minimal SDK or protocol through which a project declares units, records
 
 Preserve application-level responsibility: wrapping an opaque command may provide logs and process control, but it cannot advertise semantic resumability unless the application declares checkpoints and unit identities.
 
-**Gate:** a synthetic multi-unit job can be interrupted during a unit, restarted after executor and machine-process loss, preserve all prior completed units, repeat no more than the active unit, and expose truthful status throughout.
+**Gate:** a synthetic multi-unit foreground job can be interrupted during a unit, restarted after executor and managed-process loss, preserve all prior completed units, repeat no more than the single active unit, and expose truthful status throughout. Detached or reparented work is rejected by the adapter contract rather than counted as guardian-controlled work.
 
 ### Phase 2 — Make durable runs first-class Lattice objects
 

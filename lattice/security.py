@@ -24,6 +24,16 @@ from .durability import sync_directory, sync_file
 SAFE_METHODS = {"GET", "HEAD"}
 
 
+def _operator_read_required(path: str) -> bool:
+    """Identify API reads which expose provider output or durable project work."""
+
+    if path == "/api/v1/executions" or path == "/api/v1/runs":
+        return True
+    if path.startswith(("/api/v1/artifacts/", "/api/v1/blobs/", "/api/v1/runs/", "/api/v1/run-artifacts/")):
+        return True
+    return path.startswith("/api/v1/projects/") and path.endswith("/runs")
+
+
 def configured_development_origin() -> str | None:
     configured = os.environ.get("LATTICE_DEV_ORIGIN")
     if not configured:
@@ -211,7 +221,7 @@ class OperatorBoundaryMiddleware(BaseHTTPMiddleware):
         session_cookie = request.cookies.get("lattice_operator")
         if request.url.path == "/api/session" and not bearer_ok and self.sessions.csrf_for(session_cookie) is None:
             return Response("operator authority required", status_code=403)
-        sensitive_read = request.url.path == "/api/v1/executions" or request.url.path.startswith(("/api/v1/artifacts/", "/api/v1/blobs/"))
+        sensitive_read = _operator_read_required(request.url.path)
         if request.method in SAFE_METHODS and sensitive_read and not bearer_ok and self.sessions.csrf_for(session_cookie) is None:
             return Response("operator authority required", status_code=403)
         if request.method not in SAFE_METHODS and request.url.path.startswith("/api/") and request.url.path != "/api/session/redeem":

@@ -20,7 +20,10 @@ from .execution import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_
 from .blob_store import BlobStore
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, stamp
 from .config import LatticeConfig
-from .snapshot import pre_migration_snapshot_if_needed
+from .exact_file import ExactFileCaptureError, capture_exact_file
+from .snapshot import copy_exact_tree, pre_migration_snapshot_if_needed
+from .durability import sync_tree_directories
+from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard
 from .contracts import (
     AttemptState,
     BlockDisposition,
@@ -32,6 +35,7 @@ from .contracts import (
     DraftState,
     DurableRunAttemptState,
     DurableRunDeclarationV1,
+    DurableRunDeclarationV2,
     DurableRunState,
     DurableRunUnitState,
     EdgeRelation,
@@ -48,6 +52,7 @@ from .contracts import (
     RunArtifactState,
     RunAttemptFinishV1,
     RunAttemptStartV1,
+    RunProcessIdentityV2,
     RunUnitResultV1,
     SliceCreate,
     SliceQuery,
@@ -58,7 +63,7 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
 
@@ -454,6 +459,7 @@ CREATE TABLE IF NOT EXISTS run_attempts(
     state TEXT NOT NULL CHECK(state IN ('running','waiting','stopping','stopped','failed','completed','orphaned')),
     owner_boot_id TEXT NOT NULL,
     executor_binding_json TEXT NOT NULL CHECK(json_valid(executor_binding_json)),
+    process_identity_json TEXT CHECK(process_identity_json IS NULL OR json_valid(process_identity_json)),
     resumed_from_attempt_id TEXT REFERENCES run_attempts(attempt_id),
     checkpoint_artifact_id TEXT REFERENCES run_artifacts(artifact_id),
     failure_kind TEXT,
@@ -484,6 +490,9 @@ CREATE TABLE IF NOT EXISTS run_units(
     PRIMARY KEY(run_id,unit_key),
     UNIQUE(run_id,ordinal)
 ) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_running_run_unit
+ON run_units(run_id) WHERE state='running';
 
 CREATE TABLE IF NOT EXISTS run_artifacts(
     artifact_id TEXT PRIMARY KEY,
@@ -686,6 +695,7 @@ class LatticeStore:
             command_columns = {row[1] for row in conn.execute("PRAGMA table_info(workflow_commands)")}
             import_columns = {row[1] for row in conn.execute("PRAGMA table_info(conversation_imports)")}
             import_turn_columns = {row[1] for row in conn.execute("PRAGMA table_info(conversation_import_turns)")}
+            run_attempt_columns = {row[1] for row in conn.execute("PRAGMA table_info(run_attempts)")}
             required_columns = {
                 "attempts": ({"runtime_receipt_json"}, attempt_columns),
                 "context_blocks": ({"issuer_kind", "issuer_ref"}, block_columns),
@@ -699,6 +709,7 @@ class LatticeStore:
                 "workflow_commands": ({"expected_workflow_revision", "pack_canonical_sha256", "review_sha256", "review_json"}, command_columns),
                 "conversation_imports": ({"role_session_id", "proof_limit_block_id"}, import_columns),
                 "conversation_import_turns": ({"response_state"}, import_turn_columns),
+                "run_attempts": ({"process_identity_json"}, run_attempt_columns),
             }
             for table, (required, present) in required_columns.items():
                 if not required.issubset(present):
@@ -752,6 +763,8 @@ class LatticeStore:
                 conn.execute("ALTER TABLE conversation_imports ADD COLUMN proof_limit_block_id TEXT REFERENCES context_blocks(block_id)")
             if "response_state" not in import_turn_columns:
                 conn.execute("ALTER TABLE conversation_import_turns ADD COLUMN response_state TEXT NOT NULL DEFAULT 'present' CHECK(response_state IN ('present','absent'))")
+            if "process_identity_json" not in run_attempt_columns:
+                conn.execute("ALTER TABLE run_attempts ADD COLUMN process_identity_json TEXT CHECK(process_identity_json IS NULL OR json_valid(process_identity_json))")
             if "actor_kind" not in draft_columns or "actor_kind" not in invocation_columns:
                 self._migrate_actor_bindings(conn)
             self._install_change_triggers(conn)
@@ -808,6 +821,9 @@ class LatticeStore:
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(11,?)", (stamp(),))
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(12,?)", (stamp(),))
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(13,?)", (stamp(),))
+            if conn.execute("SELECT 1 FROM schema_migrations WHERE version=14").fetchone() is None:
+                self._baseline_tables(conn, ("run_attempts",))
+                conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(14,?)", (stamp(),))
             self._register_provider_profiles(conn)
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
@@ -1400,6 +1416,8 @@ class LatticeStore:
     def _decode_run_attempt(row: dict[str, Any]) -> dict[str, Any]:
         row["request"] = json.loads(row.pop("request_json"))
         row["executor_binding"] = json.loads(row.pop("executor_binding_json"))
+        process_identity = row.pop("process_identity_json", None)
+        row["process_identity"] = json.loads(process_identity) if process_identity is not None else None
         return row
 
     @staticmethod
@@ -1423,6 +1441,8 @@ class LatticeStore:
             attempts = [self._decode_run_attempt(dict(row)) for row in conn.execute("SELECT * FROM run_attempts WHERE run_id=? ORDER BY attempt_number", (run_id,))]
             units = [self._decode_run_unit(dict(row)) for row in conn.execute("SELECT * FROM run_units WHERE run_id=? ORDER BY ordinal", (run_id,))]
             artifacts = [self._decode_run_artifact(dict(row)) for row in conn.execute("SELECT * FROM run_artifacts WHERE run_id=? ORDER BY created_at,artifact_id", (run_id,))]
+            for artifact in artifacts:
+                artifact["observed_attempt_ids"] = [row[0] for row in conn.execute("SELECT json_extract(payload_json,'$.attempt_id') FROM events WHERE subject_type='durable-run-artifact' AND subject_id=? AND event_type IN ('durable-run-artifact.recorded','durable-run-artifact.reobserved') ORDER BY seq", (artifact["artifact_id"],))]
         run["declaration"] = json.loads(run.pop("declaration_json"))
         run["authority"] = json.loads(run.pop("authority_json"))
         run["attempts"] = attempts
@@ -1435,6 +1455,131 @@ class LatticeStore:
         }
         return run
 
+    def list_runs(self, project_id: str | None = None, *, limit: int = 200) -> list[dict[str, Any]]:
+        """Return recent durable runs as complete current projections."""
+
+        if isinstance(limit, bool) or not 1 <= limit <= 1000:
+            raise ValueError("durable-run list limit must be between 1 and 1000")
+        with self._connect() as conn:
+            if project_id is None:
+                rows = conn.execute("SELECT run_id FROM runs ORDER BY updated_at DESC,run_id DESC LIMIT ?", (limit,)).fetchall()
+            else:
+                rows = conn.execute("SELECT run_id FROM runs WHERE project_id=? ORDER BY updated_at DESC,run_id DESC LIMIT ?", (project_id, limit)).fetchall()
+        return [self.get_run(row["run_id"]) for row in rows]
+
+    def get_run_artifact(self, artifact_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            artifact = self._row(
+                conn.execute(
+                    "SELECT a.*,r.project_id FROM run_artifacts a JOIN runs r USING(run_id) WHERE a.artifact_id=?",
+                    (artifact_id,),
+                ).fetchone(),
+                artifact_id,
+            )
+            observations = [row[0] for row in conn.execute("SELECT json_extract(payload_json,'$.attempt_id') FROM events WHERE subject_type='durable-run-artifact' AND subject_id=? AND event_type IN ('durable-run-artifact.recorded','durable-run-artifact.reobserved') ORDER BY seq", (artifact_id,))]
+        decoded = self._decode_run_artifact(artifact)
+        decoded["observed_attempt_ids"] = observations
+        return decoded
+
+    def create_run_artifact_context_block(self, artifact_id: str) -> dict[str, Any]:
+        """Graft one exact textual run artifact into context with durable lineage."""
+
+        artifact = self.get_run_artifact(artifact_id)
+        if artifact["state"] != RunArtifactState.present.value:
+            raise LatticeConflict("durable-run artifact is no longer present")
+        if not self._textual_media_type(artifact["media_type"]):
+            raise LatticeConflict("only textual durable-run artifacts can enter context")
+        if artifact["byte_count"] > self.SLICE_INLINE_RESPONSE_BYTES:
+            raise LatticeConflict(
+                f"durable-run artifact exceeds the {self.SLICE_INLINE_RESPONSE_BYTES}-byte context graft limit"
+            )
+
+        locator = artifact["storage_locator"]
+        if locator.startswith(CURRENT_BLOB_PREFIX):
+            content = self.blobs.get(artifact["content_sha256"])
+        elif locator.startswith("file:"):
+            candidate = Path(locator.removeprefix("file:"))
+            try:
+                content = capture_exact_file(
+                    candidate,
+                    expected_sha256=artifact["content_sha256"],
+                    expected_bytes=artifact["byte_count"],
+                    max_bytes=self.SLICE_INLINE_RESPONSE_BYTES,
+                )
+            except ExactFileCaptureError as error:
+                raise LatticeConflict(f"durable-run artifact file is unavailable: {error}") from error
+        else:
+            raise LatticeConflict("durable-run artifact locator cannot be grafted by this Lattice service")
+
+        if len(content) != artifact["byte_count"] or sha256_bytes(content) != artifact["content_sha256"]:
+            raise LatticeConflict("durable-run artifact bytes changed after admission")
+        try:
+            text = content.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as error:
+            raise LatticeConflict("textual durable-run artifact is not valid UTF-8") from error
+        if self.blobs.put(content) != artifact["content_sha256"]:
+            raise LatticeConflict("durable-run artifact content identity changed during graft")
+
+        transformation = {
+            "kind": "exact-run-artifact-graft-v1",
+            "run_id": artifact["run_id"],
+            "artifact_id": artifact_id,
+            "artifact_class": artifact["artifact_class"],
+            "artifact_key": artifact["artifact_key"],
+            "source_sha256": artifact["content_sha256"],
+            "name": artifact["name"],
+            "media_type": artifact["media_type"],
+        }
+        value = ContextBlockCreate(
+            project_id=artifact["project_id"],
+            semantic_type="exact-run-artifact-graft",
+            content=text,
+            source_ref=f"lattice:run-artifact/{artifact_id}",
+            source_sha256=artifact["content_sha256"],
+            authority="durable-run",
+            evidence_level="exact-artifact",
+            sensitivity="private" if artifact["sensitive"] else "shareable",
+            transformation=transformation,
+        )
+        block_id = opaque_id("block")
+        now = stamp()
+        with self.transaction() as conn:
+            current = self._row(
+                conn.execute(
+                    "SELECT state,record_sha256,content_sha256,byte_count FROM run_artifacts WHERE artifact_id=?",
+                    (artifact_id,),
+                ).fetchone(),
+                artifact_id,
+            )
+            if (
+                current["state"] != RunArtifactState.present.value
+                or current["record_sha256"] != artifact["record_sha256"]
+                or current["content_sha256"] != artifact["content_sha256"]
+                or current["byte_count"] != artifact["byte_count"]
+            ):
+                raise LatticeConflict("durable-run artifact changed before context admission")
+            self._insert_context_block(
+                conn,
+                value,
+                block_id=block_id,
+                content=content,
+                digest=artifact["content_sha256"],
+                now=now,
+            )
+            self._insert_edge(
+                conn,
+                project_id=artifact["project_id"],
+                relation=EdgeRelation.derived_from,
+                source_type="context-block",
+                source_id=block_id,
+                source_revision=artifact["content_sha256"],
+                target_type="durable-run-artifact",
+                target_id=artifact_id,
+                target_revision=artifact["record_sha256"],
+                metadata={"transformation": transformation},
+            )
+        return self.get_block(block_id, include_content=False)
+
     def get_run_by_external_operation(self, external_project_key: str, operation_key: str) -> dict[str, Any]:
         with self._connect() as conn:
             row = self._row(
@@ -1443,7 +1588,7 @@ class LatticeStore:
             )
         return self.get_run(row["run_id"])
 
-    def declare_run(self, value: DurableRunDeclarationV1) -> dict[str, Any]:
+    def declare_run(self, value: DurableRunDeclarationV1 | DurableRunDeclarationV2) -> dict[str, Any]:
         """Declare an exact run population before any executor-visible action."""
 
         declaration = value.model_dump(mode="json")
@@ -1586,6 +1731,35 @@ class LatticeStore:
             row = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
         return self._decode_run_attempt(row)
 
+    def record_run_process(self, attempt_id: str, value: RunProcessIdentityV2) -> dict[str, Any]:
+        encoded = canonical_bytes(value.model_dump(mode="json"))
+        with self.transaction() as conn:
+            attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            if value.attempt_id != attempt_id or value.run_id != attempt["run_id"]:
+                raise LatticeConflict("run-process identity belongs to another attempt")
+            if attempt["process_identity_json"] is not None:
+                if attempt["process_identity_json"].encode("utf-8") != encoded:
+                    raise LatticeConflict("run-process identity changed after admission")
+                return self._decode_run_attempt(attempt)
+            if attempt["state"] != DurableRunAttemptState.running.value:
+                raise LatticeConflict("run-process identity requires a running attempt")
+            run = self._row(conn.execute("SELECT project_id FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
+            conn.execute("UPDATE run_attempts SET process_identity_json=? WHERE attempt_id=?", (encoded.decode("utf-8"), attempt_id))
+            self._event(
+                conn,
+                project_id=run["project_id"],
+                event_type="durable-run-attempt.process-bound",
+                subject_type="durable-run-attempt",
+                subject_id=attempt_id,
+                payload={"run_id": attempt["run_id"], "process_identity": value.model_dump(mode="json")},
+            )
+        return self.get_run_attempt(attempt_id)
+
+    def active_run_attempts(self) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = [dict(row) for row in conn.execute("SELECT * FROM run_attempts WHERE state IN ('running','waiting','stopping') ORDER BY started_at,attempt_id")]
+        return [self._decode_run_attempt(row) for row in rows]
+
     def get_run_unit(self, run_id: str, unit_key: str) -> dict[str, Any]:
         with self._connect() as conn:
             row = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
@@ -1604,6 +1778,12 @@ class LatticeStore:
                 raise LatticeConflict("run unit requires a running run and attempt")
             if unit["state"] != DurableRunUnitState.eligible.value:
                 raise LatticeConflict(f"run unit cannot start from {unit['state']}")
+            active = conn.execute(
+                "SELECT unit_key FROM run_units WHERE run_id=? AND state=? LIMIT 1",
+                (run_id, DurableRunUnitState.running.value),
+            ).fetchone()
+            if active is not None:
+                raise LatticeConflict(f"durable run already has active unit {active['unit_key']}")
             dependencies = json.loads(unit["depends_on_json"])
             if dependencies:
                 placeholders = ",".join("?" for _ in dependencies)
@@ -1693,12 +1873,36 @@ class LatticeStore:
             self._event(conn, project_id=run["project_id"], event_type="durable-run.continued", subject_type="durable-run", subject_id=attempt["run_id"], payload={"attempt_id": attempt_id})
         return self.get_run_attempt(attempt_id)
 
+    def record_run_progress_event(self, attempt_id: str, *, kind: str, payload: dict[str, Any]) -> str:
+        """Append one bounded structured observation without inventing another run ledger."""
+
+        if kind not in {"progress", "resource"}:
+            raise ValueError("durable-run progress event kind must be progress or resource")
+        raw = canonical_bytes(payload)
+        if len(raw) > 1024 * 1024:
+            raise ValueError("durable-run progress event exceeds its byte limit")
+        with self.transaction() as conn:
+            attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            if attempt["state"] not in {DurableRunAttemptState.running.value, DurableRunAttemptState.waiting.value, DurableRunAttemptState.stopping.value}:
+                raise LatticeConflict("durable-run progress requires an active attempt")
+            run = self._row(conn.execute("SELECT project_id FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
+            return self._event(conn, project_id=run["project_id"], event_type=f"durable-run.{kind}", subject_type="durable-run-attempt", subject_id=attempt_id, payload=payload)
+
     def record_run_artifact(self, run_id: str, attempt_id: str | None, unit_key: str | None, value: RunArtifactCreateV1) -> dict[str, Any]:
-        if value.storage_locator.startswith(CURRENT_BLOB_PREFIX):
+        in_lattice_custody = value.storage_locator.startswith(CURRENT_BLOB_PREFIX)
+        is_external_file = value.storage_locator.startswith("file:")
+        if value.artifact_class != RunArtifactClass.disposable and not in_lattice_custody:
+            raise LatticeConflict("non-disposable run artifacts require a verified Lattice CAS locator")
+        if value.artifact_class == RunArtifactClass.disposable:
+            if value.regeneration is None:
+                raise LatticeConflict("disposable run artifacts require regeneration metadata")
+            if not in_lattice_custody and not is_external_file:
+                raise LatticeConflict("disposable run artifacts require a file or Lattice CAS locator")
+        if in_lattice_custody:
             _path, byte_count = self.blobs.verify_file(value.content_sha256)
             if byte_count != value.byte_count:
                 raise LatticeConflict("run artifact byte count disagrees with its Lattice CAS object")
-        record = {"run_id": run_id, "attempt_id": attempt_id, "unit_key": unit_key, "artifact": value.model_dump(mode="json")}
+        record = {"run_id": run_id, "unit_key": unit_key, "artifact": value.model_dump(mode="json")}
         encoded = canonical_bytes(record)
         record_sha256 = sha256_bytes(encoded)
         artifact_id: str
@@ -1710,11 +1914,29 @@ class LatticeStore:
                     raise LatticeConflict("run artifact attempt belongs to another run")
             if unit_key is not None and conn.execute("SELECT 1 FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone() is None:
                 raise LatticeNotFound(f"{run_id}:{unit_key}")
-            existing = conn.execute("SELECT artifact_id,record_sha256,record_json FROM run_artifacts WHERE run_id=? AND artifact_key=?", (run_id, value.artifact_key)).fetchone()
+            existing = conn.execute("SELECT * FROM run_artifacts WHERE run_id=? AND artifact_key=?", (run_id, value.artifact_key)).fetchone()
             if existing is not None:
-                if existing["record_sha256"] != record_sha256 or existing["record_json"].encode("utf-8") != encoded:
+                existing_record = json.loads(existing["record_json"])
+                existing_record.pop("attempt_id", None)
+                if canonical_bytes(existing_record) != encoded:
                     raise LatticeConflict("run artifact key was reused with different bound bytes")
+                if existing["state"] != RunArtifactState.present.value:
+                    raise LatticeConflict("removed run artifacts cannot be re-observed")
                 artifact_id = existing["artifact_id"]
+                observed = conn.execute(
+                    """SELECT 1 FROM events WHERE event_type IN ('durable-run-artifact.recorded','durable-run-artifact.reobserved')
+                       AND subject_type='durable-run-artifact' AND subject_id=? AND json_extract(payload_json,'$.attempt_id') IS ? LIMIT 1""",
+                    (artifact_id, attempt_id),
+                ).fetchone()
+                if observed is None:
+                    self._event(
+                        conn,
+                        project_id=run["project_id"],
+                        event_type="durable-run-artifact.reobserved",
+                        subject_type="durable-run-artifact",
+                        subject_id=artifact_id,
+                        payload={"run_id": run_id, "attempt_id": attempt_id, "first_attempt_id": existing["attempt_id"], "unit_key": unit_key, "artifact_key": value.artifact_key, "record_sha256": record_sha256},
+                    )
             else:
                 if run["state"] in {DurableRunState.completed.value, DurableRunState.failed.value, DurableRunState.stopped.value}:
                     raise LatticeConflict("new run artifacts cannot be attached after terminalization")
@@ -1737,7 +1959,10 @@ class LatticeStore:
                 )
         with self._connect() as conn:
             artifact = self._row(conn.execute("SELECT * FROM run_artifacts WHERE artifact_id=?", (artifact_id,)).fetchone(), artifact_id)
-        return self._decode_run_artifact(artifact)
+            observations = [row[0] for row in conn.execute("SELECT json_extract(payload_json,'$.attempt_id') FROM events WHERE subject_type='durable-run-artifact' AND subject_id=? AND event_type IN ('durable-run-artifact.recorded','durable-run-artifact.reobserved') ORDER BY seq", (artifact_id,))]
+        decoded = self._decode_run_artifact(artifact)
+        decoded["observed_attempt_ids"] = observations
+        return decoded
 
     def mark_run_artifact_removed(self, artifact_id: str, *, reason: str) -> dict[str, Any]:
         """Record a completed storage-layer removal; only declared disposable material qualifies."""
@@ -3516,6 +3741,38 @@ class LatticeStore:
             row["payload"] = json.loads(row.pop("payload_json"))
         return rows
 
+    def run_events_after(self, run_id: str, after: int = 0, limit: int = 200) -> list[dict[str, Any]]:
+        """Slice one run's history from the shared append-only event ledger."""
+
+        if isinstance(after, bool) or after < 0:
+            raise ValueError("durable-run event cursor must be a non-negative integer")
+        if isinstance(limit, bool) or not 1 <= limit <= 1000:
+            raise ValueError("durable-run event limit must be between 1 and 1000")
+        with self._connect() as conn:
+            self._row(conn.execute("SELECT run_id FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+            rows = [
+                dict(row)
+                for row in conn.execute(
+                    """SELECT e.* FROM events e
+                       WHERE e.seq>? AND (
+                         (e.subject_type='durable-run' AND e.subject_id=?) OR
+                         (e.subject_type='durable-run-unit' AND EXISTS(
+                           SELECT 1 FROM run_units u WHERE u.run_id=? AND e.subject_id=(u.run_id || ':' || u.unit_key)
+                         )) OR
+                         (e.subject_type='durable-run-attempt' AND EXISTS(
+                           SELECT 1 FROM run_attempts a WHERE a.run_id=? AND e.subject_id=a.attempt_id
+                         )) OR
+                         (e.subject_type='durable-run-artifact' AND EXISTS(
+                           SELECT 1 FROM run_artifacts a WHERE a.run_id=? AND e.subject_id=a.artifact_id
+                         ))
+                       ) ORDER BY e.seq LIMIT ?""",
+                    (after, run_id, run_id, run_id, run_id, limit),
+                )
+            ]
+        for row in rows:
+            row["payload"] = json.loads(row.pop("payload_json"))
+        return rows
+
     def state_digest(self) -> str:
         digest = hashlib.sha256()
 
@@ -3616,20 +3873,21 @@ class LatticeStore:
 
     def rebuild_database(self, destination: Path) -> str:
         """Reconstruct a complete Lattice data root off-path, then publish it atomically."""
-        with self._write_lock, self._connect() as guard:
-            guard.execute("BEGIN IMMEDIATE")
-            active_work = {
-                "attempts": guard.execute("SELECT COUNT(*) FROM attempts WHERE state IN ('leased','running')").fetchone()[0],
-                "runs": guard.execute("SELECT COUNT(*) FROM runs WHERE state IN ('running','waiting','stopping')").fetchone()[0],
-                "commands": guard.execute("SELECT COUNT(*) FROM workflow_commands WHERE state='running'").fetchone()[0],
-                "imports": guard.execute("SELECT COUNT(*) FROM conversation_imports WHERE state='running'").fetchone()[0],
-                "leases": guard.execute("SELECT COUNT(*) FROM leases WHERE state='active'").fetchone()[0],
-            }
-            if any(active_work.values()):
-                raise LatticeConflict(f"cannot rebuild while durable work is active: {active_work}")
-            self._verify_integrity_chain(guard)
-            expected_state_digest = self.state_digest()
-            return self._rebuild_database_locked(destination, expected_state_digest=expected_state_digest)
+        with journal_capture_guard(self.config.data_root):
+            with self._write_lock, self._connect() as guard:
+                guard.execute("BEGIN IMMEDIATE")
+                active_work = {
+                    "attempts": guard.execute("SELECT COUNT(*) FROM attempts WHERE state IN ('leased','running')").fetchone()[0],
+                    "runs": guard.execute("SELECT COUNT(*) FROM runs WHERE state IN ('running','waiting','stopping')").fetchone()[0],
+                    "commands": guard.execute("SELECT COUNT(*) FROM workflow_commands WHERE state='running'").fetchone()[0],
+                    "imports": guard.execute("SELECT COUNT(*) FROM conversation_imports WHERE state='running'").fetchone()[0],
+                    "leases": guard.execute("SELECT COUNT(*) FROM leases WHERE state='active'").fetchone()[0],
+                }
+                if any(active_work.values()):
+                    raise LatticeConflict(f"cannot rebuild while durable work is active: {active_work}")
+                self._verify_integrity_chain(guard)
+                expected_state_digest = self.state_digest()
+                return self._rebuild_database_locked(destination, expected_state_digest=expected_state_digest)
 
     def _rebuild_database_locked(self, destination: Path, *, expected_state_digest: str) -> str:
         """Rebuild while the caller holds both the process lock and SQLite writer lock."""
@@ -3704,10 +3962,16 @@ class LatticeStore:
                 copied_digest, copied_bytes = staging_blobs.put_file(source)
                 if copied_digest != digest or copied_bytes != byte_count:
                     raise OSError(f"blob identity changed during rebuild: {digest}")
+            durable_runs = self.config.data_root / DURABLE_RUNS_DIRECTORY
+            if durable_runs.exists():
+                if not durable_runs.is_dir() or durable_runs.is_symlink():
+                    raise OSError("production durable-run journal root is not a regular directory")
+                copy_exact_tree(durable_runs, staging_root / DURABLE_RUNS_DIRECTORY)
             rebuilt = LatticeStore(staging_config)
             rebuilt_digest = rebuilt.state_digest()
             if rebuilt_digest != expected_state_digest:
                 raise OSError(f"rebuilt Lattice state does not match its source: expected {expected_state_digest}, got {rebuilt_digest}")
+            sync_tree_directories(staging_root)
             os.replace(staging_root, data_root)
             parent_descriptor = os.open(data_root.parent, os.O_RDONLY)
             try:

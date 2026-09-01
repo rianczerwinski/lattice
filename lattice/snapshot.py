@@ -17,10 +17,11 @@ from .canonical import canonical_bytes, generated_object, sha256_bytes, stamp, s
 from .durability import sync_directory as _sync_directory
 from .durability import sync_file as _sync_file
 from .durability import sync_tree_directories as _sync_tree_directories
+from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard
 
 
 SNAPSHOT_MANIFEST = "snapshot.json"
-SNAPSHOT_CONTENT_ROOTS = ("acceptance", "blobs", "model-runs")
+SNAPSHOT_CONTENT_ROOTS = ("acceptance", "blobs", "model-runs", DURABLE_RUNS_DIRECTORY)
 SNAPSHOT_CONTENT_FILES = ("lattice.sqlite3", "operator-token")
 
 
@@ -60,9 +61,10 @@ def _copy_regular(source: Path, destination: Path) -> None:
         raise OSError(f"snapshot copy changed bytes: {source}")
 
 
-def _copy_tree(source: Path, destination: Path) -> None:
+def copy_exact_tree(source: Path, destination: Path) -> None:
     if source.is_symlink():
         raise OSError(f"snapshot source directory is a symlink: {source}")
+    destination.mkdir(parents=True, exist_ok=False, mode=0o700)
     for child in sorted(source.rglob("*")):
         if child.is_symlink():
             raise OSError(f"snapshot source contains a symlink: {child}")
@@ -103,20 +105,21 @@ def _active_work(connection: sqlite3.Connection) -> dict[str, int]:
 
 
 @contextmanager
-def _snapshot_guard(source: Path, *, require_idle: bool) -> Iterator[dict[str, int]]:
+def _snapshot_guard(data_root: Path, source: Path, *, require_idle: bool) -> Iterator[dict[str, int]]:
     """Hold SQLite's write reservation across every byte copied into a snapshot."""
 
-    guard = sqlite3.connect(source, timeout=30, isolation_level=None)
-    guard.execute("PRAGMA busy_timeout=30000")
-    guard.execute("BEGIN IMMEDIATE")
-    try:
-        active = _active_work(guard)
-        if require_idle and any(active.values()):
-            raise RuntimeError(f"cannot snapshot while durable work is active: {active}")
-        yield active
-    finally:
-        guard.rollback()
-        guard.close()
+    with journal_capture_guard(data_root):
+        guard = sqlite3.connect(source, timeout=30, isolation_level=None)
+        guard.execute("PRAGMA busy_timeout=30000")
+        guard.execute("BEGIN IMMEDIATE")
+        try:
+            active = _active_work(guard)
+            if require_idle and any(active.values()):
+                raise RuntimeError(f"cannot snapshot while durable work is active: {active}")
+            yield active
+        finally:
+            guard.rollback()
+            guard.close()
 
 
 def _backup_database(source: Path, destination: Path) -> None:
@@ -174,7 +177,7 @@ def create_snapshot(
     staging = Path(tempfile.mkdtemp(prefix=".lattice-snapshot-", dir=backup_root))
     os.chmod(staging, 0o700)
     try:
-        with _snapshot_guard(database, require_idle=require_idle) as active_work:
+        with _snapshot_guard(data_root, database, require_idle=require_idle) as active_work:
             _backup_database(database, staging / "lattice.sqlite3")
             for name in SNAPSHOT_CONTENT_FILES[1:]:
                 source = data_root / name
@@ -185,7 +188,7 @@ def create_snapshot(
                 if source.exists():
                     if not source.is_dir():
                         raise OSError(f"snapshot content root is not a directory: {source}")
-                    _copy_tree(source, staging / name)
+                    copy_exact_tree(source, staging / name)
             if state_digest is not None:
                 # The staged bytes, not a caller's earlier observation of the live
                 # store, are the authority for the published snapshot identity.

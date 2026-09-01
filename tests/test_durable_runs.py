@@ -140,6 +140,8 @@ def test_property_resume_preserves_completed_units_and_rebuilds_the_same_state(l
             storage_locator=f"lattice:blob/{checkpoint_sha}",
         ),
     )
+    scratch_path = tmp_path / "scratch-one.bin"
+    scratch_path.write_bytes(b"scratch")
     disposable = store.record_run_artifact(
         run["run_id"],
         first_attempt["attempt_id"],
@@ -151,7 +153,7 @@ def test_property_resume_preserves_completed_units_and_rebuilds_the_same_state(l
             media_type="application/octet-stream",
             byte_count=7,
             content_sha256=_digest("scratch"),
-            storage_locator="project:scratch/one.bin",
+            storage_locator=f"file:{scratch_path}",
             regeneration={"method": "rerun-unit", "unit_key": "one"},
         ),
     )

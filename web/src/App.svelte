@@ -8,7 +8,7 @@
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
   import type { PaletteCommand } from './commandPalette';
-  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, DurableRun, DurableRunEvent, Episode, Invocation, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
+  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, DurableRun, DurableRunEvent, Episode, Invocation, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition, WorkspaceDiff, WorkspaceDirectory, WorkspaceFileView, WorkspaceReviewStatus, WorkspaceSearchHit } from './types';
   import { resolveSelector, workflowProjectTitle } from './workflowPresentation';
   import { orderByRecentProjects, readUiState, writeProjectUiState, type ProjectUiState } from './uiPersistence';
   import ConversationHistory from './components/ConversationHistory.svelte';
@@ -18,7 +18,14 @@
   import ProjectRail from './components/ProjectRail.svelte';
   import ResponsePane from './components/ResponsePane.svelte';
   import RunSurface from './components/RunSurface.svelte';
+  import WorkspaceSurface from './components/WorkspaceSurface.svelte';
   import WorkflowControl from './components/WorkflowControl.svelte';
+
+  type WorkspaceSearchOutcome = {
+    query: string;
+    mode: 'text' | 'path' | 'symbol';
+    state: 'success' | 'failure';
+  };
 
   let projects: Project[] = [];
   let project: Project | null = null;
@@ -115,6 +122,20 @@
   let activityNotice = '';
   let activityInitialized = false;
   let activityTimer: ReturnType<typeof setInterval> | null = null;
+  let workspaceSurfaceRoot = '';
+  let workspaceDirectory: WorkspaceDirectory | null = null;
+  let workspaceFile: WorkspaceFileView | null = null;
+  let workspaceSearchHits: WorkspaceSearchHit[] = [];
+  let workspaceSearchOutcome: WorkspaceSearchOutcome | null = null;
+  let workspaceReviewStatus: WorkspaceReviewStatus | null = null;
+  let workspaceDiff: WorkspaceDiff | null = null;
+  let workspaceSurfaceLoading = '';
+  let workspaceSurfaceError = '';
+  let workspaceFileReceipt = '';
+  let workspaceSearchQuery = '';
+  let workspaceSearchMode: 'text' | 'path' | 'symbol' = 'text';
+  let workspaceDiffView: 'unstaged' | 'staged' | 'revision' = 'unstaged';
+  let workspaceDiffRevision = '';
 
   $: selectedRole = project?.roles?.find((role) => role.role_id === project?.sessions?.find((session) => session.role_session_id === selectedSession)?.role_id);
   $: installedRoutes = routes.filter((route) => route.qualified && (!selectedRole || selectedRole.route_policy.kind === 'operator-selectable' || (selectedRole.route_policy.kind === 'model' && selectedRole.route_policy.provider === route.provider_code && selectedRole.route_policy.harness === route.official_cli && (!selectedRole.route_policy.allowed_models?.length || selectedRole.route_policy.allowed_models.includes(route.model_code)))));
@@ -137,6 +158,7 @@
   $: runControlBlocker = selectedRunHasDurableLaunch ? '' : 'This older run has no durable launch profile; its project runner must supply exact launch material.';
   $: activeGlobalRuns = globalRuns.filter((run) => ['running', 'waiting', 'stopping'].includes(run.state));
   $: paletteCommands = buildPaletteCommands();
+  $: if (workspaceSurfaceRoot && workspaceSurfaceRoot !== workspacePath) resetWorkspaceSurface();
   $: {
     project?.project_id;
     prompt;
@@ -222,6 +244,7 @@
     return [
       { id: 'focus-composer', label: 'Focus composer', detail: 'Write or continue the current invocation', keywords: ['prompt', 'message'], shortcut: '⌘J', disabled: !project },
       { id: 'refresh-runs', label: 'Refresh work activity', detail: 'Reload durable status without disturbing conversation state', keywords: ['runs', 'progress', 'jobs'] },
+      { id: 'open-workspace', label: 'Open workspace', detail: workspacePath || 'Choose a repository path in the composer', keywords: ['files', 'symbols', 'diff', 'review'], disabled: !workspacePath },
       { id: 'route:anthropic', label: 'Route next invocation to Claude', detail: 'Use the current qualified Anthropic route', keywords: ['provider'], disabled: !installedRoutes.some((route) => route.provider_code === 'anthropic') },
       { id: 'route:openai', label: 'Route next invocation to Codex', detail: 'Use the current qualified OpenAI route', keywords: ['provider'], disabled: !installedRoutes.some((route) => route.provider_code === 'openai') },
       { id: 'route:both', label: 'Route next invocation to both providers', detail: 'Create one atomic multi-provider batch', keywords: ['claude', 'codex'], disabled: !['anthropic', 'openai'].every((provider) => installedRoutes.some((route) => route.provider_code === provider)) },
@@ -239,6 +262,13 @@
     }
     if (commandId === 'refresh-runs') {
       await Promise.all([refreshRuns(), refreshGlobalActivity()]);
+      return;
+    }
+    if (commandId === 'open-workspace') {
+      await openWorkspaceDirectory(workspaceDirectory?.path === '.' ? '' : workspaceDirectory?.path ?? '');
+      await tick();
+      const surface = document.querySelector<HTMLDetailsElement>('.workspace-surface');
+      if (surface) { surface.open = true; surface.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       return;
     }
     if (commandId.startsWith('route:')) {
@@ -562,6 +592,103 @@
       document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
     } catch (cause) { runError = cause instanceof Error ? cause.message : String(cause); }
     finally { runWorking = false; }
+  }
+
+  function resetWorkspaceSurface() {
+    workspaceSurfaceRoot = '';
+    workspaceDirectory = null;
+    workspaceFile = null;
+    workspaceSearchHits = [];
+    workspaceSearchOutcome = null;
+    workspaceReviewStatus = null;
+    workspaceDiff = null;
+    workspaceSurfaceLoading = '';
+    workspaceSurfaceError = '';
+    workspaceFileReceipt = '';
+  }
+
+  async function workspacePost<T>(path: string, value: Record<string, unknown>): Promise<T> {
+    if (!workspacePath.trim()) throw new Error('Choose an absolute workspace path first.');
+    workspaceSurfaceRoot = workspacePath;
+    return post<T>(path, { workspace: workspacePath.trim(), ...value });
+  }
+
+  async function openWorkspaceDirectory(path = '') {
+    workspaceSurfaceLoading = 'directory';
+    workspaceSurfaceError = '';
+    try {
+      workspaceDirectory = await workspacePost<WorkspaceDirectory>('/api/v1/workspaces/directory', { path });
+    } catch (cause) { workspaceSurfaceError = cause instanceof Error ? cause.message : String(cause); }
+    finally { workspaceSurfaceLoading = ''; }
+  }
+
+  async function openWorkspaceFile(path: string, line: number | null = null) {
+    workspaceSurfaceLoading = 'file';
+    workspaceSurfaceError = '';
+    workspaceFileReceipt = '';
+    try {
+      workspaceFile = await workspacePost<WorkspaceFileView>('/api/v1/workspaces/file', { path, start_line: Math.max(1, (line ?? 1) - 20), line_count: 240 });
+    } catch (cause) { workspaceSurfaceError = cause instanceof Error ? cause.message : String(cause); }
+    finally { workspaceSurfaceLoading = ''; }
+  }
+
+  async function searchWorkspace() {
+    const query = workspaceSearchQuery.trim();
+    const mode = workspaceSearchMode;
+    if (!query) return;
+    workspaceSurfaceLoading = 'search';
+    workspaceSurfaceError = '';
+    workspaceSearchHits = [];
+    workspaceSearchOutcome = null;
+    try {
+      workspaceSearchHits = await workspacePost<WorkspaceSearchHit[]>('/api/v1/workspaces/search', { query, mode, limit: 200 });
+      workspaceSearchOutcome = { query, mode, state: 'success' };
+    } catch (cause) {
+      workspaceSearchOutcome = { query, mode, state: 'failure' };
+      workspaceSurfaceError = cause instanceof Error ? cause.message : String(cause);
+    }
+    finally { workspaceSurfaceLoading = ''; }
+  }
+
+  async function refreshWorkspaceReview() {
+    workspaceSurfaceLoading = 'review';
+    workspaceSurfaceError = '';
+    try {
+      workspaceReviewStatus = await workspacePost<WorkspaceReviewStatus>('/api/v1/workspaces/review/status', {});
+    } catch (cause) { workspaceSurfaceError = cause instanceof Error ? cause.message : String(cause); }
+    finally { workspaceSurfaceLoading = ''; }
+  }
+
+  async function loadWorkspaceDiff() {
+    workspaceSurfaceLoading = 'diff';
+    workspaceSurfaceError = '';
+    try {
+      workspaceDiff = await workspacePost<WorkspaceDiff>('/api/v1/workspaces/review/diff', { view: workspaceDiffView, revision: workspaceDiffView === 'revision' ? workspaceDiffRevision.trim() : null });
+    } catch (cause) { workspaceSurfaceError = cause instanceof Error ? cause.message : String(cause); }
+    finally { workspaceSurfaceLoading = ''; }
+  }
+
+  async function useWorkspaceFile() {
+    if (!project || !contextModuleCatalogue || !workspaceFile) return;
+    workspaceSurfaceLoading = 'context';
+    workspaceSurfaceError = '';
+    try {
+      const source = `${workspacePath.replace(/\/+$/, '')}/${workspaceFile.path}`;
+      const moduleId = `workspace-file.${crypto.randomUUID().replaceAll('-', '')}`;
+      const definition = buildContextModuleDefinition(contextModuleCatalogue, { moduleId, mode: 'manual', sourceKind: 'file', source });
+      const result = await post<ContextModuleResolution>('/api/v1/context-modules/resolve', {
+        project_id: project.project_id,
+        definition,
+        expected_sha256: workspaceFile.content_sha256,
+        expected_byte_count: workspaceFile.byte_count,
+      });
+      explicitSelections = [...explicitSelections, { block_id: result.block.block_id, plane: 'knowledge', label: `file:${workspaceFile.path}`, disposition: 'selected', derived_from_block_ids: [] }];
+      workspaceFileReceipt = result.receipt.receipt_sha256;
+      resetPreview();
+      await tick();
+      document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+    } catch (cause) { workspaceSurfaceError = cause instanceof Error ? cause.message : String(cause); }
+    finally { workspaceSurfaceLoading = ''; }
   }
 
   function routePayload(route: Route) {
@@ -1355,6 +1482,29 @@
             onStop={stopSelectedRun}
             onResume={resumeSelectedRun}
             onUseArtifact={useRunArtifact}
+          />
+
+          <WorkspaceSurface
+            {workspacePath}
+            directory={workspaceDirectory}
+            file={workspaceFile}
+            searchHits={workspaceSearchHits}
+            searchOutcome={workspaceSearchOutcome}
+            reviewStatus={workspaceReviewStatus}
+            diff={workspaceDiff}
+            loading={workspaceSurfaceLoading}
+            error={workspaceSurfaceError}
+            selectedFileReceipt={workspaceFileReceipt}
+            bind:searchQuery={workspaceSearchQuery}
+            bind:searchMode={workspaceSearchMode}
+            bind:diffView={workspaceDiffView}
+            bind:diffRevision={workspaceDiffRevision}
+            onOpenDirectory={openWorkspaceDirectory}
+            onOpenFile={openWorkspaceFile}
+            onSearch={searchWorkspace}
+            onRefreshReview={refreshWorkspaceReview}
+            onLoadDiff={loadWorkspaceDiff}
+            onUseFile={useWorkspaceFile}
           />
 
           <ConversationHistory

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -200,6 +201,202 @@ class DurableRunDeclarationV1(StrictModel):
         }
         if sha256_bytes(canonical_bytes(material)) != self.unit_manifest_sha256:
             raise ValueError("durable-run unit manifest hash does not bind the declared population")
+        return self
+
+
+class LocalRunEnvironmentLiteralV1(StrictModel):
+    """An operator-attested non-secret value which may safely enter the ledger."""
+
+    exposure: Literal["persistable_non_secret"]
+    value: str = Field(max_length=100_000)
+
+    @field_validator("value")
+    @classmethod
+    def value_is_process_safe(cls, value: str) -> str:
+        if "\x00" in value:
+            raise ValueError("local durable-run environment literals cannot contain NUL")
+        return value
+
+
+class LocalRunLaunchProfileV1(StrictModel):
+    """Immutable foreground-process-group relaunch material with a no-secrets proof limit."""
+
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+    contract_version: Literal["LocalRunLaunchProfile/1.0"] = "LocalRunLaunchProfile/1.0"
+    environment_policy: Literal["persisted_non_secret_literals_only"] = "persisted_non_secret_literals_only"
+    process_contract: Literal["foreground-process-group/1.0"] = "foreground-process-group/1.0"
+    command: list[str] = Field(min_length=1, max_length=1000)
+    cwd: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    environment: dict[str, LocalRunEnvironmentLiteralV1] = Field(default_factory=dict, max_length=1000)
+    artifact_roots: list[str] = Field(min_length=1, max_length=100)
+
+    @field_validator("command")
+    @classmethod
+    def command_is_exact_and_process_safe(cls, value: list[str]) -> list[str]:
+        if any(not item or len(item) > 100_000 or "\x00" in item for item in value):
+            raise ValueError("local durable-run command arguments must be non-empty NUL-free strings")
+        if not Path(value[0]).is_absolute():
+            raise ValueError("local durable-run executable must be an absolute path")
+        return value
+
+    @field_validator("environment")
+    @classmethod
+    def environment_names_are_process_safe(cls, value: dict[str, LocalRunEnvironmentLiteralV1]) -> dict[str, LocalRunEnvironmentLiteralV1]:
+        if any(not key or "=" in key or "\x00" in key for key in value):
+            raise ValueError("local durable-run environment names are not process-safe")
+        return value
+
+    @field_validator("cwd")
+    @classmethod
+    def cwd_is_absolute(cls, value: str) -> str:
+        if not Path(value).is_absolute() or ".." in Path(value).parts:
+            raise ValueError("local durable-run cwd must be an absolute normalized path")
+        return value
+
+    @field_validator("artifact_roots")
+    @classmethod
+    def roots_are_unique_absolute_paths(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("local durable-run artifact roots must be unique")
+        if any(not Path(item).is_absolute() or ".." in Path(item).parts for item in value):
+            raise ValueError("local durable-run artifact roots must be absolute normalized paths")
+        return value
+
+    @model_validator(mode="after")
+    def profile_is_bounded(self) -> "LocalRunLaunchProfileV1":
+        if len(canonical_bytes(self.model_dump(mode="json"))) > 1024 * 1024:
+            raise ValueError("local durable-run launch profile exceeds its one-megabyte limit")
+        return self
+
+    def literal_environment(self) -> dict[str, str]:
+        return {key: entry.value for key, entry in self.environment.items()}
+
+
+class LocalFileBindingV1(StrictModel):
+    """One locally verifiable file or population-manifest binding."""
+
+    binding_kind: Literal["file", "manifest"] = "file"
+    path: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    byte_count: int = Field(ge=0)
+
+    @field_validator("path")
+    @classmethod
+    def path_is_absolute_and_normalized(cls, value: str) -> str:
+        path = Path(value)
+        if not path.is_absolute() or ".." in path.parts:
+            raise ValueError("local closure paths must be absolute normalized paths")
+        return value
+
+
+class LocalFileClosureV1(StrictModel):
+    """Exact code or input closure; a large population may bind one manifest file."""
+
+    contract_version: Literal["LocalFileClosure/1.0"] = "LocalFileClosure/1.0"
+    bindings: list[LocalFileBindingV1] = Field(min_length=1, max_length=10_000)
+
+    @model_validator(mode="after")
+    def bindings_are_unique_and_bounded(self) -> "LocalFileClosureV1":
+        paths = [binding.path for binding in self.bindings]
+        if len(paths) != len(set(paths)):
+            raise ValueError("local closure paths must be unique")
+        if len(canonical_bytes(self.model_dump(mode="json"))) > 8 * 1024 * 1024:
+            raise ValueError("local closure exceeds its eight-megabyte declaration limit; bind a manifest file instead")
+        return self
+
+    def identity_sha256(self) -> str:
+        return sha256_bytes(canonical_bytes(self.model_dump(mode="json")))
+
+
+class DurableRunDeclarationV2(DurableRunDeclarationV1):
+    """Successor declaration carrying everything needed for a secret-free relaunch."""
+
+    contract_version: Literal["DurableRunDeclaration/2.0"] = "DurableRunDeclaration/2.0"
+    local_launch_profile: LocalRunLaunchProfileV1
+    code_closure: LocalFileClosureV1
+    input_closure: LocalFileClosureV1
+
+    @model_validator(mode="after")
+    def launch_profile_matches_bound_identity(self) -> "DurableRunDeclarationV2":
+        profile = self.local_launch_profile
+        if profile.command[0] != self.executable_ref:
+            raise ValueError("local launch command disagrees with executable_ref")
+        configuration_sha256 = sha256_bytes(canonical_bytes({"argv": profile.command[1:]}))
+        environment_profile_sha256 = sha256_bytes(
+            canonical_bytes(
+                {
+                    "cwd": profile.cwd,
+                    "environment": profile.literal_environment(),
+                    "artifact_roots": profile.artifact_roots,
+                }
+            )
+        )
+        changed = []
+        if configuration_sha256 != self.configuration_sha256:
+            changed.append("configuration_sha256")
+        if environment_profile_sha256 != self.environment_profile_sha256:
+            changed.append("environment_profile_sha256")
+        if self.code_closure.identity_sha256() != self.code_revision:
+            changed.append("code_revision")
+        if self.input_closure.identity_sha256() != self.inputs_sha256:
+            changed.append("inputs_sha256")
+        if changed:
+            raise ValueError(f"local launch profile disagrees with bound identity: {', '.join(changed)}")
+        return self
+
+
+class RunProcessIdentityV1(StrictModel):
+    """Crash-recoverable process identity anchored by an inherited file lock."""
+
+    contract_version: Literal["RunProcessIdentity/1.0"] = "RunProcessIdentity/1.0"
+    run_id: str = Field(min_length=1, max_length=300)
+    attempt_id: str = Field(min_length=1, max_length=300)
+    pid: int = Field(gt=1)
+    process_group_id: int = Field(gt=1)
+    nonce: str = Field(pattern=r"^[0-9a-f]{64}$")
+    lock_path: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    record_path: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+
+    @field_validator("lock_path", "record_path")
+    @classmethod
+    def identity_paths_are_absolute(cls, value: str) -> str:
+        if not Path(value).is_absolute() or ".." in Path(value).parts:
+            raise ValueError("run-process identity paths must be absolute normalized paths")
+        return value
+
+    @model_validator(mode="after")
+    def process_group_is_its_own_session(self) -> "RunProcessIdentityV1":
+        if self.pid != self.process_group_id:
+            raise ValueError("durable-run launcher must own its process group")
+        return self
+
+
+class RunProcessIdentityV2(StrictModel):
+    """Crash-recoverable guardian identity with exact pre/post-gate environments."""
+
+    contract_version: Literal["RunProcessIdentity/2.0"] = "RunProcessIdentity/2.0"
+    run_id: str = Field(min_length=1, max_length=300)
+    attempt_id: str = Field(min_length=1, max_length=300)
+    pid: int = Field(gt=1)
+    process_group_id: int = Field(gt=1)
+    nonce: str = Field(pattern=r"^[0-9a-f]{64}$")
+    lock_path: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    record_path: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    target_environment_path: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    target_environment_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    launcher_environment_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @field_validator("lock_path", "record_path", "target_environment_path")
+    @classmethod
+    def identity_paths_are_absolute(cls, value: str) -> str:
+        if not Path(value).is_absolute() or ".." in Path(value).parts:
+            raise ValueError("run-process identity paths must be absolute normalized paths")
+        return value
+
+    @model_validator(mode="after")
+    def guardian_owns_the_managed_process_group(self) -> "RunProcessIdentityV2":
+        if self.pid != self.process_group_id:
+            raise ValueError("durable-run guardian must own its managed process group")
         return self
 
 

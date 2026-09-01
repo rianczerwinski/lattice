@@ -9,4 +9,5 @@ These components carve the conversational cockpit at functional seams. `App.svel
 - `ContextInspector.svelte` renders the exact context, provenance, artifact, module, and reuse surfaces without owning their orchestration.
 - `WorkflowControl.svelte` renders governed state, blackboards, transitions, grants, and command review as one coherent control surface.
 - `RunSurface.svelte` keeps semantic work beside its initiating conversation, exposing progress, safe interruption, retained evidence, exact bindings, and the condition preventing progress.
+- `WorkspaceSurface.svelte` gives the conversation an exact read-only repository instrument: bounded file/path/symbol search, line-addressed file views, current Git state, diff review, and exact-file context capture. Provider harnesses and durable runs remain the editing and command-execution authorities.
 - `CommandPalette.svelte` provides one keyboard-first route across projects, active runs, providers, and common cockpit actions without taking navigation ownership away from `App.svelte`.

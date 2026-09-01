@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import tempfile
 from pathlib import Path
 
@@ -80,39 +81,66 @@ class BlobStore:
                 if not left_chunk:
                     return True
 
-    def put_file(self, source: Path) -> tuple[str, int]:
-        """Stream a stable regular file into the blob store without buffering it."""
+    def put_file(
+        self,
+        source: Path,
+        *,
+        expected_sha256: str | None = None,
+        expected_bytes: int | None = None,
+    ) -> tuple[str, int]:
+        """Stream one descriptor-bound regular file into CAS without buffering it."""
 
+        if (expected_sha256 is None) != (expected_bytes is None):
+            raise ValueError("expected file identity requires both SHA-256 and byte count")
+        if expected_sha256 is not None:
+            self.path_for(expected_sha256)
+            if isinstance(expected_bytes, bool) or expected_bytes is None or expected_bytes < 0:
+                raise ValueError("expected file byte count must be a non-negative integer")
         if source.is_symlink():
             raise ValueError("blob source must be a regular non-symlink file")
-        source = source.resolve(strict=True)
-        before = source.stat()
-        if not source.is_file():
-            raise ValueError("blob source must be a regular non-symlink file")
-        descriptor, temporary_name = tempfile.mkstemp(prefix=".stream.", suffix=".pending", dir=self.root)
-        temporary = Path(temporary_name)
+
+        source_descriptor = -1
+        destination_descriptor = -1
+        temporary: Path | None = None
         digest = hashlib.sha256()
         byte_count = 0
         try:
+            source_descriptor = os.open(source, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+            before = os.fstat(source_descriptor)
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError("blob source must be a regular non-symlink file")
+            if expected_bytes is not None and before.st_size != expected_bytes:
+                raise OSError("blob source byte count disagrees with its admitted identity")
+            destination_descriptor, temporary_name = tempfile.mkstemp(prefix=".stream.", suffix=".pending", dir=self.root)
+            temporary = Path(temporary_name)
             try:
-                os.fchmod(descriptor, 0o600)
-                with source.open("rb") as handle:
-                    while chunk := handle.read(1024 * 1024):
-                        digest.update(chunk)
-                        byte_count += len(chunk)
-                        view = memoryview(chunk)
-                        while view:
-                            written = os.write(descriptor, view)
-                            if written <= 0:
-                                raise OSError("blob write made no progress")
-                            view = view[written:]
-                sync_file(descriptor)
+                os.fchmod(destination_descriptor, 0o600)
+                remaining = None if expected_bytes is None else expected_bytes + 1
+                while remaining is None or remaining > 0:
+                    requested = 1024 * 1024 if remaining is None else min(1024 * 1024, remaining)
+                    chunk = os.read(source_descriptor, requested)
+                    if not chunk:
+                        break
+                    digest.update(chunk)
+                    byte_count += len(chunk)
+                    if remaining is not None:
+                        remaining -= len(chunk)
+                    view = memoryview(chunk)
+                    while view:
+                        written = os.write(destination_descriptor, view)
+                        if written <= 0:
+                            raise OSError("blob write made no progress")
+                        view = view[written:]
+                sync_file(destination_descriptor)
             finally:
-                os.close(descriptor)
-            after = source.stat()
+                os.close(destination_descriptor)
+                destination_descriptor = -1
+            after = os.fstat(source_descriptor)
             if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) or byte_count != after.st_size:
                 raise OSError(f"blob source changed while being ingested: {source}")
             content_sha256 = digest.hexdigest()
+            if expected_sha256 is not None and (content_sha256 != expected_sha256 or byte_count != expected_bytes):
+                raise OSError("blob source bytes disagree with their admitted identity")
             path = self.path_for(content_sha256)
             shard_created = not path.parent.exists()
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -130,10 +158,15 @@ class BlobStore:
                 sync_directory(path.parent)
             return content_sha256, byte_count
         finally:
-            existed = temporary.exists()
-            temporary.unlink(missing_ok=True)
-            if existed:
-                sync_directory(temporary.parent)
+            if destination_descriptor >= 0:
+                os.close(destination_descriptor)
+            if source_descriptor >= 0:
+                os.close(source_descriptor)
+            if temporary is not None:
+                existed = temporary.exists()
+                temporary.unlink(missing_ok=True)
+                if existed:
+                    sync_directory(temporary.parent)
 
     def verify_file(self, digest: str) -> tuple[Path, int]:
         """Verify one CAS object by streaming it through SHA-256 under a stable stat."""

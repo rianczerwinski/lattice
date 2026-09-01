@@ -11,8 +11,10 @@ from fastapi.testclient import TestClient
 
 from lattice.config import LatticeConfig
 from lattice.server import create_app
-from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, ContextSelection, DraftCreate, ProviderRoute, TagRequest
+from lattice.canonical import canonical_bytes, sha256_bytes
+from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, ContextSelection, DraftCreate, DurableRunAuthorityV1, DurableRunDeclarationV2, LocalFileBindingV1, LocalFileClosureV1, LocalRunLaunchProfileV1, ProviderRoute, RunArtifactClass, RunArtifactCreateV1, RunAttemptFinishV1, RunAttemptStartV1, RunUnitDeclarationV1, TagRequest
 from lattice.operations import Lattice
+from lattice.run_executor import LOCAL_EXECUTOR_IDENTITY
 from lattice.security import OperatorSessions, ensure_cli_token
 from lattice.store import LatticeConflict
 from lattice.workflows import WorkflowRegistry
@@ -172,6 +174,203 @@ def test_content_addressed_blob_endpoint_returns_exact_authenticated_bytes(latti
     assert malformed.status_code == 422
 
 
+@pytest.mark.contract
+def test_durable_run_api_exposes_one_bound_control_and_artifact_surface(monkeypatch, lattice_env, tmp_path: Path) -> None:
+    unit = RunUnitDeclarationV1(unit_key="only", input_sha256=sha256_bytes(b"only-input"))
+    command = ["/fixture/worker"]
+    cwd = "/fixture"
+    artifact_roots = ["/fixture"]
+    code_closure = LocalFileClosureV1(bindings=[LocalFileBindingV1(path="/fixture/worker", content_sha256="2" * 64, byte_count=20)])
+    input_closure = LocalFileClosureV1(bindings=[LocalFileBindingV1(binding_kind="manifest", path="/fixture/inputs.manifest", content_sha256="3" * 64, byte_count=30)])
+    declaration = DurableRunDeclarationV2(
+        project_id=lattice_env["project"]["project_id"],
+        external_project_key="api-fixture",
+        operation_key="one-unit",
+        name="API fixture run",
+        executable_ref="/fixture/worker",
+        executable_sha256="1" * 64,
+        code_revision=code_closure.identity_sha256(),
+        configuration_sha256=sha256_bytes(canonical_bytes({"argv": command[1:]})),
+        inputs_sha256=input_closure.identity_sha256(),
+        environment_profile_sha256=sha256_bytes(canonical_bytes({"cwd": cwd, "environment": {}, "artifact_roots": artifact_roots})),
+        executor_identity="lattice-local-durable-run-v1",
+        executor_sha256="5" * 64,
+        unit_namespace="api-fixture",
+        resume_strategy="repeat-active-unit",
+        unit_manifest_sha256=sha256_bytes(canonical_bytes({"unit_namespace": "api-fixture", "units": [unit.model_dump(mode="json")]})),
+        units=[unit],
+        authority=DurableRunAuthorityV1(kind="operator", actor_ref="api-test"),
+        code_closure=code_closure,
+        input_closure=input_closure,
+        local_launch_profile=LocalRunLaunchProfileV1(command=command, cwd=cwd, artifact_roots=artifact_roots),
+    )
+    app = create_app(lattice_env["config"])
+    launches: list[tuple[str, str]] = []
+
+    async def fake_execute(run_id, idempotency_key):
+        launches.append((run_id, idempotency_key))
+        attempt = app.state.store.start_run_attempt(
+            run_id,
+            RunAttemptStartV1(
+                idempotency_key=idempotency_key,
+                executor_identity=LOCAL_EXECUTOR_IDENTITY,
+                owner_boot_id=app.state.run_supervisor.boot_id,
+                executor_binding={"kind": "api-log-fixture"},
+            ),
+        )
+        attempt_root = app.state.run_supervisor.journal_root / run_id / attempt["attempt_id"]
+        attempt_root.mkdir(parents=True)
+        attempt_root.joinpath("stdout.log").write_bytes(b"first line\nsecond line\n")
+        attempt_root.joinpath("stderr.log").write_bytes(b"warning line\n")
+        return attempt
+
+    monkeypatch.setattr(app.state.run_supervisor, "execute", fake_execute)
+    with TestClient(app) as client:
+        session = _operator_session(client, lattice_env)
+        headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
+        created = client.post("/api/v1/runs", headers=headers, json=declaration.model_dump(mode="json"))
+        run_id = created.json()["run_id"]
+        listed = client.get(f"/api/v1/projects/{declaration.project_id}/runs")
+        admitted = client.post(f"/api/v1/runs/{run_id}/admit", headers=headers, json={})
+
+        content = b'{"meaning":"retained"}'
+        digest = app.state.store.blobs.put(content)
+        artifact = app.state.store.record_run_artifact(
+            run_id,
+            None,
+            None,
+            RunArtifactCreateV1(artifact_key="report", name="report.json", sensitive=True, media_type="application/json", byte_count=len(content), content_sha256=digest, storage_locator=f"lattice:blob/{digest}"),
+        )
+        artifact_meta = client.get(f"/api/v1/run-artifacts/{artifact['artifact_id']}")
+        artifact_bytes = client.get(f"/api/v1/run-artifacts/{artifact['artifact_id']}/content")
+        grafted = client.post(f"/api/v1/run-artifacts/{artifact['artifact_id']}/context-blocks", headers=headers, json={})
+
+        binary_content = b"\x00\xff"
+        binary_digest = app.state.store.blobs.put(binary_content)
+        binary = app.state.store.record_run_artifact(
+            run_id,
+            None,
+            None,
+            RunArtifactCreateV1(artifact_key="binary", name="binary.bin", media_type="application/octet-stream", byte_count=len(binary_content), content_sha256=binary_digest, storage_locator=f"lattice:blob/{binary_digest}"),
+        )
+        binary_graft = client.post(f"/api/v1/run-artifacts/{binary['artifact_id']}/context-blocks", headers=headers, json={})
+
+        external_path = tmp_path / "external-report.txt"
+        external_path.write_text("before", encoding="utf-8")
+        external_digest = sha256_bytes(external_path.read_bytes())
+        external_value = RunArtifactCreateV1(artifact_key="external", name="external-report.txt", media_type="text/plain", byte_count=6, content_sha256=external_digest, storage_locator=f"file:{external_path}")
+        with pytest.raises(LatticeConflict, match="non-disposable run artifacts require a verified Lattice CAS locator"):
+            app.state.store.record_run_artifact(run_id, None, None, external_value)
+        external = app.state.store.record_run_artifact(
+            run_id,
+            None,
+            None,
+            external_value.model_copy(update={"artifact_key": "external-disposable", "artifact_class": RunArtifactClass.disposable, "regeneration": {"method": "rerun-fixture"}}),
+        )
+        external_bytes = client.get(f"/api/v1/run-artifacts/{external['artifact_id']}/content")
+        external_path.write_text("after!", encoding="utf-8")
+        changed_graft = client.post(f"/api/v1/run-artifacts/{external['artifact_id']}/context-blocks", headers=headers, json={})
+        changed_external_bytes = client.get(f"/api/v1/run-artifacts/{external['artifact_id']}/content")
+        swapped_path = tmp_path / "swapped-external.txt"
+        swapped_path.write_bytes(b"small")
+        swapped = app.state.store.record_run_artifact(
+            run_id,
+            None,
+            None,
+            RunArtifactCreateV1(
+                artifact_key="swapped-external",
+                name="swapped-external.txt",
+                artifact_class=RunArtifactClass.disposable,
+                media_type="text/plain",
+                byte_count=5,
+                content_sha256=sha256_bytes(b"small"),
+                storage_locator=f"file:{swapped_path}",
+                regeneration={"method": "rerun-fixture"},
+            ),
+        )
+        with swapped_path.open("r+b") as swapped_handle:
+            swapped_handle.truncate(app.state.store.SLICE_INLINE_RESPONSE_BYTES + 1)
+        original_read_bytes = Path.read_bytes
+
+        def reject_unbounded_path_read(path: Path) -> bytes:
+            if path == swapped_path:
+                raise AssertionError("context graft attempted an unbounded Path.read_bytes()")
+            return original_read_bytes(path)
+
+        with monkeypatch.context() as bounded_read_guard:
+            bounded_read_guard.setattr(Path, "read_bytes", reject_unbounded_path_read)
+            swapped_graft = client.post(f"/api/v1/run-artifacts/{swapped['artifact_id']}/context-blocks", headers=headers, json={})
+        oversized = app.state.store.record_run_artifact(
+            run_id,
+            None,
+            None,
+            RunArtifactCreateV1(
+                artifact_key="oversized-external",
+                name="oversized.bin",
+                artifact_class=RunArtifactClass.disposable,
+                media_type="application/octet-stream",
+                byte_count=app.state.store.SLICE_INLINE_RESPONSE_BYTES + 1,
+                content_sha256="9" * 64,
+                storage_locator=f"file:{tmp_path / 'never-read-oversized.bin'}",
+                regeneration={"method": "rerun-fixture"},
+            ),
+        )
+        oversized_external_bytes = client.get(f"/api/v1/run-artifacts/{oversized['artifact_id']}/content")
+        events = client.get(f"/api/v1/runs/{run_id}/events")
+        started = client.post(f"/api/v1/runs/{run_id}/start", headers=headers, json={"idempotency_key": "api-attempt-one"})
+        attempt_id = started.json()["attempt_id"]
+        stdout_log = client.get(f"/api/v1/runs/{run_id}/attempts/{attempt_id}/logs/stdout")
+        stderr_log = client.get(f"/api/v1/runs/{run_id}/attempts/{attempt_id}/logs/stderr")
+        wrong_owner_log = client.get(f"/api/v1/runs/not-this-run/attempts/{attempt_id}/logs/stdout")
+        invalid_log = client.get(f"/api/v1/runs/{run_id}/attempts/{attempt_id}/logs/combined")
+        app.state.store.request_run_stop(run_id)
+        app.state.store.finish_run_attempt(attempt_id, RunAttemptFinishV1(state="stopped"))
+
+        client.cookies.clear()
+        unauthorized_reads = [
+            client.get("/api/v1/runs"),
+            client.get(f"/api/v1/projects/{declaration.project_id}/runs"),
+            client.get(f"/api/v1/runs/{run_id}"),
+            client.get(f"/api/v1/runs/{run_id}/artifacts"),
+            client.get(f"/api/v1/runs/{run_id}/events"),
+            client.get(f"/api/v1/runs/{run_id}/events/stream"),
+            client.get(f"/api/v1/run-artifacts/{artifact['artifact_id']}"),
+            client.get(f"/api/v1/run-artifacts/{artifact['artifact_id']}/content"),
+            client.get(f"/api/v1/runs/{run_id}/attempts/{attempt_id}/logs/stdout"),
+        ]
+
+    assert created.status_code == 201
+    assert listed.status_code == 200 and [run["run_id"] for run in listed.json()] == [run_id]
+    assert admitted.status_code == 200 and admitted.json()["state"] == "admitted"
+    assert artifact_meta.status_code == 200 and artifact_meta.json()["content_sha256"] == digest
+    assert artifact_bytes.status_code == 200 and artifact_bytes.content == content
+    assert grafted.status_code == 200
+    grafted_block = app.state.store.get_block(grafted.json()["block_id"])
+    assert grafted_block["content"] == content.decode()
+    assert grafted_block["source_ref"] == f"lattice:run-artifact/{artifact['artifact_id']}"
+    assert grafted_block["source_sha256"] == digest
+    assert json.loads(grafted_block["transformation_json"])["source_sha256"] == digest
+    assert binary_graft.status_code == 409
+    assert "only textual" in binary_graft.json()["detail"]
+    assert changed_graft.status_code == 409
+    assert "changed after admission" in changed_graft.json()["detail"]
+    assert external_bytes.status_code == 200 and external_bytes.content == b"before"
+    assert changed_external_bytes.status_code == 409
+    assert "changed after admission" in changed_external_bytes.json()["detail"]
+    assert swapped_graft.status_code == 409
+    assert "size changed after admission" in swapped_graft.json()["detail"]
+    assert oversized_external_bytes.status_code == 409
+    assert "require admission into Lattice CAS" in oversized_external_bytes.json()["detail"]
+    assert any(event["event_type"] == "durable-run.declared" for event in events.json())
+    assert started.status_code == 202 and started.json()["state"] == "running"
+    assert stdout_log.status_code == 200 and stdout_log.content == b"first line\nsecond line\n"
+    assert stderr_log.status_code == 200 and stderr_log.content == b"warning line\n"
+    assert wrong_owner_log.status_code == 409
+    assert invalid_log.status_code == 422
+    assert all(response.status_code == 403 for response in unauthorized_reads)
+    assert launches == [(run_id, "api-attempt-one")]
+
+
 @pytest.mark.concurrency
 def test_negative_control_second_service_cannot_orphan_live_first_service_work(lattice_env) -> None:
     first_app = create_app(lattice_env["config"])
@@ -290,6 +489,48 @@ def test_context_module_catalogue_and_failures_are_explicit(lattice_env) -> None
     assert receipt["receipt_sha256"]
     assert governed.status_code == 422
     assert "governed workflow-pack mode" in governed.json()["detail"]
+
+
+@pytest.mark.regression
+def test_stale_workspace_file_identity_is_rejected_before_context_block_creation(lattice_env) -> None:
+    source = lattice_env["config"].data_root / "workspace-source.txt"
+    source.write_text("alpha", encoding="utf-8")
+    app = create_app(lattice_env["config"])
+    with TestClient(app) as client:
+        session = _operator_session(client, lattice_env)
+        headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
+        observed = client.post(
+            "/api/v1/workspaces/file",
+            headers=headers,
+            json={"workspace": str(lattice_env["config"].data_root), "path": source.name},
+        )
+        with app.state.store._connect() as connection:
+            blocks_before = connection.execute("SELECT COUNT(*) FROM context_blocks").fetchone()[0]
+        source.write_text("bravo", encoding="utf-8")
+        stale = client.post(
+            "/api/v1/context-modules/resolve",
+            headers=headers,
+            json={
+                "project_id": lattice_env["project"]["project_id"],
+                "definition": {
+                    "module_id": "workspace.stale-file",
+                    "version": 1,
+                    "mode": "manual",
+                    "source_kind": "file",
+                    "capabilities": ["read-local-file"],
+                    "configuration": {"path": str(source)},
+                },
+                "expected_sha256": observed.json()["content_sha256"],
+                "expected_byte_count": observed.json()["byte_count"],
+            },
+        )
+        with app.state.store._connect() as connection:
+            blocks_after = connection.execute("SELECT COUNT(*) FROM context_blocks").fetchone()[0]
+
+    assert observed.status_code == 200
+    assert stale.status_code == 409
+    assert "changed after workspace inspection" in stale.json()["detail"]
+    assert blocks_after == blocks_before
 
 
 @pytest.mark.oracle

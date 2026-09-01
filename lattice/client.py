@@ -12,7 +12,7 @@ from typing import Any
 
 from .canonical import canonical_bytes
 from .config import LatticeConfig
-from .contracts import ExecutionResultV1, ExecutionSubmissionV1, HistoricalExecutionImportResultV1, HistoricalExecutionImportV1
+from .contracts import DurableRunDeclarationV1, DurableRunDeclarationV2, ExecuteRequest, ExecutionResultV1, ExecutionSubmissionV1, HistoricalExecutionImportResultV1, HistoricalExecutionImportV1
 from .outport import resolve_lattice_service
 from .security import ensure_cli_token
 
@@ -104,6 +104,85 @@ class LatticeClient:
     def import_history(self, request: HistoricalExecutionImportV1 | dict[str, Any]) -> HistoricalExecutionImportResultV1:
         value = request if isinstance(request, HistoricalExecutionImportV1) else HistoricalExecutionImportV1.model_validate(request)
         return HistoricalExecutionImportResultV1.model_validate(self._request("POST", "/api/v1/historical-executions", value.model_dump(mode="json", exclude_unset=True)))
+
+    def declare_run(self, declaration: DurableRunDeclarationV1 | DurableRunDeclarationV2 | dict[str, Any]) -> dict[str, Any]:
+        if isinstance(declaration, DurableRunDeclarationV1):
+            value = declaration
+        elif declaration.get("contract_version") == "DurableRunDeclaration/2.0":
+            value = DurableRunDeclarationV2.model_validate(declaration)
+        else:
+            value = DurableRunDeclarationV1.model_validate(declaration)
+        result = self._request("POST", "/api/v1/runs", value.model_dump(mode="json"))
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice durable-run declaration response is malformed")
+        return result
+
+    def run(self, run_id: str) -> dict[str, Any]:
+        result = self._request("GET", f"/api/v1/runs/{urllib.parse.quote(run_id, safe='')}")
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice durable-run status response is malformed")
+        return result
+
+    def runs(self, *, project_id: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
+        query = urllib.parse.urlencode({key: value for key, value in {"project_id": project_id, "limit": limit}.items() if value is not None})
+        result = self._request("GET", f"/api/v1/runs?{query}")
+        if not isinstance(result, list) or any(not isinstance(item, dict) for item in result):
+            raise LatticeClientError("Lattice durable-run catalogue response is malformed")
+        return result
+
+    def admit_run(self, run_id: str) -> dict[str, Any]:
+        result = self._request("POST", f"/api/v1/runs/{urllib.parse.quote(run_id, safe='')}/admit", {})
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice durable-run admission response is malformed")
+        return result
+
+    def start_run(self, run_id: str, idempotency_key: str) -> dict[str, Any]:
+        value = ExecuteRequest(idempotency_key=idempotency_key)
+        result = self._request("POST", f"/api/v1/runs/{urllib.parse.quote(run_id, safe='')}/start", value.model_dump(mode="json"))
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice durable-run start response is malformed")
+        return result
+
+    def stop_run(self, run_id: str) -> dict[str, Any]:
+        result = self._request("POST", f"/api/v1/runs/{urllib.parse.quote(run_id, safe='')}/stop", {})
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice durable-run stop response is malformed")
+        return result
+
+    def resume_run(self, run_id: str, idempotency_key: str) -> dict[str, Any]:
+        value = ExecuteRequest(idempotency_key=idempotency_key)
+        result = self._request("POST", f"/api/v1/runs/{urllib.parse.quote(run_id, safe='')}/resume", value.model_dump(mode="json"))
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice durable-run resume response is malformed")
+        return result
+
+    def run_artifacts(self, run_id: str) -> list[dict[str, Any]]:
+        result = self._request("GET", f"/api/v1/runs/{urllib.parse.quote(run_id, safe='')}/artifacts")
+        if not isinstance(result, list) or any(not isinstance(item, dict) for item in result):
+            raise LatticeClientError("Lattice durable-run artifact response is malformed")
+        return result
+
+    def run_events(self, run_id: str, *, after: int = 0, limit: int = 200) -> list[dict[str, Any]]:
+        query = urllib.parse.urlencode({"after": after, "limit": limit})
+        result = self._request("GET", f"/api/v1/runs/{urllib.parse.quote(run_id, safe='')}/events?{query}")
+        if not isinstance(result, list) or any(not isinstance(item, dict) for item in result):
+            raise LatticeClientError("Lattice durable-run event response is malformed")
+        return result
+
+    def run_artifact(self, artifact_id: str) -> dict[str, Any]:
+        result = self._request("GET", f"/api/v1/run-artifacts/{urllib.parse.quote(artifact_id, safe='')}")
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice durable-run artifact response is malformed")
+        return result
+
+    def run_artifact_bytes(self, artifact_id: str) -> bytes:
+        return self._request_bytes(f"/api/v1/run-artifacts/{urllib.parse.quote(artifact_id, safe='')}/content")
+
+    def graft_run_artifact(self, artifact_id: str) -> dict[str, Any]:
+        result = self._request("POST", f"/api/v1/run-artifacts/{urllib.parse.quote(artifact_id, safe='')}/context-blocks", {})
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice durable-run artifact graft response is malformed")
+        return result
 
     def wait(self, external_project_key: str, operation_key: str, project_id: str, *, timeout: float = 1800.0) -> ExecutionResultV1:
         """Follow the canonical event stream and inspect only when it advances."""
