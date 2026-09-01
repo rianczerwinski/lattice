@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy, tick } from 'svelte';
   import { api, beginSession, extractWorkflow, post } from './api';
   import { batchIdempotencyKey, reciprocalCrossFeedParents, resolveExactSelection } from './invocationBatch';
   import { contextActionIntent } from './contextActions';
@@ -6,13 +7,17 @@
   import { buildContextModuleDefinition } from './contextModules';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
-  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, Episode, Invocation, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
+  import type { PaletteCommand } from './commandPalette';
+  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, DurableRun, DurableRunEvent, Episode, Invocation, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
   import { resolveSelector, workflowProjectTitle } from './workflowPresentation';
+  import { orderByRecentProjects, readUiState, writeProjectUiState, type ProjectUiState } from './uiPersistence';
   import ConversationHistory from './components/ConversationHistory.svelte';
   import ComposerPane from './components/ComposerPane.svelte';
+  import CommandPalette from './components/CommandPalette.svelte';
   import ContextInspector from './components/ContextInspector.svelte';
   import ProjectRail from './components/ProjectRail.svelte';
   import ResponsePane from './components/ResponsePane.svelte';
+  import RunSurface from './components/RunSurface.svelte';
   import WorkflowControl from './components/WorkflowControl.svelte';
 
   let projects: Project[] = [];
@@ -90,6 +95,26 @@
   let liveProgress = '';
   let liveProgressState = '';
   let extractedTemplateId = '';
+  let runs: DurableRun[] = [];
+  let selectedRunId = '';
+  let runEvents: DurableRunEvent[] = [];
+  let runsLoading = false;
+  let runError = '';
+  let runWorking = false;
+  let closeRunEventStream: () => void = () => {};
+  let runSelectionGeneration = 0;
+  let uiStateReady = false;
+  let uiStateSuspended = false;
+  let uiPersistenceError = '';
+  let viewScrollY = 0;
+  let pendingScrollY: number | null = null;
+  let uiPersistTimer: ReturnType<typeof setTimeout> | null = null;
+  let paletteOpen = false;
+  let globalRuns: DurableRun[] = [];
+  let globalActivityError = '';
+  let activityNotice = '';
+  let activityInitialized = false;
+  let activityTimer: ReturnType<typeof setInterval> | null = null;
 
   $: selectedRole = project?.roles?.find((role) => role.role_id === project?.sessions?.find((session) => session.role_session_id === selectedSession)?.role_id);
   $: installedRoutes = routes.filter((route) => route.qualified && (!selectedRole || selectedRole.route_policy.kind === 'operator-selectable' || (selectedRole.route_policy.kind === 'model' && selectedRole.route_policy.provider === route.provider_code && selectedRole.route_policy.harness === route.official_cli && (!selectedRole.route_policy.allowed_models?.length || selectedRole.route_policy.allowed_models.includes(route.model_code)))));
@@ -107,6 +132,166 @@
   $: parentEpisode = episodes.find((episode) => episode.slice_id === currentEpisode?.parent_episode_id) ?? null;
   $: selectedNativeSession = selected?.attempts.slice().reverse().find((attempt) => attempt.state === 'succeeded' && (attempt.runtime_receipt as { native_session?: { id?: string } } | undefined)?.native_session?.id);
   $: selectedNativeEligible = Boolean(selectedNativeSession && ['workspace-agent', 'native-continuation'].includes(String(selected?.route?.execution_profile ?? 'compiled-fresh')));
+  $: selectedRun = runs.find((run) => run.run_id === selectedRunId) ?? null;
+  $: selectedRunHasDurableLaunch = Boolean(selectedRun?.declaration.local_launch_profile && typeof selectedRun.declaration.local_launch_profile === 'object');
+  $: runControlBlocker = selectedRunHasDurableLaunch ? '' : 'This older run has no durable launch profile; its project runner must supply exact launch material.';
+  $: activeGlobalRuns = globalRuns.filter((run) => ['running', 'waiting', 'stopping'].includes(run.state));
+  $: paletteCommands = buildPaletteCommands();
+  $: {
+    project?.project_id;
+    prompt;
+    selectedSession;
+    selectedRunId;
+    selected?.invocation_id;
+    selectedParents;
+    explicitSelections;
+    currentEpisode?.slice_id;
+    routeMode;
+    executionProfile;
+    workspacePath;
+    workspaceAuthority;
+    claudeShell;
+    effort;
+    modelOverrides;
+    viewScrollY;
+    scheduleUiPersistence();
+  }
+
+  function currentProjectUiState(): ProjectUiState | null {
+    if (!project) return null;
+    return {
+      prompt,
+      selectedSession,
+      selectedRunId,
+      selectedInvocationId: selected?.invocation_id ?? '',
+      selectedParentIds: [...selectedParents],
+      explicitSelections,
+      currentEpisodeId: currentEpisode?.slice_id ?? '',
+      routeMode,
+      executionProfile: executionProfile === 'workspace-agent' ? 'workspace-agent' : 'compiled-fresh',
+      workspacePath,
+      workspaceAuthority,
+      claudeShell,
+      effort,
+      modelOverrides,
+      scrollY: viewScrollY,
+      updatedAt: Date.now(),
+    };
+  }
+
+  function persistCurrentProjectUiState() {
+    const state = currentProjectUiState();
+    if (!project || !state) return;
+    const result = writeProjectUiState(window.localStorage, project.project_id, state);
+    uiPersistenceError = result.error;
+    if (!result.error) projects = orderByRecentProjects(projects, result.state.recentProjectIds);
+  }
+
+  function scheduleUiPersistence() {
+    if (!uiStateReady || uiStateSuspended || !project) return;
+    if (uiPersistTimer !== null) clearTimeout(uiPersistTimer);
+    uiPersistTimer = setTimeout(() => {
+      uiPersistTimer = null;
+      persistCurrentProjectUiState();
+    }, 180);
+  }
+
+  function captureViewPosition() {
+    viewScrollY = Math.max(0, window.scrollY);
+  }
+
+  async function restorePendingViewPosition() {
+    if (pendingScrollY === null) return;
+    const target = pendingScrollY;
+    pendingScrollY = null;
+    await tick();
+    requestAnimationFrame(() => window.scrollTo({ top: target, behavior: 'instant' }));
+  }
+
+  function flushUiState() {
+    if (!uiStateReady || uiStateSuspended) return;
+    if (uiPersistTimer !== null) {
+      clearTimeout(uiPersistTimer);
+      uiPersistTimer = null;
+    }
+    viewScrollY = Math.max(0, window.scrollY);
+    persistCurrentProjectUiState();
+  }
+
+  function buildPaletteCommands(): PaletteCommand[] {
+    return [
+      { id: 'focus-composer', label: 'Focus composer', detail: 'Write or continue the current invocation', keywords: ['prompt', 'message'], shortcut: '⌘J', disabled: !project },
+      { id: 'refresh-runs', label: 'Refresh work activity', detail: 'Reload durable status without disturbing conversation state', keywords: ['runs', 'progress', 'jobs'] },
+      { id: 'route:anthropic', label: 'Route next invocation to Claude', detail: 'Use the current qualified Anthropic route', keywords: ['provider'], disabled: !installedRoutes.some((route) => route.provider_code === 'anthropic') },
+      { id: 'route:openai', label: 'Route next invocation to Codex', detail: 'Use the current qualified OpenAI route', keywords: ['provider'], disabled: !installedRoutes.some((route) => route.provider_code === 'openai') },
+      { id: 'route:both', label: 'Route next invocation to both providers', detail: 'Create one atomic multi-provider batch', keywords: ['claude', 'codex'], disabled: !['anthropic', 'openai'].every((provider) => installedRoutes.some((route) => route.provider_code === provider)) },
+      ...activeGlobalRuns.map((run) => ({ id: `run:${run.run_id}`, label: `Open active run · ${run.name}`, detail: `${run.state} · ${run.unit_counts.completed ?? 0}/${run.units.length} units · ${projects.find((item) => item.project_id === run.project_id)?.title ?? run.project_id}`, keywords: ['activity', 'progress', run.state] })),
+      ...projects.map((item) => ({ id: `project:${item.project_id}`, label: `Open ${item.title}`, detail: item.purpose || 'Switch project', keywords: ['project', 'recent'] })),
+    ];
+  }
+
+  async function executePaletteCommand(commandId: string) {
+    activityNotice = '';
+    if (commandId === 'focus-composer') {
+      await tick();
+      document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+      return;
+    }
+    if (commandId === 'refresh-runs') {
+      await Promise.all([refreshRuns(), refreshGlobalActivity()]);
+      return;
+    }
+    if (commandId.startsWith('route:')) {
+      chooseRoute(commandId.slice('route:'.length) as 'anthropic' | 'openai' | 'both');
+      await tick();
+      document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+      return;
+    }
+    if (commandId.startsWith('project:')) {
+      await openProject(commandId.slice('project:'.length));
+      return;
+    }
+    if (commandId.startsWith('run:')) {
+      const runId = commandId.slice('run:'.length);
+      const run = globalRuns.find((item) => item.run_id === runId);
+      if (!run) return;
+      if (project?.project_id !== run.project_id) await openProject(run.project_id);
+      await selectRun(runId);
+      await tick();
+      document.querySelector<HTMLElement>('.run-surface')?.scrollIntoView({ block: 'center' });
+    }
+  }
+
+  function handleGlobalKeydown(event: KeyboardEvent) {
+    if (!(event.metaKey || event.ctrlKey)) return;
+    if (event.key.toLocaleLowerCase() === 'k') {
+      event.preventDefault();
+      paletteOpen = true;
+      activityNotice = '';
+    } else if (event.key.toLocaleLowerCase() === 'j') {
+      event.preventDefault();
+      void executePaletteCommand('focus-composer');
+    } else if (event.key === 'Enter' && event.target instanceof Element && event.target.closest('.composer')) {
+      event.preventDefault();
+      void prepare(true);
+    }
+  }
+
+  async function refreshGlobalActivity() {
+    try {
+      const next = await api<DurableRun[]>('/api/v1/runs?limit=200');
+      if (activityInitialized) {
+        const priorStates = new Map(globalRuns.map((run) => [run.run_id, run.state]));
+        const changed = next.find((run) => ['completed', 'failed'].includes(run.state) && priorStates.has(run.run_id) && priorStates.get(run.run_id) !== run.state);
+        if (changed) activityNotice = `${changed.name} ${changed.state}`;
+      }
+      globalRuns = next;
+      globalActivityError = '';
+      activityInitialized = true;
+    } catch (cause) {
+      globalActivityError = cause instanceof Error ? cause.message : String(cause);
+    }
+  }
 
   async function boot() {
     loading = true;
@@ -118,7 +303,9 @@
         api<Route[]>('/api/v1/routes').then((value) => ({ value, error: '' })).catch((cause) => ({ value: [] as Route[], error: cause instanceof Error ? cause.message : String(cause) })),
         api<WorkflowPackCatalogue>('/api/v1/workflow-packs').then((value) => ({ value, error: '' })).catch((cause) => ({ value: { packs: [], failures: [] } as WorkflowPackCatalogue, error: cause instanceof Error ? cause.message : String(cause) })),
       ]);
-      projects = loadedProjects;
+      const storedUi = readUiState(window.localStorage);
+      uiPersistenceError = storedUi.error;
+      projects = orderByRecentProjects(loadedProjects, storedUi.state.recentProjectIds);
       routes = routeResult.value;
       routeCatalogueError = routeResult.error;
       workflowPacks = workflowResult.value.packs;
@@ -132,11 +319,16 @@
         selectedRoute = `${firstRoute.provider_code}:${firstRoute.model_code}`;
         routeMode = firstRoute.provider_code as 'anthropic' | 'openai';
       }
-      if (projects[0]) await openProject(projects[0].project_id);
+      const initialProject = projects.find((item) => item.project_id === storedUi.state.lastProjectId) ?? projects[0];
+      if (initialProject) await openProject(initialProject.project_id);
+      await refreshGlobalActivity();
+      activityTimer = setInterval(() => { void refreshGlobalActivity(); }, 10_000);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
       loading = false;
+      uiStateReady = true;
+      await restorePendingViewPosition();
     }
   }
 
@@ -148,7 +340,7 @@
       const result = await post<Project>('/api/v1/projects', { title, purpose });
       title = '';
       purpose = '';
-      projects = await api<Project[]>('/api/v1/projects');
+      projects = orderByRecentProjects(await api<Project[]>('/api/v1/projects'), readUiState(window.localStorage).state.recentProjectIds);
       await openProject(result.project_id);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -157,41 +349,219 @@
 
   async function openProject(projectId: string) {
     const switchingProjects = project?.project_id !== projectId;
-    project = await api<Project>(`/api/v1/projects/${projectId}`);
-    try {
-      episodes = await api<Episode[]>(`/api/v1/projects/${projectId}/episodes`);
-      episodeError = '';
-      currentEpisode = switchingProjects ? null : episodes.find((episode) => episode.slice_id === currentEpisode?.slice_id) ?? null;
-    } catch (cause) {
-      episodes = [];
-      currentEpisode = null;
-      episodeError = cause instanceof Error ? cause.message : String(cause);
+    if (switchingProjects && uiStateReady) flushUiState();
+    uiStateSuspended = true;
+    const storedUi = readUiState(window.localStorage);
+    if (storedUi.error) uiPersistenceError = storedUi.error;
+    const restored = storedUi.state.projects[projectId] ?? null;
+    if (switchingProjects) {
+      closeRunEventStream();
+      closeRunEventStream = () => {};
+      selectedRunId = '';
+      runEvents = [];
+      runs = [];
+      runError = '';
     }
-    selectedSession = '';
-    selectedParents = new Set();
-    allTrailheads = [];
-    trailheadPage = null;
-    trailheadsLoading = false;
-    trailheadError = '';
-    preview = null;
-    pendingBatchRequest = null;
-    explicitSelections = [];
-    selectedExcerpt = null;
-    comparison = null;
-    armedCommand = '';
-    commandIdempotency = {};
-    commandReviews = {};
-    armedAutomation = '';
-    armedTransition = '';
-    extractedTemplateId = '';
-    pinRoleName = '';
-    pinRoleInstructions = '';
-    pinRoleSessionLabel = '';
-    pinRoleReceipt = '';
-    executionProfile = 'compiled-fresh';
-    continuationSource = null;
-    if (project.invocations?.length) await inspect(project.invocations[project.invocations.length - 1].invocation_id);
-    else selected = null;
+    try {
+      project = await api<Project>(`/api/v1/projects/${projectId}`);
+      try {
+        episodes = await api<Episode[]>(`/api/v1/projects/${projectId}/episodes`);
+        episodeError = '';
+        currentEpisode = restored?.currentEpisodeId ? episodes.find((episode) => episode.slice_id === restored.currentEpisodeId) ?? null : switchingProjects ? null : episodes.find((episode) => episode.slice_id === currentEpisode?.slice_id) ?? null;
+      } catch (cause) {
+        episodes = [];
+        currentEpisode = null;
+        episodeError = cause instanceof Error ? cause.message : String(cause);
+      }
+      selectedSession = restored && project.sessions?.some((session) => session.role_session_id === restored.selectedSession) ? restored.selectedSession : '';
+      selectedParents = new Set(restored?.selectedParentIds ?? []);
+      allTrailheads = [];
+      trailheadPage = null;
+      trailheadsLoading = false;
+      trailheadError = '';
+      preview = null;
+      pendingBatchRequest = null;
+      prompt = restored?.prompt ?? '';
+      explicitSelections = restored?.explicitSelections ?? [];
+      selectedExcerpt = null;
+      comparison = null;
+      armedCommand = '';
+      commandIdempotency = {};
+      commandReviews = {};
+      armedAutomation = '';
+      armedTransition = '';
+      extractedTemplateId = '';
+      pinRoleName = '';
+      pinRoleInstructions = '';
+      pinRoleSessionLabel = '';
+      pinRoleReceipt = '';
+      routeMode = restored?.routeMode ?? routeMode;
+      executionProfile = restored?.executionProfile ?? 'compiled-fresh';
+      continuationSource = null;
+      workspacePath = restored?.workspacePath ?? '';
+      workspaceAuthority = restored?.workspaceAuthority ?? 'read-only';
+      claudeShell = restored?.claudeShell ?? false;
+      effort = restored?.effort ?? effort;
+      modelOverrides = { ...modelOverrides, ...(restored?.modelOverrides ?? {}) };
+      selectedRunId = restored?.selectedRunId ?? '';
+      selected = null;
+      const fallbackInvocationId = project.invocations?.[project.invocations.length - 1]?.invocation_id ?? '';
+      const restoredInvocationId = restored?.selectedInvocationId ?? '';
+      const invocationId = restoredInvocationId || fallbackInvocationId;
+      if (invocationId) {
+        await inspect(invocationId);
+        const inspectedInvocationId = (selected as Invocation | null)?.invocation_id ?? '';
+        if (restoredInvocationId && inspectedInvocationId !== restoredInvocationId && fallbackInvocationId && fallbackInvocationId !== restoredInvocationId) await inspect(fallbackInvocationId);
+      }
+      await refreshRuns(projectId);
+      viewScrollY = restored?.scrollY ?? 0;
+      pendingScrollY = viewScrollY;
+    } finally {
+      uiStateSuspended = false;
+    }
+    if (!loading) {
+      await restorePendingViewPosition();
+      persistCurrentProjectUiState();
+    }
+  }
+
+  const durableRunEventTypes = [
+    'durable-run.declared',
+    'durable-run.admitted',
+    'durable-run.started',
+    'durable-run.resumed',
+    'durable-run.progress',
+    'durable-run.resource',
+    'durable-run.waiting',
+    'durable-run.continued',
+    'durable-run.stop-requested',
+    'durable-run.stopped',
+    'durable-run.failed',
+    'durable-run.completed',
+    'durable-run-unit.started',
+    'durable-run-unit.completed',
+    'durable-run-unit.refused',
+    'durable-run-unit.failed',
+    'durable-run-unit.requeued',
+    'durable-run-artifact.recorded',
+    'durable-run-artifact.removed',
+    'durable-run-attempt.orphaned',
+    'durable-run-attempt.adopted',
+  ];
+
+  async function refreshRuns(projectId = project?.project_id ?? '') {
+    if (!projectId) return;
+    runsLoading = true;
+    try {
+      const current = await api<DurableRun[]>(`/api/v1/projects/${projectId}/runs`);
+      if (project?.project_id !== projectId) return;
+      runs = current;
+      runError = '';
+      const chosen = current.some((run) => run.run_id === selectedRunId)
+        ? selectedRunId
+        : current.find((run) => ['running', 'waiting', 'stopping'].includes(run.state))?.run_id ?? current[0]?.run_id ?? '';
+      if (chosen && chosen !== selectedRunId) await selectRun(chosen);
+      else if (!chosen) {
+        closeRunEventStream();
+        closeRunEventStream = () => {};
+        selectedRunId = '';
+        runEvents = [];
+      }
+    } catch (cause) {
+      runError = cause instanceof Error ? cause.message : String(cause);
+    } finally { runsLoading = false; }
+  }
+
+  async function refreshRun(runId: string) {
+    try {
+      const current = await api<DurableRun>(`/api/v1/runs/${encodeURIComponent(runId)}`);
+      if (!runs.some((run) => run.run_id === runId)) runs = [current, ...runs];
+      else runs = runs.map((run) => run.run_id === runId ? current : run);
+      runError = '';
+    } catch (cause) {
+      runError = cause instanceof Error ? cause.message : String(cause);
+    }
+  }
+
+  async function selectRun(runId: string) {
+    const generation = ++runSelectionGeneration;
+    closeRunEventStream();
+    closeRunEventStream = () => {};
+    selectedRunId = runId;
+    runEvents = [];
+    runError = '';
+    try {
+      const history = await api<DurableRunEvent[]>(`/api/v1/runs/${encodeURIComponent(runId)}/events?after=0&limit=1000`);
+      if (generation !== runSelectionGeneration || selectedRunId !== runId) return;
+      runEvents = history;
+      const cursor = history[history.length - 1]?.seq ?? 0;
+      const stream = new EventSource(`/api/v1/runs/${encodeURIComponent(runId)}/events/stream?after=${cursor}`);
+      const receive = (raw: Event) => {
+        try {
+          const event = JSON.parse((raw as MessageEvent<string>).data) as DurableRunEvent;
+          if (event.seq > (runEvents[runEvents.length - 1]?.seq ?? 0)) runEvents = [...runEvents, event].slice(-1000);
+          runError = '';
+          void refreshRun(runId);
+        } catch (cause: unknown) {
+          console.warn('Lattice durable-run event was malformed:', cause);
+          runError = 'A live run event was unreadable; durable status remains available through refresh.';
+        }
+      };
+      for (const eventType of durableRunEventTypes) stream.addEventListener(eventType, receive);
+      stream.onerror = () => { runError = 'Live run updates disconnected; durable state remains available through refresh.'; };
+      closeRunEventStream = () => stream.close();
+    } catch (cause) {
+      if (generation === runSelectionGeneration) runError = cause instanceof Error ? cause.message : String(cause);
+    }
+  }
+
+  async function stopSelectedRun() {
+    if (!selectedRun) return;
+    runWorking = true;
+    runError = '';
+    try {
+      await post(`/api/v1/runs/${encodeURIComponent(selectedRun.run_id)}/stop`, {});
+      await refreshRun(selectedRun.run_id);
+    } catch (cause) { runError = cause instanceof Error ? cause.message : String(cause); }
+    finally { runWorking = false; }
+  }
+
+  async function startSelectedRun() {
+    if (!selectedRun) return;
+    const runId = selectedRun.run_id;
+    runWorking = true;
+    runError = '';
+    try {
+      if (selectedRun.state === 'declared') await post(`/api/v1/runs/${encodeURIComponent(runId)}/admit`, {});
+      await post(`/api/v1/runs/${encodeURIComponent(runId)}/start`, { idempotency_key: `cockpit-start-${crypto.randomUUID()}` });
+      await refreshRun(runId);
+    } catch (cause) { runError = cause instanceof Error ? cause.message : String(cause); }
+    finally { runWorking = false; }
+  }
+
+  async function resumeSelectedRun() {
+    if (!selectedRun) return;
+    const runId = selectedRun.run_id;
+    runWorking = true;
+    runError = '';
+    try {
+      await post(`/api/v1/runs/${encodeURIComponent(runId)}/resume`, { idempotency_key: `cockpit-resume-${crypto.randomUUID()}` });
+      await refreshRun(runId);
+    } catch (cause) { runError = cause instanceof Error ? cause.message : String(cause); }
+    finally { runWorking = false; }
+  }
+
+  async function useRunArtifact(artifactId: string) {
+    if (!project) return;
+    runWorking = true;
+    runError = '';
+    try {
+      const block = await post<{ block_id: string }>(`/api/v1/run-artifacts/${encodeURIComponent(artifactId)}/context-blocks`, {});
+      explicitSelections = [...explicitSelections, { block_id: block.block_id, plane: 'knowledge', label: `run-artifact:${artifactId.slice(-8)}`, disposition: 'selected', derived_from_block_ids: [] }];
+      resetPreview();
+      document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+    } catch (cause) { runError = cause instanceof Error ? cause.message : String(cause); }
+    finally { runWorking = false; }
   }
 
   function routePayload(route: Route) {
@@ -854,11 +1224,16 @@
     finally { working = false; }
   }
 
+  onDestroy(() => {
+    flushUiState();
+    closeRunEventStream();
+    if (activityTimer !== null) clearInterval(activityTimer);
+  });
   boot();
 </script>
 
 <svelte:head><meta name="description" content="Lattice conversational lattice" /></svelte:head>
-<svelte:window on:mouseup={captureResponseSelection} />
+<svelte:window on:mouseup={captureResponseSelection} on:scroll={captureViewPosition} on:beforeunload={flushUiState} on:keydown={handleGlobalKeydown} />
 
 {#if loading}
   <main class="center-state"><div class="pulse"></div><p>Opening the lattice…</p></main>
@@ -867,6 +1242,9 @@
     <header>
       <div class="mark">L</div>
       <div><h1>Lattice</h1><p>One consequential edge at a time</p></div>
+      <button class="activity-status" class:notice={Boolean(activityNotice)} class:failed={Boolean(globalActivityError)} title={globalActivityError || 'Open projects, active work, and cockpit commands'} on:click={() => { paletteOpen = true; activityNotice = ''; }}>
+        {#if globalActivityError}activity unavailable{:else if activityNotice}{activityNotice}{:else if activeGlobalRuns.length}{activeGlobalRuns.length} active · ⌘K{:else}quiet · ⌘K{/if}
+      </button>
       <div class="route-status">{routeCatalogueError ? `Provider catalogue unavailable · ${routeCatalogueError}` : activeRoute ? `${activeRoute.official_cli} · ${activeRoute.model_code}` : 'No qualified route'}</div>
     </header>
 
@@ -907,6 +1285,7 @@
               </details>
             </div>
           </div>
+          {#if uiPersistenceError}<p class="surface-failure">{uiPersistenceError} The current draft remains available only while this tab stays open.</p>{/if}
           {#if selectedNavigation}<nav class="lineage-breadcrumb" aria-label="Invocation concern navigation"><code>{selectedNavigation.invocation.invocation_id.slice(-8)}</code>{#each selectedNavigation.episodes as episode}<span>›</span><button on:click={() => currentEpisode = episodes.find((item) => item.slice_id === episode.slice_id) ?? episode}>{episode.name}</button>{/each}<span>›</span><strong>{selectedNavigation.project.title}</strong>{#each selectedNavigation.slate_topics as topic}<span>›</span><button class="slate" on:click={() => openSlateSlice(topic.slice_id)}>{topic.name}</button>{/each}</nav>{:else if navigationError}<p class="surface-failure">Concern navigation unavailable: {navigationError}</p>{:else if currentEpisode}<nav class="episode-breadcrumb" aria-label="Current episode">{#if parentEpisode}<button on:click={() => currentEpisode = parentEpisode}>{parentEpisode.name}</button><span>›</span>{/if}<strong>{currentEpisode.name}</strong><small>{currentEpisode.items.length} member{currentEpisode.items.length === 1 ? '' : 's'}</small></nav>{/if}
           {#if episodeError}<p class="surface-failure">Episodes unavailable: {episodeError}</p>{/if}
 
@@ -958,6 +1337,24 @@
             onConfigureNative={configureNativeContinuation}
             onReturnToParent={returnToParentEpisode}
             onGraftExcerpt={graftSelectedExcerpt}
+          />
+
+          <RunSurface
+            {runs}
+            run={selectedRun}
+            events={runEvents}
+            loading={runsLoading}
+            error={runError}
+            working={runWorking}
+            canStart={selectedRunHasDurableLaunch}
+            canResume={selectedRunHasDurableLaunch}
+            controlBlocker={runControlBlocker}
+            onSelect={selectRun}
+            onRefresh={() => refreshRuns()}
+            onStart={startSelectedRun}
+            onStop={stopSelectedRun}
+            onResume={resumeSelectedRun}
+            onUseArtifact={useRunArtifact}
           />
 
           <ConversationHistory
@@ -1042,3 +1439,5 @@
     </div>
   </div>
 {/if}
+
+<CommandPalette open={paletteOpen} commands={paletteCommands} onClose={() => paletteOpen = false} onChoose={executePaletteCommand} />
