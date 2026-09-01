@@ -94,6 +94,7 @@ def _active_work(connection: sqlite3.Connection) -> dict[str, int]:
     tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     checks = {
         "attempts": ("attempts", "SELECT COUNT(*) FROM attempts WHERE state IN ('leased','running')"),
+        "runs": ("runs", "SELECT COUNT(*) FROM runs WHERE state IN ('running','waiting','stopping')"),
         "commands": ("workflow_commands", "SELECT COUNT(*) FROM workflow_commands WHERE state='running'"),
         "imports": ("conversation_imports", "SELECT COUNT(*) FROM conversation_imports WHERE state='running'"),
         "leases": ("leases", "SELECT COUNT(*) FROM leases WHERE state='active'"),

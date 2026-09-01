@@ -30,6 +30,10 @@ from .contracts import (
     DraftCreate,
     DraftPatch,
     DraftState,
+    DurableRunAttemptState,
+    DurableRunDeclarationV1,
+    DurableRunState,
+    DurableRunUnitState,
     EdgeRelation,
     EpisodeCreate,
     EpisodeMemberCreate,
@@ -39,6 +43,12 @@ from .contracts import (
     RoleCreate,
     RolePinCreate,
     RoleSessionCreate,
+    RunArtifactClass,
+    RunArtifactCreateV1,
+    RunArtifactState,
+    RunAttemptFinishV1,
+    RunAttemptStartV1,
+    RunUnitResultV1,
     SliceCreate,
     SliceQuery,
     TagRequest,
@@ -48,7 +58,7 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
 
@@ -412,6 +422,93 @@ BEGIN SELECT RAISE(ABORT, 'historical execution imports are immutable receipts')
 CREATE TRIGGER IF NOT EXISTS historical_execution_imports_no_delete BEFORE DELETE ON historical_execution_imports
 BEGIN SELECT RAISE(ABORT, 'historical execution imports are immutable receipts'); END;
 
+CREATE TABLE IF NOT EXISTS runs(
+    run_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    external_project_key TEXT NOT NULL REFERENCES external_projects(external_project_key),
+    operation_key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    initiating_invocation_id TEXT REFERENCES invocations(invocation_id),
+    declaration_sha256 TEXT NOT NULL CHECK(length(declaration_sha256)=64),
+    declaration_json TEXT NOT NULL CHECK(json_valid(declaration_json)),
+    unit_manifest_sha256 TEXT NOT NULL CHECK(length(unit_manifest_sha256)=64),
+    authority_json TEXT NOT NULL CHECK(json_valid(authority_json)),
+    resume_strategy TEXT NOT NULL,
+    executor_identity TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('declared','admitted','running','waiting','stopping','stopped','failed','completed')),
+    latest_checkpoint_artifact_id TEXT REFERENCES run_artifacts(artifact_id),
+    created_at TEXT NOT NULL,
+    admitted_at TEXT,
+    updated_at TEXT NOT NULL,
+    terminal_at TEXT,
+    UNIQUE(external_project_key,operation_key)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS run_attempts(
+    attempt_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES runs(run_id),
+    attempt_number INTEGER NOT NULL CHECK(attempt_number>0),
+    idempotency_key TEXT NOT NULL UNIQUE,
+    request_sha256 TEXT NOT NULL CHECK(length(request_sha256)=64),
+    request_json TEXT NOT NULL CHECK(json_valid(request_json)),
+    state TEXT NOT NULL CHECK(state IN ('running','waiting','stopping','stopped','failed','completed','orphaned')),
+    owner_boot_id TEXT NOT NULL,
+    executor_binding_json TEXT NOT NULL CHECK(json_valid(executor_binding_json)),
+    resumed_from_attempt_id TEXT REFERENCES run_attempts(attempt_id),
+    checkpoint_artifact_id TEXT REFERENCES run_artifacts(artifact_id),
+    failure_kind TEXT,
+    error_text TEXT,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    UNIQUE(run_id,attempt_number)
+) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_active_run_attempt
+ON run_attempts(run_id) WHERE state IN ('running','waiting','stopping');
+
+CREATE TABLE IF NOT EXISTS run_units(
+    run_id TEXT NOT NULL REFERENCES runs(run_id),
+    unit_key TEXT NOT NULL,
+    ordinal INTEGER NOT NULL CHECK(ordinal>=0),
+    input_sha256 TEXT NOT NULL CHECK(length(input_sha256)=64),
+    depends_on_json TEXT NOT NULL CHECK(json_valid(depends_on_json)),
+    declaration_json TEXT NOT NULL CHECK(json_valid(declaration_json)),
+    state TEXT NOT NULL CHECK(state IN ('pending','eligible','running','completed','refused','failed')),
+    active_attempt_id TEXT REFERENCES run_attempts(attempt_id),
+    last_attempt_id TEXT REFERENCES run_attempts(attempt_id),
+    output_sha256 TEXT,
+    failure_kind TEXT,
+    error_text TEXT,
+    started_at TEXT,
+    completed_at TEXT,
+    PRIMARY KEY(run_id,unit_key),
+    UNIQUE(run_id,ordinal)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS run_artifacts(
+    artifact_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES runs(run_id),
+    attempt_id TEXT REFERENCES run_attempts(attempt_id),
+    unit_key TEXT,
+    artifact_key TEXT NOT NULL,
+    record_sha256 TEXT NOT NULL CHECK(length(record_sha256)=64),
+    record_json TEXT NOT NULL CHECK(json_valid(record_json)),
+    name TEXT NOT NULL,
+    artifact_class TEXT NOT NULL CHECK(artifact_class IN ('durable_evidence','durable_report','checkpoint','disposable')),
+    sensitive INTEGER NOT NULL CHECK(sensitive IN (0,1)),
+    media_type TEXT NOT NULL,
+    byte_count INTEGER NOT NULL CHECK(byte_count>=0),
+    content_sha256 TEXT NOT NULL CHECK(length(content_sha256)=64),
+    storage_locator TEXT NOT NULL,
+    regeneration_json TEXT CHECK(regeneration_json IS NULL OR json_valid(regeneration_json)),
+    state TEXT NOT NULL CHECK(state IN ('present','removed')),
+    created_at TEXT NOT NULL,
+    removed_at TEXT,
+    removal_reason TEXT,
+    UNIQUE(run_id,artifact_key),
+    FOREIGN KEY(run_id,unit_key) REFERENCES run_units(run_id,unit_key)
+) STRICT;
+
 CREATE TABLE IF NOT EXISTS workflow_commands(
     command_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(project_id),
@@ -536,6 +633,9 @@ CREATE INDEX IF NOT EXISTS invocations_project_created ON invocations(project_id
 CREATE INDEX IF NOT EXISTS edges_source ON edges(source_type, source_id);
 CREATE INDEX IF NOT EXISTS edges_target ON edges(target_type, target_id);
 CREATE INDEX IF NOT EXISTS ledger_changes_current ON ledger_changes(table_name, primary_key_json, seq DESC);
+CREATE INDEX IF NOT EXISTS runs_project_created ON runs(project_id,created_at);
+CREATE INDEX IF NOT EXISTS run_units_state ON run_units(run_id,state,ordinal);
+CREATE INDEX IF NOT EXISTS run_artifacts_run_class ON run_artifacts(run_id,artifact_class,state);
 """
 
 
@@ -544,6 +644,7 @@ CHANGE_TABLES = (
     "invocation_batches", "invocation_batch_members", "attempts", "leases", "native_session_leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
     "workflow_triggers", "role_context_defaults", "project_context_defaults", "conversation_imports", "conversation_import_turns",
     "provider_profiles", "provider_qualifications", "external_projects", "external_operations", "historical_execution_imports",
+    "runs", "run_attempts", "run_units", "run_artifacts",
 )
 
 
@@ -706,6 +807,7 @@ class LatticeStore:
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(10,?)", (stamp(),))
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(11,?)", (stamp(),))
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(12,?)", (stamp(),))
+            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(13,?)", (stamp(),))
             self._register_provider_profiles(conn)
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
@@ -1293,6 +1395,484 @@ class LatticeStore:
             # size in the project view; retrieve private bytes only on inspection.
             project["workflow"]["blackboard"] = self.get_block(blackboard_id, include_content=False)
         return project
+
+    @staticmethod
+    def _decode_run_attempt(row: dict[str, Any]) -> dict[str, Any]:
+        row["request"] = json.loads(row.pop("request_json"))
+        row["executor_binding"] = json.loads(row.pop("executor_binding_json"))
+        return row
+
+    @staticmethod
+    def _decode_run_unit(row: dict[str, Any]) -> dict[str, Any]:
+        row["depends_on"] = json.loads(row.pop("depends_on_json"))
+        row["declaration"] = json.loads(row.pop("declaration_json"))
+        return row
+
+    @staticmethod
+    def _decode_run_artifact(row: dict[str, Any]) -> dict[str, Any]:
+        row["record"] = json.loads(row.pop("record_json"))
+        row["regeneration"] = json.loads(row.pop("regeneration_json")) if row.get("regeneration_json") is not None else None
+        row["sensitive"] = bool(row["sensitive"])
+        return row
+
+    def get_run(self, run_id: str) -> dict[str, Any]:
+        """Return one durable run with its complete current projection."""
+
+        with self._connect() as conn:
+            run = self._row(conn.execute("SELECT * FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+            attempts = [self._decode_run_attempt(dict(row)) for row in conn.execute("SELECT * FROM run_attempts WHERE run_id=? ORDER BY attempt_number", (run_id,))]
+            units = [self._decode_run_unit(dict(row)) for row in conn.execute("SELECT * FROM run_units WHERE run_id=? ORDER BY ordinal", (run_id,))]
+            artifacts = [self._decode_run_artifact(dict(row)) for row in conn.execute("SELECT * FROM run_artifacts WHERE run_id=? ORDER BY created_at,artifact_id", (run_id,))]
+        run["declaration"] = json.loads(run.pop("declaration_json"))
+        run["authority"] = json.loads(run.pop("authority_json"))
+        run["attempts"] = attempts
+        run["units"] = units
+        run["artifacts"] = artifacts
+        run["unit_counts"] = {state.value: sum(unit["state"] == state.value for unit in units) for state in DurableRunUnitState}
+        run["present_artifact_bytes"] = {
+            artifact_class.value: sum(artifact["byte_count"] for artifact in artifacts if artifact["state"] == RunArtifactState.present.value and artifact["artifact_class"] == artifact_class.value)
+            for artifact_class in RunArtifactClass
+        }
+        return run
+
+    def get_run_by_external_operation(self, external_project_key: str, operation_key: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(
+                conn.execute("SELECT run_id FROM runs WHERE external_project_key=? AND operation_key=?", (external_project_key, operation_key)).fetchone(),
+                f"{external_project_key}:{operation_key}",
+            )
+        return self.get_run(row["run_id"])
+
+    def declare_run(self, value: DurableRunDeclarationV1) -> dict[str, Any]:
+        """Declare an exact run population before any executor-visible action."""
+
+        declaration = value.model_dump(mode="json")
+        encoded = canonical_bytes(declaration)
+        declaration_sha256 = sha256_bytes(encoded)
+        run_id: str
+        with self.transaction() as conn:
+            if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (value.project_id,)).fetchone() is None:
+                raise LatticeNotFound(value.project_id)
+            if value.initiating_invocation_id is not None:
+                invocation = self._row(conn.execute("SELECT project_id FROM invocations WHERE invocation_id=?", (value.initiating_invocation_id,)).fetchone(), value.initiating_invocation_id)
+                if invocation["project_id"] != value.project_id:
+                    raise LatticeConflict("initiating invocation belongs to another project")
+            mapping = conn.execute("SELECT project_id FROM external_projects WHERE external_project_key=?", (value.external_project_key,)).fetchone()
+            if mapping is None:
+                conn.execute("INSERT INTO external_projects(external_project_key,project_id,created_at) VALUES(?,?,?)", (value.external_project_key, value.project_id, stamp()))
+            elif mapping["project_id"] != value.project_id:
+                raise LatticeConflict("external project identity is already bound to another Lattice project")
+            existing = conn.execute("SELECT run_id,declaration_sha256,declaration_json FROM runs WHERE external_project_key=? AND operation_key=?", (value.external_project_key, value.operation_key)).fetchone()
+            if existing is not None:
+                if existing["declaration_sha256"] != declaration_sha256 or existing["declaration_json"].encode("utf-8") != encoded:
+                    raise LatticeConflict("durable-run operation key was reused with different bound bytes")
+                run_id = existing["run_id"]
+            else:
+                run_id = opaque_id("run")
+                now = stamp()
+                authority_json = canonical_bytes(declaration["authority"]).decode("utf-8")
+                conn.execute(
+                    """INSERT INTO runs(run_id,project_id,external_project_key,operation_key,name,initiating_invocation_id,declaration_sha256,declaration_json,unit_manifest_sha256,authority_json,resume_strategy,executor_identity,state,created_at,updated_at)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (run_id, value.project_id, value.external_project_key, value.operation_key, value.name, value.initiating_invocation_id, declaration_sha256, encoded.decode("utf-8"), value.unit_manifest_sha256, authority_json, value.resume_strategy, value.executor_identity, DurableRunState.declared.value, now, now),
+                )
+                for ordinal, unit in enumerate(value.units):
+                    unit_json = canonical_bytes(unit.model_dump(mode="json")).decode("utf-8")
+                    initial_state = DurableRunUnitState.pending.value if unit.depends_on else DurableRunUnitState.eligible.value
+                    conn.execute(
+                        """INSERT INTO run_units(run_id,unit_key,ordinal,input_sha256,depends_on_json,declaration_json,state)
+                           VALUES(?,?,?,?,?,?,?)""",
+                        (run_id, unit.unit_key, ordinal, unit.input_sha256, canonical_bytes(unit.depends_on).decode("utf-8"), unit_json, initial_state),
+                    )
+                self._event(
+                    conn,
+                    project_id=value.project_id,
+                    event_type="durable-run.declared",
+                    subject_type="durable-run",
+                    subject_id=run_id,
+                    payload={"declaration_sha256": declaration_sha256, "name": value.name, "unit_count": len(value.units), "unit_manifest_sha256": value.unit_manifest_sha256},
+                )
+        return self.get_run(run_id)
+
+    def admit_run(self, run_id: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+            if run["state"] == DurableRunState.declared.value:
+                now = stamp()
+                conn.execute("UPDATE runs SET state=?,admitted_at=?,updated_at=? WHERE run_id=?", (DurableRunState.admitted.value, now, now, run_id))
+                self._event(conn, project_id=run["project_id"], event_type="durable-run.admitted", subject_type="durable-run", subject_id=run_id, payload={})
+            elif run["state"] != DurableRunState.admitted.value:
+                raise LatticeConflict(f"durable run cannot be admitted from {run['state']}")
+        return self.get_run(run_id)
+
+    @staticmethod
+    def _attempt_request(value: RunAttemptStartV1, checkpoint_artifact_id: str | None) -> tuple[dict[str, Any], bytes, str]:
+        request = value.model_dump(mode="json")
+        request["checkpoint_artifact_id"] = checkpoint_artifact_id
+        encoded = canonical_bytes(request)
+        return request, encoded, sha256_bytes(encoded)
+
+    def _requeue_noncompleted_units(self, conn: sqlite3.Connection, run_id: str, project_id: str, *, reason: str) -> None:
+        units = [dict(row) for row in conn.execute("SELECT unit_key,depends_on_json,state FROM run_units WHERE run_id=? ORDER BY ordinal", (run_id,))]
+        state_by_key = {unit["unit_key"]: unit["state"] for unit in units}
+        now = stamp()
+        for unit in units:
+            if unit["state"] == DurableRunUnitState.completed.value:
+                continue
+            dependencies = json.loads(unit["depends_on_json"])
+            state = DurableRunUnitState.eligible.value if all(state_by_key[key] == DurableRunUnitState.completed.value for key in dependencies) else DurableRunUnitState.pending.value
+            conn.execute(
+                """UPDATE run_units SET state=?,active_attempt_id=NULL,output_sha256=NULL,failure_kind=NULL,error_text=NULL,started_at=NULL,completed_at=NULL
+                   WHERE run_id=? AND unit_key=?""",
+                (state, run_id, unit["unit_key"]),
+            )
+            self._event(conn, project_id=project_id, event_type="durable-run-unit.requeued", subject_type="durable-run-unit", subject_id=f"{run_id}:{unit['unit_key']}", payload={"reason": reason, "state": state})
+
+    def _start_run_attempt(self, conn: sqlite3.Connection, run_id: str, value: RunAttemptStartV1, *, resume: bool) -> str:
+        run = self._row(conn.execute("SELECT * FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+        if value.executor_identity != run["executor_identity"]:
+            raise LatticeConflict("run attempt executor identity disagrees with the immutable declaration")
+        checkpoint_artifact_id = value.checkpoint_artifact_id
+        if resume and checkpoint_artifact_id is None:
+            checkpoint_artifact_id = run["latest_checkpoint_artifact_id"]
+        _request, encoded, request_sha256 = self._attempt_request(value, checkpoint_artifact_id)
+        existing = conn.execute("SELECT * FROM run_attempts WHERE idempotency_key=?", (value.idempotency_key,)).fetchone()
+        if existing is not None:
+            if existing["run_id"] != run_id or existing["request_sha256"] != request_sha256 or existing["request_json"].encode("utf-8") != encoded:
+                raise LatticeConflict("run-attempt idempotency key was reused with different bound bytes")
+            return existing["attempt_id"]
+        allowed = {DurableRunState.stopped.value, DurableRunState.failed.value} if resume else {DurableRunState.admitted.value}
+        if run["state"] not in allowed:
+            action = "resumed" if resume else "started"
+            raise LatticeConflict(f"durable run cannot be {action} from {run['state']}")
+        if checkpoint_artifact_id is not None:
+            checkpoint = self._row(conn.execute("SELECT run_id,artifact_class,state FROM run_artifacts WHERE artifact_id=?", (checkpoint_artifact_id,)).fetchone(), checkpoint_artifact_id)
+            if checkpoint["run_id"] != run_id or checkpoint["artifact_class"] != RunArtifactClass.checkpoint.value or checkpoint["state"] != RunArtifactState.present.value:
+                raise LatticeConflict("resume checkpoint is not a present checkpoint artifact from this run")
+        previous = conn.execute("SELECT attempt_id FROM run_attempts WHERE run_id=? ORDER BY attempt_number DESC LIMIT 1", (run_id,)).fetchone()
+        if resume:
+            self._requeue_noncompleted_units(conn, run_id, run["project_id"], reason="run-resume")
+        attempt_number = int(conn.execute("SELECT COALESCE(MAX(attempt_number),0)+1 FROM run_attempts WHERE run_id=?", (run_id,)).fetchone()[0])
+        attempt_id = opaque_id("runattempt")
+        now = stamp()
+        conn.execute(
+            """INSERT INTO run_attempts(attempt_id,run_id,attempt_number,idempotency_key,request_sha256,request_json,state,owner_boot_id,executor_binding_json,resumed_from_attempt_id,checkpoint_artifact_id,started_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (attempt_id, run_id, attempt_number, value.idempotency_key, request_sha256, encoded.decode("utf-8"), DurableRunAttemptState.running.value, value.owner_boot_id, canonical_bytes(value.executor_binding).decode("utf-8"), previous["attempt_id"] if resume and previous else None, checkpoint_artifact_id, now),
+        )
+        conn.execute("UPDATE runs SET state=?,updated_at=?,terminal_at=NULL WHERE run_id=?", (DurableRunState.running.value, now, run_id))
+        self._event(
+            conn,
+            project_id=run["project_id"],
+            event_type="durable-run.resumed" if resume else "durable-run.started",
+            subject_type="durable-run",
+            subject_id=run_id,
+            payload={"attempt_id": attempt_id, "attempt_number": attempt_number, "checkpoint_artifact_id": checkpoint_artifact_id, "request_sha256": request_sha256},
+        )
+        return attempt_id
+
+    def start_run_attempt(self, run_id: str, value: RunAttemptStartV1) -> dict[str, Any]:
+        with self.transaction() as conn:
+            attempt_id = self._start_run_attempt(conn, run_id, value, resume=False)
+        return self.get_run_attempt(attempt_id)
+
+    def resume_run(self, run_id: str, value: RunAttemptStartV1) -> dict[str, Any]:
+        with self.transaction() as conn:
+            attempt_id = self._start_run_attempt(conn, run_id, value, resume=True)
+        return self.get_run_attempt(attempt_id)
+
+    def get_run_attempt(self, attempt_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+        return self._decode_run_attempt(row)
+
+    def get_run_unit(self, run_id: str, unit_key: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
+        return self._decode_run_unit(row)
+
+    def start_run_unit(self, run_id: str, attempt_id: str, unit_key: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+            attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            unit = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
+            if attempt["run_id"] != run_id:
+                raise LatticeConflict("run attempt belongs to another run")
+            if unit["state"] == DurableRunUnitState.running.value and unit["active_attempt_id"] == attempt_id:
+                return self._decode_run_unit(unit)
+            if run["state"] != DurableRunState.running.value or attempt["state"] != DurableRunAttemptState.running.value:
+                raise LatticeConflict("run unit requires a running run and attempt")
+            if unit["state"] != DurableRunUnitState.eligible.value:
+                raise LatticeConflict(f"run unit cannot start from {unit['state']}")
+            dependencies = json.loads(unit["depends_on_json"])
+            if dependencies:
+                placeholders = ",".join("?" for _ in dependencies)
+                completed = conn.execute(
+                    f"SELECT COUNT(*) FROM run_units WHERE run_id=? AND unit_key IN ({placeholders}) AND state=?",
+                    (run_id, *dependencies, DurableRunUnitState.completed.value),
+                ).fetchone()[0]
+                if completed != len(dependencies):
+                    raise LatticeConflict("run unit dependencies are not complete")
+            now = stamp()
+            conn.execute(
+                """UPDATE run_units SET state=?,active_attempt_id=?,last_attempt_id=?,output_sha256=NULL,failure_kind=NULL,error_text=NULL,started_at=?,completed_at=NULL
+                   WHERE run_id=? AND unit_key=?""",
+                (DurableRunUnitState.running.value, attempt_id, attempt_id, now, run_id, unit_key),
+            )
+            self._event(conn, project_id=run["project_id"], event_type="durable-run-unit.started", subject_type="durable-run-unit", subject_id=f"{run_id}:{unit_key}", payload={"attempt_id": attempt_id})
+        return self.get_run_unit(run_id, unit_key)
+
+    def _promote_eligible_units(self, conn: sqlite3.Connection, run_id: str, project_id: str) -> None:
+        states = {row["unit_key"]: row["state"] for row in conn.execute("SELECT unit_key,state FROM run_units WHERE run_id=?", (run_id,))}
+        for row in conn.execute("SELECT unit_key,depends_on_json FROM run_units WHERE run_id=? AND state=? ORDER BY ordinal", (run_id, DurableRunUnitState.pending.value)):
+            dependencies = json.loads(row["depends_on_json"])
+            if all(states[key] == DurableRunUnitState.completed.value for key in dependencies):
+                conn.execute("UPDATE run_units SET state=? WHERE run_id=? AND unit_key=?", (DurableRunUnitState.eligible.value, run_id, row["unit_key"]))
+                self._event(conn, project_id=project_id, event_type="durable-run-unit.eligible", subject_type="durable-run-unit", subject_id=f"{run_id}:{row['unit_key']}", payload={})
+
+    def finish_run_unit(self, run_id: str, attempt_id: str, unit_key: str, value: RunUnitResultV1) -> dict[str, Any]:
+        with self.transaction() as conn:
+            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+            attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            unit = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
+            if attempt["run_id"] != run_id:
+                raise LatticeConflict("run attempt belongs to another run")
+            if unit["state"] == value.state.value and unit["last_attempt_id"] == attempt_id:
+                if unit["output_sha256"] != value.output_sha256 or unit["failure_kind"] != value.failure_kind or unit["error_text"] != value.error_text:
+                    raise LatticeConflict("run-unit terminal result changed after admission")
+                return self._decode_run_unit(unit)
+            if run["state"] not in {DurableRunState.running.value, DurableRunState.stopping.value} or attempt["state"] not in {DurableRunAttemptState.running.value, DurableRunAttemptState.stopping.value}:
+                raise LatticeConflict("run-unit completion requires an active run attempt")
+            if unit["state"] != DurableRunUnitState.running.value or unit["active_attempt_id"] != attempt_id:
+                raise LatticeConflict("run unit is not active in this attempt")
+            now = stamp()
+            conn.execute(
+                """UPDATE run_units SET state=?,active_attempt_id=NULL,output_sha256=?,failure_kind=?,error_text=?,completed_at=?
+                   WHERE run_id=? AND unit_key=?""",
+                (value.state.value, value.output_sha256, value.failure_kind, value.error_text, now, run_id, unit_key),
+            )
+            self._event(
+                conn,
+                project_id=run["project_id"],
+                event_type=f"durable-run-unit.{value.state.value}",
+                subject_type="durable-run-unit",
+                subject_id=f"{run_id}:{unit_key}",
+                payload={"attempt_id": attempt_id, "output_sha256": value.output_sha256, "failure_kind": value.failure_kind, "error_text": value.error_text},
+            )
+            if value.state == DurableRunUnitState.completed:
+                self._promote_eligible_units(conn, run_id, run["project_id"])
+        return self.get_run_unit(run_id, unit_key)
+
+    def set_run_waiting(self, attempt_id: str, reason: str) -> dict[str, Any]:
+        if not reason or any(ord(char) < 32 and char not in "\n\t" for char in reason):
+            raise ValueError("waiting reason must be non-empty printable text")
+        with self.transaction() as conn:
+            attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
+            if attempt["state"] == DurableRunAttemptState.waiting.value and run["state"] == DurableRunState.waiting.value:
+                return self._decode_run_attempt(attempt)
+            if attempt["state"] != DurableRunAttemptState.running.value or run["state"] != DurableRunState.running.value:
+                raise LatticeConflict("only a running durable run can become waiting")
+            now = stamp()
+            conn.execute("UPDATE run_attempts SET state=? WHERE attempt_id=?", (DurableRunAttemptState.waiting.value, attempt_id))
+            conn.execute("UPDATE runs SET state=?,updated_at=? WHERE run_id=?", (DurableRunState.waiting.value, now, attempt["run_id"]))
+            self._event(conn, project_id=run["project_id"], event_type="durable-run.waiting", subject_type="durable-run", subject_id=attempt["run_id"], payload={"attempt_id": attempt_id, "reason": reason})
+        return self.get_run_attempt(attempt_id)
+
+    def continue_run(self, attempt_id: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
+            if attempt["state"] == DurableRunAttemptState.running.value and run["state"] == DurableRunState.running.value:
+                return self._decode_run_attempt(attempt)
+            if attempt["state"] != DurableRunAttemptState.waiting.value or run["state"] != DurableRunState.waiting.value:
+                raise LatticeConflict("only a waiting durable run can continue")
+            now = stamp()
+            conn.execute("UPDATE run_attempts SET state=? WHERE attempt_id=?", (DurableRunAttemptState.running.value, attempt_id))
+            conn.execute("UPDATE runs SET state=?,updated_at=? WHERE run_id=?", (DurableRunState.running.value, now, attempt["run_id"]))
+            self._event(conn, project_id=run["project_id"], event_type="durable-run.continued", subject_type="durable-run", subject_id=attempt["run_id"], payload={"attempt_id": attempt_id})
+        return self.get_run_attempt(attempt_id)
+
+    def record_run_artifact(self, run_id: str, attempt_id: str | None, unit_key: str | None, value: RunArtifactCreateV1) -> dict[str, Any]:
+        if value.storage_locator.startswith(CURRENT_BLOB_PREFIX):
+            _path, byte_count = self.blobs.verify_file(value.content_sha256)
+            if byte_count != value.byte_count:
+                raise LatticeConflict("run artifact byte count disagrees with its Lattice CAS object")
+        record = {"run_id": run_id, "attempt_id": attempt_id, "unit_key": unit_key, "artifact": value.model_dump(mode="json")}
+        encoded = canonical_bytes(record)
+        record_sha256 = sha256_bytes(encoded)
+        artifact_id: str
+        with self.transaction() as conn:
+            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+            if attempt_id is not None:
+                attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+                if attempt["run_id"] != run_id:
+                    raise LatticeConflict("run artifact attempt belongs to another run")
+            if unit_key is not None and conn.execute("SELECT 1 FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone() is None:
+                raise LatticeNotFound(f"{run_id}:{unit_key}")
+            existing = conn.execute("SELECT artifact_id,record_sha256,record_json FROM run_artifacts WHERE run_id=? AND artifact_key=?", (run_id, value.artifact_key)).fetchone()
+            if existing is not None:
+                if existing["record_sha256"] != record_sha256 or existing["record_json"].encode("utf-8") != encoded:
+                    raise LatticeConflict("run artifact key was reused with different bound bytes")
+                artifact_id = existing["artifact_id"]
+            else:
+                if run["state"] in {DurableRunState.completed.value, DurableRunState.failed.value, DurableRunState.stopped.value}:
+                    raise LatticeConflict("new run artifacts cannot be attached after terminalization")
+                artifact_id = opaque_id("runartifact")
+                now = stamp()
+                conn.execute(
+                    """INSERT INTO run_artifacts(artifact_id,run_id,attempt_id,unit_key,artifact_key,record_sha256,record_json,name,artifact_class,sensitive,media_type,byte_count,content_sha256,storage_locator,regeneration_json,state,created_at)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (artifact_id, run_id, attempt_id, unit_key, value.artifact_key, record_sha256, encoded.decode("utf-8"), value.name, value.artifact_class.value, int(value.sensitive), value.media_type, value.byte_count, value.content_sha256, value.storage_locator, canonical_bytes(value.regeneration).decode("utf-8") if value.regeneration is not None else None, RunArtifactState.present.value, now),
+                )
+                if value.artifact_class == RunArtifactClass.checkpoint:
+                    conn.execute("UPDATE runs SET latest_checkpoint_artifact_id=?,updated_at=? WHERE run_id=?", (artifact_id, now, run_id))
+                self._event(
+                    conn,
+                    project_id=run["project_id"],
+                    event_type="durable-run-artifact.recorded",
+                    subject_type="durable-run-artifact",
+                    subject_id=artifact_id,
+                    payload={"run_id": run_id, "attempt_id": attempt_id, "unit_key": unit_key, "artifact_key": value.artifact_key, "artifact_class": value.artifact_class.value, "content_sha256": value.content_sha256, "byte_count": value.byte_count, "record_sha256": record_sha256},
+                )
+        with self._connect() as conn:
+            artifact = self._row(conn.execute("SELECT * FROM run_artifacts WHERE artifact_id=?", (artifact_id,)).fetchone(), artifact_id)
+        return self._decode_run_artifact(artifact)
+
+    def mark_run_artifact_removed(self, artifact_id: str, *, reason: str) -> dict[str, Any]:
+        """Record a completed storage-layer removal; only declared disposable material qualifies."""
+
+        if not reason or len(reason) > 20_000 or any(ord(char) < 32 and char not in "\n\t" for char in reason):
+            raise ValueError("artifact removal reason must be non-empty printable text")
+        with self.transaction() as conn:
+            artifact = self._row(conn.execute("SELECT * FROM run_artifacts WHERE artifact_id=?", (artifact_id,)).fetchone(), artifact_id)
+            if artifact["artifact_class"] != RunArtifactClass.disposable.value:
+                raise LatticeConflict("durable evidence, reports, and checkpoints cannot enter the disposable removal path")
+            if artifact["regeneration_json"] is None:
+                raise LatticeConflict("disposable artifact lacks its required regeneration method")
+            if artifact["state"] == RunArtifactState.removed.value:
+                if artifact["removal_reason"] != reason:
+                    raise LatticeConflict("run-artifact removal reason changed after admission")
+            else:
+                run = self._row(conn.execute("SELECT project_id FROM runs WHERE run_id=?", (artifact["run_id"],)).fetchone(), artifact["run_id"])
+                now = stamp()
+                conn.execute("UPDATE run_artifacts SET state=?,removed_at=?,removal_reason=? WHERE artifact_id=?", (RunArtifactState.removed.value, now, reason, artifact_id))
+                self._event(
+                    conn,
+                    project_id=run["project_id"],
+                    event_type="durable-run-artifact.removed",
+                    subject_type="durable-run-artifact",
+                    subject_id=artifact_id,
+                    payload={"run_id": artifact["run_id"], "artifact_class": artifact["artifact_class"], "byte_count": artifact["byte_count"], "content_sha256": artifact["content_sha256"], "reason": reason, "regeneration": json.loads(artifact["regeneration_json"])},
+                )
+        with self._connect() as conn:
+            removed = self._row(conn.execute("SELECT * FROM run_artifacts WHERE artifact_id=?", (artifact_id,)).fetchone(), artifact_id)
+        return self._decode_run_artifact(removed)
+
+    def request_run_stop(self, run_id: str) -> dict[str, Any]:
+        with self.transaction() as conn:
+            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+            if run["state"] in {DurableRunState.stopping.value, DurableRunState.stopped.value}:
+                pass
+            elif run["state"] in {DurableRunState.declared.value, DurableRunState.admitted.value}:
+                now = stamp()
+                conn.execute("UPDATE runs SET state=?,updated_at=?,terminal_at=? WHERE run_id=?", (DurableRunState.stopped.value, now, now, run_id))
+                self._event(conn, project_id=run["project_id"], event_type="durable-run.stopped", subject_type="durable-run", subject_id=run_id, payload={"attempt_id": None, "reason": "stopped-before-execution"})
+            elif run["state"] in {DurableRunState.running.value, DurableRunState.waiting.value}:
+                now = stamp()
+                active = self._row(conn.execute("SELECT attempt_id FROM run_attempts WHERE run_id=? AND state IN ('running','waiting')", (run_id,)).fetchone(), f"active attempt for {run_id}")
+                conn.execute("UPDATE run_attempts SET state=? WHERE attempt_id=?", (DurableRunAttemptState.stopping.value, active["attempt_id"]))
+                conn.execute("UPDATE runs SET state=?,updated_at=? WHERE run_id=?", (DurableRunState.stopping.value, now, run_id))
+                self._event(conn, project_id=run["project_id"], event_type="durable-run.stop-requested", subject_type="durable-run", subject_id=run_id, payload={"attempt_id": active["attempt_id"]})
+            else:
+                raise LatticeConflict(f"durable run cannot stop from {run['state']}")
+        return self.get_run(run_id)
+
+    def finish_run_attempt(self, attempt_id: str, value: RunAttemptFinishV1) -> dict[str, Any]:
+        with self.transaction() as conn:
+            attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
+            if attempt["state"] == value.state.value:
+                if attempt["failure_kind"] != value.failure_kind or attempt["error_text"] != value.error_text:
+                    raise LatticeConflict("run-attempt terminal result changed after admission")
+                return self._decode_run_attempt(attempt)
+            if attempt["state"] not in {DurableRunAttemptState.running.value, DurableRunAttemptState.waiting.value, DurableRunAttemptState.stopping.value}:
+                raise LatticeConflict(f"run attempt cannot finish from {attempt['state']}")
+            if value.state == DurableRunAttemptState.completed:
+                incomplete = conn.execute("SELECT COUNT(*) FROM run_units WHERE run_id=? AND state<>?", (attempt["run_id"], DurableRunUnitState.completed.value)).fetchone()[0]
+                if incomplete:
+                    raise LatticeConflict("run attempt cannot complete while semantic units remain incomplete")
+            elif value.state == DurableRunAttemptState.stopped:
+                self._requeue_noncompleted_units(conn, attempt["run_id"], run["project_id"], reason="run-stopped")
+            else:
+                now = stamp()
+                active_units = [row["unit_key"] for row in conn.execute("SELECT unit_key FROM run_units WHERE run_id=? AND state=?", (attempt["run_id"], DurableRunUnitState.running.value))]
+                for unit_key in active_units:
+                    conn.execute(
+                        """UPDATE run_units SET state=?,active_attempt_id=NULL,failure_kind=?,error_text=?,completed_at=? WHERE run_id=? AND unit_key=?""",
+                        (DurableRunUnitState.failed.value, value.failure_kind, value.error_text, now, attempt["run_id"], unit_key),
+                    )
+                    self._event(conn, project_id=run["project_id"], event_type="durable-run-unit.failed", subject_type="durable-run-unit", subject_id=f"{attempt['run_id']}:{unit_key}", payload={"attempt_id": attempt_id, "failure_kind": value.failure_kind, "error_text": value.error_text, "source": "attempt-terminalization"})
+            now = stamp()
+            conn.execute(
+                "UPDATE run_attempts SET state=?,failure_kind=?,error_text=?,completed_at=? WHERE attempt_id=?",
+                (value.state.value, value.failure_kind, value.error_text, now, attempt_id),
+            )
+            run_state = {
+                DurableRunAttemptState.stopped: DurableRunState.stopped,
+                DurableRunAttemptState.failed: DurableRunState.failed,
+                DurableRunAttemptState.completed: DurableRunState.completed,
+                DurableRunAttemptState.orphaned: DurableRunState.stopped,
+            }[value.state]
+            conn.execute("UPDATE runs SET state=?,updated_at=?,terminal_at=? WHERE run_id=?", (run_state.value, now, now, attempt["run_id"]))
+            self._event(
+                conn,
+                project_id=run["project_id"],
+                event_type=f"durable-run.{run_state.value}",
+                subject_type="durable-run",
+                subject_id=attempt["run_id"],
+                payload={"attempt_id": attempt_id, "failure_kind": value.failure_kind, "error_text": value.error_text},
+            )
+        return self.get_run_attempt(attempt_id)
+
+    def reconcile_run_orphans(self, boot_id: str, *, live_attempt_ids: tuple[str, ...] = ()) -> dict[str, list[str]]:
+        """Adopt executor-proven live attempts and stop every other attempt owned by a dead boot."""
+
+        if not boot_id or len(boot_id) > 300 or any(ord(char) < 32 or ord(char) == 127 for char in boot_id):
+            raise ValueError("boot identity must be non-empty printable text")
+        if len(live_attempt_ids) != len(set(live_attempt_ids)):
+            raise ValueError("live run-attempt identities must be unique")
+        adopted: list[str] = []
+        orphaned: list[str] = []
+        with self.transaction() as conn:
+            rows = [dict(row) for row in conn.execute(
+                """SELECT a.*,r.project_id,r.state AS run_state FROM run_attempts a JOIN runs r USING(run_id)
+                   WHERE a.state IN ('running','waiting','stopping') AND a.owner_boot_id<>? ORDER BY a.started_at,a.attempt_id""",
+                (boot_id,),
+            )]
+            candidates = {row["attempt_id"] for row in rows}
+            unknown_live = sorted(set(live_attempt_ids) - candidates)
+            if unknown_live:
+                raise LatticeConflict(f"executor claimed non-orphan run attempts as live: {unknown_live}")
+            proven_live = set(live_attempt_ids)
+            now = stamp()
+            for row in rows:
+                if row["attempt_id"] in proven_live:
+                    conn.execute("UPDATE run_attempts SET owner_boot_id=? WHERE attempt_id=?", (boot_id, row["attempt_id"]))
+                    self._event(conn, project_id=row["project_id"], event_type="durable-run-attempt.adopted", subject_type="durable-run-attempt", subject_id=row["attempt_id"], payload={"run_id": row["run_id"], "previous_boot_id": row["owner_boot_id"], "owner_boot_id": boot_id})
+                    adopted.append(row["attempt_id"])
+                    continue
+                self._requeue_noncompleted_units(conn, row["run_id"], row["project_id"], reason="executor-process-lost")
+                conn.execute(
+                    """UPDATE run_attempts SET state=?,failure_kind='process_restart',error_text='Lattice restarted and the executor did not prove the process remained live',completed_at=?
+                       WHERE attempt_id=?""",
+                    (DurableRunAttemptState.orphaned.value, now, row["attempt_id"]),
+                )
+                conn.execute("UPDATE runs SET state=?,updated_at=?,terminal_at=? WHERE run_id=?", (DurableRunState.stopped.value, now, now, row["run_id"]))
+                self._event(conn, project_id=row["project_id"], event_type="durable-run-attempt.orphaned", subject_type="durable-run-attempt", subject_id=row["attempt_id"], payload={"run_id": row["run_id"], "previous_boot_id": row["owner_boot_id"], "owner_boot_id": boot_id, "failure_kind": "process_restart"})
+                self._event(conn, project_id=row["project_id"], event_type="durable-run.stopped", subject_type="durable-run", subject_id=row["run_id"], payload={"attempt_id": row["attempt_id"], "reason": "executor-process-lost"})
+                orphaned.append(row["attempt_id"])
+        return {"adopted_attempt_ids": adopted, "orphaned_attempt_ids": orphaned}
 
     def reserve_external_submission(self, request: dict[str, Any], request_sha256: str) -> dict[str, Any]:
         """Reserve one external operation before any provider-visible action occurs."""
@@ -3009,10 +3589,21 @@ class LatticeStore:
                 ("workflow_commands", "receipt_json"),
                 ("workflow_commands", "arguments_json"),
                 ("attempts", "runtime_receipt_json"),
+                ("runs", "declaration_json"),
+                ("runs", "authority_json"),
+                ("run_attempts", "request_json"),
+                ("run_attempts", "executor_binding_json"),
+                ("run_units", "declaration_json"),
                 ("events", "payload_json"),
             ):
                 for row in conn.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL'):
                     self._collect_blob_refs(json.loads(row[0]), refs)
+            for row in conn.execute("SELECT storage_locator FROM run_artifacts WHERE state='present' AND storage_locator LIKE 'lattice:blob/%'"):
+                self._collect_blob_refs(row[0], refs)
+            for row in conn.execute("SELECT record_json,regeneration_json FROM run_artifacts WHERE state='present'"):
+                self._collect_blob_refs(json.loads(row["record_json"]), refs)
+                if row["regeneration_json"] is not None:
+                    self._collect_blob_refs(json.loads(row["regeneration_json"]), refs)
             for row in conn.execute("SELECT result_ref FROM workflow_triggers WHERE result_ref LIKE 'lattice:blob/%' OR result_ref LIKE 'loom:blob/%'"):
                 self._collect_blob_refs(row[0], refs)
         for digest in sorted(structured_blobs):
@@ -3029,6 +3620,7 @@ class LatticeStore:
             guard.execute("BEGIN IMMEDIATE")
             active_work = {
                 "attempts": guard.execute("SELECT COUNT(*) FROM attempts WHERE state IN ('leased','running')").fetchone()[0],
+                "runs": guard.execute("SELECT COUNT(*) FROM runs WHERE state IN ('running','waiting','stopping')").fetchone()[0],
                 "commands": guard.execute("SELECT COUNT(*) FROM workflow_commands WHERE state='running'").fetchone()[0],
                 "imports": guard.execute("SELECT COUNT(*) FROM conversation_imports WHERE state='running'").fetchone()[0],
                 "leases": guard.execute("SELECT COUNT(*) FROM leases WHERE state='active'").fetchone()[0],

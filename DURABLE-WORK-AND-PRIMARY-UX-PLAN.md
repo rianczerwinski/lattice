@@ -116,7 +116,7 @@ The current code and tool boundaries support one default architecture:
 | Lattice execution journal/process primitives | Reusable process launch, typed failure, incremental journal, provider-session capture, and lease mechanics; generalized only where their semantics are genuinely provider-neutral |
 | Project runner | Declares the semantic unit population, checkpoints, domain progress, validation of reusable completions, evidence classes, aggregation, and conclusions |
 | `runjob` | Compatibility wrapper for opaque commands and a simple signal/log/status boundary; it never claims semantic resumability or canonical unit state |
-| `model-runner` | Lower-level subscription-authenticated provider execution, official session identity, provider journals, portable continuation, and provider-specific authority enforcement |
+| Former `model-runner` source | Historical execution evidence and rollback material only while ADR 001's installed-runtime, consumer, history-resolution, rollback, and independent-verifier gates remain open; it has no continuing operational role and new work may not depend on it |
 | job registry | Machine-wide health and cadence aggregation; it links to Lattice runs but does not duplicate semantic progress or run control |
 | Smithers or another compound executor | Optional adapter for a real job whose internal graph needs exposure; never the default ontology or a prerequisite for local durable runs |
 
@@ -253,7 +253,7 @@ The sequence is architecture-first but vertical: each phase extends the same led
 
 ### Phase 0 — Reconcile the existing execution surfaces
 
-Bind implementation to the resolved ownership table above. Inspect exact source symbols and schemas in Lattice's store, server, supervisor, execution package, `model-runner`, `runjob`, job registry, workflow packs, and any live compound-executor adapter. Record reusable primitives, concepts that must not be duplicated, schema additions, compatibility adapters, and exact retirement candidates.
+Bind implementation to the resolved ownership table above. Inspect exact source symbols and schemas in Lattice's store, server, supervisor, execution package, the former `model-runner` source pending ADR 001's retirement gate, `runjob`, job registry, workflow packs, and any live compound-executor adapter. Record reusable primitives, concepts that must not be duplicated, schema additions, compatibility adapters, and exact retirement candidates. The former `model-runner` source is evidence for consolidation and rollback, not a lower-level dependency or second execution authority.
 
 Map the current cockpit against the daily-driver quality contract using real visible behavior rather than an implementation inventory. Preserve the successful conversation-first interaction from the completed remediation: direct blank projects, response-first focus, inline provider routing, exact selection actions, context deltas, trailheads, episodes, session visibility, secondary-drawer failure isolation, restart continuity, and the current provider-profile guarantees.
 

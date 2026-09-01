@@ -204,7 +204,7 @@ def test_v9_issuer_migration_preserves_manifest_bytes_and_marks_legacy_authority
 
     assert after == before
     assert migration_count == 1
-    assert migration_versions == list(range(1, 13))
+    assert migration_versions == list(range(1, 14))
     assert migrated.get_block(prompt_block_id, include_content=False)["issuer_kind"] == "legacy-unknown"
     assert latest_image["issuer_kind"] == "legacy-unknown"
 

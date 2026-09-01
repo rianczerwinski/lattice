@@ -80,6 +80,7 @@ def _collect_blob_refs(value: Any, refs: set[str]) -> None:
 def _referenced_blobs(connection: sqlite3.Connection, blobs: Path) -> set[str]:
     refs: set[str] = set()
     structured: set[str] = set()
+    present_tables = {str(row[0]) for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     for table, column in (
         ("context_blocks", "content_sha256"),
         ("invocations", "compiled_prompt_sha256"),
@@ -90,6 +91,8 @@ def _referenced_blobs(connection: sqlite3.Connection, blobs: Path) -> set[str]:
         ("workflow_transitions", "payload_sha256"),
         ("workflow_instances", "pack_definition_sha256"),
     ):
+        if table not in present_tables:
+            continue
         values = {str(row[0]) for row in connection.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL')}
         refs.update(values)
         if (table, column) in {("workflow_commands", "result_sha256"), ("conversation_imports", "result_sha256"), ("workflow_transitions", "payload_sha256")}:
@@ -101,12 +104,26 @@ def _referenced_blobs(connection: sqlite3.Connection, blobs: Path) -> set[str]:
         ("workflow_commands", "receipt_json"),
         ("workflow_commands", "arguments_json"),
         ("attempts", "runtime_receipt_json"),
+        ("runs", "declaration_json"),
+        ("runs", "authority_json"),
+        ("run_attempts", "request_json"),
+        ("run_attempts", "executor_binding_json"),
+        ("run_units", "declaration_json"),
         ("events", "payload_json"),
     ):
+        if table not in present_tables:
+            continue
         for row in connection.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL'):
             _collect_blob_refs(json.loads(row[0]), refs)
     for row in connection.execute("SELECT result_ref FROM workflow_triggers WHERE result_ref LIKE 'lattice:blob/%' OR result_ref LIKE 'loom:blob/%'"):
         _collect_blob_refs(row[0], refs)
+    if "run_artifacts" in present_tables:
+        for row in connection.execute("SELECT storage_locator FROM run_artifacts WHERE state='present' AND storage_locator LIKE 'lattice:blob/%'"):
+            _collect_blob_refs(row[0], refs)
+        for row in connection.execute("SELECT record_json,regeneration_json FROM run_artifacts WHERE state='present'"):
+            _collect_blob_refs(json.loads(row["record_json"]), refs)
+            if row["regeneration_json"] is not None:
+                _collect_blob_refs(json.loads(row["regeneration_json"]), refs)
     for digest in sorted(structured):
         path = blobs / digest[:2] / digest
         try:
@@ -223,8 +240,16 @@ def assess_data_root(data_root: Path) -> dict[str, Any]:
         refs = _referenced_blobs(connection, data_root / "blobs")
         blob_bytes = sum(_verify_blob(data_root / "blobs" / digest[:2] / digest, digest) for digest in sorted(refs))
         model_runs = _assess_model_runs(data_root / "model-runs")
+        present_tables = {str(row[0]) for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        durable_runs = {
+            "total": int(connection.execute("SELECT COUNT(*) FROM runs").fetchone()[0]) if "runs" in present_tables else 0,
+            "active": int(connection.execute("SELECT COUNT(*) FROM runs WHERE state IN ('running','waiting','stopping')").fetchone()[0]) if "runs" in present_tables else 0,
+            "units": int(connection.execute("SELECT COUNT(*) FROM run_units").fetchone()[0]) if "run_units" in present_tables else 0,
+            "present_artifact_bytes": int(connection.execute("SELECT COALESCE(SUM(byte_count),0) FROM run_artifacts WHERE state='present'").fetchone()[0]) if "run_artifacts" in present_tables else 0,
+        }
         active_work = {
             "attempts": int(connection.execute("SELECT COUNT(*) FROM attempts WHERE state IN ('leased','running')").fetchone()[0]),
+            "runs": durable_runs["active"],
             "commands": int(connection.execute("SELECT COUNT(*) FROM workflow_commands WHERE state='running'").fetchone()[0]),
             "imports": int(connection.execute("SELECT COUNT(*) FROM conversation_imports WHERE state='running'").fetchone()[0]),
             "leases": int(connection.execute("SELECT COUNT(*) FROM leases WHERE state='active'").fetchone()[0]),
@@ -241,6 +266,7 @@ def assess_data_root(data_root: Path) -> dict[str, Any]:
         "referenced_blob_count": len(refs),
         "referenced_blob_bytes": blob_bytes,
         "model_runs": model_runs,
+        "durable_runs": durable_runs,
         "active_work": active_work,
     }
 

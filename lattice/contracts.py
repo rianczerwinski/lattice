@@ -9,6 +9,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from .canonical import canonical_bytes, sha256_bytes
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -67,6 +69,205 @@ class AttemptState(StrEnum):
     failed = "failed"
     interrupted = "interrupted"
     orphaned = "orphaned"
+
+
+class DurableRunState(StrEnum):
+    declared = "declared"
+    admitted = "admitted"
+    running = "running"
+    waiting = "waiting"
+    stopping = "stopping"
+    stopped = "stopped"
+    failed = "failed"
+    completed = "completed"
+
+
+class DurableRunAttemptState(StrEnum):
+    running = "running"
+    waiting = "waiting"
+    stopping = "stopping"
+    stopped = "stopped"
+    failed = "failed"
+    completed = "completed"
+    orphaned = "orphaned"
+
+
+class DurableRunUnitState(StrEnum):
+    pending = "pending"
+    eligible = "eligible"
+    running = "running"
+    completed = "completed"
+    refused = "refused"
+    failed = "failed"
+
+
+class RunArtifactClass(StrEnum):
+    durable_evidence = "durable_evidence"
+    durable_report = "durable_report"
+    checkpoint = "checkpoint"
+    disposable = "disposable"
+
+
+class RunArtifactState(StrEnum):
+    present = "present"
+    removed = "removed"
+
+
+class DurableRunAuthorityV1(StrictModel):
+    kind: Literal["operator", "invocation", "workflow", "system"]
+    actor_ref: str = Field(min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+    permissions: list[str] = Field(default_factory=list, max_length=1000)
+    constraints: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("permissions")
+    @classmethod
+    def permissions_are_unique_and_printable(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("durable-run permissions must be unique")
+        if any(not item or len(item) > 500 or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in value):
+            raise ValueError("durable-run permissions must be printable")
+        return value
+
+
+class RunUnitDeclarationV1(StrictModel):
+    unit_key: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,299}$")
+    input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    depends_on: list[str] = Field(default_factory=list, max_length=10_000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("depends_on")
+    @classmethod
+    def dependencies_are_unique(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("durable-run unit dependencies must be unique")
+        return value
+
+
+class DurableRunDeclarationV1(StrictModel):
+    """Immutable identity and exact semantic population for one local durable run."""
+
+    contract_version: Literal["DurableRunDeclaration/1.0"] = "DurableRunDeclaration/1.0"
+    project_id: str = Field(min_length=1)
+    external_project_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    operation_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    name: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    initiating_invocation_id: str | None = Field(default=None, min_length=1)
+    executable_ref: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    executable_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    code_revision: str = Field(min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+    configuration_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    inputs_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    environment_profile_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    executor_identity: str = Field(min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+    executor_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    unit_namespace: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    resume_strategy: str = Field(min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+    unit_manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    units: list[RunUnitDeclarationV1] = Field(min_length=1, max_length=100_000)
+    authority: DurableRunAuthorityV1
+
+    @model_validator(mode="after")
+    def semantic_population_is_exact_and_acyclic(self) -> "DurableRunDeclarationV1":
+        keys = [unit.unit_key for unit in self.units]
+        if len(keys) != len(set(keys)):
+            raise ValueError("durable-run unit keys must be unique")
+        known = set(keys)
+        incoming: dict[str, int] = {}
+        children: dict[str, list[str]] = {key: [] for key in keys}
+        for unit in self.units:
+            unknown = sorted(set(unit.depends_on) - known)
+            if unknown:
+                raise ValueError(f"durable-run unit dependencies are undeclared: {unknown}")
+            if unit.unit_key in unit.depends_on:
+                raise ValueError(f"durable-run unit cannot depend on itself: {unit.unit_key}")
+            incoming[unit.unit_key] = len(unit.depends_on)
+            for dependency in unit.depends_on:
+                children[dependency].append(unit.unit_key)
+        ready = [key for key in keys if incoming[key] == 0]
+        visited = 0
+        while ready:
+            key = ready.pop()
+            visited += 1
+            for child in children[key]:
+                incoming[child] -= 1
+                if incoming[child] == 0:
+                    ready.append(child)
+        if visited != len(keys):
+            raise ValueError("durable-run unit dependencies contain a cycle")
+        material = {
+            "unit_namespace": self.unit_namespace,
+            "units": [unit.model_dump(mode="json") for unit in self.units],
+        }
+        if sha256_bytes(canonical_bytes(material)) != self.unit_manifest_sha256:
+            raise ValueError("durable-run unit manifest hash does not bind the declared population")
+        return self
+
+
+class RunAttemptStartV1(StrictModel):
+    contract_version: Literal["RunAttemptStart/1.0"] = "RunAttemptStart/1.0"
+    idempotency_key: str = Field(min_length=8, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    executor_identity: str = Field(min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+    owner_boot_id: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    executor_binding: dict[str, Any] = Field(default_factory=dict)
+    checkpoint_artifact_id: str | None = Field(default=None, min_length=1)
+
+
+class RunUnitResultV1(StrictModel):
+    contract_version: Literal["RunUnitResult/1.0"] = "RunUnitResult/1.0"
+    state: DurableRunUnitState
+    output_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    failure_kind: str | None = Field(default=None, min_length=1, max_length=200)
+    error_text: str | None = Field(default=None, max_length=20_000)
+
+    @model_validator(mode="after")
+    def state_is_terminal_and_explained(self) -> "RunUnitResultV1":
+        if self.state not in {DurableRunUnitState.completed, DurableRunUnitState.refused, DurableRunUnitState.failed}:
+            raise ValueError("run-unit results must be completed, refused, or failed")
+        if self.state == DurableRunUnitState.completed:
+            if self.failure_kind is not None or self.error_text is not None:
+                raise ValueError("completed run units cannot carry failure information")
+        elif self.failure_kind is None:
+            raise ValueError("refused or failed run units require a failure kind")
+        return self
+
+
+class RunArtifactCreateV1(StrictModel):
+    contract_version: Literal["RunArtifact/1.0"] = "RunArtifact/1.0"
+    artifact_key: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,299}$")
+    name: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    artifact_class: RunArtifactClass = RunArtifactClass.durable_evidence
+    sensitive: bool = False
+    media_type: str = Field(min_length=1, max_length=200, pattern=r"^[^\x00-\x1f\x7f]+$")
+    byte_count: int = Field(ge=0)
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    storage_locator: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    regeneration: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def storage_and_lifecycle_are_bound(self) -> "RunArtifactCreateV1":
+        if self.storage_locator.startswith("lattice:blob/") and self.storage_locator.removeprefix("lattice:blob/") != self.content_sha256:
+            raise ValueError("Lattice CAS locator disagrees with run-artifact content identity")
+        if self.artifact_class == RunArtifactClass.disposable and self.regeneration is None:
+            raise ValueError("disposable run artifacts require a regeneration method")
+        return self
+
+
+class RunAttemptFinishV1(StrictModel):
+    contract_version: Literal["RunAttemptFinish/1.0"] = "RunAttemptFinish/1.0"
+    state: DurableRunAttemptState
+    failure_kind: str | None = Field(default=None, min_length=1, max_length=200)
+    error_text: str | None = Field(default=None, max_length=20_000)
+
+    @model_validator(mode="after")
+    def state_is_terminal_and_explained(self) -> "RunAttemptFinishV1":
+        if self.state not in {DurableRunAttemptState.stopped, DurableRunAttemptState.failed, DurableRunAttemptState.completed, DurableRunAttemptState.orphaned}:
+            raise ValueError("run attempts can finish only as stopped, failed, completed, or orphaned")
+        if self.state in {DurableRunAttemptState.failed, DurableRunAttemptState.orphaned}:
+            if self.failure_kind is None:
+                raise ValueError("failed or orphaned run attempts require a failure kind")
+        elif self.failure_kind is not None or self.error_text is not None:
+            raise ValueError("only failed or orphaned run attempts can carry failure information")
+        return self
 
 
 class ProviderRoute(StrictModel):

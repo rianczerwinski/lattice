@@ -20,7 +20,7 @@ from typing import Any, Iterable
 import rfc8785
 
 
-EXPECTED_SCHEMA_VERSION = 12
+EXPECTED_SCHEMA_VERSION = 13
 TERMINAL_INVOCATION_STATES = {"succeeded", "failed", "interrupted", "imported"}
 TERMINAL_ATTEMPT_STATES = {"succeeded", "failed", "interrupted", "orphaned"}
 PROVIDER_HARNESSES = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "moonshot": "kimi", "xai": "grok"}
