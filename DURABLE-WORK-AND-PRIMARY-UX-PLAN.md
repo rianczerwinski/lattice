@@ -94,6 +94,10 @@ Lattice must not become a generic scheduler whose primary object is a predefined
 - domain-specific aggregation and conclusions;
 - any domain-specific resource or exposure boundary.
 
+Lattice never infers a project's evidence population by walking its filesystem or archive store. The project supplies an exact, bound unit manifest; Lattice preserves that population as part of run identity, exposes its restrictions, and refuses a stop, resume, retry, or adapter action that would silently add or substitute units. Bytes being present does not mean they are authorized inputs.
+
+For the first Relata consumer, the adapter may expose only the exact 24 already-scored LibriWASN sessions bound by the Foundry result and configuration digest. Every other preregistered development session and every confirmation or sealed session remains unavailable to performance-bearing access. Lattice may display non-performance metadata needed to explain the boundary, but it may not decode protected audio, inspect performance labels, run timing or smoke work on protected sessions, or treat a successful development gate as permission to advance automatically. The UI must distinguish “bytes remain intact” from “evidence remains untouched,” because a read can irreversibly spend the latter without changing the former.
+
 ### Provider harnesses own
 
 - their supported tool loops, sandboxes, permissions, authentication, and native session mechanisms;
@@ -293,7 +297,7 @@ Integrate the global activity view with the existing job-registry/Panels ecology
 
 ### Phase 4 — Exercise retention on Relata and another unlike workload
 
-Make the Relata computational runner the first demanding consumer because it has expensive score cells, bounded evidence cohorts, significant diagnostic intermediates, and prior information loss. Preserve per-cell outputs and the internal hypotheses needed to distinguish detector, embedding, spatial, clustering, and scoring failures rather than retaining only fused labels and aggregate DER.
+Make the Relata computational runner the first demanding consumer because it has expensive score cells, bounded evidence cohorts, significant diagnostic intermediates, and prior information loss. Import the exact project-supplied 24-session exposed allowlist rather than discovering cells from LibriWASN storage; show the protected remainder as unavailable, and prove that interruption and resumption preserve the original population. Preserve per-cell outputs and the internal hypotheses needed to distinguish detector, embedding, spatial, clustering, and scoring failures rather than retaining only fused labels and aggregate DER.
 
 Use a structurally different second consumer—such as a document-processing, retrieval, or repository-analysis run—to prevent audio-specific semantics from leaking into the core protocol.
 
@@ -403,4 +407,4 @@ The resulting product is not an imitation of Codex, Claude Code, Temporal, Nextf
 
 Execute Phase 0 against the current source and then continue directly into the smallest end-to-end Phase 1/2 vertical slice. The ownership default is settled here: Lattice owns the semantic protocol, ledger projection, control API, and cockpit; project runners own domain checkpoints; existing process and provider mechanisms remain lower-level adapters. Stop for user input only if the source reveals a genuinely incompatible constraint that would reverse that architecture, not because multiple physical modules could technically host equivalent code.
 
-Use the Relata external N=1 reference as the first live run only after its runner is frozen, semantically atomic, independently resumable, and orthogonal to the changing Engine revision. If that bounded adapter is not immediately available, continue the Lattice and Engine architecture rather than distorting either one to start compute early.
+Use the Relata external N=1 reference as the first live run only after its runner is frozen, semantically atomic, independently resumable, orthogonal to the changing Engine revision, and fail-closed on the exact already-exposed LibriWASN population. If that bounded adapter is not immediately available, continue the Lattice and Engine architecture rather than distorting either one to start compute early.
