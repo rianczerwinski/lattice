@@ -1,10 +1,22 @@
 # Lattice Durable Work Control Plane and Primary UX Plan
 
+Status: active implementation plan for advancing Lattice 0.3.1 from its shipped conversation-first foundation into the ordinary owned interface for provider-backed coding and consequential local work.
+
 ## Purpose
 
-Make Lattice the user-owned control plane for consequential computational and agentic work: every expensive or long-running operation becomes interruptible, resumable, visibly progressing, and information-preserving; conversations can launch, inspect, steer, stop, resume, and metabolize those operations; and Lattice progressively becomes the ordinary UX for Claude, Codex, and other provider harnesses without prematurely reimplementing the engines underneath them.
+Make Lattice the user-owned control plane for consequential computational and agentic work: every expensive or long-running operation becomes interruptible, resumable, visibly progressing, and information-preserving; conversations can launch, inspect, steer, stop, resume, and metabolize those operations; and Lattice becomes the ordinary UX for Claude, Codex, and other provider harnesses without prematurely reimplementing the engines underneath them.
 
-This is an execution plan for later work. It does not authorize an immediate hard cutover from provider-native interfaces, replacement of official subscription-authenticated harnesses, or installation of an external workflow platform.
+The shipped foundation is not hypothetical. Lattice already has direct conversation, exact context manifests, response-first routing, provider-qualified fresh/workspace/native-continuation profiles, an append-only SQLite ledger, content-addressed artifacts, restart recovery, snapshots, and a supervised cockpit. This plan extends that implementation rather than rebuilding it from an abstract workflow design.
+
+Progressive real-work dogfooding begins as soon as the relevant vertical slice works. Provider-native interfaces remain available as break-glass and capability-comparison tools; they cease to be the ordinary UX only after Lattice can carry the work without systematic friction or lost capability. No external workflow platform, developer API billing, or replacement of official subscription-authenticated harnesses is authorized.
+
+## Priority and operating posture
+
+Architecture outranks opportunistic compute. A convenient early workload may exercise the design, but it may not force the durable-run contract, ledger ontology, cockpit, or project boundary into an audio-specific or short-lived shape. When a few additional hours of compute conflict with laying the correct bones, the compute waits.
+
+Implementation nevertheless uses orthogonal work intelligently. A frozen external workload may run while Lattice or another repository changes if its executable, inputs, outputs, and conclusion remain independent of those changes. Every such run is divided into semantic atomic units, commits each completed unit durably, exposes a safe-stop boundary, and can resume without repeating prior units.
+
+The first demanding live consumer is Relata because its prior evaluation lost expensive causal anatomy and because its next external-reference run is independent of the Engine architecture being rebuilt. Relata is a proving ground for the general contract, not the source of its ontology.
 
 ## Product outcome
 
@@ -89,6 +101,45 @@ Lattice must not become a generic scheduler whose primary object is a predefined
 - provider-owned hidden state that Lattice cannot independently observe.
 
 Lattice records and controls the observable envelope but does not claim authority over hidden provider state.
+
+### Resolved execution ownership
+
+The current code and tool boundaries support one default architecture:
+
+| Surface | Continuing role |
+|---|---|
+| Lattice ledger, blob store, server, and supervisor | Canonical semantic run identity, attempts, units, events, artifact relationships, approvals, context projections, operator control, and current-state views |
+| Lattice execution journal/process primitives | Reusable process launch, typed failure, incremental journal, provider-session capture, and lease mechanics; generalized only where their semantics are genuinely provider-neutral |
+| Project runner | Declares the semantic unit population, checkpoints, domain progress, validation of reusable completions, evidence classes, aggregation, and conclusions |
+| `runjob` | Compatibility wrapper for opaque commands and a simple signal/log/status boundary; it never claims semantic resumability or canonical unit state |
+| `model-runner` | Lower-level subscription-authenticated provider execution, official session identity, provider journals, portable continuation, and provider-specific authority enforcement |
+| job registry | Machine-wide health and cadence aggregation; it links to Lattice runs but does not duplicate semantic progress or run control |
+| Smithers or another compound executor | Optional adapter for a real job whose internal graph needs exposure; never the default ontology or a prerequisite for local durable runs |
+
+The default local durable-run protocol and its canonical projection therefore live in Lattice. A project may host its own worker process and state, but it reports through a small Lattice-owned protocol. The first implementation extends Lattice's existing ledger, supervisor, event stream, and artifact relations rather than growing `runjob` into a second application or installing a separate workflow engine.
+
+### Daily-driver quality contract
+
+Replacing provider panels means more than making their commands technically reachable. Ordinary work must feel continuous, fast, and difficult to lose.
+
+The primary surface must provide:
+
+- instant reopening into the active project, latest response, exact scroll position, and draft;
+- fast project, conversation, file, symbol, artifact, run, and command search from one command surface;
+- keyboard-first send, route, side-quest, return, compare, stop, resume, open-file, open-diff, and focus movement, with visible discoverability rather than memorization as a prerequisite;
+- persistent per-project drafts, deliberate prompt history, editable retries, and protection against navigation or refresh loss;
+- streaming output that remains readable while tools run, preserves the user's reading position, and exposes completion or failure without stealing focus;
+- a quiet activity model: current action, tool progress, approval needed, completion, failure, and unread changes are visible without turning the conversation into a log feed;
+- workspace selection, recent work, file and symbol navigation, exact local file links, terminal sessions, command output, patches, diffs, review, and approval handling inside the same work context;
+- one-click movement from an answer, code location, diff hunk, terminal result, run cell, artifact, or failure into a new invocation with an inspectable context delta;
+- explicit data, empty-success, loading, waiting, interrupted, permission-needed, provider-failed, backend-failed, and stale states at every fetched surface;
+- provider session, model, effort, workspace, tools, permissions, sandbox, network, health, and continuation eligibility visible at the moment they matter;
+- safe task switching while work continues, with completion notification and no requirement to keep one conversation foregrounded;
+- responsive first paint and local navigation even when provider discovery, a secondary drawer, or an unrelated backend is slow;
+- storage visibility by durable evidence, report, checkpoint, and disposable bytes, with exact reclamation consequences;
+- a break-glass route to the underlying provider harness, terminal, or repository when Lattice itself is the failed component.
+
+The conversation remains the center of gravity. Files, terminals, diffs, runs, manifests, and graphs are contextual instruments around it, not competing full-screen products whose state the user must manually reconcile.
 
 ## Durable-run logical contract
 
@@ -194,13 +245,17 @@ Reconsider an external engine only at an observable threshold:
 
 ## Implementation sequence
 
+The sequence is architecture-first but vertical: each phase extends the same ledger, service, and cockpit toward one real all-day path. Do not complete a generic scheduler in isolation and postpone the ordinary experience until the end.
+
 ### Phase 0 — Reconcile the existing execution surfaces
 
-Inspect the actual source boundaries among Lattice's internal `lattice.execution`, AXISVI `model-runner`, `runjob`, the job registry, workflow packs, and any surviving Smithers implementation. Produce a concise ownership map identifying reusable code, duplicate concepts, and missing behavior. Do not create a new runner until this map demonstrates what cannot be extended cleanly.
+Bind implementation to the resolved ownership table above. Inspect exact source symbols and schemas in Lattice's store, server, supervisor, execution package, `model-runner`, `runjob`, job registry, workflow packs, and any live compound-executor adapter. Record reusable primitives, concepts that must not be duplicated, schema additions, compatibility adapters, and exact retirement candidates.
 
-Decide the physical home of the default local durable-run executor from evidence. The natural default is an evolution of the smallest existing provider-neutral local mechanism, exposed through a stable adapter; Lattice remains authoritative for the relational and operator surfaces regardless of where the process code lives.
+Map the current cockpit against the daily-driver quality contract using real visible behavior rather than an implementation inventory. Preserve the successful conversation-first interaction from the completed remediation: direct blank projects, response-first focus, inline provider routing, exact selection actions, context deltas, trailheads, episodes, session visibility, secondary-drawer failure isolation, restart continuity, and the current provider-profile guarantees.
 
-**Gate:** every existing execution surface has one named continuing role, merge target, adapter role, or retirement disposition; no two components silently claim canonical run state.
+Decompose the current 1,116-line `App.svelte` at functional seams before adding the durable-run and coding surfaces. The goal is not component-count aesthetics; it is to prevent conversation, workspace, run, review, and secondary-drawer state from becoming one unmaintainable failure domain.
+
+**Gate:** every execution surface has one continuing role or exact retirement disposition; the schema and component map identify the minimal extension path; no two components claim canonical run state; and no planned daily-driver behavior lacks an owning service or cockpit surface.
 
 ### Phase 1 — Implement the default local durable-run executor
 
@@ -224,15 +279,17 @@ Relate every run to its initiating invocation, project, concern, and workflow ac
 
 ### Phase 3 — Build the run cockpit
 
-Add a response-first run surface reachable from a conversation, project, invocation, artifact, and global activity view. The ordinary view shows status in functional language, current work, completed and remaining counts, latest result, rate, ETA quality, resources, storage classes, and safe available actions.
+Extend the response-first cockpit into a unified daily-driver shell rather than adding a detached monitoring dashboard. A run is reachable from its conversation, project, invocation, artifact, workspace, and global activity view. The ordinary view shows status in functional language, current work, completed and remaining counts, latest result, rate, ETA quality, resources, storage classes, and safe available actions.
 
 Provide deeper drawers for unit history, attempts, structured events, logs, exact bindings, artifacts, checkpoints, and proof limits. The foreground must not require understanding workflow-engine terminology.
 
 Allow an operator to open any meaningful artifact or failure and route it into a new Claude, Codex, or multi-provider invocation with an inspectable context manifest. Allow later outputs to become findings or reports linked back to their source evidence.
 
+Implement the first tranche of the daily-driver quality contract here: persistent drafts and view position, project/recent-work switching, command palette and keyboard routes, background activity and completion signals, readable streaming, error-state discrimination, responsive local navigation, and failure isolation between conversation, workspace, run, and secondary drawers.
+
 Integrate the global activity view with the existing job-registry/Panels ecology without creating another machine-wide service registry. Lattice owns semantic progress; the job registry may continue to own machine-level health aggregation.
 
-**Gate:** the operator can answer “what is it doing, how far is it, what has it learned, can I stop it safely, what would resume repeat, and where are its bytes?” without opening a terminal or reading raw JSON.
+**Gate:** the operator can answer “what is it doing, how far is it, what has it learned, can I stop it safely, what would resume repeat, and where are its bytes?” without opening a terminal or reading raw JSON; switching away and returning loses neither draft, reading position, activity, nor control.
 
 ### Phase 4 — Exercise retention on Relata and another unlike workload
 
@@ -253,11 +310,15 @@ Expose the already-qualified provider execution profiles through one conversatio
 - `native-continuation` for eligible provider sessions;
 - portable continuation when native state is unavailable.
 
-Add the practical foreground capabilities required to replace daily VS Code provider panels: workspace selection, file and symbol navigation, terminal sessions, patches and diffs, review, approvals, tool progress, provider-session health, interruption, continuation, and clear renderings of success, empty success, failure, and waiting-for-user states.
+Add the practical foreground capabilities required to replace daily VS Code provider panels: workspace and recent-repository selection; fast file, symbol, and text navigation; terminal sessions with preserved command/output boundaries; patches and diffs with file/hunk addressing; staged, unstaged, branch, and last-turn review; approval requests attached to the action that needs them; tool progress; provider-session health; interruption; continuation; and clear renderings of success, empty success, failure, and waiting-for-user states.
+
+Do not turn Lattice into a full text editor before evidence demands it. Opening, inspecting, selecting, commenting on, and routing exact code must be excellent; provider agents and existing editors may continue to perform freeform editing behind the same recorded workspace until an owned editor yields a measured experiential gain. Conversely, do not use that boundary to excuse a crippled cockpit: the user must be able to understand and direct a coding task, inspect every consequential change, run or steer commands, resolve approvals, and finish review without returning to a provider panel.
+
+Complete the remaining daily-driver quality contract: cross-project activity switching, unread/completion state, local notifications, retry and editable continuation, prompt history, stable keyboard focus, large-output virtualization, search across conversations and artifacts, exact file links, copy/export affordances, and recovery surfaces that state what survived and what must be repeated.
 
 Do not reimplement provider tool loops merely to claim independence. Invoke official subscription-authenticated harnesses through qualified adapters and preserve their provider-specific strengths. Lattice owns the UX, context, authority envelope, durable record, and relationships; provider harnesses remain leased engines.
 
-**Gate:** one representative repository task can begin, make edits, run commands, show diffs, request an approval, survive UI and provider interruption, resume, and finish entirely through Lattice with no loss of capability or provenance.
+**Gate:** one representative repository task can begin, navigate source, make edits, run commands, show and review diffs, request and resolve an approval, switch to another project while work continues, survive UI and provider interruption, resume, and finish entirely through Lattice with no material loss of speed, capability, comprehension, or provenance.
 
 ### Phase 6 — Progressive dogfooding and fallback metabolism
 
@@ -340,4 +401,6 @@ The resulting product is not an imitation of Codex, Claude Code, Temporal, Nextf
 
 ## First action when execution resumes
 
-Read the current Lattice, `runjob`, model execution, job-registry, and Smithers-adjacent source rather than relying on this plan's description of them. Produce the Phase 0 ownership map and identify the smallest existing substrate that can implement the durable-run executor without duplicating Lattice's ledger or domain runners. Then present any genuine physical-ownership decision before writing implementation code.
+Execute Phase 0 against the current source and then continue directly into the smallest end-to-end Phase 1/2 vertical slice. The ownership default is settled here: Lattice owns the semantic protocol, ledger projection, control API, and cockpit; project runners own domain checkpoints; existing process and provider mechanisms remain lower-level adapters. Stop for user input only if the source reveals a genuinely incompatible constraint that would reverse that architecture, not because multiple physical modules could technically host equivalent code.
+
+Use the Relata external N=1 reference as the first live run only after its runner is frozen, semantically atomic, independently resumable, and orthogonal to the changing Engine revision. If that bounded adapter is not immediately available, continue the Lattice and Engine architecture rather than distorting either one to start compute early.
