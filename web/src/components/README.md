@@ -7,3 +7,4 @@ These components carve the conversational cockpit at functional seams. `App.svel
 - `ConversationHistory.svelte` renders the invocation trail and parent-selection controls.
 - `ComposerPane.svelte` renders route, authority, context-graft, and send controls while emitting orchestration intents to the application shell.
 - `ContextInspector.svelte` renders the exact context, provenance, artifact, module, and reuse surfaces without owning their orchestration.
+- `WorkflowControl.svelte` renders governed state, blackboards, transitions, grants, and command review as one coherent control surface.

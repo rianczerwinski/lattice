@@ -7,12 +7,13 @@
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
   import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, Episode, Invocation, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition } from './types';
-  import { resolveSelector, selectorSummary, workflowProjectTitle } from './workflowPresentation';
+  import { resolveSelector, workflowProjectTitle } from './workflowPresentation';
   import ConversationHistory from './components/ConversationHistory.svelte';
   import ComposerPane from './components/ComposerPane.svelte';
   import ContextInspector from './components/ContextInspector.svelte';
   import ProjectRail from './components/ProjectRail.svelte';
   import ResponsePane from './components/ResponsePane.svelte';
+  import WorkflowControl from './components/WorkflowControl.svelte';
 
   let projects: Project[] = [];
   let project: Project | null = null;
@@ -910,71 +911,32 @@
           {#if episodeError}<p class="surface-failure">Episodes unavailable: {episodeError}</p>{/if}
 
           {#if project.workflow}
-            <details class="workflow-control">
-              <summary>Workflow control · {project.workflow.pack_id} · {project.workflow.state}</summary>
-              <section class="workflow-strip">
-              <div>
-                <span>{project.workflow.pack_id}</span>
-                <strong>{project.workflow.state}</strong>
-                {#each selectorSummary(activeWorkflowPack, project.workflow.selector) as item}<small class="workflow-selector">{item}</small>{/each}
-                <small>revision {project.workflow.revision} · {workflowPackCurrent ? `authoritative state remains in ${project.workflow.pack_id === 'quaternary' ? 'the quaternary system' : 'Octopus'}` : 'pack generation changed; this history is preserved but cannot be reinterpreted'}</small>
-                {#if !workflowPackCurrent && activeWorkflowPack}<button class="quiet" disabled={working} on:click={() => createCurrentWorkflowProject(activeWorkflowPack)}>Open current generation</button>{/if}
-              </div>
-              <details>
-                <summary>Blackboard & roles</summary>
-                {#if project.workflow.blackboard}
-                  {@const blackboard = project.workflow.blackboard}
-                  <div class="blackboard-receipt"><small>{blackboard.byte_count} bytes · {blackboard.content_sha256.slice(0, 12)} · {blackboard.source_ref ?? 'local source'}</small></div>
-                  {#if blackboardContents[blackboard.block_id] !== undefined}<pre>{blackboardContents[blackboard.block_id]}</pre>{:else}<button class="quiet" disabled={blackboardLoading === blackboard.block_id} on:click={() => revealBlackboard(blackboard.block_id)}>{blackboardLoading === blackboard.block_id ? 'Loading exact snapshot…' : 'Reveal exact snapshot'}</button>{/if}
-                {:else}<p class="muted">No authoritative blackboard snapshot is available.</p>{/if}
-                <div class="role-list">{#each project.roles ?? [] as role}<span>{role.name}</span>{/each}</div>
-                {#if workflowPackCurrent && activeWorkflowPack?.definition.triggers.some((trigger) => trigger.automatic)}
-                  <h3>Automatic advancement</h3>
-                  {#each activeWorkflowPack.definition.triggers.filter((trigger) => trigger.automatic) as trigger}
-                    <div class="automation-grant">
-                      <div><strong>{trigger.trigger}</strong><small>{hasAutomationGrant(trigger.trigger) ? 'Granted for this exact pack generation' : 'Manual activation only'}</small></div>
-                      <button class:armed={armedAutomation === `${trigger.trigger}:${!hasAutomationGrant(trigger.trigger)}`} class="quiet" disabled={working} on:click={() => setAutomationGrant(trigger.trigger, !hasAutomationGrant(trigger.trigger))}>{armedAutomation === `${trigger.trigger}:${!hasAutomationGrant(trigger.trigger)}` ? (hasAutomationGrant(trigger.trigger) ? 'Confirm revoke' : 'Confirm grant') : (hasAutomationGrant(trigger.trigger) ? 'Revoke' : 'Enable')}</button>
-                    </div>
-                  {/each}
-                {/if}
-                {#if project.workflow.triggers.length}<h3>Governed actions</h3>{#each project.workflow.triggers as trigger}<div class="trigger"><div><strong>{trigger.trigger_name}</strong><small>{trigger.state} · {trigger.required_action}</small>{#if trigger.error_text}<small>{trigger.error_text}</small>{/if}</div>{#if ['pending', 'execution_failed'].includes(trigger.state)}<button class="quiet" disabled={working} on:click={() => retryTrigger(trigger.trigger_id)}>{trigger.state === 'execution_failed' ? 'Retry execution' : (trigger.error_text ? 'Retry planning' : 'Activate once')}</button>{/if}</div>{/each}{/if}
-                <button class="quiet" disabled={working || !workflowPackCurrent} on:click={refreshWorkflow}>Refresh authoritative state</button>
-                {#if workflowPackCurrent && nextWorkflowTransitions.length}
-                  <h3>Next governed edge</h3>
-                  {#each nextWorkflowTransitions as transition}
-                    {@const transitionKey = `${transition.from}:${transition.to}`}
-                    {@const transitionTrigger = activeWorkflowPack?.definition.triggers.find((item) => item.trigger === transition.trigger)}
-                    <div class="workflow-transition">
-                      <strong>{transition.from} → {transition.to}</strong>
-                      {#if transitionTrigger?.action.type === 'freeze_payload_field'}<label>Exact {transitionTrigger.action.field}<textarea rows="3" value={transitionValues[transitionKey] ?? ''} on:input={(event) => setTransitionValue(transitionKey, event.currentTarget.value)}></textarea></label>{/if}
-                      {#if transitionTrigger?.action.type === 'invoke_role'}<small>The inspected response is excluded as the proposal; checked responses plus the live blackboard become challenger evidence.</small>{:else}<small>The live blackboard and checked response outputs become the evidence receipt.</small>{/if}
-                      {#if transition.evidence_requirements.some((requirement) => requirement.after_current_state_entry)}<small>Freshness gate: refresh or produce this evidence after entering the current state; older receipts cannot advance it.</small>{/if}
-                      {#each transition.terminal_output_requirements as requirement}<small>Role gate: {requirement.minimum_count} fresh {requirement.workflow_role_key} output ({requirement.invocation_states.join(' or ')}).</small>{/each}
-                      <button class:armed={armedTransition === transitionKey} class="quiet" disabled={working} on:click={() => advanceWorkflow(transition)}>{armedTransition === transitionKey ? `Confirm ${transition.to}` : `Review ${transition.to}`}</button>
-                    </div>
-                  {/each}
-                {/if}
-                {#if workflowPackCurrent && activeWorkflowPack?.definition.commands.length}
-                  <h3>Control plane</h3>
-                  {#each activeWorkflowPack.definition.commands as command}
-                    {@const review = commandReviews[command.operation]}
-                    <details class="workflow-command">
-                      <summary>{command.label} · {command.authority}</summary>
-                      <p>{command.description}</p>
-                      {#each command.arguments as argument}
-                        <label>{argument.label}<input type={argument.value_type === 'integer' ? 'number' : 'text'} min={argument.minimum} max={argument.maximum} value={commandValue(command, argument.key, argument.default)} placeholder={argument.required ? 'Required' : 'Optional'} on:input={(event) => setCommandValue(command.operation, argument.key, event.currentTarget.value)} /></label>
-                      {/each}
-                      {#if command.authority !== 'read'}<p class="authority-warning">{command.authority === 'provider_transmission' ? 'This sends the entered material to a subscription model provider.' : 'This crosses the authoritative workflow write boundary.'}</p>{/if}
-                      {#if review}
-                        <div class="command-review"><small>Exact review {review.review_sha256.slice(0, 12)} · arguments {review.prepared_arguments_sha256.slice(0, 12)}</small>{#if review.state_basis}<small>Authoritative state {review.state_basis.adapter_state_sha256.slice(0, 12)} · snapshot {review.state_basis.blackboard_block_id.slice(-8)}</small>{/if}{#each review.file_receipts as receipt}<small>{receipt.argument} · {receipt.byte_count} bytes · {receipt.content_sha256.slice(0, 12)}</small>{/each}</div>
-                      {/if}
-                      <button class:armed={armedCommand === command.operation} class="quiet" disabled={working} on:click={() => runWorkflowCommand(command)}>{command.authority !== 'read' && armedCommand !== command.operation ? `Review ${command.label}` : `Run ${command.label}`}</button>
-                    </details>
-                  {/each}
-                {/if}
-              </details>
-              </section>
-            </details>
+            <WorkflowControl
+              workflow={project.workflow}
+              roles={project.roles ?? []}
+              {activeWorkflowPack}
+              {workflowPackCurrent}
+              {nextWorkflowTransitions}
+              {working}
+              {blackboardContents}
+              {blackboardLoading}
+              {armedAutomation}
+              {armedTransition}
+              {armedCommand}
+              {transitionValues}
+              {commandReviews}
+              onCreateCurrentWorkflowProject={createCurrentWorkflowProject}
+              onRevealBlackboard={revealBlackboard}
+              {hasAutomationGrant}
+              onSetAutomationGrant={setAutomationGrant}
+              onRetryTrigger={retryTrigger}
+              onRefreshWorkflow={refreshWorkflow}
+              onSetTransitionValue={setTransitionValue}
+              onAdvanceWorkflow={advanceWorkflow}
+              {commandValue}
+              onSetCommandValue={setCommandValue}
+              onRunWorkflowCommand={runWorkflowCommand}
+            />
           {/if}
 
           <ResponsePane
