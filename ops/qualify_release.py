@@ -303,7 +303,8 @@ def write_receipt(
         raise QualificationFailure("qualification receipt requires one exact canary per registered consumer")
     if interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id") or not interruption.get("parent_invocation_id"):
         raise QualificationFailure("qualification receipt requires a completed active-work interruption proof")
-    if not credential_canary_files or any(not path.is_file() or not path.read_bytes() for path in credential_canary_files):
+    canaries = [path.read_bytes().rstrip(b"\r\n") for path in credential_canary_files]
+    if not credential_canary_files or any(not path.is_file() or not value for path, value in zip(credential_canary_files, canaries, strict=True)):
         raise QualificationFailure("qualification requires nonempty isolated credential canaries")
     inventories = {item["consumer_id"]: _source_inventory((axisvi_root / item["source_root"]).resolve(strict=True)) for item in registry["consumers"]}
     sources = [
@@ -323,7 +324,7 @@ def write_receipt(
         "consumer_canaries": consumer_canaries,
         "provider_canaries": provider_canaries,
         "interruption": interruption,
-        "credential_canary_sha256s": sorted(_sha256_file(path) for path in credential_canary_files),
+        "credential_canary_sha256s": sorted(sha256_bytes(item) for item in canaries),
         "kimi": {"state": "unavailable", "reason": "unqualified"},
     }
     raw = canonical_bytes(value)

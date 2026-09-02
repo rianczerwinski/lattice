@@ -325,3 +325,19 @@ def test_negative_control_consumer_canary_cannot_point_at_a_different_invocation
 
     with pytest.raises(verifier.ConsolidationVerificationError, match="absent, nonterminal, or inexact"):
         verifier.verify_qualification_receipt(value, runtime={"runtime_artifact_id": value["runtime_artifact_id"]}, consumer_inventories={"fixture.consumer": []}, data_root=lattice_env["config"].data_root)
+
+
+@pytest.mark.contract
+def test_producer_and_verifier_share_fixed_suite_commands(tmp_path) -> None:
+    from ops import qualify_release
+
+    axisvi_root = tmp_path / "axisvi"
+    lattice = axisvi_root / "axis" / "chariots" / "lattice"
+    lattice.mkdir(parents=True)
+    (lattice / ".venv" / "bin").mkdir(parents=True)
+    (lattice / ".venv" / "bin" / "python").write_text("", encoding="utf-8")
+    producer = qualify_release._suite_commands(axisvi_root)
+    independent = verifier._fixed_suite_commands(axisvi_root)
+    assert {suite_id: commands for suite_id, (_cwd, commands, _kinds) in producer.items()} == {
+        suite_id: commands for suite_id, (_cwd, commands) in independent.items()
+    }

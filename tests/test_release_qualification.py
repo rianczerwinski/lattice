@@ -80,6 +80,21 @@ def test_antigravity_canary_uses_the_exact_collision_regression_schema() -> None
     assert set(schema["properties"]) == {"response", "toolSummary", "toolAction"}
 
 
+@pytest.mark.contract
+def test_credential_canary_digest_ignores_a_trailing_newline(tmp_path) -> None:
+    from lattice.canonical import sha256_bytes
+
+    inputs = _inputs(tmp_path)
+    canary = tmp_path / "credential-canary"
+    canary.write_bytes(b"LATTICE-SYNTHETIC-CREDENTIAL-CANARY\n")
+    inputs["credential_canary_files"] = [canary]
+    output = tmp_path / "qualification-canary.json"
+
+    value = qualify_release.write_receipt(output, **inputs)
+
+    assert value["credential_canary_sha256s"] == [sha256_bytes(b"LATTICE-SYNTHETIC-CREDENTIAL-CANARY")]
+
+
 @pytest.mark.regression
 def test_portable_and_workspace_ancestry_does_not_claim_native_session_state() -> None:
     for profile in ("compiled-fresh", "workspace-agent"):

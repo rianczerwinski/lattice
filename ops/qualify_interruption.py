@@ -146,7 +146,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, axisvi_root: Path, i
     runtime = strict_json_loads(runtime_raw)
     if not isinstance(runtime, dict) or canonical_bytes(runtime) != runtime_raw or runtime.get("contract_version") != "LatticeInstalledRuntime/4.0":
         raise InterruptionFailure("installed runtime manifest is not exact")
-    canaries = [path.read_bytes() for path in credential_canary_files]
+    canaries = [path.read_bytes().rstrip(b"\r\n") for path in credential_canary_files]
     if not canaries or any(not value for value in canaries):
         raise InterruptionFailure("interruption qualification requires nonempty credential canaries")
     isolated_root = isolated_root.expanduser().resolve()
