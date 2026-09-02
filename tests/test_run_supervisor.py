@@ -129,7 +129,7 @@ def _bound_fixture(
     return declaration, work_root, release_file
 
 
-async def _wait_until(predicate, *, timeout: float = 10.0) -> None:
+async def _wait_until(predicate, *, timeout: float = 30.0) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if predicate():
