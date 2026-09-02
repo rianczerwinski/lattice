@@ -491,6 +491,14 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     ):
         return store.page_invocations(project_id, limit=limit, before_created_at=before_created_at, before_invocation_id=before_invocation_id)
 
+    @app.get("/api/v1/projects/{project_id}/search")
+    async def project_search(
+        project_id: str,
+        q: str = Query(min_length=1, max_length=200),
+        limit: int = Query(default=40, ge=1, le=80),
+    ):
+        return store.search_project(project_id, q, limit=limit)
+
     @app.get("/api/v1/invocation-activity")
     async def invocation_activity(project_id: str | None = None, limit: int = Query(default=20, ge=0, le=100)):
         if project_id is not None:

@@ -19,6 +19,7 @@ function projectState(overrides: Partial<ProjectUiState> = {}): ProjectUiState {
     modelOverrides: { anthropic: 'claude-exact' },
     scrollY: 413,
     lastSeenActivityCursor: 19,
+    promptHistory: ['previous exact draft'],
     updatedAt: 42,
     ...overrides,
   };

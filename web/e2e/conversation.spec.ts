@@ -95,6 +95,8 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
     const body = request.postData() ? request.postDataJSON() as Record<string, any> : {};
 
     if (path === '/api/session') return json(intercepted, { csrf: 'browser-acceptance' });
+    if (path === '/api/health') return json(intercepted, { status: 'ok', startup_recovery_failures: [], durable_run_startup_reconciliation: { adopted_attempt_ids: [], orphaned_attempt_ids: [], processes_proven_dead: [] } });
+    if (path === '/api/v1/runs' || path === '/api/v1/invocation-activity') return json(intercepted, path === '/api/v1/runs' ? [] : { items: [], project_cursors: {}, activity_cursors: {}, recent_has_more: {} });
     if (path === '/api/v1/routes') return json(intercepted, routes);
     if (path === '/api/v1/workflow-packs') return options.workflowUnavailable ? json(intercepted, { detail: 'planted workflow catalogue outage' }, 503) : json(intercepted, { packs: [], failures: [] });
     if (path === '/api/v1/context-modules') return json(intercepted, { contract_version: 'LatticeContextModuleCatalogue/1.0', modes: ['manual', 'project_default', 'workflow_required'], sources: [] });

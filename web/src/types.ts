@@ -40,12 +40,13 @@ export type WorkspaceFileView = { path: string; content_sha256: string; byte_cou
 export type WorkspaceSearchHit = { path: string; line: number | null; column: number | null; preview: string };
 export type WorkspaceReviewStatus = { branch: string | null; clean: boolean; changes: string[] };
 export type WorkspaceDiff = { view: 'unstaged' | 'staged' | 'revision'; revision: string | null; path: string | null; empty: boolean; diff: string };
+export type LatticeSearchHit = { kind: 'invocation' | 'prompt' | 'response' | 'block' | 'artifact' | 'run'; object_id: string; invocation_id: string | null; preview: string; created_at: string | null };
 export type InvocationSummary = { invocation_id: string; state: string; actor_kind: 'direct' | 'role-session'; role_session_id: string | null; output_block_id?: string; created_at: string };
 export type InvocationPage = { has_older: boolean; next_before: { created_at: string; invocation_id: string } | null };
 export type TrailheadPage = InvocationPage & { items: InvocationSummary[] };
 export type WorkflowTemplateSummary = { artifact_id: string; artifact_kind: 'workflow-template'; content_sha256: string; created_at: string };
 export type WorkflowTemplate = { generated_object: { artifact_id: string }; contract_version: 'LatticeWorkflowTemplate/2.0' | 'LatticeWorkflowTemplate/3.0'; title: string; steps: Array<{ step_id: string; actor_binding?: { kind: 'direct' } | { kind: 'role-parameter'; parameter_id: string }; role_parameter_id?: string }> };
-export type ManifestSegment = { block_id: string; plane: string; label: string; disposition: string; sha256: string; status: string; semantic_type: string };
+export type ManifestSegment = { block_id: string; plane: string; label: string; disposition: string; sha256: string; status: string; semantic_type: string; producing_invocation_id?: string | null };
 export type Manifest = {
   invocation_id: string;
   manifest_sha256: string;

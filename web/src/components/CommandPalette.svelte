@@ -6,13 +6,19 @@
   export let commands: PaletteCommand[];
   export let onClose: () => void;
   export let onChoose: (commandId: string) => void | Promise<void>;
+  export let onQuery: (query: string) => void = () => {};
 
   let query = '';
   let input: HTMLInputElement;
   let activeIndex = 0;
   let wasOpen = false;
+  let lastQueried = '';
 
   $: filtered = filterPaletteCommands(commands, query);
+  $: if (query !== lastQueried) {
+    lastQueried = query;
+    onQuery(query);
+  }
   $: if (activeIndex >= filtered.length) activeIndex = Math.max(0, filtered.length - 1);
   $: if (open && !wasOpen) {
     query = '';
@@ -47,7 +53,7 @@
 {#if open}
   <div class="palette-backdrop" role="presentation" on:mousedown={(event) => event.currentTarget === event.target && onClose()}>
     <div class="command-palette" role="dialog" aria-modal="true" aria-label="Lattice commands" tabindex="-1" on:keydown={keydown}>
-      <input bind:this={input} bind:value={query} placeholder="Find a project, active run, or command…" aria-label="Search commands" />
+      <input bind:this={input} bind:value={query} placeholder="Find a project, conversation, artifact, run, or command…" aria-label="Search commands" />
       <div class="palette-results" role="listbox">
         {#if filtered.length}
           {#each filtered as command, index}

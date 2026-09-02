@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { ContextAction } from '../contextActions';
   import type { Episode, Invocation } from '../types';
+  import { extractFileLinks } from '../fileLinks';
+  import { windowedTail, windowedText } from '../virtualizedText';
 
   export let selected: Invocation | null;
   export let activeAttemptIds: string[];
@@ -21,6 +23,14 @@
   export let onConfigureNative: (mode: 'resume' | 'fork') => void;
   export let onReturnToParent: () => void;
   export let onGraftExcerpt: (action: ContextAction) => void | Promise<void>;
+  export let onRetrySelected: () => void | Promise<void>;
+  export let onCopyResponse: () => void | Promise<void>;
+  export let onExportInvocation: () => void | Promise<void>;
+  export let onOpenFileLink: (path: string, line: number | null) => void | Promise<void>;
+
+  $: progressWindow = windowedTail(liveProgress);
+  $: responseWindow = selected?.output_block?.content ? windowedText(selected.output_block.content) : null;
+  $: fileLinks = selected?.output_block?.content ? extractFileLinks(selected.output_block.content) : [];
 </script>
 
 <section class="response-card" class:empty={!selected?.output_block && !activeAttemptIds.length && !activityFailure}>
@@ -29,11 +39,16 @@
     {#if activeAttemptIds.length}
       <div class="live-progress">
         <div><strong>{liveProgressState}</strong><button class="quiet" on:click={onCancelActive}>Cancel this route</button></div>
-        <pre>{liveProgress || 'Waiting for the first observable provider bytes…'}</pre>
+        {#if progressWindow.omittedBefore}<small class="muted">Earlier journal bytes are retained; showing the newest {progressWindow.text.length} characters.</small>{/if}
+        <pre>{progressWindow.text || 'Waiting for the first observable provider bytes…'}</pre>
       </div>
     {/if}
     {#if selected.output_block}
+      {#if responseWindow?.omittedAfter}<small class="muted">This response is large; the rendered view windows the start and end. Copy or export for the exact bytes.</small>{/if}
       <article>{@html responseHtml}</article>
+      {#if fileLinks.length}
+        <div class="file-links">{#each fileLinks as link}<button class="quiet" on:click={() => onOpenFileLink(link.path, link.line)}>{link.path}{link.line ? `:${link.line}` : ''}</button>{/each}</div>
+      {/if}
     {:else if activityFailure}
       <p class="terminal-failure">Provider launch needs attention: {activityFailure}</p>
     {:else if ['failed', 'interrupted'].includes(selected.state)}
@@ -42,6 +57,9 @@
       <p class="muted">This invocation has not reached a terminal response.</p>
     {/if}
     <div class="response-actions">
+      <button class="quiet" disabled={working} on:click={onRetrySelected}>Retry / edit</button>
+      <button class="quiet" disabled={!selected.output_block} on:click={onCopyResponse}>Copy response</button>
+      <button class="quiet" on:click={onExportInvocation}>Export</button>
       <button class="quiet" on:click={() => onBeginSideQuest()}>Side quest</button>
       <button class="quiet" on:click={() => onBeginSideQuest('anthropic')}>Ask Claude</button>
       <button class="quiet" on:click={() => onBeginSideQuest('openai')}>Ask Codex</button>

@@ -29,6 +29,7 @@
   export let onExtractSelectedPath: () => void | Promise<void>;
   export let onPrepare: (executeWhenClear?: boolean) => void | Promise<void>;
   export let onExecutePreparedBatch: (confirmationHashes: string[]) => void | Promise<void>;
+  export let onPromptHistory: (direction: 'previous' | 'next', event: KeyboardEvent) => void;
 </script>
 
 <section class="composer">
@@ -55,7 +56,7 @@
     {/if}
     <small>{executionProfile === 'compiled-fresh' ? 'Exact context, no tools, no persistent provider session.' : executionProfile === 'workspace-agent' ? 'Starts a recorded provider session with the authority shown here.' : `Uses only ${continuationSource?.invocation_id.slice(-8)} under its exact prior authority.`}</small>
   </div>
-  <textarea bind:value={prompt} rows="5" placeholder={selectedParents.size > 1 ? 'Bring these branches together…' : selectedParents.size === 1 ? 'Continue here or take a side quest…' : 'Say what should happen next…'} on:input={onResetPreview}></textarea>
+  <textarea bind:value={prompt} rows="5" placeholder={selectedParents.size > 1 ? 'Bring these branches together…' : selectedParents.size === 1 ? 'Continue here or take a side quest…' : 'Say what should happen next…'} on:input={onResetPreview} on:keydown={(event) => (event.key === 'ArrowUp' || event.key === 'ArrowDown') && onPromptHistory(event.key === 'ArrowUp' ? 'previous' : 'next', event)}></textarea>
   {#if explicitSelections.length}<div class="graft-strip">{explicitSelections.length} exact graft{explicitSelections.length === 1 ? '' : 's'} selected</div>{/if}
   <div class="composer-actions">
     {#if selectedParents.size === 2}<button class="quiet" on:click={onCompareSelected}>Compare branches</button>{/if}

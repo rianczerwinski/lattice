@@ -31,7 +31,7 @@ def _operator_read_required(path: str) -> bool:
         return True
     if path.startswith(("/api/v1/artifacts/", "/api/v1/blobs/", "/api/v1/runs/", "/api/v1/run-artifacts/")):
         return True
-    return path.startswith("/api/v1/projects/") and path.endswith("/runs")
+    return path.startswith("/api/v1/projects/") and path.endswith(("/runs", "/search"))
 
 
 def configured_development_origin() -> str | None:

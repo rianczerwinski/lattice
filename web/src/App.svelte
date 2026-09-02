@@ -9,7 +9,11 @@
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
   import { activeAttemptIds as activityAttemptIds, activityFailureForInvocation, activityForInvocation, attentionActivityTransitions, mergeActivitySnapshots, projectActivityBadges, projectReplayCursor, terminalActivityTransitions } from './invocationActivity';
   import type { PaletteCommand } from './commandPalette';
-  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, DurableRun, DurableRunEvent, Episode, Invocation, InvocationActivitySnapshot, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition, WorkspaceDiff, WorkspaceDirectory, WorkspaceFileView, WorkspaceReviewStatus, WorkspaceSearchHit } from './types';
+  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, DurableRun, DurableRunEvent, Episode, Invocation, InvocationActivitySnapshot, InvocationBatch, InvocationNavigation, InvocationSummary, LatticeSearchHit, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition, WorkspaceDiff, WorkspaceDirectory, WorkspaceFileView, WorkspaceReviewStatus, WorkspaceSearchHit } from './types';
+  import { copyText, invocationExportPayload } from './copyExport';
+  import { notifyOperator } from './operatorNotifications';
+  import { nextPrompt, previousPrompt, recordPrompt } from './promptHistory';
+  import { recoveryNotice, type RecoveryNotice } from './recoveryStatus';
   import { resolveSelector, workflowProjectTitle } from './workflowPresentation';
   import { orderByRecentProjects, readUiState, writeProjectUiState, type ProjectUiState } from './uiPersistence';
   import ConversationHistory from './components/ConversationHistory.svelte';
@@ -143,6 +147,13 @@
   let workspaceSearchMode: 'text' | 'path' | 'symbol' = 'text';
   let workspaceDiffView: 'unstaged' | 'staged' | 'revision' = 'unstaged';
   let workspaceDiffRevision = '';
+  let promptHistory: string[] = [];
+  let promptHistoryCursor: number | null = null;
+  let liveDraftBeforeHistory = '';
+  let recovery: RecoveryNotice | null = null;
+  let copyReceipt = '';
+  let conversationSearchHits: LatticeSearchHit[] = [];
+  let conversationSearchError = '';
 
   $: selectedRole = project?.roles?.find((role) => role.role_id === project?.sessions?.find((session) => session.role_session_id === selectedSession)?.role_id);
   $: installedRoutes = routes.filter((route) => route.qualified && (!selectedRole || selectedRole.route_policy.kind === 'operator-selectable' || (selectedRole.route_policy.kind === 'model' && selectedRole.route_policy.provider === route.provider_code && selectedRole.route_policy.harness === route.official_cli && (!selectedRole.route_policy.allowed_models?.length || selectedRole.route_policy.allowed_models.includes(route.model_code)))));
@@ -213,6 +224,7 @@
       modelOverrides,
       scrollY: viewScrollY,
       lastSeenActivityCursor: Math.max(activitySeenCursors[project.project_id] ?? 0, invocationActivity.activity_cursors[project.project_id] ?? 0),
+      promptHistory,
       updatedAt: Date.now(),
     };
   }
@@ -261,6 +273,17 @@
       { id: 'focus-composer', label: 'Focus composer', detail: 'Write or continue the current invocation', keywords: ['prompt', 'message'], shortcut: '⌘J', disabled: !project },
       { id: 'refresh-runs', label: 'Refresh work activity', detail: 'Reload durable status without disturbing conversation state', keywords: ['runs', 'progress', 'jobs'] },
       { id: 'open-workspace', label: 'Open workspace', detail: workspacePath || 'Choose a repository path in the composer', keywords: ['files', 'symbols', 'diff', 'review'], disabled: !workspacePath },
+      { id: 'send', label: 'Send current prompt', detail: 'Preview and execute unless confirmation is required', keywords: ['submit'], shortcut: '⌘⏎', disabled: !project || !prompt.trim() },
+      { id: 'side-quest', label: 'Side quest from this response', detail: 'Open a child episode from the selected invocation', disabled: !selected },
+      { id: 'return-parent', label: 'Return to parent episode', detail: 'Bring selected work back to the parent trail', disabled: !currentEpisode?.parent_episode_id },
+      { id: 'compare', label: 'Compare selected parents', detail: 'Diff two selected invocations', disabled: selectedParents.size !== 2 },
+      { id: 'stop-run', label: 'Stop selected run', detail: 'Request a safe interruption', disabled: !selectedRunHasDurableLaunch || !['running', 'waiting'].includes(selectedRun?.state ?? '') },
+      { id: 'resume-run', label: 'Resume selected run', detail: 'Continue from the last durable checkpoint', disabled: !selectedRunHasDurableLaunch || !['stopped', 'failed'].includes(selectedRun?.state ?? '') },
+      { id: 'retry-selected', label: 'Retry or edit previous prompt', detail: 'Restore the original prompt for another send', disabled: !selected },
+      { id: 'copy-response', label: 'Copy response', detail: 'Put the exact selected response on the clipboard', disabled: !selected?.output_block },
+      { id: 'export-invocation', label: 'Export selected invocation', detail: 'Download prompt, response, and manifest JSON', disabled: !selected },
+      { id: 'open-diff', label: 'Open repository diff', detail: 'Review unstaged, staged, or revision changes', disabled: !workspacePath },
+      ...conversationSearchHits.map((hit) => ({ id: `search:${hit.kind}:${hit.object_id}`, label: `Open ${hit.kind} · ${hit.object_id.slice(-8)}`, detail: hit.preview, keywords: ['search', hit.kind] })),
       { id: 'route:anthropic', label: 'Route next invocation to Claude', detail: 'Use the current qualified Anthropic route', keywords: ['provider'], disabled: !installedRoutes.some((route) => route.provider_code === 'anthropic') },
       { id: 'route:openai', label: 'Route next invocation to Codex', detail: 'Use the current qualified OpenAI route', keywords: ['provider'], disabled: !installedRoutes.some((route) => route.provider_code === 'openai') },
       { id: 'route:both', label: 'Route next invocation to both providers', detail: 'Create one atomic multi-provider batch', keywords: ['claude', 'codex'], disabled: !['anthropic', 'openai'].every((provider) => installedRoutes.some((route) => route.provider_code === provider)) },
@@ -281,11 +304,33 @@
       await Promise.all([refreshRuns(), refreshGlobalActivity()]);
       return;
     }
-    if (commandId === 'open-workspace') {
+    if (commandId === 'open-workspace' || commandId === 'open-diff') {
       await openWorkspaceDirectory(workspaceDirectory?.path === '.' ? '' : workspaceDirectory?.path ?? '');
+      if (commandId === 'open-diff') await loadWorkspaceDiff();
       await tick();
       const surface = document.querySelector<HTMLDetailsElement>('.workspace-surface');
       if (surface) { surface.open = true; surface.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      return;
+    }
+    if (commandId === 'send') { await prepare(true); return; }
+    if (commandId === 'side-quest') { await beginSideQuest(); return; }
+    if (commandId === 'return-parent') { returnToParentEpisode(); return; }
+    if (commandId === 'compare') { await compareSelected(); return; }
+    if (commandId === 'stop-run') { await stopSelectedRun(); return; }
+    if (commandId === 'resume-run') { await resumeSelectedRun(); return; }
+    if (commandId === 'retry-selected') { await retrySelected(); return; }
+    if (commandId === 'copy-response') { await copySelectedResponse(); return; }
+    if (commandId === 'export-invocation') { exportSelectedInvocation(); return; }
+    if (commandId.startsWith('search:')) {
+      const payload = commandId.slice('search:'.length);
+      const sep = payload.indexOf(':');
+      const kind = payload.slice(0, sep);
+      const objectId = payload.slice(sep + 1);
+      const hit = conversationSearchHits.find((item) => item.kind === kind && item.object_id === objectId);
+      if (!hit) return;
+      if (hit.kind === 'run') await selectRun(hit.object_id);
+      else if (hit.invocation_id) await inspect(hit.invocation_id);
+      else if (hit.kind === 'invocation') await inspect(hit.object_id);
       return;
     }
     if (commandId.startsWith('route:')) {
@@ -341,8 +386,13 @@
     if (activityInitialized) {
       const attention = attentionActivityTransitions(previous, next)[0];
       const terminal = terminalActivityTransitions(previous, next)[0];
-      if (attention) activityNotice = `${projects.find((item) => item.project_id === attention.project_id)?.title ?? 'Model work'} needs attention`;
-      else if (terminal) activityNotice = `${projects.find((item) => item.project_id === terminal.project_id)?.title ?? 'Model work'} ${terminal.state}`;
+      if (attention) {
+        activityNotice = `${projects.find((item) => item.project_id === attention.project_id)?.title ?? 'Model work'} needs attention`;
+        void notifyOperator('Lattice needs attention', activityNotice, { visible: document.visibilityState === 'visible' });
+      } else if (terminal) {
+        activityNotice = `${projects.find((item) => item.project_id === terminal.project_id)?.title ?? 'Model work'} ${terminal.state}`;
+        void notifyOperator('Lattice work finished', activityNotice, { visible: document.visibilityState === 'visible' });
+      }
     }
     invocationActivity = next;
     if (project) markProjectActivitySeen(project.project_id);
@@ -417,6 +467,12 @@
         routeMode = firstRoute.provider_code as 'anthropic' | 'openai';
       }
       await refreshGlobalActivity();
+      try {
+        recovery = recoveryNotice(await api<Parameters<typeof recoveryNotice>[0]>('/api/health'));
+      } catch (cause: unknown) {
+        console.warn('Lattice recovery status was unavailable:', cause);
+        recovery = null;
+      }
       const initialProject = projects.find((item) => item.project_id === storedUi.state.lastProjectId) ?? projects[0];
       if (initialProject) await openProject(initialProject.project_id);
       activityTimer = setInterval(() => { void refreshGlobalActivity(); }, 10_000);
@@ -480,6 +536,9 @@
       trailheadError = '';
       preview = null;
       pendingBatchRequest = null;
+      promptHistory = restored?.promptHistory ?? [];
+      promptHistoryCursor = null;
+      liveDraftBeforeHistory = restored?.prompt ?? '';
       prompt = restored?.prompt ?? '';
       explicitSelections = restored?.explicitSelections ?? [];
       selectedExcerpt = null;
@@ -849,6 +908,90 @@
     finally { workspaceSurfaceLoading = ''; }
   }
 
+  function handlePromptHistory(direction: 'previous' | 'next', event: KeyboardEvent) {
+    const field = event.currentTarget;
+    if (!(field instanceof HTMLTextAreaElement)) return;
+    if (direction === 'previous' && field.selectionStart !== 0) return;
+    if (direction === 'next' && field.selectionStart !== field.value.length) return;
+    event.preventDefault();
+    if (direction === 'previous') {
+      if (promptHistoryCursor === null) liveDraftBeforeHistory = prompt;
+      const older = previousPrompt(promptHistory, promptHistoryCursor);
+      if (!older) return;
+      prompt = older.prompt;
+      promptHistoryCursor = older.cursor;
+    } else {
+      const newer = nextPrompt(promptHistory, promptHistoryCursor, liveDraftBeforeHistory);
+      prompt = newer.prompt;
+      promptHistoryCursor = newer.cursor;
+    }
+    resetPreview();
+  }
+
+  async function retrySelected() {
+    if (!selected) return;
+    const promptSegment = selected.manifest.segments.find((segment) => segment.plane === 'current_prompt');
+    if (promptSegment) {
+      try {
+        const block = await api<{ content: string }>(`/api/v1/context-blocks/${encodeURIComponent(promptSegment.block_id)}`);
+        prompt = block.content;
+      } catch (cause) {
+        error = cause instanceof Error ? cause.message : String(cause);
+      }
+    }
+    if (['failed', 'interrupted'].includes(selected.state)) {
+      selectedParents = new Set(selected.manifest.segments.filter((segment) => segment.plane === 'ancestry' && typeof segment.producing_invocation_id === 'string').map((segment) => String(segment.producing_invocation_id)));
+    } else {
+      selectedParents = new Set([selected.invocation_id]);
+    }
+    resetPreview();
+    await tick();
+    document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
+  }
+
+  async function copySelectedResponse() {
+    if (!selected?.output_block?.content) return;
+    try {
+      await copyText(selected.output_block.content, navigator.clipboard);
+      copyReceipt = 'Response copied.';
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : String(cause);
+    }
+  }
+
+  function exportSelectedInvocation() {
+    if (!selected) return;
+    const payload = invocationExportPayload(selected);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${selected.invocation_id}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    copyReceipt = 'Invocation exported.';
+  }
+
+  async function openFileLink(path: string, line: number | null) {
+    workspaceSearchQuery = path;
+    await openWorkspaceFile(path, line);
+  }
+
+  async function searchConversation(query: string) {
+    if (!project || query.trim().length < 2) {
+      conversationSearchHits = [];
+      conversationSearchError = '';
+      return;
+    }
+    try {
+      const result = await api<{ items: LatticeSearchHit[] }>(`/api/v1/projects/${encodeURIComponent(project.project_id)}/search?q=${encodeURIComponent(query.trim())}`);
+      conversationSearchHits = result.items;
+      conversationSearchError = '';
+    } catch (cause) {
+      conversationSearchError = cause instanceof Error ? cause.message : String(cause);
+    }
+  }
+
   function routePayload(route: Route) {
     const exactRoute = executionProfile === 'native-continuation' && continuationSource
       ? { ...route, model_code: String(continuationSource.route.model) }
@@ -944,6 +1087,8 @@
         expected_preview_sha256: preview.preview_sha256,
         confirmed_reason_sha256s: confirmedReasonSha256s,
       });
+      promptHistory = recordPrompt(promptHistory, prompt);
+      promptHistoryCursor = null;
       const foregroundInvocationId = batch.invocation_ids.at(-1);
       const clearedUiState = submittedUiState ? { ...submittedUiState, prompt: '', explicitSelections: [], selectedParentIds: [], selectedInvocationId: foregroundInvocationId ?? submittedUiState.selectedInvocationId, updatedAt: Date.now() } : null;
       if (project?.project_id === projectId) {
@@ -958,6 +1103,8 @@
       }
       await refreshProjectProviderSurface(projectId);
       if (project?.project_id === projectId && foregroundInvocationId) await inspect(foregroundInvocationId);
+      await tick();
+      document.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus();
     } catch (cause) {
       const detail = cause instanceof Error ? cause.message : String(cause);
       if (project?.project_id === projectId) error = detail;
@@ -1550,7 +1697,21 @@
               </details>
             </div>
           </div>
+          {#if recovery}
+            <div class="recovery-banner">
+              <strong>{recovery.title}</strong>
+              <p>What survived</p>
+              <ul>{#each recovery.survived as item}<li>{item}</li>{/each}</ul>
+              {#if recovery.mustRepeat.length}
+                <p>What must be repeated</p>
+                <ul>{#each recovery.mustRepeat as item}<li>{item}</li>{/each}</ul>
+              {/if}
+              <button class="quiet" on:click={() => recovery = null}>Dismiss</button>
+            </div>
+          {/if}
           {#if uiPersistenceError}<p class="surface-failure">{uiPersistenceError} The current draft remains available only while this tab stays open.</p>{/if}
+          {#if copyReceipt}<p class="muted">{copyReceipt}</p>{/if}
+          {#if conversationSearchError}<p class="surface-failure">Search unavailable: {conversationSearchError}</p>{/if}
           {#if selectedNavigation}<nav class="lineage-breadcrumb" aria-label="Invocation concern navigation"><code>{selectedNavigation.invocation.invocation_id.slice(-8)}</code>{#each selectedNavigation.episodes as episode}<span>›</span><button on:click={() => currentEpisode = episodes.find((item) => item.slice_id === episode.slice_id) ?? episode}>{episode.name}</button>{/each}<span>›</span><strong>{selectedNavigation.project.title}</strong>{#each selectedNavigation.slate_topics as topic}<span>›</span><button class="slate" on:click={() => openSlateSlice(topic.slice_id)}>{topic.name}</button>{/each}</nav>{:else if navigationError}<p class="surface-failure">Concern navigation unavailable: {navigationError}</p>{:else if currentEpisode}<nav class="episode-breadcrumb" aria-label="Current episode">{#if parentEpisode}<button on:click={() => currentEpisode = parentEpisode}>{parentEpisode.name}</button><span>›</span>{/if}<strong>{currentEpisode.name}</strong><small>{currentEpisode.items.length} member{currentEpisode.items.length === 1 ? '' : 's'}</small></nav>{/if}
           {#if episodeError}<p class="surface-failure">Episodes unavailable: {episodeError}</p>{/if}
 
@@ -1597,6 +1758,10 @@
             {selectedExcerpt}
             {selectionProofLimit}
             {terminalFailure}
+            onRetrySelected={retrySelected}
+            onCopyResponse={copySelectedResponse}
+            onExportInvocation={exportSelectedInvocation}
+            onOpenFileLink={openFileLink}
             onCancelActive={cancelActiveAttempts}
             onBeginSideQuest={beginSideQuest}
             onGraftResponse={graftResponseBlock}
@@ -1685,6 +1850,7 @@
             onExtractSelectedPath={extractSelectedPath}
             onPrepare={prepare}
             onExecutePreparedBatch={executePreparedBatch}
+            onPromptHistory={handlePromptHistory}
           />
         {:else}
           <div class="empty-call standalone"><span>No project yet</span><h3>Create the first operational thread.</h3></div>
@@ -1729,4 +1895,4 @@
   </div>
 {/if}
 
-<CommandPalette open={paletteOpen} commands={paletteCommands} onClose={() => paletteOpen = false} onChoose={executePaletteCommand} />
+<CommandPalette open={paletteOpen} commands={paletteCommands} onClose={() => { paletteOpen = false; conversationSearchHits = []; }} onChoose={executePaletteCommand} onQuery={searchConversation} />

@@ -3316,6 +3316,83 @@ class LatticeStore:
             "next_before": {"created_at": oldest["created_at"], "invocation_id": oldest["invocation_id"]} if has_older and oldest else None,
         }
 
+    def search_project(self, project_id: str, query: str, *, limit: int = 40) -> dict[str, Any]:
+        """Search conversation prompts, responses, artifacts, and runs by exact substring."""
+
+        self.get_project(project_id)
+        if not isinstance(query, str) or not query.strip() or "\x00" in query or "\n" in query:
+            raise LatticeConflict("search query is malformed")
+        needle = query.strip()
+        if len(needle) > 200:
+            raise LatticeConflict("search query exceeds 200 characters")
+        if isinstance(limit, bool) or not 1 <= limit <= 80:
+            raise LatticeConflict("search limit must be between 1 and 80")
+        lowered = needle.casefold()
+        hits: list[dict[str, Any]] = []
+
+        def preview_for(text: str) -> str:
+            index = text.casefold().find(lowered)
+            if index < 0:
+                return text[:160]
+            start = max(0, index - 40)
+            return text[start:start + 160]
+
+        def add(hit: dict[str, Any]) -> None:
+            if len(hits) < limit:
+                hits.append(hit)
+
+        with self._connect() as conn:
+            invocations = [dict(row) for row in conn.execute(
+                "SELECT invocation_id,state,created_at,output_block_id FROM invocations WHERE project_id=? ORDER BY created_at DESC,invocation_id DESC",
+                (project_id,),
+            )]
+            blocks = [dict(row) for row in conn.execute(
+                "SELECT block_id,semantic_type,content_sha256,byte_count,producing_invocation_id FROM context_blocks WHERE project_id=? AND byte_count BETWEEN 1 AND 1000000",
+                (project_id,),
+            )]
+            artifacts = [dict(row) for row in conn.execute(
+                "SELECT artifact_id,artifact_kind,generated_json,content_sha256 FROM artifacts WHERE project_id=?",
+                (project_id,),
+            )]
+            runs = [dict(row) for row in conn.execute(
+                "SELECT run_id,name,state,created_at FROM runs WHERE project_id=?",
+                (project_id,),
+            )]
+        for invocation in invocations:
+            haystack = f"{invocation['invocation_id']} {invocation['state']}"
+            if lowered in haystack.casefold():
+                add({"kind": "invocation", "object_id": invocation["invocation_id"], "invocation_id": invocation["invocation_id"], "preview": invocation["invocation_id"], "created_at": invocation["created_at"]})
+        for block in blocks:
+            if len(hits) >= limit:
+                break
+            try:
+                text = self.blobs.get(block["content_sha256"]).decode("utf-8")
+            except (OSError, UnicodeDecodeError, ValueError):
+                continue
+            if lowered not in text.casefold():
+                continue
+            kind = "prompt" if block["semantic_type"] == "user-prompt" else "response" if block["semantic_type"] == "model-response" else "block"
+            add({
+                "kind": kind,
+                "object_id": block["block_id"],
+                "invocation_id": block["producing_invocation_id"],
+                "preview": preview_for(text),
+                "created_at": None,
+            })
+        for artifact in artifacts:
+            if len(hits) >= limit:
+                break
+            generated = artifact["generated_json"]
+            if lowered in generated.casefold() or lowered in artifact["artifact_id"].casefold():
+                add({"kind": "artifact", "object_id": artifact["artifact_id"], "invocation_id": None, "preview": preview_for(generated), "created_at": None})
+        for run in runs:
+            if len(hits) >= limit:
+                break
+            haystack = f"{run['run_id']} {run['name']} {run['state']}"
+            if lowered in haystack.casefold():
+                add({"kind": "run", "object_id": run["run_id"], "invocation_id": None, "preview": run["name"], "created_at": run["created_at"]})
+        return {"query": needle, "items": hits}
+
     def page_trailheads(
         self,
         project_id: str,

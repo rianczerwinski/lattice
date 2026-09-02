@@ -19,6 +19,7 @@ export type ProjectUiState = {
   modelOverrides: Record<string, string>;
   scrollY: number;
   lastSeenActivityCursor: number;
+  promptHistory: string[];
   updatedAt: number;
 };
 
@@ -77,6 +78,7 @@ function normalizeProjectState(value: unknown): ProjectUiState | null {
     modelOverrides: overrides,
     scrollY: typeof value.scrollY === 'number' && Number.isFinite(value.scrollY) && value.scrollY >= 0 ? value.scrollY : 0,
     lastSeenActivityCursor: typeof value.lastSeenActivityCursor === 'number' && Number.isFinite(value.lastSeenActivityCursor) && value.lastSeenActivityCursor >= 0 ? value.lastSeenActivityCursor : 0,
+    promptHistory: stringList(value.promptHistory).slice(0, 40),
     updatedAt: typeof value.updatedAt === 'number' && Number.isFinite(value.updatedAt) ? value.updatedAt : 0,
   };
 }
