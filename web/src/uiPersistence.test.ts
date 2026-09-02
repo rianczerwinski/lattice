@@ -18,6 +18,7 @@ function projectState(overrides: Partial<ProjectUiState> = {}): ProjectUiState {
     effort: 'xhigh',
     modelOverrides: { anthropic: 'claude-exact' },
     scrollY: 413,
+    lastSeenActivityCursor: 19,
     updatedAt: 42,
     ...overrides,
   };
@@ -44,6 +45,18 @@ describe('per-project UI persistence contract', () => {
 
     expect(recent).toEqual(['project_a', 'project_b']);
     expect(orderByRecentProjects([{ project_id: 'project_b' }, { project_id: 'project_c' }, { project_id: 'project_a' }], recent).map((item) => item.project_id)).toEqual(['project_a', 'project_b', 'project_c']);
+  });
+
+  it('updates a background project without stealing the active-project pointer', () => {
+    const values = new Map<string, string>();
+    const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
+    writeProjectUiState(storage, 'project_a', projectState());
+    writeProjectUiState(storage, 'project_b', projectState());
+    writeProjectUiState(storage, 'project_a', projectState({ prompt: '' }), { activate: false });
+
+    const restored = readUiState(storage).state;
+    expect(restored.lastProjectId).toBe('project_b');
+    expect(restored.projects.project_a.prompt).toBe('');
   });
 
   it('refuses corrupt storage as fresh state and reports why persistence is unavailable', () => {

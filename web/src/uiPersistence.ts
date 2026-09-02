@@ -18,6 +18,7 @@ export type ProjectUiState = {
   effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   modelOverrides: Record<string, string>;
   scrollY: number;
+  lastSeenActivityCursor: number;
   updatedAt: number;
 };
 
@@ -75,6 +76,7 @@ function normalizeProjectState(value: unknown): ProjectUiState | null {
     effort,
     modelOverrides: overrides,
     scrollY: typeof value.scrollY === 'number' && Number.isFinite(value.scrollY) && value.scrollY >= 0 ? value.scrollY : 0,
+    lastSeenActivityCursor: typeof value.lastSeenActivityCursor === 'number' && Number.isFinite(value.lastSeenActivityCursor) && value.lastSeenActivityCursor >= 0 ? value.lastSeenActivityCursor : 0,
     updatedAt: typeof value.updatedAt === 'number' && Number.isFinite(value.updatedAt) ? value.updatedAt : 0,
   };
 }
@@ -106,12 +108,13 @@ export function readUiState(storage: StoragePort): UiStateResult {
   }
 }
 
-export function writeProjectUiState(storage: StoragePort, projectId: string, projectState: ProjectUiState): UiStateResult {
+export function writeProjectUiState(storage: StoragePort, projectId: string, projectState: ProjectUiState, options: { activate?: boolean } = {}): UiStateResult {
   const loaded = readUiState(storage);
-  const recentProjectIds = [projectId, ...loaded.state.recentProjectIds.filter((item) => item !== projectId)].slice(0, MAX_RECENT_PROJECTS);
+  const activate = options.activate !== false;
+  const recentProjectIds = activate ? [projectId, ...loaded.state.recentProjectIds.filter((item) => item !== projectId)].slice(0, MAX_RECENT_PROJECTS) : loaded.state.recentProjectIds;
   const state: UiState = {
     ...loaded.state,
-    lastProjectId: projectId,
+    lastProjectId: activate ? projectId : loaded.state.lastProjectId,
     recentProjectIds,
     projects: { ...loaded.state.projects, [projectId]: normalizeProjectState(projectState) ?? projectState },
   };

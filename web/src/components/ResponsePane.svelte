@@ -6,6 +6,7 @@
   export let activeAttemptIds: string[];
   export let liveProgress: string;
   export let liveProgressState: string;
+  export let activityFailure: string;
   export let responseHtml: string;
   export let working: boolean;
   export let selectedNativeEligible: boolean;
@@ -22,17 +23,19 @@
   export let onGraftExcerpt: (action: ContextAction) => void | Promise<void>;
 </script>
 
-<section class="response-card" class:empty={!selected?.output_block && !activeAttemptIds.length}>
+<section class="response-card" class:empty={!selected?.output_block && !activeAttemptIds.length && !activityFailure}>
   {#if selected}
     <div class="response-meta"><span>{selected.state}</span><code>{selected.invocation_id.slice(-8)}</code></div>
     {#if activeAttemptIds.length}
       <div class="live-progress">
-        <div><strong>{liveProgressState}</strong><button class="quiet" on:click={onCancelActive}>Cancel running routes</button></div>
+        <div><strong>{liveProgressState}</strong><button class="quiet" on:click={onCancelActive}>Cancel this route</button></div>
         <pre>{liveProgress || 'Waiting for the first observable provider bytes…'}</pre>
       </div>
     {/if}
     {#if selected.output_block}
       <article>{@html responseHtml}</article>
+    {:else if activityFailure}
+      <p class="terminal-failure">Provider launch needs attention: {activityFailure}</p>
     {:else if ['failed', 'interrupted'].includes(selected.state)}
       <p class="terminal-failure">Invocation ended {selected.state}: {terminalFailure(selected)}</p>
     {:else}

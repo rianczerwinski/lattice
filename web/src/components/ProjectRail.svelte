@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Project, WorkflowPack } from '../types';
+  import type { ProjectActivityBadge } from '../invocationActivity';
   import { selectorReady, selectorValue } from '../workflowPresentation';
 
   export let projects: Project[];
@@ -11,6 +12,7 @@
   export let workflowPacks: WorkflowPack[];
   export let workflowPackFailures: Array<{ pack_id: string; detail: string }>;
   export let workflowSelectorValues: Record<string, Record<string, string>>;
+  export let activityBadges: Record<string, ProjectActivityBadge>;
   export let onOpenProject: (projectId: string) => void | Promise<void>;
   export let onCreateProject: () => void | Promise<void>;
   export let onSetWorkflowSelectorValue: (packId: string, key: string, value: string) => void;
@@ -21,7 +23,7 @@
   <div class="section-label">Projects</div>
   {#each projects as item}
     <button class:active={project?.project_id === item.project_id} on:click={() => onOpenProject(item.project_id)}>
-      <span>{item.title}</span><small>{item.purpose || 'Open lattice'}</small>
+      <span>{item.title}{#if activityBadges[item.project_id]?.attention}<b class="project-activity failed">needs attention</b>{:else if activityBadges[item.project_id]?.active}<b class="project-activity">{activityBadges[item.project_id].active} working</b>{:else if activityBadges[item.project_id]?.unread}<b class:failed={activityBadges[item.project_id].failed} class="project-activity">updated</b>{/if}</span><small>{item.purpose || 'Open lattice'}</small>
     </button>
   {/each}
   <div class="new-project">

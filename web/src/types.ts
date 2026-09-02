@@ -81,6 +81,50 @@ export type InvocationNavigation = { contract_version: 'LatticeInvocationNavigat
 export type InvocationArtifact = { artifact_id: string; content_sha256: string; generated_json: string; artifact_kind: string };
 export type Invocation = InvocationSummary & { route: Record<string, unknown>; manifest: Manifest; manifest_verification: { valid: boolean }; compiled_prompt: string; output_block?: { content: string }; attempts: Array<Record<string, unknown>>; artifacts: InvocationArtifact[]; edges: Array<Record<string, unknown>> };
 
+export type InvocationActivityAttempt = {
+  attempt_id: string;
+  attempt_number: number;
+  state: 'leased' | 'running' | 'succeeded' | 'failed' | 'interrupted' | 'orphaned';
+  failure_kind?: string | null;
+  error_text?: string | null;
+  started_at: string;
+  heartbeat_at?: string | null;
+  completed_at?: string | null;
+  replay_event_cursor: number;
+  latest_event_seq: number;
+};
+export type InvocationActivityMember = {
+  ordinal: number;
+  spec_id: string;
+  invocation_id: string;
+  state: string;
+  terminal_kind?: string | null;
+  output_block_id?: string | null;
+  route: Record<string, unknown>;
+  attempts: InvocationActivityAttempt[];
+  dispatch_failure?: { seq: number; event_type: string; detail: Record<string, unknown> } | null;
+};
+export type InvocationActivity = {
+  activity_id: string;
+  batch_id: string;
+  project_id: string;
+  state: 'sealed' | 'running' | 'succeeded' | 'failed' | 'interrupted' | 'mixed';
+  terminal: boolean;
+  needs_attention: boolean;
+  created_at: string;
+  completed_at?: string | null;
+  last_event_seq: number;
+  replay_event_cursor: number;
+  active_attempt_ids: string[];
+  members: InvocationActivityMember[];
+};
+export type InvocationActivitySnapshot = {
+  items: InvocationActivity[];
+  project_cursors: Record<string, number>;
+  activity_cursors: Record<string, number>;
+  recent_has_more: Record<string, boolean>;
+};
+
 export type DurableRunState = 'declared' | 'admitted' | 'running' | 'waiting' | 'stopping' | 'stopped' | 'failed' | 'completed';
 export type DurableRunUnitState = 'pending' | 'eligible' | 'running' | 'completed' | 'refused' | 'failed';
 export type DurableRunAttempt = {

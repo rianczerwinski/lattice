@@ -8,6 +8,7 @@ import pytest
 
 from lattice.canonical import canonical_bytes, opaque_id, sha256_bytes, sha256_json
 from lattice.contracts import (
+    AttemptState,
     ContextAssemblyV1,
     ContextBlockCreate,
     ContextSelection,
@@ -97,6 +98,156 @@ def test_atomic_batch_sealing_and_duplicate_submission_are_idempotent(lattice_en
         assert conn.execute("SELECT COUNT(*) FROM invocation_batches WHERE batch_id=?", (request.batch_id,)).fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM invocation_batch_members WHERE batch_id=?", (request.batch_id,)).fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM invocations WHERE invocation_id IN (?,?)", first["invocation_ids"]).fetchone()[0] == 2
+
+
+@pytest.mark.contract
+def test_invocation_activity_keeps_active_work_visible_beyond_the_recent_limit(lattice_env) -> None:
+    store = lattice_env["store"]
+
+    active_request = _preview_request(lattice_env, prompt="Keep working in the background.")
+    active_preview = lattice_env["lattice"].preview_invocation_batch(active_request)
+    active_batch = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **active_request.model_dump(mode="json"),
+        idempotency_key="activity-active-batch",
+        expected_preview_sha256=active_preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in active_preview["confirmation_reasons"]],
+    ))
+    active_attempt = store.create_attempt(active_batch["invocation_ids"][0], "activity-active-attempt", "boot_activity", 9999999999)
+    store.mark_attempt_running(active_attempt["attempt_id"])
+
+    terminal_request = _preview_request(lattice_env, prompt="Finish after the active batch was admitted.")
+    terminal_preview = lattice_env["lattice"].preview_invocation_batch(terminal_request)
+    terminal_batch = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **terminal_request.model_dump(mode="json"),
+        idempotency_key="activity-terminal-batch",
+        expected_preview_sha256=terminal_preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in terminal_preview["confirmation_reasons"]],
+    ))
+    for index, invocation_id in enumerate(terminal_batch["invocation_ids"]):
+        attempt = store.create_attempt(invocation_id, f"activity-terminal-attempt-{index}", "boot_activity", 9999999999)
+        store.finish_attempt(attempt["attempt_id"], state=AttemptState.failed, failure_kind="planted", error_text="planted terminal outcome")
+
+    newer_terminal_request = _preview_request(lattice_env, prompt="Finish most recently.")
+    newer_terminal_preview = lattice_env["lattice"].preview_invocation_batch(newer_terminal_request)
+    newer_terminal_batch = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **newer_terminal_request.model_dump(mode="json"),
+        idempotency_key="activity-newer-terminal-batch",
+        expected_preview_sha256=newer_terminal_preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in newer_terminal_preview["confirmation_reasons"]],
+    ))
+    for index, invocation_id in enumerate(newer_terminal_batch["invocation_ids"]):
+        attempt = store.create_attempt(invocation_id, f"activity-newer-terminal-attempt-{index}", "boot_activity", 9999999999)
+        store.finish_attempt(attempt["attempt_id"], state=AttemptState.failed, failure_kind="newer-planted", error_text="newer planted terminal outcome")
+
+    activity = store.list_invocation_activity(lattice_env["project"]["project_id"], limit=1)
+
+    assert [item["batch_id"] for item in activity["items"]] == [newer_terminal_batch["batch_id"], active_batch["batch_id"]]
+    assert activity["recent_has_more"] == {lattice_env["project"]["project_id"]: True}
+    active = next(item for item in activity["items"] if item["batch_id"] == active_batch["batch_id"])
+    assert active["state"] == "running"
+    assert active["active_attempt_ids"] == [active_attempt["attempt_id"]]
+    with store._connect() as conn:
+        leased_cursor = conn.execute("SELECT seq FROM events WHERE event_type='attempt.leased' AND subject_id=?", (active_attempt["attempt_id"],)).fetchone()[0]
+    attempt_projection = next(attempt for member in active["members"] for attempt in member["attempts"] if attempt["attempt_id"] == active_attempt["attempt_id"])
+    assert attempt_projection["replay_event_cursor"] == leased_cursor
+    assert attempt_projection["latest_event_seq"] >= leased_cursor
+    assert activity["project_cursors"][lattice_env["project"]["project_id"]] >= attempt_projection["latest_event_seq"]
+    assert activity["activity_cursors"][lattice_env["project"]["project_id"]] >= attempt_projection["latest_event_seq"]
+
+    empty_project = store.create_project(ProjectCreate(title="empty activity project"))
+    empty = store.list_invocation_activity(empty_project["project_id"], limit=1)
+    assert empty["items"] == []
+    assert empty["project_cursors"][empty_project["project_id"]] > 0
+    assert empty["activity_cursors"] == {empty_project["project_id"]: 0}
+    assert empty["recent_has_more"] == {empty_project["project_id"]: False}
+
+
+@pytest.mark.contract
+def test_invocation_activity_distinguishes_unresolved_dispatch_from_a_real_retry(lattice_env) -> None:
+    store = lattice_env["store"]
+    request = _preview_request(lattice_env, prompt="Surface dispatch state truthfully.")
+    preview = lattice_env["lattice"].preview_invocation_batch(request)
+    batch = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **request.model_dump(mode="json"),
+        idempotency_key="activity-dispatch-lifecycle",
+        expected_preview_sha256=preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
+    ))
+    invocation_id = batch["invocation_ids"][0]
+    store.record_event(
+        project_id=lattice_env["project"]["project_id"],
+        event_type="invocation-batch.dispatch-failed",
+        subject_type="invocation",
+        subject_id=invocation_id,
+        payload={"batch_id": batch["batch_id"], "error": "planted dispatch refusal"},
+    )
+
+    stalled = store.list_invocation_activity(lattice_env["project"]["project_id"], limit=1)["items"][0]
+    assert stalled["state"] == "sealed"
+    assert stalled["terminal"] is False
+    assert stalled["needs_attention"] is True
+    assert stalled["members"][0]["dispatch_failure"]["detail"]["error"] == "planted dispatch refusal"
+
+    first_attempts = [
+        store.create_attempt(member_invocation_id, f"activity-dispatch-retry-one-{index}", "boot_activity", 9999999999)
+        for index, member_invocation_id in enumerate(batch["invocation_ids"])
+    ]
+    retrying = store.list_invocation_activity(lattice_env["project"]["project_id"], limit=1)["items"][0]
+    assert retrying["state"] == "running"
+    assert retrying["needs_attention"] is False
+    assert retrying["members"][0]["dispatch_failure"] is None
+
+    for attempt in first_attempts:
+        store.finish_attempt(attempt["attempt_id"], state=AttemptState.failed, failure_kind="planted", error_text="planted provider failure")
+    failed = store.list_invocation_activity(lattice_env["project"]["project_id"], limit=1)["items"][0]
+    assert failed["terminal"] is True
+    assert failed["completed_at"] is not None
+
+    second_attempts = [
+        store.create_attempt(member_invocation_id, f"activity-dispatch-retry-two-{index}", "boot_activity", 9999999999)
+        for index, member_invocation_id in enumerate(batch["invocation_ids"])
+    ]
+    active_retry = store.list_invocation_activity(lattice_env["project"]["project_id"], limit=1)["items"][0]
+    assert set(active_retry["active_attempt_ids"]) == {attempt["attempt_id"] for attempt in second_attempts}
+    assert active_retry["completed_at"] is None
+    assert all(member["terminal_kind"] is None and member["completed_at"] is None for member in active_retry["members"])
+
+
+@pytest.mark.oracle
+def test_invocation_activity_replay_cursor_reconstructs_the_complete_attempt_journal(lattice_env) -> None:
+    store = lattice_env["store"]
+    request = _preview_request(lattice_env, prompt="Preserve every provider journal event.")
+    preview = lattice_env["lattice"].preview_invocation_batch(request)
+    batch = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **request.model_dump(mode="json"),
+        idempotency_key="activity-replay-batch",
+        expected_preview_sha256=preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
+    ))
+    attempt = store.create_attempt(batch["invocation_ids"][0], "activity-replay-attempt", "boot_activity", 9999999999)
+    store.mark_attempt_running(attempt["attempt_id"])
+    for literal in ("first planted bytes", "second planted bytes"):
+        store.record_event(project_id=lattice_env["project"]["project_id"], event_type="attempt.chunk", subject_type="attempt", subject_id=attempt["attempt_id"], payload={"channel": "stdout", "preview": literal})
+    store.finish_attempt(attempt["attempt_id"], state=AttemptState.failed, failure_kind="planted", error_text="planted terminal event")
+
+    activity = store.list_invocation_activity(lattice_env["project"]["project_id"], limit=1)
+    projected_attempt = next(item for row in activity["items"] for member in row["members"] for item in member["attempts"] if item["attempt_id"] == attempt["attempt_id"])
+    replayed = [event for event in store.events_after(lattice_env["project"]["project_id"], projected_attempt["replay_event_cursor"]) if event["subject_id"] == attempt["attempt_id"]]
+
+    assert [event["event_type"] for event in replayed] == ["attempt.running", "attempt.chunk", "attempt.chunk", "attempt.failed"]
+    assert [event["payload"]["preview"] for event in replayed if event["event_type"] == "attempt.chunk"] == ["first planted bytes", "second planted bytes"]
+
+    tail_cursor = activity["project_cursors"][lattice_env["project"]["project_id"]]
+    later_request = _preview_request(lattice_env, prompt="Arrive after the activity snapshot.")
+    later_preview = lattice_env["lattice"].preview_invocation_batch(later_request)
+    later = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **later_request.model_dump(mode="json"),
+        idempotency_key="activity-after-snapshot",
+        expected_preview_sha256=later_preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in later_preview["confirmation_reasons"]],
+    ))
+    tail = store.events_after(lattice_env["project"]["project_id"], tail_cursor)
+    assert any(event["event_type"] == "invocation-batch.sealed" and event["subject_id"] == later["batch_id"] for event in tail)
 
 
 @pytest.mark.regression

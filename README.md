@@ -44,6 +44,8 @@ Lattice `0.3.1` separates source assurance from installed-runtime qualification.
 
 The implemented durable-run control plane and repository cockpit, together with the remaining work required before Lattice can replace provider-native coding surfaces as the ordinary UX, are specified in [`DURABLE-WORK-AND-PRIMARY-UX-PLAN.md`](DURABLE-WORK-AND-PRIMARY-UX-PLAN.md).
 
+Provider invocations remain attached to their owning project after launch. The cockpit reconstructs active provider journals from durable attempt cursors, keeps background projects independently navigable, scopes progress and cancellation to the selected invocation rather than its batch siblings, distinguishes unresolved launch failures from running work, and preserves each project's unread position across reloads. A slower overlapping status response cannot replace a newer project projection.
+
 The local durable-run adapter executes trusted project workers under a foreground process-group contract. The worker and every process it owns must remain in the guardian's process group until the direct worker exits; `setsid`, double-fork daemonization, reparenting run work, and delegation to an unbound background service are outside this adapter's lifecycle and recovery claims. This is an ownership boundary, not a hostile same-user process sandbox. A project that needs an independently managed service must expose that service through its own durable adapter rather than representing it as guardian-owned local work. At worker-event admission, Lattice streams every file-backed durable evidence, durable report, and checkpoint into its verified content-addressed store; only explicitly disposable artifacts with a regeneration method retain external file locators.
 
 ## Telos

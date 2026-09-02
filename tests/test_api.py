@@ -1166,11 +1166,14 @@ def test_batch_dispatch_failure_returns_a_truthful_partial_receipt_and_retries_i
         preview = client.post("/api/v1/invocation-batches/preview", headers=headers, json=request).json()
         create = {**request, "idempotency_key": "batch-dispatch-partial-1", "expected_preview_sha256": preview["preview_sha256"], "confirmed_reason_sha256s": []}
         first = client.post("/api/v1/invocation-batches", headers=headers, json=create)
+        activity_after_failure = client.get(f"/api/v1/invocation-activity?project_id={lattice_env['project']['project_id']}&limit=1", headers=headers)
         retried = client.post("/api/v1/invocation-batches", headers=headers, json=create)
 
     assert first.status_code == 202
     assert len(first.json()["execution_attempts"]) == 1
     assert first.json()["dispatch_failures"][0]["error"] == "RuntimeError: planted dispatch admission failure"
+    assert activity_after_failure.status_code == 200
+    assert activity_after_failure.json()["items"][0]["needs_attention"] is True
     assert retried.status_code == 202
     assert retried.json()["dispatch_failures"] == []
     assert retried.json()["invocation_ids"] == first.json()["invocation_ids"]

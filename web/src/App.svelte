@@ -7,8 +7,9 @@
   import { buildContextModuleDefinition } from './contextModules';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
+  import { activeAttemptIds as activityAttemptIds, activityFailureForInvocation, activityForInvocation, attentionActivityTransitions, mergeActivitySnapshots, projectActivityBadges, projectReplayCursor, terminalActivityTransitions } from './invocationActivity';
   import type { PaletteCommand } from './commandPalette';
-  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, DurableRun, DurableRunEvent, Episode, Invocation, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition, WorkspaceDiff, WorkspaceDirectory, WorkspaceFileView, WorkspaceReviewStatus, WorkspaceSearchHit } from './types';
+  import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, DurableRun, DurableRunEvent, Episode, Invocation, InvocationActivitySnapshot, InvocationBatch, InvocationNavigation, InvocationSummary, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition, WorkspaceDiff, WorkspaceDirectory, WorkspaceFileView, WorkspaceReviewStatus, WorkspaceSearchHit } from './types';
   import { resolveSelector, workflowProjectTitle } from './workflowPresentation';
   import { orderByRecentProjects, readUiState, writeProjectUiState, type ProjectUiState } from './uiPersistence';
   import ConversationHistory from './components/ConversationHistory.svelte';
@@ -98,9 +99,6 @@
   let workflowSelectorValues: Record<string, Record<string, string>> = {};
   let blackboardContents: Record<string, string> = {};
   let blackboardLoading = '';
-  let activeAttemptIds: string[] = [];
-  let liveProgress = '';
-  let liveProgressState = '';
   let extractedTemplateId = '';
   let runs: DurableRun[] = [];
   let selectedRunId = '';
@@ -122,6 +120,15 @@
   let activityNotice = '';
   let activityInitialized = false;
   let activityTimer: ReturnType<typeof setInterval> | null = null;
+  let invocationActivity: InvocationActivitySnapshot = { items: [], project_cursors: {}, activity_cursors: {}, recent_has_more: {} };
+  let invocationActivityRefreshError = '';
+  let invocationActivityStreamError = '';
+  let activitySeenCursors: Record<string, number> = {};
+  let activityProgress: Record<string, string[]> = {};
+  let activityProgressState: Record<string, string> = {};
+  let activityEventSequences: Record<string, number> = {};
+  let activityAttemptInvocations: Record<string, string> = {};
+  let closeInvocationActivityStream: () => void = () => {};
   let workspaceSurfaceRoot = '';
   let workspaceDirectory: WorkspaceDirectory | null = null;
   let workspaceFile: WorkspaceFileView | null = null;
@@ -157,6 +164,14 @@
   $: selectedRunHasDurableLaunch = Boolean(selectedRun?.declaration.local_launch_profile && typeof selectedRun.declaration.local_launch_profile === 'object');
   $: runControlBlocker = selectedRunHasDurableLaunch ? '' : 'This older run has no durable launch profile; its project runner must supply exact launch material.';
   $: activeGlobalRuns = globalRuns.filter((run) => ['running', 'waiting', 'stopping'].includes(run.state));
+  $: activeProviderActivities = invocationActivity.items.filter((activity) => !activity.terminal || activity.needs_attention);
+  $: selectedProviderActivity = activityForInvocation(invocationActivity.items, selected?.invocation_id);
+  $: selectedActiveAttemptIds = activityAttemptIds(selectedProviderActivity, selected?.invocation_id);
+  $: selectedActivityFailure = activityFailureForInvocation(selectedProviderActivity, selected?.invocation_id);
+  $: selectedLiveProgress = selectedActiveAttemptIds.flatMap((attemptId) => activityProgress[attemptId] ?? []).join('\n').slice(-100_000);
+  $: selectedLiveProgressState = selectedActiveAttemptIds.map((attemptId) => activityProgressState[attemptId]).filter(Boolean).at(-1) ?? (selectedActiveAttemptIds.length ? `${selectedActiveAttemptIds.length} provider journal${selectedActiveAttemptIds.length === 1 ? '' : 's'} connected` : '');
+  $: activitySurfaceError = [globalActivityError, invocationActivityRefreshError, invocationActivityStreamError].filter(Boolean).join(' · ');
+  $: projectActivity = projectActivityBadges(invocationActivity, activitySeenCursors, project?.project_id ?? '');
   $: paletteCommands = buildPaletteCommands();
   $: if (workspaceSurfaceRoot && workspaceSurfaceRoot !== workspacePath) resetWorkspaceSurface();
   $: {
@@ -197,6 +212,7 @@
       effort,
       modelOverrides,
       scrollY: viewScrollY,
+      lastSeenActivityCursor: Math.max(activitySeenCursors[project.project_id] ?? 0, invocationActivity.activity_cursors[project.project_id] ?? 0),
       updatedAt: Date.now(),
     };
   }
@@ -248,6 +264,7 @@
       { id: 'route:anthropic', label: 'Route next invocation to Claude', detail: 'Use the current qualified Anthropic route', keywords: ['provider'], disabled: !installedRoutes.some((route) => route.provider_code === 'anthropic') },
       { id: 'route:openai', label: 'Route next invocation to Codex', detail: 'Use the current qualified OpenAI route', keywords: ['provider'], disabled: !installedRoutes.some((route) => route.provider_code === 'openai') },
       { id: 'route:both', label: 'Route next invocation to both providers', detail: 'Create one atomic multi-provider batch', keywords: ['claude', 'codex'], disabled: !['anthropic', 'openai'].every((provider) => installedRoutes.some((route) => route.provider_code === provider)) },
+      ...activeProviderActivities.map((activity) => ({ id: `activity:${activity.activity_id}`, label: `Open model work · ${activity.members.map((member) => member.spec_id).join(' + ')}`, detail: `${activity.state} · ${projects.find((item) => item.project_id === activity.project_id)?.title ?? activity.project_id}`, keywords: ['activity', 'provider', 'model', activity.state] })),
       ...activeGlobalRuns.map((run) => ({ id: `run:${run.run_id}`, label: `Open active run · ${run.name}`, detail: `${run.state} · ${run.unit_counts.completed ?? 0}/${run.units.length} units · ${projects.find((item) => item.project_id === run.project_id)?.title ?? run.project_id}`, keywords: ['activity', 'progress', run.state] })),
       ...projects.map((item) => ({ id: `project:${item.project_id}`, label: `Open ${item.title}`, detail: item.purpose || 'Switch project', keywords: ['project', 'recent'] })),
     ];
@@ -281,6 +298,17 @@
       await openProject(commandId.slice('project:'.length));
       return;
     }
+    if (commandId.startsWith('activity:')) {
+      const activity = invocationActivity.items.find((item) => item.activity_id === commandId.slice('activity:'.length));
+      if (!activity) return;
+      if (project?.project_id !== activity.project_id) await openProject(activity.project_id);
+      const foreground = activity.members.find((member) => member.dispatch_failure)?.invocation_id
+        ?? activity.members.find((member) => member.attempts.some((attempt) => ['leased', 'running'].includes(attempt.state)))?.invocation_id
+        ?? activity.members.at(-1)?.invocation_id;
+      if (foreground) await inspect(foreground);
+      markProjectActivitySeen(activity.project_id);
+      return;
+    }
     if (commandId.startsWith('run:')) {
       const runId = commandId.slice('run:'.length);
       const run = globalRuns.find((item) => item.run_id === runId);
@@ -307,20 +335,58 @@
     }
   }
 
+  function adoptInvocationActivitySnapshot(incoming: InvocationActivitySnapshot) {
+    const previous = invocationActivity;
+    const next = mergeActivitySnapshots(previous, incoming);
+    if (activityInitialized) {
+      const attention = attentionActivityTransitions(previous, next)[0];
+      const terminal = terminalActivityTransitions(previous, next)[0];
+      if (attention) activityNotice = `${projects.find((item) => item.project_id === attention.project_id)?.title ?? 'Model work'} needs attention`;
+      else if (terminal) activityNotice = `${projects.find((item) => item.project_id === terminal.project_id)?.title ?? 'Model work'} ${terminal.state}`;
+    }
+    invocationActivity = next;
+    if (project) markProjectActivitySeen(project.project_id);
+  }
+
   async function refreshGlobalActivity() {
-    try {
-      const next = await api<DurableRun[]>('/api/v1/runs?limit=200');
+    const [runResult, invocationResult] = await Promise.allSettled([
+      api<DurableRun[]>('/api/v1/runs?limit=200'),
+      api<InvocationActivitySnapshot>('/api/v1/invocation-activity?limit=20'),
+    ]);
+    const failures: string[] = [];
+    if (runResult.status === 'fulfilled') {
       if (activityInitialized) {
         const priorStates = new Map(globalRuns.map((run) => [run.run_id, run.state]));
-        const changed = next.find((run) => ['completed', 'failed'].includes(run.state) && priorStates.has(run.run_id) && priorStates.get(run.run_id) !== run.state);
+        const changed = runResult.value.find((run) => ['completed', 'failed'].includes(run.state) && priorStates.has(run.run_id) && priorStates.get(run.run_id) !== run.state);
         if (changed) activityNotice = `${changed.name} ${changed.state}`;
       }
-      globalRuns = next;
-      globalActivityError = '';
-      activityInitialized = true;
-    } catch (cause) {
-      globalActivityError = cause instanceof Error ? cause.message : String(cause);
+      globalRuns = runResult.value;
+    } else failures.push(runResult.reason instanceof Error ? runResult.reason.message : String(runResult.reason));
+    if (invocationResult.status === 'fulfilled') {
+      adoptInvocationActivitySnapshot(invocationResult.value);
+      invocationActivityRefreshError = '';
+    } else {
+      failures.push(invocationResult.reason instanceof Error ? invocationResult.reason.message : String(invocationResult.reason));
     }
+    globalActivityError = failures.join(' · ');
+    activityInitialized = true;
+  }
+
+  async function refreshProjectInvocationActivity(projectId: string) {
+    try {
+      const incoming = await api<InvocationActivitySnapshot>(`/api/v1/invocation-activity?project_id=${encodeURIComponent(projectId)}&limit=20`);
+      adoptInvocationActivitySnapshot(incoming);
+      invocationActivityRefreshError = '';
+    } catch (cause) {
+      invocationActivityRefreshError = cause instanceof Error ? cause.message : String(cause);
+    }
+  }
+
+  function markProjectActivitySeen(projectId: string) {
+    const cursor = invocationActivity.activity_cursors[projectId] ?? 0;
+    if (cursor <= (activitySeenCursors[projectId] ?? 0)) return;
+    activitySeenCursors = { ...activitySeenCursors, [projectId]: cursor };
+    if (project?.project_id === projectId) scheduleUiPersistence();
   }
 
   async function boot() {
@@ -335,6 +401,7 @@
       ]);
       const storedUi = readUiState(window.localStorage);
       uiPersistenceError = storedUi.error;
+      activitySeenCursors = Object.fromEntries(Object.entries(storedUi.state.projects).map(([projectId, state]) => [projectId, state.lastSeenActivityCursor]));
       projects = orderByRecentProjects(loadedProjects, storedUi.state.recentProjectIds);
       routes = routeResult.value;
       routeCatalogueError = routeResult.error;
@@ -349,9 +416,9 @@
         selectedRoute = `${firstRoute.provider_code}:${firstRoute.model_code}`;
         routeMode = firstRoute.provider_code as 'anthropic' | 'openai';
       }
+      await refreshGlobalActivity();
       const initialProject = projects.find((item) => item.project_id === storedUi.state.lastProjectId) ?? projects[0];
       if (initialProject) await openProject(initialProject.project_id);
-      await refreshGlobalActivity();
       activityTimer = setInterval(() => { void refreshGlobalActivity(); }, 10_000);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -387,6 +454,8 @@
     if (switchingProjects) {
       closeRunEventStream();
       closeRunEventStream = () => {};
+      closeInvocationActivityStream();
+      closeInvocationActivityStream = () => {};
       selectedRunId = '';
       runEvents = [];
       runs = [];
@@ -444,6 +513,9 @@
         if (restoredInvocationId && inspectedInvocationId !== restoredInvocationId && fallbackInvocationId && fallbackInvocationId !== restoredInvocationId) await inspect(fallbackInvocationId);
       }
       await refreshRuns(projectId);
+      await refreshProjectInvocationActivity(projectId);
+      markProjectActivitySeen(projectId);
+      watchProjectInvocationActivity(projectId, projectReplayCursor(invocationActivity, projectId));
       viewScrollY = restored?.scrollY ?? 0;
       pendingScrollY = viewScrollY;
     } finally {
@@ -478,6 +550,92 @@
     'durable-run-attempt.orphaned',
     'durable-run-attempt.adopted',
   ];
+
+  const invocationActivityEventTypes = [
+    'invocation-batch.sealed',
+    'invocation-batch.dispatch-failed',
+    'invocation-batch.recovery-failed',
+    'attempt.leased',
+    'attempt.running',
+    'attempt.chunk',
+    'attempt.succeeded',
+    'attempt.failed',
+    'attempt.interrupted',
+    'attempt.orphaned',
+  ];
+
+  async function refreshProjectInvocations(projectId: string) {
+    const page = await api<{ items: InvocationSummary[]; has_older: boolean; next_before: { created_at: string; invocation_id: string } | null }>(`/api/v1/projects/${encodeURIComponent(projectId)}/invocations?limit=250`);
+    if (project?.project_id !== projectId) return;
+    project = { ...project, invocations: page.items, invocation_page: { has_older: page.has_older, next_before: page.next_before } };
+  }
+
+  function activityMemberForAttempt(attemptId: string) {
+    for (const activity of invocationActivity.items) {
+      for (const member of activity.members) {
+        if (member.attempts.some((attempt) => attempt.attempt_id === attemptId)) return { activity, member };
+      }
+    }
+    return null;
+  }
+
+  async function refreshProjectProviderSurface(projectId: string) {
+    await refreshProjectInvocationActivity(projectId);
+    try {
+      await refreshProjectInvocations(projectId);
+    } catch (cause) {
+      invocationActivityRefreshError = cause instanceof Error ? cause.message : String(cause);
+    }
+  }
+
+  async function settleInvocationActivity(projectId: string, invocationId: string | null) {
+    await refreshProjectProviderSurface(projectId);
+    if (project?.project_id === projectId && invocationId && selected?.invocation_id === invocationId) await inspect(invocationId);
+    if (project?.project_id === projectId) markProjectActivitySeen(projectId);
+  }
+
+  function watchProjectInvocationActivity(projectId: string, after: number) {
+    closeInvocationActivityStream();
+    invocationActivityStreamError = '';
+    const stream = new EventSource(`/api/v1/projects/${encodeURIComponent(projectId)}/events/stream?after=${after}`);
+    const receive = (raw: Event) => {
+      try {
+        const event = JSON.parse((raw as MessageEvent<string>).data) as { seq: number; event_type: string; subject_type: string; subject_id: string; payload: Record<string, unknown> };
+        if (project?.project_id !== projectId) return;
+        if (event.subject_type === 'attempt') {
+          if (event.seq <= (activityEventSequences[event.subject_id] ?? 0)) return;
+          activityEventSequences = { ...activityEventSequences, [event.subject_id]: event.seq };
+        }
+        if (event.event_type === 'attempt.leased' && typeof event.payload.invocation_id === 'string') {
+          activityAttemptInvocations = { ...activityAttemptInvocations, [event.subject_id]: event.payload.invocation_id };
+        }
+        const resolved = activityMemberForAttempt(event.subject_id);
+        if (event.event_type === 'attempt.chunk' && typeof event.payload.preview === 'string') {
+          const label = resolved?.member.spec_id ?? event.subject_id.slice(-8);
+          const line = `${label} · ${String(event.payload.channel ?? 'output')} · ${event.payload.preview}`;
+          activityProgress = { ...activityProgress, [event.subject_id]: [...(activityProgress[event.subject_id] ?? []), line].slice(-200) };
+          activityProgressState = { ...activityProgressState, [event.subject_id]: 'Receiving provider journal' };
+        } else if (event.event_type === 'attempt.running') {
+          activityProgressState = { ...activityProgressState, [event.subject_id]: 'Provider is working' };
+        } else if (['attempt.succeeded', 'attempt.failed', 'attempt.interrupted', 'attempt.orphaned'].includes(event.event_type)) {
+          activityProgressState = { ...activityProgressState, [event.subject_id]: event.event_type.replace('attempt.', 'Provider ') };
+          void settleInvocationActivity(projectId, resolved?.member.invocation_id ?? activityAttemptInvocations[event.subject_id] ?? null);
+        } else if (['invocation-batch.dispatch-failed', 'invocation-batch.recovery-failed'].includes(event.event_type)) {
+          void settleInvocationActivity(projectId, event.subject_id);
+        } else if (['invocation-batch.sealed', 'attempt.leased'].includes(event.event_type)) {
+          void refreshProjectProviderSurface(projectId);
+        }
+        invocationActivityStreamError = '';
+      } catch (cause: unknown) {
+        console.warn('Lattice invocation activity event was malformed:', cause);
+        invocationActivityStreamError = 'A live provider event was unreadable; durable state remains available through refresh.';
+      }
+    };
+    for (const eventType of invocationActivityEventTypes) stream.addEventListener(eventType, receive);
+    stream.onopen = () => { invocationActivityStreamError = ''; };
+    stream.onerror = () => { invocationActivityStreamError = 'Live provider updates disconnected; durable state remains available through refresh.'; };
+    closeInvocationActivityStream = () => stream.close();
+  }
 
   async function refreshRuns(projectId = project?.project_id ?? '') {
     if (!projectId) return;
@@ -776,6 +934,7 @@
   async function executePreparedBatch(confirmedReasonSha256s: string[]) {
     if (!preview || !pendingBatchRequest || !project) return;
     const projectId = project.project_id;
+    const submittedUiState = currentProjectUiState();
     working = true;
     error = '';
     try {
@@ -785,59 +944,34 @@
         expected_preview_sha256: preview.preview_sha256,
         confirmed_reason_sha256s: confirmedReasonSha256s,
       });
-      activeAttemptIds = batch.execution_attempts.map((attempt) => attempt.attempt_id);
-      liveProgress = '';
-      liveProgressState = `${batch.execution_attempts.length} provider journal${batch.execution_attempts.length === 1 ? '' : 's'} connected`;
-      const closeProgress = batch.execution_attempts.map((attempt) => followAttemptProgress(projectId, attempt.attempt_id, attempt.event_cursor, batch.members.find((member) => member.invocation_id === attempt.invocation_id)?.spec_id ?? 'route'));
-      preview = null;
-      pendingBatchRequest = null;
-      prompt = '';
-      explicitSelections = [];
-      selectedParents = new Set();
-      try { await Promise.all(batch.invocation_ids.map((invocationId) => pollInvocation(invocationId))); }
-      finally { closeProgress.forEach((close) => close()); activeAttemptIds = []; }
       const foregroundInvocationId = batch.invocation_ids.at(-1);
-      persistCurrentProjectUiState(foregroundInvocationId);
-      selected = null;
-      await openProject(projectId);
+      const clearedUiState = submittedUiState ? { ...submittedUiState, prompt: '', explicitSelections: [], selectedParentIds: [], selectedInvocationId: foregroundInvocationId ?? submittedUiState.selectedInvocationId, updatedAt: Date.now() } : null;
+      if (project?.project_id === projectId) {
+        preview = null;
+        pendingBatchRequest = null;
+        prompt = '';
+        explicitSelections = [];
+        selectedParents = new Set();
+      } else if (clearedUiState) {
+        const persisted = writeProjectUiState(window.localStorage, projectId, clearedUiState, { activate: false });
+        if (persisted.error) uiPersistenceError = persisted.error;
+      }
+      await refreshProjectProviderSurface(projectId);
+      if (project?.project_id === projectId && foregroundInvocationId) await inspect(foregroundInvocationId);
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      if (project?.project_id === projectId) error = detail;
+      else activityNotice = `${projects.find((item) => item.project_id === projectId)?.title ?? 'Background model work'} did not launch`;
     } finally { working = false; }
   }
 
-  function followAttemptProgress(projectId: string, attemptId: string, after: number, label: string): () => void {
-    const stream = new EventSource(`/api/v1/projects/${encodeURIComponent(projectId)}/events/stream?after=${after}`);
-    stream.addEventListener('attempt.chunk', (event) => {
-      try {
-        const item = JSON.parse(event.data) as { subject_id?: string; payload?: { channel?: string; preview?: string } };
-        if (item.subject_id !== attemptId || typeof item.payload?.preview !== 'string') return;
-        const line = `${label} · ${item.payload.channel ?? 'output'} · ${item.payload.preview}`;
-        liveProgress = `${liveProgress}${liveProgress ? '\n' : ''}${line}`.slice(-100_000);
-        liveProgressState = 'Receiving provider journal';
-      } catch (cause: unknown) {
-        console.warn('Lattice progress event was malformed:', cause);
-        liveProgressState = 'Live journal event was unreadable; terminal status polling continues';
-      }
-    });
-    stream.onerror = () => { liveProgressState = 'Live journal disconnected; terminal status polling continues'; };
-    return () => stream.close();
-  }
-
   async function cancelActiveAttempts() {
-    if (!activeAttemptIds.length) return;
+    if (!selectedActiveAttemptIds.length) return;
     error = '';
     try {
-      await Promise.all(activeAttemptIds.map((attemptId) => post(`/api/v1/attempts/${attemptId}/cancel`, {})));
-      liveProgressState = 'Cancellation requested; waiting for the terminal receipt';
+      await Promise.all(selectedActiveAttemptIds.map((attemptId) => post(`/api/v1/attempts/${attemptId}/cancel`, {})));
+      activityProgressState = Object.fromEntries(Object.entries(activityProgressState).concat(selectedActiveAttemptIds.map((attemptId) => [attemptId, 'Cancellation requested; waiting for the terminal receipt'])));
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
-  }
-
-  async function pollInvocation(id: string): Promise<Invocation> {
-    for (;;) {
-      const invocation = await api<Invocation>(`/api/v1/invocations/${id}`);
-      if (['succeeded', 'failed', 'interrupted'].includes(invocation.state)) return invocation;
-      await new Promise((resolve) => setTimeout(resolve, 600));
-    }
   }
 
   async function inspect(id: string) {
@@ -1356,6 +1490,7 @@
   onDestroy(() => {
     flushUiState();
     closeRunEventStream();
+    closeInvocationActivityStream();
     if (activityTimer !== null) clearInterval(activityTimer);
   });
   boot();
@@ -1371,8 +1506,8 @@
     <header>
       <div class="mark">L</div>
       <div><h1>Lattice</h1><p>One consequential edge at a time</p></div>
-      <button class="activity-status" class:notice={Boolean(activityNotice)} class:failed={Boolean(globalActivityError)} title={globalActivityError || 'Open projects, active work, and cockpit commands'} on:click={() => { paletteOpen = true; activityNotice = ''; }}>
-        {#if globalActivityError}activity unavailable{:else if activityNotice}{activityNotice}{:else if activeGlobalRuns.length}{activeGlobalRuns.length} active · ⌘K{:else}quiet · ⌘K{/if}
+      <button class="activity-status" class:notice={Boolean(activityNotice)} class:failed={Boolean(activitySurfaceError)} title={activitySurfaceError || 'Open projects, active work, and cockpit commands'} on:click={() => { paletteOpen = true; activityNotice = ''; }}>
+        {#if activitySurfaceError}activity delayed{:else if activityNotice}{activityNotice}{:else if activeGlobalRuns.length + activeProviderActivities.length}{activeGlobalRuns.length + activeProviderActivities.length} open · ⌘K{:else}quiet · ⌘K{/if}
       </button>
       <div class="route-status">{routeCatalogueError ? `Provider catalogue unavailable · ${routeCatalogueError}` : activeRoute ? `${activeRoute.official_cli} · ${activeRoute.model_code}` : 'No qualified route'}</div>
     </header>
@@ -1390,6 +1525,7 @@
         {workflowPacks}
         {workflowPackFailures}
         {workflowSelectorValues}
+        activityBadges={projectActivity}
         onOpenProject={openProject}
         onCreateProject={createProject}
         onSetWorkflowSelectorValue={setWorkflowSelectorValue}
@@ -1449,9 +1585,10 @@
 
           <ResponsePane
             {selected}
-            {activeAttemptIds}
-            {liveProgress}
-            {liveProgressState}
+            activeAttemptIds={selectedActiveAttemptIds}
+            liveProgress={selectedLiveProgress}
+            liveProgressState={selectedLiveProgressState}
+            activityFailure={selectedActivityFailure}
             {responseHtml}
             {working}
             {selectedNativeEligible}

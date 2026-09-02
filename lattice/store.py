@@ -2955,6 +2955,144 @@ class LatticeStore:
             raise LatticeConflict("stored invocation batch receipt disagrees with its immutable identity")
         return {**receipt, "members": members}
 
+    def list_invocation_activity(self, project_id: str | None = None, *, limit: int = 20) -> dict[str, Any]:
+        """Project provider work from one consistent read of the canonical ledgers."""
+
+        if project_id is None:
+            with self._connect() as conn:
+                project_ids = [row[0] for row in conn.execute("SELECT project_id FROM projects ORDER BY created_at,project_id")]
+            snapshots = [self._project_invocation_activity(exact_project_id, recent_limit=limit) for exact_project_id in project_ids]
+            return {
+                "items": sorted((item for snapshot in snapshots for item in snapshot["items"]), key=lambda item: item["last_event_seq"], reverse=True),
+                "project_cursors": {snapshot["project_id"]: snapshot["snapshot_event_cursor"] for snapshot in snapshots},
+                "activity_cursors": {snapshot["project_id"]: snapshot["snapshot_activity_cursor"] for snapshot in snapshots},
+                "recent_has_more": {snapshot["project_id"]: snapshot["recent_has_more"] for snapshot in snapshots},
+            }
+        snapshot = self._project_invocation_activity(project_id, recent_limit=limit)
+        return {
+            "items": snapshot["items"],
+            "project_cursors": {project_id: snapshot["snapshot_event_cursor"]},
+            "activity_cursors": {project_id: snapshot["snapshot_activity_cursor"]},
+            "recent_has_more": {project_id: snapshot["recent_has_more"]},
+        }
+
+    def _project_invocation_activity(self, project_id: str, *, recent_limit: int) -> dict[str, Any]:
+        """Read one project's active and recent batches without mixing SQLite snapshots."""
+
+        with self._connect() as conn:
+            conn.execute("BEGIN")
+            try:
+                if conn.execute("SELECT 1 FROM projects WHERE project_id=?", (project_id,)).fetchone() is None:
+                    raise LatticeNotFound(project_id)
+                snapshot_event_cursor = int(conn.execute("SELECT COALESCE(MAX(seq),0) FROM events WHERE project_id=?", (project_id,)).fetchone()[0])
+                summaries = [dict(row) for row in conn.execute(
+                    """WITH batch_state AS (
+                           SELECT b.batch_id,b.created_at,
+                                  MAX(CASE WHEN i.state IN ('sealed','leased','running') THEN 1 ELSE 0 END) AS active
+                           FROM invocation_batches b
+                           JOIN invocation_batch_members m USING(batch_id)
+                           JOIN invocations i USING(invocation_id)
+                           WHERE b.project_id=? GROUP BY b.batch_id,b.created_at
+                       ), batch_event AS (
+                           SELECT b.batch_id,COALESCE(MAX(e.seq),0) AS last_event_seq,
+                                  MIN(CASE WHEN e.event_type='invocation-batch.sealed' THEN e.seq END) AS replay_event_cursor
+                           FROM invocation_batches b
+                           LEFT JOIN events e ON e.project_id=b.project_id AND (
+                               (e.subject_type='invocation-batch' AND e.subject_id=b.batch_id) OR
+                               (e.subject_type='attempt' AND EXISTS(
+                                   SELECT 1 FROM invocation_batch_members m
+                                   JOIN attempts a USING(invocation_id)
+                                   WHERE m.batch_id=b.batch_id AND a.attempt_id=e.subject_id
+                               )) OR
+                               (e.subject_type='invocation' AND e.event_type IN ('invocation-batch.dispatch-failed','invocation-batch.recovery-failed') AND EXISTS(
+                                   SELECT 1 FROM invocation_batch_members m
+                                   WHERE m.batch_id=b.batch_id AND m.invocation_id=e.subject_id
+                               ))
+                           )
+                           WHERE b.project_id=? GROUP BY b.batch_id
+                       )
+                       SELECT s.batch_id,s.created_at,s.active,e.last_event_seq,e.replay_event_cursor
+                       FROM batch_state s JOIN batch_event e USING(batch_id)
+                       ORDER BY e.last_event_seq DESC,s.batch_id DESC""",
+                    (project_id, project_id),
+                )]
+                active = [row for row in summaries if row["active"]]
+                terminal = [row for row in summaries if not row["active"]]
+                snapshot_activity_cursor = max((int(row["last_event_seq"]) for row in summaries), default=0)
+                recent_has_more = len(terminal) > recent_limit
+                selected = sorted([*active, *terminal[:recent_limit]], key=lambda row: (row["last_event_seq"], row["batch_id"]), reverse=True)
+                items: list[dict[str, Any]] = []
+                for summary in selected:
+                    batch_row = dict(self._row(conn.execute("SELECT * FROM invocation_batches WHERE batch_id=?", (summary["batch_id"],)).fetchone(), summary["batch_id"]))
+                    receipt = json.loads(batch_row["receipt_json"])
+                    if sha256_bytes(canonical_bytes({key: value for key, value in receipt.items() if key != "receipt_sha256"})) != batch_row["receipt_sha256"] or receipt.get("receipt_sha256") != batch_row["receipt_sha256"]:
+                        raise LatticeConflict("stored invocation batch receipt disagrees with its immutable identity")
+                    members = [dict(row) for row in conn.execute(
+                        """SELECT m.ordinal,m.spec_id,m.assembly_sha256,m.invocation_id,i.state,i.terminal_kind,i.output_block_id,i.manifest_sha256,i.route_json,i.completed_at
+                           FROM invocation_batch_members m JOIN invocations i USING(invocation_id)
+                           WHERE m.batch_id=? ORDER BY m.ordinal""",
+                        (summary["batch_id"],),
+                    )]
+                    for member in members:
+                        member["route"] = json.loads(member.pop("route_json"))
+                        member["attempts"] = [dict(row) for row in conn.execute(
+                            """SELECT a.attempt_id,a.attempt_number,a.state,a.failure_kind,a.error_text,a.started_at,a.heartbeat_at,a.completed_at,
+                                      MIN(CASE WHEN e.event_type='attempt.leased' THEN e.seq END) AS replay_event_cursor,
+                                      MAX(e.seq) AS latest_event_seq
+                               FROM attempts a
+                               LEFT JOIN events e ON e.project_id=? AND e.subject_type='attempt' AND e.subject_id=a.attempt_id
+                               WHERE a.invocation_id=? GROUP BY a.attempt_id ORDER BY a.attempt_number""",
+                            (project_id, member["invocation_id"]),
+                        )]
+                        if any(attempt["replay_event_cursor"] is None for attempt in member["attempts"]):
+                            raise LatticeConflict("persisted provider attempt lacks its leased-event replay cursor")
+                        dispatch_failure = conn.execute(
+                            """SELECT seq,event_type,payload_json FROM events
+                               WHERE project_id=? AND subject_type='invocation' AND subject_id=?
+                                 AND event_type IN ('invocation-batch.dispatch-failed','invocation-batch.recovery-failed')
+                               ORDER BY seq DESC LIMIT 1""",
+                            (project_id, member["invocation_id"]),
+                        ).fetchone()
+                        latest_attempt_cursor = max((int(attempt["latest_event_seq"]) for attempt in member["attempts"]), default=0)
+                        has_active_attempt = any(attempt["state"] in {"leased", "running"} for attempt in member["attempts"])
+                        member["dispatch_failure"] = ({
+                            "seq": int(dispatch_failure["seq"]),
+                            "event_type": dispatch_failure["event_type"],
+                            "detail": json.loads(dispatch_failure["payload_json"]),
+                        } if dispatch_failure is not None and int(dispatch_failure["seq"]) > latest_attempt_cursor and not has_active_attempt else None)
+                    member_states = [member["state"] for member in members]
+                    if any(state in {"leased", "running"} for state in member_states):
+                        state = "running"
+                    elif any(state == "sealed" for state in member_states):
+                        state = "sealed"
+                    elif member_states and all(state in {"succeeded", "imported"} for state in member_states):
+                        state = "succeeded"
+                    elif member_states and all(state == "failed" for state in member_states):
+                        state = "failed"
+                    elif member_states and all(state == "interrupted" for state in member_states):
+                        state = "interrupted"
+                    else:
+                        state = "mixed"
+                    attempts = [attempt for member in members for attempt in member["attempts"]]
+                    is_terminal = state not in {"sealed", "running"}
+                    items.append({
+                        "activity_id": summary["batch_id"],
+                        "batch_id": summary["batch_id"],
+                        "project_id": project_id,
+                        "state": state,
+                        "terminal": is_terminal,
+                        "needs_attention": any(member["dispatch_failure"] is not None for member in members),
+                        "created_at": batch_row["created_at"],
+                        "completed_at": max((member["completed_at"] for member in members if member["completed_at"]), default=None) if is_terminal else None,
+                        "last_event_seq": int(summary["last_event_seq"]),
+                        "replay_event_cursor": int(summary["replay_event_cursor"] or 0),
+                        "active_attempt_ids": [attempt["attempt_id"] for attempt in attempts if attempt["state"] in {"leased", "running"}],
+                        "members": members,
+                    })
+                return {"project_id": project_id, "snapshot_event_cursor": snapshot_event_cursor, "snapshot_activity_cursor": snapshot_activity_cursor, "items": items, "recent_has_more": recent_has_more}
+            finally:
+                conn.rollback()
+
     def list_undispatched_batch_members(self) -> list[dict[str, str]]:
         """Return atomically sealed batch members that never crossed the dispatch boundary."""
 
@@ -3303,7 +3441,10 @@ class LatticeStore:
                     "INSERT INTO native_session_leases(native_session_lease_id,provider,native_session_id,invocation_id,attempt_id,owner_boot_id,state,acquired_at,expires_at) VALUES(?,?,?,?,?,?,'active',?,?)",
                     (opaque_id("native_session_lease"), route["provider"], native_session_id, invocation_id, attempt_id, boot_id, now, expires_at),
                 )
-            conn.execute("UPDATE invocations SET state=? WHERE invocation_id=?", (InvocationState.leased.value, invocation_id))
+            conn.execute(
+                "UPDATE invocations SET state=?,output_block_id=NULL,terminal_kind=NULL,completed_at=NULL WHERE invocation_id=?",
+                (InvocationState.leased.value, invocation_id),
+            )
             self._event(conn, project_id=invocation["project_id"], event_type="attempt.leased", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": invocation_id, "lease_id": lease_id, "attempt_number": number})
             return dict(conn.execute("SELECT * FROM attempts WHERE attempt_id=?", (attempt_id,)).fetchone())
 
