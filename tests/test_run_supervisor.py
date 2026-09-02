@@ -35,6 +35,7 @@ from lattice.contracts import (
     RunUnitDeclarationV1,
 )
 from lattice.run_executor import LOCAL_EXECUTOR_IDENTITY, executor_implementation_manifest, executor_implementation_sha256, sha256_executable, sha256_file
+from lattice.run_protocol import UnitStartedEvent
 from lattice.run_supervisor import DurableRunSupervisor
 from lattice.snapshot import create_snapshot, restore_snapshot
 from lattice.store import LatticeConflict
@@ -352,6 +353,40 @@ async def test_stop_waits_for_the_worker_declared_unit_boundary(lattice_env, tmp
     await asyncio.sleep(0.05)
     assert lattice_env["store"].get_run_attempt(attempt["attempt_id"])["state"] == "stopping"
     release_file.write_text("finish active unit\n", encoding="utf-8")
+    assert (await supervisor.wait(attempt["attempt_id"]))["state"] == "stopped"
+    stopped = lattice_env["store"].get_run(run["run_id"])
+    assert [unit["state"] for unit in stopped["units"]] == ["completed", "completed", "eligible"]
+    assert not (work_root / "result-three.txt").exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.oracle
+async def test_stop_admits_a_unit_start_event_already_in_flight(lattice_env, tmp_path, monkeypatch) -> None:
+    declaration, work_root, release_file = _bound_fixture(lattice_env, tmp_path, operation_key="inflight-boundary-stop", behavior="normal")
+    run = lattice_env["store"].declare_run(declaration)
+    lattice_env["store"].admit_run(run["run_id"])
+    supervisor = DurableRunSupervisor(lattice_env["store"], journal_root=tmp_path / "journals")
+    await supervisor.start()
+    observed_inflight_start = asyncio.Event()
+    admit_inflight_start = asyncio.Event()
+    apply_event = supervisor._apply_event
+
+    async def delay_second_start(execution, event):
+        if isinstance(event, UnitStartedEvent) and event.unit_key == "two":
+            observed_inflight_start.set()
+            await admit_inflight_start.wait()
+        await apply_event(execution, event)
+
+    monkeypatch.setattr(supervisor, "_apply_event", delay_second_start)
+    attempt = await supervisor.execute(run["run_id"], "inflight-boundary-stop-attempt-one")
+    await asyncio.wait_for(observed_inflight_start.wait(), timeout=5)
+
+    assert lattice_env["store"].get_run_unit(run["run_id"], "two")["state"] == "eligible"
+    assert (await supervisor.request_stop(run["run_id"]))["state"] == "stopping"
+    admit_inflight_start.set()
+    await _wait_until(lambda: lattice_env["store"].get_run_unit(run["run_id"], "two")["state"] == "running")
+    release_file.write_text("finish active unit\n", encoding="utf-8")
+
     assert (await supervisor.wait(attempt["attempt_id"]))["state"] == "stopped"
     stopped = lattice_env["store"].get_run(run["run_id"])
     assert [unit["state"] for unit in stopped["units"]] == ["completed", "completed", "eligible"]

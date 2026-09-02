@@ -75,6 +75,8 @@ class _LocalExecution:
     last_sequence: int = 0
     terminal_event: RunCompletedEvent | RunFailedEvent | None = None
     stop_signal_sent: bool = False
+    # A decoded worker event may be awaiting store admission when stop arrives.
+    worker_event_in_flight: bool = False
 
 
 class DurableRunSupervisor:
@@ -258,7 +260,7 @@ class DurableRunSupervisor:
             return run
         active.stop_requested = True
         self._signal_stop(active)
-        if not active.active_units or active.safe_to_stop or run["state"] == DurableRunState.waiting.value:
+        if (not active.active_units and not active.worker_event_in_flight) or active.safe_to_stop or run["state"] == DurableRunState.waiting.value:
             await self._terminate(active)
         return self.store.get_run(run_id)
 
@@ -339,7 +341,11 @@ class DurableRunSupervisor:
                 if event.sequence != execution.last_sequence + 1:
                     raise DurableRunProtocolError(f"worker event sequence jumped from {execution.last_sequence} to {event.sequence}")
                 execution.last_sequence = event.sequence
-                await self._apply_event(execution, event)
+                execution.worker_event_in_flight = True
+                try:
+                    await self._apply_event(execution, event)
+                finally:
+                    execution.worker_event_in_flight = False
                 execution.journal.append_event(raw)
                 if isinstance(event, (UnitCompletedEvent, UnitRefusedEvent, UnitFailedEvent, ArtifactEvent, CheckpointEvent)):
                     await asyncio.to_thread(execution.journal.sync_streams)

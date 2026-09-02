@@ -1783,8 +1783,14 @@ class LatticeStore:
                 raise LatticeConflict("run attempt belongs to another run")
             if unit["state"] == DurableRunUnitState.running.value and unit["active_attempt_id"] == attempt_id:
                 return self._decode_run_unit(unit)
-            if run["state"] != DurableRunState.running.value or attempt["state"] != DurableRunAttemptState.running.value:
-                raise LatticeConflict("run unit requires a running run and attempt")
+            # A unit-start event decoded before stop may reach the store just
+            # after the run and attempt enter their matching stopping states.
+            active_states = {
+                (DurableRunState.running.value, DurableRunAttemptState.running.value),
+                (DurableRunState.stopping.value, DurableRunAttemptState.stopping.value),
+            }
+            if (run["state"], attempt["state"]) not in active_states:
+                raise LatticeConflict("run unit requires a matching active run and attempt")
             if unit["state"] != DurableRunUnitState.eligible.value:
                 raise LatticeConflict(f"run unit cannot start from {unit['state']}")
             active = conn.execute(
