@@ -1604,6 +1604,11 @@ class LatticeStore:
                     raise LatticeConflict("initiating invocation belongs to another project")
             mapping = conn.execute("SELECT project_id FROM external_projects WHERE external_project_key=?", (value.external_project_key,)).fetchone()
             if mapping is None:
+                existing_project_mapping = conn.execute("SELECT external_project_key FROM external_projects WHERE project_id=?", (value.project_id,)).fetchone()
+                if existing_project_mapping is not None:
+                    raise LatticeConflict(
+                        f"Lattice project is already bound to external project identity {existing_project_mapping['external_project_key']}"
+                    )
                 conn.execute("INSERT INTO external_projects(external_project_key,project_id,created_at) VALUES(?,?,?)", (value.external_project_key, value.project_id, stamp()))
             elif mapping["project_id"] != value.project_id:
                 raise LatticeConflict("external project identity is already bound to another Lattice project")
@@ -1683,7 +1688,11 @@ class LatticeStore:
         _request, encoded, request_sha256 = self._attempt_request(value, checkpoint_artifact_id)
         existing = conn.execute("SELECT * FROM run_attempts WHERE idempotency_key=?", (value.idempotency_key,)).fetchone()
         if existing is not None:
-            if existing["run_id"] != run_id or existing["request_sha256"] != request_sha256 or existing["request_json"].encode("utf-8") != encoded:
+            if existing["run_id"] != run_id:
+                raise LatticeConflict(
+                    f"run-attempt idempotency key is already bound to run {existing['run_id']} and cannot start run {run_id}"
+                )
+            if existing["request_sha256"] != request_sha256 or existing["request_json"].encode("utf-8") != encoded:
                 raise LatticeConflict("run-attempt idempotency key was reused with different bound bytes")
             return existing["attempt_id"]
         allowed = {DurableRunState.stopped.value, DurableRunState.failed.value} if resume else {DurableRunState.admitted.value}

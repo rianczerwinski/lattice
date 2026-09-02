@@ -114,6 +114,23 @@ def test_contract_run_operation_and_attempt_identities_are_byte_bound(lattice_en
     store.request_run_stop(first["run_id"])
     store.finish_run_attempt(attempt["attempt_id"], RunAttemptFinishV1(state="stopped"))
 
+    second = store.declare_run(_declaration(lattice_env, operation_key="second-run"))
+    store.admit_run(second["run_id"])
+    with pytest.raises(LatticeConflict, match=rf"already bound to run {first['run_id']} and cannot start run {second['run_id']}"):
+        store.start_run_attempt(second["run_id"], _start("attempt-one"))
+
+
+@pytest.mark.regression
+def test_regression_second_external_identity_for_one_project_is_a_typed_conflict(lattice_env) -> None:
+    store = lattice_env["store"]
+    store.declare_run(_declaration(lattice_env))
+
+    second_identity = _declaration(lattice_env, operation_key="different-operation").model_copy(
+        update={"external_project_key": "fixture-project-alias"}
+    )
+    with pytest.raises(LatticeConflict, match="already bound to external project identity fixture-project"):
+        store.declare_run(second_identity)
+
 
 @pytest.mark.property
 def test_property_resume_preserves_completed_units_and_rebuilds_the_same_state(lattice_env, tmp_path) -> None:

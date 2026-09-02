@@ -174,18 +174,17 @@ def test_content_addressed_blob_endpoint_returns_exact_authenticated_bytes(latti
     assert malformed.status_code == 422
 
 
-@pytest.mark.contract
-def test_durable_run_api_exposes_one_bound_control_and_artifact_surface(monkeypatch, lattice_env, tmp_path: Path) -> None:
+def _api_run_declaration(lattice_env, *, external_project_key: str = "api-fixture", operation_key: str = "one-unit") -> DurableRunDeclarationV2:
     unit = RunUnitDeclarationV1(unit_key="only", input_sha256=sha256_bytes(b"only-input"))
     command = ["/fixture/worker"]
     cwd = "/fixture"
     artifact_roots = ["/fixture"]
     code_closure = LocalFileClosureV1(bindings=[LocalFileBindingV1(path="/fixture/worker", content_sha256="2" * 64, byte_count=20)])
     input_closure = LocalFileClosureV1(bindings=[LocalFileBindingV1(binding_kind="manifest", path="/fixture/inputs.manifest", content_sha256="3" * 64, byte_count=30)])
-    declaration = DurableRunDeclarationV2(
+    return DurableRunDeclarationV2(
         project_id=lattice_env["project"]["project_id"],
-        external_project_key="api-fixture",
-        operation_key="one-unit",
+        external_project_key=external_project_key,
+        operation_key=operation_key,
         name="API fixture run",
         executable_ref="/fixture/worker",
         executable_sha256="1" * 64,
@@ -204,6 +203,28 @@ def test_durable_run_api_exposes_one_bound_control_and_artifact_surface(monkeypa
         input_closure=input_closure,
         local_launch_profile=LocalRunLaunchProfileV1(command=command, cwd=cwd, artifact_roots=artifact_roots),
     )
+
+
+@pytest.mark.regression
+def test_durable_run_api_returns_conflict_for_a_second_external_identity(lattice_env) -> None:
+    declaration = _api_run_declaration(lattice_env)
+    alias = _api_run_declaration(lattice_env, external_project_key="api-fixture-alias", operation_key="alias-operation")
+    app = create_app(lattice_env["config"])
+
+    with TestClient(app) as client:
+        session = _operator_session(client, lattice_env)
+        headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
+        created = client.post("/api/v1/runs", headers=headers, json=declaration.model_dump(mode="json"))
+        conflict = client.post("/api/v1/runs", headers=headers, json=alias.model_dump(mode="json"))
+
+    assert created.status_code == 201
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"] == "Lattice project is already bound to external project identity api-fixture"
+
+
+@pytest.mark.contract
+def test_durable_run_api_exposes_one_bound_control_and_artifact_surface(monkeypatch, lattice_env, tmp_path: Path) -> None:
+    declaration = _api_run_declaration(lattice_env)
     app = create_app(lattice_env["config"])
     launches: list[tuple[str, str]] = []
 
