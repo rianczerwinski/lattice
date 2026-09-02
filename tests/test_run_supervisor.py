@@ -383,6 +383,8 @@ async def test_stop_admits_a_unit_start_event_already_in_flight(lattice_env, tmp
 
     assert lattice_env["store"].get_run_unit(run["run_id"], "two")["state"] == "eligible"
     assert (await supervisor.request_stop(run["run_id"]))["state"] == "stopping"
+    with pytest.raises(LatticeConflict, match="matching active run and attempt"):
+        lattice_env["store"].start_run_unit(run["run_id"], attempt["attempt_id"], "two")
     admit_inflight_start.set()
     await _wait_until(lambda: lattice_env["store"].get_run_unit(run["run_id"], "two")["state"] == "running")
     release_file.write_text("finish active unit\n", encoding="utf-8")

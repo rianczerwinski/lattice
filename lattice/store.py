@@ -1774,7 +1774,7 @@ class LatticeStore:
             row = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
         return self._decode_run_unit(row)
 
-    def start_run_unit(self, run_id: str, attempt_id: str, unit_key: str) -> dict[str, Any]:
+    def start_run_unit(self, run_id: str, attempt_id: str, unit_key: str, *, allow_stopping: bool = False) -> dict[str, Any]:
         with self.transaction() as conn:
             run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
             attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
@@ -1783,12 +1783,13 @@ class LatticeStore:
                 raise LatticeConflict("run attempt belongs to another run")
             if unit["state"] == DurableRunUnitState.running.value and unit["active_attempt_id"] == attempt_id:
                 return self._decode_run_unit(unit)
-            # A unit-start event decoded before stop may reach the store just
-            # after the run and attempt enter their matching stopping states.
             active_states = {
                 (DurableRunState.running.value, DurableRunAttemptState.running.value),
-                (DurableRunState.stopping.value, DurableRunAttemptState.stopping.value),
             }
+            # Only the supervisor may certify that a start event was decoded
+            # before stop but reached the store after the stopping transition.
+            if allow_stopping:
+                active_states.add((DurableRunState.stopping.value, DurableRunAttemptState.stopping.value))
             if (run["state"], attempt["state"]) not in active_states:
                 raise LatticeConflict("run unit requires a matching active run and attempt")
             if unit["state"] != DurableRunUnitState.eligible.value:

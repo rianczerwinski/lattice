@@ -379,7 +379,12 @@ class DurableRunSupervisor:
         if execution.terminal_event is not None:
             raise DurableRunProtocolError("worker emitted an event after its terminal disposition")
         if isinstance(event, UnitStartedEvent):
-            self.store.start_run_unit(execution.run_id, execution.attempt_id, event.unit_key)
+            self.store.start_run_unit(
+                execution.run_id,
+                execution.attempt_id,
+                event.unit_key,
+                allow_stopping=execution.stop_requested and execution.worker_event_in_flight,
+            )
             execution.active_units.add(event.unit_key)
             execution.safe_to_stop = False
         elif isinstance(event, UnitCompletedEvent):
