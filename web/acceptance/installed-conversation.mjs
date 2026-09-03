@@ -23,10 +23,15 @@ const slateIdentity = `lattice-browser-acceptance-${input.run_id.toLowerCase()}`
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext();
 const page = await context.newPage();
-page.setDefaultTimeout(input.timeout_ms ?? 1_800_000);
+const providerTimeoutMs = input.timeout_ms ?? 1_800_000;
+page.setDefaultTimeout(Math.min(providerTimeoutMs, 30_000));
+
+function checkpoint(name) {
+  process.stderr.write(`[browser-acceptance] ${name}\n`);
+}
 
 async function waitForMarker(marker) {
-  await expect(page.locator('.response-card article')).toContainText(marker, { timeout: input.timeout_ms ?? 1_800_000 });
+  await expect(page.locator('.response-card article')).toContainText(marker, { timeout: providerTimeoutMs });
   await expect(page.locator('.terminal-failure')).toHaveCount(0);
 }
 
@@ -49,11 +54,14 @@ try {
   await page.getByPlaceholder('What is this for?').fill('Synthetic installed-browser qualification; no personal corpus.');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByText('Say what should happen next.')).toBeVisible();
+  checkpoint('blank project created');
 
   await page.getByRole('button', { name: 'Claude', exact: true }).click();
   await page.locator('.composer textarea').fill(`Reply in one short sentence containing exact markers ${markers.root} and ${markers.excerpt}.`);
   await page.getByRole('button', { name: 'Send to anthropic', exact: true }).click();
+  checkpoint('Claude root dispatched');
   await waitForMarker(markers.excerpt);
+  checkpoint('Claude root completed');
 
   await page.locator('.response-card article').evaluate((article, phrase) => {
     const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
@@ -71,21 +79,29 @@ try {
   }, markers.excerpt);
   const selectedActions = page.locator('details.context-actions.selected-text');
   await expect(selectedActions).toBeVisible();
+  await selectedActions.locator('summary').click();
+  await expect(selectedActions.getByRole('button', { name: 'Ask Codex', exact: true })).toBeVisible();
   await selectedActions.getByRole('button', { name: 'Ask Codex', exact: true }).click();
   await expect(page.getByText('1 exact graft selected')).toBeVisible();
   await page.locator('.composer textarea').fill(`Investigate the exact graft and reply with marker ${markers.side}.`);
   await page.getByRole('button', { name: 'Send to openai', exact: true }).click();
+  checkpoint('Codex side quest dispatched');
   await waitForMarker(markers.side);
+  checkpoint('Codex side quest completed');
 
   await page.getByRole('button', { name: 'both', exact: true }).click();
   await page.locator('.composer textarea').fill(`Answer independently and include marker ${markers.fanout}.`);
   await page.getByRole('button', { name: 'Send to both', exact: true }).click();
+  checkpoint('fan-out dispatched');
   await waitForMarker(markers.fanout);
+  checkpoint('fan-out completed');
 
   await selectNewestParents(2);
   await page.locator('.composer textarea').fill(`Critique the other provider's selected answer and include marker ${markers.crossfeed}.`);
   await page.getByRole('button', { name: 'Reciprocal cross-feed', exact: true }).click();
+  checkpoint('reciprocal cross-feed dispatched');
   await waitForMarker(markers.crossfeed);
+  checkpoint('reciprocal cross-feed completed');
 
   await selectNewestParents(2);
   await page.getByRole('button', { name: 'Codex', exact: true }).click();
@@ -94,7 +110,9 @@ try {
   await expect(page.locator('.truth-status')).toContainText('Ready for one-action send');
   await expect(page.getByText('Next invocation receives')).toBeVisible();
   await page.getByRole('button', { name: 'Send to openai', exact: true }).click();
+  checkpoint('fan-in dispatched');
   await waitForMarker(markers.join);
+  checkpoint('fan-in completed');
 
   const oldest = page.locator('.history-row').last();
   await oldest.locator('button').click();
@@ -103,7 +121,9 @@ try {
   await page.getByRole('button', { name: 'Claude', exact: true }).click();
   await page.locator('.composer textarea').fill(`Resume this dormant trailhead and include marker ${markers.dormant}.`);
   await page.getByRole('button', { name: 'Send to anthropic', exact: true }).click();
+  checkpoint('dormant branch dispatched');
   await waitForMarker(markers.dormant);
+  checkpoint('dormant branch completed');
 
   await page.getByText('Tag into a live Slate topic').click();
   await page.getByLabel('Stable Slate identity').fill(slateIdentity);
@@ -113,6 +133,12 @@ try {
   await expect(page.locator('.truth-status')).toContainText('Manifest reconstructed');
 
   process.stdout.write(JSON.stringify({ run_id: input.run_id, project_title: title, slate_external_ref: `slate:${slateIdentity}`, markers }));
+} catch (error) {
+  const buttons = await page.locator('button').evaluateAll((items) => items.filter((item) => item.offsetParent !== null).map((item) => ({ text: item.textContent?.trim() ?? '', disabled: item.disabled })));
+  const visibleErrors = await page.locator('.surface-failure, .error, .terminal-failure').allTextContents();
+  const prompt = await page.locator('.composer textarea').count() ? await page.locator('.composer textarea').inputValue() : null;
+  process.stderr.write(`${JSON.stringify({ phase: 'browser-journey-failed', url: page.url(), prompt, visible_errors: visibleErrors, visible_buttons: buttons })}\n`);
+  throw error;
 } finally {
   await context.close();
   await browser.close();
