@@ -28,7 +28,13 @@ def _digest(label: str) -> str:
     return hashlib.sha256(label.encode("utf-8")).hexdigest()
 
 
-def _declaration(lattice_env, *, configuration: str = "configuration-a", operation_key: str = "three-units") -> DurableRunDeclarationV1:
+def _declaration(
+    lattice_env,
+    *,
+    configuration: str = "configuration-a",
+    operation_key: str = "three-units",
+    max_parallel_units: int = 1,
+) -> DurableRunDeclarationV1:
     units = [
         RunUnitDeclarationV1(unit_key="one", input_sha256=_digest("input-one")),
         RunUnitDeclarationV1(unit_key="two", input_sha256=_digest("input-two"), depends_on=["one"]),
@@ -50,6 +56,7 @@ def _declaration(lattice_env, *, configuration: str = "configuration-a", operati
         executor_sha256=_digest("executor"),
         unit_namespace="fixture",
         resume_strategy="repeat-active-unit-from-project-checkpoint",
+        max_parallel_units=max_parallel_units,
         unit_manifest_sha256=unit_manifest_sha256,
         units=units,
         authority=DurableRunAuthorityV1(kind="operator", actor_ref="test-operator"),
@@ -79,6 +86,15 @@ def test_contract_durable_run_declaration_binds_a_valid_semantic_population(latt
     with pytest.raises(ValidationError, match="contain a cycle"):
         DurableRunDeclarationV1.model_validate(cyclic)
 
+    excessive_parallelism = declaration.model_dump(mode="json")
+    excessive_parallelism["max_parallel_units"] = len(declaration.units) + 1
+    with pytest.raises(ValidationError, match="parallel-unit limit cannot exceed"):
+        DurableRunDeclarationV1.model_validate(excessive_parallelism)
+
+    legacy_shape = declaration.model_dump(mode="json")
+    legacy_shape.pop("max_parallel_units")
+    assert DurableRunDeclarationV1.model_validate(legacy_shape).max_parallel_units == 1
+
     with pytest.raises(ValidationError, match="regeneration method"):
         RunArtifactCreateV1(
             artifact_key="cache",
@@ -102,6 +118,8 @@ def test_contract_run_operation_and_attempt_identities_are_byte_bound(lattice_en
     assert retry["declaration_sha256"] == first["declaration_sha256"]
     with pytest.raises(LatticeConflict, match="different bound bytes"):
         store.declare_run(_declaration(lattice_env, configuration="configuration-b"))
+    with pytest.raises(LatticeConflict, match="different bound bytes"):
+        store.declare_run(_declaration(lattice_env, max_parallel_units=2))
 
     store.admit_run(first["run_id"])
     attempt = store.start_run_attempt(first["run_id"], _start("attempt-one"))
@@ -210,3 +228,69 @@ def test_property_resume_preserves_completed_units_and_rebuilds_the_same_state(l
     rebuilt = LatticeStore(LatticeConfig(data_root=destination.parent, port=9010))
     assert rebuilt.state_digest() == expected_digest
     assert rebuilt.get_run(run["run_id"])["unit_counts"]["completed"] == 3
+
+
+@pytest.mark.oracle
+def test_oracle_concurrent_restart_requeues_only_the_interrupted_active_set(lattice_env) -> None:
+    store = lattice_env["store"]
+    units = [
+        RunUnitDeclarationV1(unit_key="alpha", input_sha256=_digest("input-alpha")),
+        RunUnitDeclarationV1(unit_key="beta", input_sha256=_digest("input-beta")),
+        RunUnitDeclarationV1(unit_key="gamma", input_sha256=_digest("input-gamma")),
+    ]
+    declaration = DurableRunDeclarationV1.model_validate(
+        {
+            **_declaration(lattice_env, operation_key="concurrent-restart").model_dump(mode="json"),
+            "max_parallel_units": 2,
+            "units": [unit.model_dump(mode="json") for unit in units],
+            "unit_manifest_sha256": sha256_bytes(
+                canonical_bytes({"unit_namespace": "fixture", "units": [unit.model_dump(mode="json") for unit in units]})
+            ),
+        }
+    )
+    run = store.declare_run(declaration)
+    store.admit_run(run["run_id"])
+    first_attempt = store.start_run_attempt(run["run_id"], _start("concurrent-restart-first"))
+    store.start_run_unit(run["run_id"], first_attempt["attempt_id"], "alpha")
+    store.start_run_unit(run["run_id"], first_attempt["attempt_id"], "beta")
+    store.finish_run_unit(
+        run["run_id"],
+        first_attempt["attempt_id"],
+        "alpha",
+        RunUnitResultV1(state="completed", output_sha256=_digest("result-alpha")),
+    )
+
+    assert store.reconcile_run_orphans("concurrent-restart-boot")["orphaned_attempt_ids"] == [first_attempt["attempt_id"]]
+    interrupted = store.get_run(run["run_id"])
+    assert interrupted["active_unit_keys"] == []
+    assert [unit["state"] for unit in interrupted["units"]] == ["completed", "eligible", "eligible"]
+    requeues = [
+        event["subject_id"]
+        for event in store.run_events_after(run["run_id"], 0, 1000)
+        if event["event_type"] == "durable-run-unit.requeued"
+    ]
+    assert requeues == [f"{run['run_id']}:beta"]
+
+    second_attempt = store.resume_run(run["run_id"], _start("concurrent-restart-second"))
+    store.start_run_unit(run["run_id"], second_attempt["attempt_id"], "beta")
+    store.start_run_unit(run["run_id"], second_attempt["attempt_id"], "gamma")
+    assert store.get_run(run["run_id"])["active_unit_keys"] == ["beta", "gamma"]
+    for unit_key in ("beta", "gamma"):
+        store.finish_run_unit(
+            run["run_id"],
+            second_attempt["attempt_id"],
+            unit_key,
+            RunUnitResultV1(state="completed", output_sha256=_digest(f"result-{unit_key}")),
+        )
+    store.finish_run_attempt(second_attempt["attempt_id"], RunAttemptFinishV1(state="completed"))
+
+    completed = store.get_run(run["run_id"])
+    assert completed["unit_counts"]["completed"] == 3
+    starts = [
+        event["subject_id"]
+        for event in store.run_events_after(run["run_id"], 0, 1000)
+        if event["event_type"] == "durable-run-unit.started"
+    ]
+    assert starts.count(f"{run['run_id']}:alpha") == 1
+    assert starts.count(f"{run['run_id']}:beta") == 2
+    assert starts.count(f"{run['run_id']}:gamma") == 1

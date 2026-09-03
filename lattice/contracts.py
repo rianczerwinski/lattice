@@ -163,6 +163,7 @@ class DurableRunDeclarationV1(StrictModel):
     executor_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     unit_namespace: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
     resume_strategy: str = Field(min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+    max_parallel_units: int = Field(default=1, ge=1, le=100_000)
     unit_manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     units: list[RunUnitDeclarationV1] = Field(min_length=1, max_length=100_000)
     authority: DurableRunAuthorityV1
@@ -172,6 +173,8 @@ class DurableRunDeclarationV1(StrictModel):
         keys = [unit.unit_key for unit in self.units]
         if len(keys) != len(set(keys)):
             raise ValueError("durable-run unit keys must be unique")
+        if self.max_parallel_units > len(keys):
+            raise ValueError("durable-run parallel-unit limit cannot exceed its declared population")
         known = set(keys)
         incoming: dict[str, int] = {}
         children: dict[str, list[str]] = {key: [] for key in keys}

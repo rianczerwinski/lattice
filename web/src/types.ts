@@ -179,6 +179,8 @@ export type DurableRun = {
   initiating_invocation_id?: string | null;
   declaration_sha256: string;
   unit_manifest_sha256: string;
+  max_parallel_units: number;
+  active_unit_keys: string[];
   resume_strategy: string;
   latest_checkpoint_artifact_id?: string | null;
   created_at: string;

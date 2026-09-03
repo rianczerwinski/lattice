@@ -63,7 +63,7 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
 
@@ -491,9 +491,6 @@ CREATE TABLE IF NOT EXISTS run_units(
     UNIQUE(run_id,ordinal)
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS one_running_run_unit
-ON run_units(run_id) WHERE state='running';
-
 CREATE TABLE IF NOT EXISTS run_artifacts(
     artifact_id TEXT PRIMARY KEY,
     run_id TEXT NOT NULL REFERENCES runs(run_id),
@@ -824,6 +821,12 @@ class LatticeStore:
             if conn.execute("SELECT 1 FROM schema_migrations WHERE version=14").fetchone() is None:
                 self._baseline_tables(conn, ("run_attempts",))
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(14,?)", (stamp(),))
+            if conn.execute("SELECT 1 FROM schema_migrations WHERE version=15").fetchone() is None:
+                # Concurrency is now bounded by each immutable declaration rather
+                # than a global one-running-unit index. start_run_unit enforces
+                # the bound inside the same IMMEDIATE transaction as the start.
+                conn.execute("DROP INDEX IF EXISTS one_running_run_unit")
+                conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(15,?)", (stamp(),))
             self._register_provider_profiles(conn)
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
@@ -1448,6 +1451,8 @@ class LatticeStore:
         run["attempts"] = attempts
         run["units"] = units
         run["artifacts"] = artifacts
+        run["max_parallel_units"] = int(run["declaration"].get("max_parallel_units", 1))
+        run["active_unit_keys"] = [unit["unit_key"] for unit in units if unit["state"] == DurableRunUnitState.running.value]
         run["unit_counts"] = {state.value: sum(unit["state"] == state.value for unit in units) for state in DurableRunUnitState}
         run["present_artifact_bytes"] = {
             artifact_class.value: sum(artifact["byte_count"] for artifact in artifacts if artifact["state"] == RunArtifactState.present.value and artifact["artifact_class"] == artifact_class.value)
@@ -1640,7 +1645,7 @@ class LatticeStore:
                     event_type="durable-run.declared",
                     subject_type="durable-run",
                     subject_id=run_id,
-                    payload={"declaration_sha256": declaration_sha256, "name": value.name, "unit_count": len(value.units), "unit_manifest_sha256": value.unit_manifest_sha256},
+                    payload={"declaration_sha256": declaration_sha256, "name": value.name, "unit_count": len(value.units), "max_parallel_units": value.max_parallel_units, "unit_manifest_sha256": value.unit_manifest_sha256},
                 )
         return self.get_run(run_id)
 
@@ -1662,12 +1667,13 @@ class LatticeStore:
         encoded = canonical_bytes(request)
         return request, encoded, sha256_bytes(encoded)
 
-    def _requeue_noncompleted_units(self, conn: sqlite3.Connection, run_id: str, project_id: str, *, reason: str) -> None:
+    def _requeue_active_units(self, conn: sqlite3.Connection, run_id: str, project_id: str, *, reason: str) -> None:
+        """Return only interrupted active units to the dependency-ready frontier."""
+
         units = [dict(row) for row in conn.execute("SELECT unit_key,depends_on_json,state FROM run_units WHERE run_id=? ORDER BY ordinal", (run_id,))]
         state_by_key = {unit["unit_key"]: unit["state"] for unit in units}
-        now = stamp()
         for unit in units:
-            if unit["state"] == DurableRunUnitState.completed.value:
+            if unit["state"] != DurableRunUnitState.running.value:
                 continue
             dependencies = json.loads(unit["depends_on_json"])
             state = DurableRunUnitState.eligible.value if all(state_by_key[key] == DurableRunUnitState.completed.value for key in dependencies) else DurableRunUnitState.pending.value
@@ -1677,6 +1683,23 @@ class LatticeStore:
                 (state, run_id, unit["unit_key"]),
             )
             self._event(conn, project_id=project_id, event_type="durable-run-unit.requeued", subject_type="durable-run-unit", subject_id=f"{run_id}:{unit['unit_key']}", payload={"reason": reason, "state": state})
+
+    def _requeue_failed_units(self, conn: sqlite3.Connection, run_id: str, project_id: str) -> None:
+        """Make terminal unit failures explicitly retryable on a failed-run resume."""
+
+        units = [dict(row) for row in conn.execute("SELECT unit_key,depends_on_json,state FROM run_units WHERE run_id=? ORDER BY ordinal", (run_id,))]
+        state_by_key = {unit["unit_key"]: unit["state"] for unit in units}
+        for unit in units:
+            if unit["state"] not in {DurableRunUnitState.failed.value, DurableRunUnitState.refused.value}:
+                continue
+            dependencies = json.loads(unit["depends_on_json"])
+            state = DurableRunUnitState.eligible.value if all(state_by_key[key] == DurableRunUnitState.completed.value for key in dependencies) else DurableRunUnitState.pending.value
+            conn.execute(
+                """UPDATE run_units SET state=?,active_attempt_id=NULL,output_sha256=NULL,failure_kind=NULL,error_text=NULL,started_at=NULL,completed_at=NULL
+                   WHERE run_id=? AND unit_key=?""",
+                (state, run_id, unit["unit_key"]),
+            )
+            self._event(conn, project_id=project_id, event_type="durable-run-unit.requeued", subject_type="durable-run-unit", subject_id=f"{run_id}:{unit['unit_key']}", payload={"reason": "failed-run-resume", "state": state})
 
     def _start_run_attempt(self, conn: sqlite3.Connection, run_id: str, value: RunAttemptStartV1, *, resume: bool) -> str:
         run = self._row(conn.execute("SELECT * FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
@@ -1704,8 +1727,8 @@ class LatticeStore:
             if checkpoint["run_id"] != run_id or checkpoint["artifact_class"] != RunArtifactClass.checkpoint.value or checkpoint["state"] != RunArtifactState.present.value:
                 raise LatticeConflict("resume checkpoint is not a present checkpoint artifact from this run")
         previous = conn.execute("SELECT attempt_id FROM run_attempts WHERE run_id=? ORDER BY attempt_number DESC LIMIT 1", (run_id,)).fetchone()
-        if resume:
-            self._requeue_noncompleted_units(conn, run_id, run["project_id"], reason="run-resume")
+        if resume and run["state"] == DurableRunState.failed.value:
+            self._requeue_failed_units(conn, run_id, run["project_id"])
         attempt_number = int(conn.execute("SELECT COALESCE(MAX(attempt_number),0)+1 FROM run_attempts WHERE run_id=?", (run_id,)).fetchone()[0])
         attempt_id = opaque_id("runattempt")
         now = stamp()
@@ -1776,7 +1799,7 @@ class LatticeStore:
 
     def start_run_unit(self, run_id: str, attempt_id: str, unit_key: str, *, allow_stopping: bool = False) -> dict[str, Any]:
         with self.transaction() as conn:
-            run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
+            run = self._row(conn.execute("SELECT project_id,state,declaration_json FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
             attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             unit = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
             if attempt["run_id"] != run_id:
@@ -1794,12 +1817,16 @@ class LatticeStore:
                 raise LatticeConflict("run unit requires a matching active run and attempt")
             if unit["state"] != DurableRunUnitState.eligible.value:
                 raise LatticeConflict(f"run unit cannot start from {unit['state']}")
-            active = conn.execute(
-                "SELECT unit_key FROM run_units WHERE run_id=? AND state=? LIMIT 1",
-                (run_id, DurableRunUnitState.running.value),
-            ).fetchone()
-            if active is not None:
-                raise LatticeConflict(f"durable run already has active unit {active['unit_key']}")
+            declaration = json.loads(run["declaration_json"])
+            max_parallel_units = int(declaration.get("max_parallel_units", 1))
+            active_count = int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM run_units WHERE run_id=? AND state=?",
+                    (run_id, DurableRunUnitState.running.value),
+                ).fetchone()[0]
+            )
+            if active_count >= max_parallel_units:
+                raise LatticeConflict(f"durable run already has {active_count} active units; declared limit is {max_parallel_units}")
             dependencies = json.loads(unit["depends_on_json"])
             if dependencies:
                 placeholders = ",".join("?" for _ in dependencies)
@@ -2044,7 +2071,7 @@ class LatticeStore:
                 if incomplete:
                     raise LatticeConflict("run attempt cannot complete while semantic units remain incomplete")
             elif value.state == DurableRunAttemptState.stopped:
-                self._requeue_noncompleted_units(conn, attempt["run_id"], run["project_id"], reason="run-stopped")
+                self._requeue_active_units(conn, attempt["run_id"], run["project_id"], reason="run-stopped")
             else:
                 now = stamp()
                 active_units = [row["unit_key"] for row in conn.execute("SELECT unit_key FROM run_units WHERE run_id=? AND state=?", (attempt["run_id"], DurableRunUnitState.running.value))]
@@ -2103,7 +2130,7 @@ class LatticeStore:
                     self._event(conn, project_id=row["project_id"], event_type="durable-run-attempt.adopted", subject_type="durable-run-attempt", subject_id=row["attempt_id"], payload={"run_id": row["run_id"], "previous_boot_id": row["owner_boot_id"], "owner_boot_id": boot_id})
                     adopted.append(row["attempt_id"])
                     continue
-                self._requeue_noncompleted_units(conn, row["run_id"], row["project_id"], reason="executor-process-lost")
+                self._requeue_active_units(conn, row["run_id"], row["project_id"], reason="executor-process-lost")
                 conn.execute(
                     """UPDATE run_attempts SET state=?,failure_kind='process_restart',error_text='Lattice restarted and the executor did not prove the process remained live',completed_at=?
                        WHERE attempt_id=?""",

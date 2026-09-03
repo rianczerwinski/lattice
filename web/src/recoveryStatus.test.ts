@@ -19,7 +19,7 @@ describe('recovery surface', () => {
     expect(notice?.survived.some((item) => item.includes('live1234'))).toBe(true);
     expect(notice?.mustRepeat).toEqual([
       'Claude lease expired during restart.',
-      'Durable run attempt dead5678 was orphaned; resume to repeat at most the active unit.',
+      'Durable run attempt dead5678 was orphaned; resume repeats only units that were active when it stopped.',
     ]);
   });
 });

@@ -25,7 +25,7 @@ export function recoveryNotice(health: RecoveryHealth): RecoveryNotice | null {
   ];
   const mustRepeat = [
     ...failures.map((item) => item.detail || `Provider work ${item.invocation_id ?? 'unknown'} did not recover; send it again.`),
-    ...orphaned.map((id) => `Durable run attempt ${id.slice(-8)} was orphaned; resume to repeat at most the active unit.`),
+    ...orphaned.map((id) => `Durable run attempt ${id.slice(-8)} was orphaned; resume repeats only units that were active when it stopped.`),
     ...dead.map((id) => `Process ${id} is gone; Lattice will not pretend it is still running.`),
   ];
   if (!survived.length) survived.push('Sealed conversation history, manifests, and stored artifacts remain in place.');

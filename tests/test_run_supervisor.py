@@ -59,6 +59,7 @@ def _bound_fixture(
     block_phase: str = "before-work",
     environment_overrides: dict[str, str] | None = None,
     additional_code_paths: tuple[Path, ...] = (),
+    max_parallel_units: int = 1,
 ) -> tuple[DurableRunDeclarationV2, Path, Path]:
     work_root = tmp_path / "project-state"
     work_root.mkdir()
@@ -114,6 +115,7 @@ def _bound_fixture(
         executor_sha256=executor_implementation_sha256(),
         unit_namespace="three-unit-oracle",
         resume_strategy="project-checkpoint-repeat-active-unit",
+        max_parallel_units=max_parallel_units,
         unit_manifest_sha256=_unit_manifest(units),
         units=units,
         authority=DurableRunAuthorityV1(kind="operator", actor_ref="durable-run-test"),
@@ -158,7 +160,7 @@ def test_executor_identity_tracks_a_transitive_local_source_mutation(tmp_path) -
 
 @pytest.mark.asyncio
 @pytest.mark.contract
-async def test_parallel_start_allows_only_one_active_unit_per_run(lattice_env, tmp_path) -> None:
+async def test_parallel_start_respects_the_declaration_bound_limit(lattice_env, tmp_path) -> None:
     declaration, _work_root, _release_file = _bound_fixture(
         lattice_env,
         tmp_path,
@@ -168,11 +170,13 @@ async def test_parallel_start_allows_only_one_active_unit_per_run(lattice_env, t
     independent_units = [
         RunUnitDeclarationV1(unit_key="alpha", input_sha256=sha256_bytes(b"input-alpha")),
         RunUnitDeclarationV1(unit_key="beta", input_sha256=sha256_bytes(b"input-beta")),
+        RunUnitDeclarationV1(unit_key="gamma", input_sha256=sha256_bytes(b"input-gamma")),
     ]
     declaration = DurableRunDeclarationV2.model_validate(
         {
             **declaration.model_dump(mode="json"),
             "units": [unit.model_dump(mode="json") for unit in independent_units],
+            "max_parallel_units": 2,
             "unit_manifest_sha256": _unit_manifest(independent_units),
         }
     )
@@ -188,7 +192,7 @@ async def test_parallel_start_allows_only_one_active_unit_per_run(lattice_env, t
         ),
     )
     stores = (LatticeStore(lattice_env["config"]), LatticeStore(lattice_env["config"]))
-    barrier = threading.Barrier(2)
+    barrier = threading.Barrier(3)
 
     def start(store: LatticeStore, unit_key: str):
         barrier.wait()
@@ -197,15 +201,16 @@ async def test_parallel_start_allows_only_one_active_unit_per_run(lattice_env, t
     outcomes = await asyncio.gather(
         asyncio.to_thread(start, stores[0], "alpha"),
         asyncio.to_thread(start, stores[1], "beta"),
+        asyncio.to_thread(start, LatticeStore(lattice_env["config"]), "gamma"),
         return_exceptions=True,
     )
 
-    assert len([outcome for outcome in outcomes if isinstance(outcome, dict)]) == 1
+    assert len([outcome for outcome in outcomes if isinstance(outcome, dict)]) == 2
     conflicts = [outcome for outcome in outcomes if isinstance(outcome, LatticeConflict)]
     assert len(conflicts) == 1
-    assert "already has active unit" in str(conflicts[0])
+    assert "declared limit is 2" in str(conflicts[0])
     states = [unit["state"] for unit in lattice_env["store"].get_run(run["run_id"])["units"]]
-    assert sorted(states) == ["eligible", "running"]
+    assert sorted(states) == ["eligible", "running", "running"]
 
 
 @pytest.mark.contract
@@ -737,7 +742,7 @@ async def test_snapshot_and_rebuild_preserve_production_journals_and_log_project
         backup_root=tmp_path / "backups",
         reason="durable-run-journal-continuity",
         source_revision=state_digest,
-        schema_version=14,
+        schema_version=15,
         state_digest=state_digest,
     )
     restored_root = tmp_path / "restored"
