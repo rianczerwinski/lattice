@@ -28,6 +28,17 @@ def test_restored_server_does_not_inherit_axisvi_outport_identity() -> None:
 
 
 @pytest.mark.regression
+def test_recovery_paths_are_rejected_before_they_can_reenter_snapshot_content(tmp_path: Path) -> None:
+    data_root = tmp_path / "Lattice"
+    data_root.mkdir()
+
+    with pytest.raises(qualifier.RestoreQualificationFailure, match="backup root"):
+        qualifier._validate_recovery_paths(data_root, data_root / "acceptance" / "backups", tmp_path / "restored")
+    with pytest.raises(qualifier.RestoreQualificationFailure, match="restored root"):
+        qualifier._validate_recovery_paths(data_root, tmp_path / "backups", data_root / "acceptance" / "restored")
+
+
+@pytest.mark.regression
 def test_restore_continuation_stays_inside_the_browser_project(lattice_env) -> None:
     request = qualifier._project_batch_request(lattice_env["project"]["project_id"], "restore-operation", "RESTORE-MARKER", "invocation_parent")
     validated = InvocationBatchPreviewV1.model_validate(request)

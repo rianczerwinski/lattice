@@ -35,6 +35,14 @@ def _standalone_environment(environment: Mapping[str, str]) -> dict[str, str]:
     return {key: value for key, value in environment.items() if key != "AXISVI_ROOT"}
 
 
+def _validate_recovery_paths(data_root: Path, backup_root: Path, restored_root: Path) -> None:
+    """Keep recovery evidence outside the tree that snapshots recursively capture."""
+
+    for label, path in (("backup root", backup_root), ("restored root", restored_root)):
+        if path == data_root or path.is_relative_to(data_root):
+            raise RestoreQualificationFailure(f"{label} must be outside the canonical Lattice data root")
+
+
 def _free_port() -> int:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -217,6 +225,7 @@ def build_receipt(
 
 
 def run(*, installed_lattice: Path, runtime_manifest: Path, browser_receipt: Path, axisvi_root: Path, base_url: str, data_root: Path, backup_root: Path, restored_root: Path, output: Path, timeout: float) -> dict[str, Any]:
+    _validate_recovery_paths(data_root, backup_root, restored_root)
     runtime = strict_json_loads(runtime_manifest.read_bytes())
     browser = strict_json_loads(browser_receipt.read_bytes())
     if not isinstance(runtime, dict) or not isinstance(browser, dict):
