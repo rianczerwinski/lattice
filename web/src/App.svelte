@@ -7,7 +7,7 @@
   import { buildContextModuleDefinition } from './contextModules';
   import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
-  import { activeAttemptIds as activityAttemptIds, activityFailureForInvocation, activityForInvocation, attentionActivityTransitions, mergeActivitySnapshots, projectActivityBadges, projectReplayCursor, terminalActivityTransitions } from './invocationActivity';
+  import { activeAttemptIds as activityAttemptIds, activityFailureForInvocation, activityForInvocation, attentionActivityTransitions, memberForInvocation, mergeActivitySnapshots, projectActivityBadges, projectReplayCursor, terminalActivityTransitions } from './invocationActivity';
   import type { PaletteCommand } from './commandPalette';
   import type { BatchPreview, ContextModuleCatalogue, ContextModuleResolution, ContextModuleSourceKind, DurableRun, DurableRunEvent, Episode, Invocation, InvocationActivitySnapshot, InvocationBatch, InvocationNavigation, InvocationSummary, LatticeSearchHit, LiveSlice, Project, Route, TrailheadPage, WorkflowCommand, WorkflowPack, WorkflowPackCatalogue, WorkflowTemplate, WorkflowTransition, WorkspaceDiff, WorkspaceDirectory, WorkspaceFileView, WorkspaceReviewStatus, WorkspaceSearchHit } from './types';
   import { copyText, invocationExportPayload } from './copyExport';
@@ -395,6 +395,11 @@
       }
     }
     invocationActivity = next;
+    const selectedId = selected?.invocation_id;
+    const selectedMember = memberForInvocation(activityForInvocation(next.items, selectedId), selectedId);
+    if (selectedId && selectedMember && ['succeeded', 'failed', 'interrupted'].includes(selectedMember.state) && (selected?.state !== selectedMember.state || selected?.output_block_id !== selectedMember.output_block_id)) {
+      void inspect(selectedId);
+    }
     if (project) markProjectActivitySeen(project.project_id);
   }
 

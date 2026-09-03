@@ -227,7 +227,7 @@ test('browser acceptance: freestyle one-edge lattice stays conversational and so
   await page.getByRole('button', { name: 'both', exact: true }).click();
   await page.locator('.composer textarea').fill('Fan out this side quest.');
   await page.getByRole('button', { name: 'Send to both' }).click();
-  await expect(page.locator('.response-card article')).toContainText('Codex answer');
+  await expect(page.locator('.response-card article')).toContainText('Codex answer 7');
 
   await page.getByRole('button', { name: /Return to Main trail/ }).click();
   await expect(page.getByText('1 parent')).toBeVisible();
