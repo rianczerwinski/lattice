@@ -672,6 +672,13 @@ def test_regression_rate_limit_is_operational_not_semantic_failure() -> None:
 
 
 @pytest.mark.regression
+def test_regression_exhausted_consumer_balance_is_not_a_provider_outage() -> None:
+    stderr = 'API error (status 402 Payment Required): Grok Build usage balance exhausted'
+
+    assert classify_provider_failure(1, "", stderr) == "subscription_exhausted"
+
+
+@pytest.mark.regression
 def test_regression_local_policy_failure_is_not_a_provider_refusal() -> None:
     assert classify_provider_failure(1, "", "Invalid policy rule: mcpName is required; Operation not permitted") == "harness_failure"
 

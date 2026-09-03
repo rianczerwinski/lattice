@@ -27,6 +27,7 @@ from .providers import antigravity, claude, codex, grok
 
 FAILURE_KINDS = {
     "authentication",
+    "subscription_exhausted",
     "rate_limit",
     "outage",
     "timeout",
@@ -661,6 +662,8 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
         )
     ):
         return "authentication"
+    if any(marker in text for marker in ("usage balance exhausted", "payment required", "insufficient balance", "insufficient credits")):
+        return "subscription_exhausted"
     if "rate limit" in text or "too many requests" in text or "quota" in text:
         return "rate_limit"
     if "policy" in text or "refus" in text or "not allowed" in text:
