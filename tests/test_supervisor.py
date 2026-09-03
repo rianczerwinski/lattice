@@ -51,7 +51,9 @@ async def test_concurrency_idempotent_execution_produces_one_attempt(monkeypatch
 
     assert first["attempt_id"] == second["attempt_id"]
     assert first["event_cursor"] > 0
-    assert any(event["event_type"] == "attempt.chunk" and event["subject_id"] == first["attempt_id"] for event in lattice_env["store"].events_after(lattice_env["project"]["project_id"], first["event_cursor"]))
+    attempt_events = [event for event in lattice_env["store"].events_after(lattice_env["project"]["project_id"], first["event_cursor"]) if event["subject_id"] == first["attempt_id"]]
+    assert any(event["event_type"] == "attempt.chunk" for event in attempt_events)
+    assert all(event["payload"]["invocation_id"] == invocation["invocation_id"] for event in attempt_events)
     assert len(result["attempts"]) == 1
     assert result["state"] == "succeeded"
     assert result["output_block"]["content"] == "finished"
@@ -180,6 +182,8 @@ async def test_contract_unexpected_execution_error_terminalizes_attempt(monkeypa
     assert terminal["state"] == "failed"
     assert terminal["failure_kind"] == "harness_failure"
     assert "planted execution failure" in terminal["error_text"]
+    terminal_event = next(event for event in lattice_env["store"].events_after(lattice_env["project"]["project_id"], 0) if event["event_type"] == "attempt.failed" and event["subject_id"] == attempt["attempt_id"])
+    assert terminal_event["payload"]["invocation_id"] == invocation["invocation_id"]
 
 
 @pytest.mark.oracle

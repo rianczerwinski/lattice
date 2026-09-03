@@ -3300,7 +3300,7 @@ class LatticeStore:
             conn.execute("UPDATE invocations SET state='succeeded',output_block_id=?,terminal_kind='succeeded',completed_at=? WHERE invocation_id=?", (block_id, now, attempt["invocation_id"]))
             self._terminalize_external_operation(conn, invocation_id=attempt["invocation_id"], project_id=attempt["project_id"], terminal_kind="succeeded", now=now)
             completed_triggers = conn.execute("UPDATE workflow_triggers SET state='completed',error_text=NULL,completed_at=? WHERE result_ref=? AND state IN ('planned','execution_failed')", (now, attempt["invocation_id"])).rowcount
-            self._event(conn, project_id=attempt["project_id"], event_type="attempt.succeeded", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": block_id, "artifact_ids": [item[1] for item in prepared_artifacts]})
+            self._event(conn, project_id=attempt["project_id"], event_type="attempt.succeeded", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": attempt["invocation_id"], "output_block_id": block_id, "artifact_ids": [item[1] for item in prepared_artifacts]})
             if completed_triggers:
                 self._event(conn, project_id=attempt["project_id"], event_type="workflow.trigger-completed", subject_type="invocation", subject_id=attempt["invocation_id"], payload={"result_ref": attempt["invocation_id"], "trigger_count": completed_triggers})
         return self.get_invocation(attempt["invocation_id"])
@@ -3559,7 +3559,7 @@ class LatticeStore:
                 raise LatticeConflict("attempt is not leased")
             conn.execute("UPDATE attempts SET state='running',journal_path=?,heartbeat_at=? WHERE attempt_id=?", (journal_path, stamp(), attempt_id))
             conn.execute("UPDATE invocations SET state='running' WHERE invocation_id=?", (attempt["invocation_id"],))
-            self._event(conn, project_id=attempt["project_id"], event_type="attempt.running", subject_type="attempt", subject_id=attempt_id, payload={"journal_path": journal_path})
+            self._event(conn, project_id=attempt["project_id"], event_type="attempt.running", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": attempt["invocation_id"], "journal_path": journal_path})
 
     def heartbeat_attempt(self, attempt_id: str, expires_at: int) -> None:
         with self.transaction() as conn:
@@ -3583,7 +3583,7 @@ class LatticeStore:
             conn.execute("UPDATE invocations SET state=?,output_block_id=COALESCE(?,output_block_id),terminal_kind=?,completed_at=? WHERE invocation_id=?", (invocation_state.value, output_block_id, failure_kind or state.value, now, attempt["invocation_id"]))
             self._terminalize_external_operation(conn, invocation_id=attempt["invocation_id"], project_id=attempt["project_id"], terminal_kind=failure_kind or state.value, now=now)
             failed_triggers = conn.execute("UPDATE workflow_triggers SET state='execution_failed',error_text=?,completed_at=NULL WHERE result_ref=? AND state='planned'", (error_text or failure_kind or state.value, attempt["invocation_id"])).rowcount
-            self._event(conn, project_id=attempt["project_id"], event_type=f"attempt.{state.value}", subject_type="attempt", subject_id=attempt_id, payload={"output_block_id": output_block_id, "failure_kind": failure_kind})
+            self._event(conn, project_id=attempt["project_id"], event_type=f"attempt.{state.value}", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": attempt["invocation_id"], "output_block_id": output_block_id, "failure_kind": failure_kind})
             if failed_triggers:
                 self._event(conn, project_id=attempt["project_id"], event_type="workflow.trigger-execution-failed", subject_type="invocation", subject_id=attempt["invocation_id"], payload={"failure_kind": failure_kind, "error_text": error_text, "trigger_count": failed_triggers})
         return self.get_invocation(attempt["invocation_id"])

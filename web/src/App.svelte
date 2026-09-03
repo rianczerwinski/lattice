@@ -665,7 +665,7 @@
           if (event.seq <= (activityEventSequences[event.subject_id] ?? 0)) return;
           activityEventSequences = { ...activityEventSequences, [event.subject_id]: event.seq };
         }
-        if (event.event_type === 'attempt.leased' && typeof event.payload.invocation_id === 'string') {
+        if (event.subject_type === 'attempt' && typeof event.payload.invocation_id === 'string') {
           activityAttemptInvocations = { ...activityAttemptInvocations, [event.subject_id]: event.payload.invocation_id };
         }
         const resolved = activityMemberForAttempt(event.subject_id);

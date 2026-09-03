@@ -161,7 +161,7 @@ class ExecutionSupervisor:
 
             def on_chunk(channel: str, chunk: bytes) -> None:
                 digest = self.store.blobs.put(chunk)
-                self.store.record_event(project_id=project_id, event_type="attempt.chunk", subject_type="attempt", subject_id=attempt_id, payload={"channel": channel, "content_ref": f"lattice:blob/{digest}", "sha256": digest, "byte_count": len(chunk), "preview": chunk.decode("utf-8", errors="replace")[:1000]})
+                self.store.record_event(project_id=project_id, event_type="attempt.chunk", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": invocation["invocation_id"], "channel": channel, "content_ref": f"lattice:blob/{digest}", "sha256": digest, "byte_count": len(chunk), "preview": chunk.decode("utf-8", errors="replace")[:1000]})
                 self.store.heartbeat_attempt(attempt_id, int(time.time()) + self.store.config.lease_seconds)
 
             payload, journal = await asyncio.to_thread(
