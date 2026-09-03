@@ -211,6 +211,14 @@ def run_provider_canaries(client: LatticeClient, data_root: Path, *, timeout: fl
     workspace.mkdir(parents=True, exist_ok=False, mode=0o700)
     workspace.joinpath("SYNTHETIC.txt").write_text("Synthetic Lattice release qualification workspace.\n", encoding="utf-8")
     receipts: list[dict[str, Any]] = []
+    # Subscription exhaustion is cheapest to discover on the two-call providers.
+    # Run Grok first so a depleted balance cannot waste the ten deeper Claude and
+    # Codex continuity canaries before the qualification is certain to fail.
+    for provider in ("xai", "google"):
+        for route_profile in ("compiled-fresh", "research-fresh"):
+            marker = f"QUAL-{provider.upper()}-{route_profile.upper()}"
+            receipt, _result = _execute_canary(client, _submission(provider, route_profile, route_profile=route_profile, marker=marker, research=route_profile == "research-fresh"), provider=provider, profile_label=route_profile, marker=marker, timeout=timeout)
+            receipts.append(receipt)
     for provider in ("anthropic", "openai"):
         marker = f"QUAL-{provider.upper()}-FRESH"
         fresh_receipt, fresh = _execute_canary(client, _submission(provider, "compiled-fresh", route_profile="compiled-fresh", marker=marker), provider=provider, profile_label="compiled-fresh", marker=marker, timeout=timeout)
@@ -226,11 +234,6 @@ def run_provider_canaries(client: LatticeClient, data_root: Path, *, timeout: fl
         marker = f"QUAL-{provider.upper()}-PORTABLE"
         portable, _result = _execute_canary(client, _submission(provider, "portable-fallback", route_profile="compiled-fresh", marker=marker, parent_id=workspace_result.invocation_id), provider=provider, profile_label="portable-fallback", marker=marker, timeout=timeout)
         receipts.append(portable)
-    for provider in ("google", "xai"):
-        for route_profile in ("compiled-fresh", "research-fresh"):
-            marker = f"QUAL-{provider.upper()}-{route_profile.upper()}"
-            receipt, _result = _execute_canary(client, _submission(provider, route_profile, route_profile=route_profile, marker=marker, research=route_profile == "research-fresh"), provider=provider, profile_label=route_profile, marker=marker, timeout=timeout)
-            receipts.append(receipt)
     observed = {(item["provider"], item["profile"]) for item in receipts}
     if observed != EXPECTED_CANARY_PROFILES:
         raise QualificationFailure(f"provider canary set is incomplete: {sorted(EXPECTED_CANARY_PROFILES - observed)}")

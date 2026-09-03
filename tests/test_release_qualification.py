@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -103,3 +104,25 @@ def test_portable_and_workspace_ancestry_does_not_claim_native_session_state() -
         assert request["parent_invocation_ids"] == ["invocation_parent"]
         assert request["route"]["native_parent_invocation_id"] is None
         assert request["route"]["continuation_mode"] is None
+
+
+@pytest.mark.regression
+def test_provider_qualification_probes_the_shallow_subscription_gate_first(monkeypatch, tmp_path: Path) -> None:
+    observed: list[tuple[str, str]] = []
+
+    def execute(_client, _request, *, provider: str, profile_label: str, marker: str, timeout: float):
+        del marker, timeout
+        observed.append((provider, profile_label))
+        invocation_id = f"invocation_{provider}_{profile_label}"
+        return {"provider": provider, "profile": profile_label}, SimpleNamespace(invocation_id=invocation_id)
+
+    monkeypatch.setattr(qualify_release, "_execute_canary", execute)
+
+    qualify_release.run_provider_canaries(object(), tmp_path, timeout=1)
+
+    assert observed[:4] == [
+        ("xai", "compiled-fresh"),
+        ("xai", "research-fresh"),
+        ("google", "compiled-fresh"),
+        ("google", "research-fresh"),
+    ]
