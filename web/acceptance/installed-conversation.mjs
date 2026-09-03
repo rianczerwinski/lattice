@@ -61,6 +61,7 @@ try {
   await page.getByPlaceholder('New project').fill(title);
   await page.getByPlaceholder('What is this for?').fill('Synthetic installed-browser qualification; no personal corpus.');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.locator('.project-heading h2')).toHaveText(title);
   await expect(page.getByText('Say what should happen next.')).toBeVisible();
   checkpoint('blank project created');
 

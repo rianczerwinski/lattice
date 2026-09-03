@@ -91,6 +91,7 @@
   let neighborhood: { nodes: InvocationSummary[]; edges: Array<Record<string, unknown>>; coverage: { state: 'complete' | 'partial'; requested_depth: number; completed_depth: number; node_limit: number; edge_limit: number } } | null = null;
   let loading = true;
   let working = false;
+  let projectOpening = false;
   let error = '';
   let artifactContents: Record<string, string> = {};
   let commandArguments: Record<string, Record<string, string>> = {};
@@ -508,6 +509,7 @@
   async function openProject(projectId: string) {
     const switchingProjects = project?.project_id !== projectId;
     if (switchingProjects && uiStateReady) flushUiState();
+    if (switchingProjects) projectOpening = true;
     uiStateSuspended = true;
     const storedUi = readUiState(window.localStorage);
     if (storedUi.error) uiPersistenceError = storedUi.error;
@@ -584,6 +586,7 @@
       pendingScrollY = viewScrollY;
     } finally {
       uiStateSuspended = false;
+      if (switchingProjects) projectOpening = false;
     }
     if (!loading) {
       await restorePendingViewPosition();
@@ -1685,7 +1688,9 @@
       />
 
       <main class="conversation">
-        {#if project}
+        {#if projectOpening}
+          <div class="empty-call standalone"><span>Opening project</span><h3>Restoring its exact conversation state.</h3></div>
+        {:else if project}
           <div class="project-heading">
             <div><div class="eyebrow">Current project</div><h2>{project.title}</h2><p>{project.purpose}</p></div>
             <div class="trailheads">
@@ -1862,40 +1867,44 @@
         {/if}
       </main>
 
-      <ContextInspector
-        {preview}
-        {selected}
-        {working}
-        {artifactContents}
-        {neighborhood}
-        {neighborhoodError}
-        {comparison}
-        {selectedSlateSlice}
-        {slateSliceError}
-        {contextModuleCatalogueError}
-        {contextModuleCatalogue}
-        {project}
-        bind:contextModuleId
-        bind:contextModuleSourceKind
-        bind:contextModuleSource
-        bind:contextModuleMode
-        {contextModuleReceipt}
-        bind:slateConcern
-        bind:slateLabel
-        {slateTagReceipt}
-        bind:pinRoleName
-        bind:pinRoleInstructions
-        bind:pinRoleSessionLabel
-        {pinRoleReceipt}
-        {extractedTemplateId}
-        onLoadArtifact={loadArtifact}
-        onGraftArtifact={graftArtifact}
-        onInspect={inspect}
-        onRemoveContextDefault={removeContextDefault}
-        onResolveContextModule={resolveContextModule}
-        onTagSelectedToSlate={tagSelectedToSlate}
-        onPinSelectedAsRole={pinSelectedAsRole}
-      />
+      {#if projectOpening}
+        <aside class="inspector"><div class="section-label">Context truth</div><p class="muted">Available when the project has finished opening.</p></aside>
+      {:else}
+        <ContextInspector
+          {preview}
+          {selected}
+          {working}
+          {artifactContents}
+          {neighborhood}
+          {neighborhoodError}
+          {comparison}
+          {selectedSlateSlice}
+          {slateSliceError}
+          {contextModuleCatalogueError}
+          {contextModuleCatalogue}
+          {project}
+          bind:contextModuleId
+          bind:contextModuleSourceKind
+          bind:contextModuleSource
+          bind:contextModuleMode
+          {contextModuleReceipt}
+          bind:slateConcern
+          bind:slateLabel
+          {slateTagReceipt}
+          bind:pinRoleName
+          bind:pinRoleInstructions
+          bind:pinRoleSessionLabel
+          {pinRoleReceipt}
+          {extractedTemplateId}
+          onLoadArtifact={loadArtifact}
+          onGraftArtifact={graftArtifact}
+          onInspect={inspect}
+          onRemoveContextDefault={removeContextDefault}
+          onResolveContextModule={resolveContextModule}
+          onTagSelectedToSlate={tagSelectedToSlate}
+          onPinSelectedAsRole={pinSelectedAsRole}
+        />
+      {/if}
     </div>
   </div>
 {/if}
