@@ -10,6 +10,7 @@ import pytest
 from lattice import Lattice, LatticeConfig, LatticeStore
 from lattice.canonical import canonical_bytes, generated_object
 from lattice.contracts import DirectActorBinding, DraftCreate
+from lattice.contracts import InvocationBatchPreviewV1
 from lattice.diagnostics import assess_data_root
 from lattice.snapshot import create_snapshot, restore_snapshot
 
@@ -24,6 +25,17 @@ SPEC.loader.exec_module(qualifier)
 @pytest.mark.regression
 def test_restored_server_does_not_inherit_axisvi_outport_identity() -> None:
     assert qualifier._standalone_environment({"AXISVI_ROOT": "/repo", "PATH": "/bin"}) == {"PATH": "/bin"}
+
+
+@pytest.mark.regression
+def test_restore_continuation_stays_inside_the_browser_project(lattice_env) -> None:
+    request = qualifier._project_batch_request(lattice_env["project"]["project_id"], "restore-operation", "RESTORE-MARKER", "invocation_parent")
+    validated = InvocationBatchPreviewV1.model_validate(request)
+
+    assembly = validated.specifications[0].assembly
+    assert assembly.project_id == lattice_env["project"]["project_id"]
+    assert assembly.parent_invocation_ids == ["invocation_parent"]
+    assert "external_project_key" not in request
 
 
 def _complete(store: LatticeStore, lattice: Lattice, project_id: str, route, prompt: str, response: str, parents: list[str] | None = None) -> dict:

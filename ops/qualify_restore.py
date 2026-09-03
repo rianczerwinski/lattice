@@ -73,29 +73,59 @@ def _run_json(command: list[str], *, environment: dict[str, str]) -> dict[str, A
     return value
 
 
-def _submission(operation_key: str, marker: str, parent_id: str) -> dict[str, Any]:
+def _project_batch_request(project_id: str, operation_key: str, marker: str, parent_id: str) -> dict[str, Any]:
+    route = {"provider": "openai", "model": "gpt-5.6-sol", "harness": "codex", "effort": "high", "execution_profile": "compiled-fresh", "tools": [], "permissions": [], "workspace": None, "sandbox": "read-only", "approval_policy": "never", "network_policy": "disabled"}
     return {
-        "contract_version": "ExecutionSubmission/1.0",
-        "external_project_key": "lattice.restore-qualification",
-        "operation_key": operation_key,
-        "actor": "lattice-restore-qualification",
-        "workflow_role": None,
-        "prompt": f"Reply in one sentence containing exact marker {marker}.",
-        "context_block_ids": [],
-        "parent_invocation_ids": [parent_id],
-        "route": {"provider": "openai", "model": "gpt-5.6-sol", "harness": "codex", "effort": "high", "execution_profile": "compiled-fresh", "tools": [], "permissions": [], "workspace": None, "sandbox": "read-only", "approval_policy": "never", "network_policy": "disabled"},
-        "output_contract": {"contract_version": "OutputContract/2.0", "mode": "text"},
-        "idempotency_key": operation_key,
+        "batch_id": f"batch_{uuid.uuid5(uuid.NAMESPACE_URL, operation_key).hex}",
+        "specifications": [{
+            "spec_id": "openai",
+            "assembly": {
+                "project_id": project_id,
+                "actor_binding": {"kind": "direct"},
+                "prompt": f"Reply in one sentence containing exact marker {marker}.",
+                "parent_invocation_ids": [parent_id],
+                "relation": "inherited_context_from",
+                "context_mode": "standard",
+            },
+            "route": route,
+            "concern_refs": [],
+        }],
     }
 
 
-def _assert_result(client: LatticeClient, result: Any, marker: str) -> None:
-    if result.state.value != "succeeded" or len(result.output_artifact_ids) != 1:
-        raise RestoreQualificationFailure(f"continuation did not succeed: {result.state.value}:{result.typed_failure}")
-    artifact = client.artifact(result.output_artifact_ids[0])
-    content = artifact.get("content")
-    if not isinstance(content, str) or marker not in content or sha256_bytes(content.encode("utf-8")) != result.output_sha256:
+def _project_continuation(client: LatticeClient, *, project_id: str, operation_key: str, marker: str, parent_id: str, timeout: float) -> dict[str, Any]:
+    request = _project_batch_request(project_id, operation_key, marker, parent_id)
+    preview = client._request("POST", "/api/v1/invocation-batches/preview", request)
+    reasons = preview.get("confirmation_reasons") if isinstance(preview, dict) else None
+    if not isinstance(reasons, list) or reasons:
+        raise RestoreQualificationFailure("restore continuation unexpectedly requires operator confirmation")
+    batch = client._request("POST", "/api/v1/invocation-batches", {
+        **request,
+        "idempotency_key": operation_key,
+        "expected_preview_sha256": preview.get("preview_sha256"),
+        "confirmed_reason_sha256s": [],
+    })
+    invocation_ids = batch.get("invocation_ids") if isinstance(batch, dict) else None
+    if not isinstance(invocation_ids, list) or len(invocation_ids) != 1 or not isinstance(invocation_ids[0], str):
+        raise RestoreQualificationFailure("restore continuation batch did not seal exactly one invocation")
+    invocation_id = invocation_ids[0]
+    deadline = time.monotonic() + timeout
+    invocation: dict[str, Any] | None = None
+    while time.monotonic() < deadline:
+        value = client._request("GET", f"/api/v1/invocations/{invocation_id}")
+        if isinstance(value, dict):
+            invocation = value
+            if value.get("state") in {"succeeded", "failed", "interrupted"}:
+                break
+        time.sleep(0.2)
+    if not isinstance(invocation, dict) or invocation.get("state") != "succeeded":
+        raise RestoreQualificationFailure(f"continuation did not succeed: {invocation.get('state') if isinstance(invocation, dict) else 'timeout'}")
+    output = invocation.get("output_block")
+    content = output.get("content") if isinstance(output, dict) else None
+    content_sha256 = output.get("content_sha256") if isinstance(output, dict) else None
+    if not isinstance(content, str) or marker not in content or sha256_bytes(content.encode("utf-8")) != content_sha256:
         raise RestoreQualificationFailure("continuation result omitted its semantic marker or exact output identity")
+    return {"state": "succeeded", "invocation_id": invocation_id, "manifest_sha256": invocation.get("manifest_sha256"), "parent_invocation_id": parent_id}
 
 
 def _server(installed_lattice: Path, environment: dict[str, str], port: int, log_root: Path) -> subprocess.Popen[bytes]:
@@ -191,6 +221,9 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, browser_receipt: Pat
     browser = strict_json_loads(browser_receipt.read_bytes())
     if not isinstance(runtime, dict) or not isinstance(browser, dict):
         raise RestoreQualificationFailure("runtime or browser evidence is malformed")
+    project_id = browser.get("project_id")
+    if not isinstance(project_id, str):
+        raise RestoreQualificationFailure("browser evidence has no project identity")
     parent_id = _browser_dormant_parent(browser)
     canonical_token = (data_root / "operator-token").read_text(encoding="utf-8").strip()
     host = base_url.removeprefix("http://").removeprefix("https://").rstrip("/")
@@ -202,8 +235,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, browser_receipt: Pat
     canonical_client = LatticeClient(base_url.rstrip("/"), canonical_token, host)
     canonical_marker = f"RESTORE-CANONICAL-{uuid.uuid4().hex}"
     canonical_key = f"canonical:{uuid.uuid4().hex}"
-    canonical_result = canonical_client.submit(_submission(canonical_key, canonical_marker, parent_id), wait=True, timeout=timeout)
-    _assert_result(canonical_client, canonical_result, canonical_marker)
+    canonical_result = _project_continuation(canonical_client, project_id=project_id, operation_key=canonical_key, marker=canonical_marker, parent_id=parent_id, timeout=timeout)
     environment = {**os.environ, "AXISVI_ROOT": str(axisvi_root.resolve(strict=True)), "LATTICE_RUNTIME_ID": runtime["runtime_id"]}
     backup_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     backup = _run_json([str(installed_lattice), "backup", "--to", str(backup_root), "--reason", "execution-closure-restore", "--json"], environment=environment)
@@ -222,8 +254,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, browser_receipt: Pat
         restored_client = LatticeClient(restored_base, (restored_root / "operator-token").read_text(encoding="utf-8").strip(), f"127.0.0.1:{port}")
         child_marker = f"RESTORE-CHILD-{uuid.uuid4().hex}"
         child_key = f"restored:{uuid.uuid4().hex}"
-        child_result = restored_client.submit(_submission(child_key, child_marker, canonical_result.invocation_id), wait=True, timeout=timeout)
-        _assert_result(restored_client, child_result, child_marker)
+        child_result = _project_continuation(restored_client, project_id=project_id, operation_key=child_key, marker=child_marker, parent_id=canonical_result["invocation_id"], timeout=timeout)
     finally:
         _stop(process)
     value = build_receipt(
@@ -234,8 +265,8 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, browser_receipt: Pat
         pre_restart_boot_id=before_health["boot_id"],
         post_restart_boot_id=after_health["boot_id"],
         browser_parent_invocation_id=parent_id,
-        canonical_continuation={"state": canonical_result.state.value, "invocation_id": canonical_result.invocation_id, "manifest_sha256": canonical_result.manifest_sha256, "parent_invocation_id": parent_id},
-        restored_child={"state": child_result.state.value, "invocation_id": child_result.invocation_id, "manifest_sha256": child_result.manifest_sha256, "parent_invocation_id": canonical_result.invocation_id},
+        canonical_continuation=canonical_result,
+        restored_child=child_result,
         restored_pre_state_digest=restored_pre,
     )
     raw = canonical_bytes(value)
