@@ -25,7 +25,7 @@ From the user's perspective, consequential work has one stable behavior regardle
 1. A conversation or direct command launches a named durable run.
 2. The run immediately has an identity, exact inputs, configuration, code binding, output home, and interruption policy.
 3. Lattice shows what is complete, active, remaining, failed, and already learned; elapsed time, throughput, resource use, and an explicitly qualified ETA are visible when available.
-4. Stopping, rebooting, losing a provider process, or restarting Lattice does not erase completed units. Resumption repeats at most the active atomic unit and never mixes incompatible revisions.
+4. Stopping, rebooting, losing a provider process, or restarting Lattice does not erase completed units. A run's immutable declaration sets its maximum parallel semantic units; resumption may repeat only the units that were active at interruption and never mixes incompatible revisions.
 5. Meaningful intermediate and final outputs survive incrementally. The final report points into the evidence that supports it rather than replacing that evidence.
 6. Recomputable caches and duplicate operational material live in a separately declared disposable area. They are never confused with evidence and can be removed without destroying the ability to diagnose, resume, or substantiate the run.
 7. Any result, failure, artifact, or intermediate hypothesis can become context for a later Lattice invocation without copying an opaque transcript or losing its provenance.
@@ -268,13 +268,13 @@ Decompose the current 1,116-line `App.svelte` at functional seams before adding 
 
 ### Phase 1 — Implement the default local durable-run executor
 
-Add the normalized run identity, attempts, atomic state updates, append-only events, signal-aware stopping, resume entry point, resource readings, and durable/disposable storage accounting to the selected existing substrate.
+Add the normalized run identity, attempts, atomic state updates, append-only events, signal-aware stopping, resume entry point, resource readings, declaration-bound bounded concurrency, and durable/disposable storage accounting to the selected existing substrate. The default remains one active unit; a project may declare a higher exact limit when its units are independent and its worker can preserve each child result separately.
 
 Define a minimal SDK or protocol through which a project declares units, records unit completion and artifacts, reports progress, and restores a checkpoint. A project must be able to adopt the protocol without importing Lattice's UI or conversational graph internals.
 
 Preserve application-level responsibility: wrapping an opaque command may provide logs and process control, but it cannot advertise semantic resumability unless the application declares checkpoints and unit identities.
 
-**Gate:** a synthetic multi-unit foreground job can be interrupted during a unit, restarted after executor and managed-process loss, preserve all prior completed units, repeat no more than the single active unit, and expose truthful status throughout. Detached or reparented work is rejected by the adapter contract rather than counted as guardian-controlled work.
+**Gate:** a synthetic multi-unit foreground job reaches its declared concurrency limit, is interrupted with several units active, restarts after executor and managed-process loss, preserves all prior completed units, requeues only the interrupted active set, and exposes truthful per-unit status throughout. Detached or reparented work is rejected by the adapter contract rather than counted as guardian-controlled work.
 
 ### Phase 2 — Make durable runs first-class Lattice objects
 
