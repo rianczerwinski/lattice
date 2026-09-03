@@ -48,6 +48,14 @@ async function selectNewestParents(count) {
   await expect(page.locator('.parent-count')).toContainText(`${count} parent`);
 }
 
+async function waitForNewestTerminal(count) {
+  const rows = page.locator('.history-row');
+  await expect(rows.nth(count - 1)).toBeVisible({ timeout: providerTimeoutMs });
+  for (let index = 0; index < count; index += 1) {
+    await expect(rows.nth(index).locator('button span')).toHaveText('succeeded', { timeout: providerTimeoutMs });
+  }
+}
+
 try {
   await page.goto(`${input.base_url.replace(/\/$/, '')}/#operator-bootstrap=${encodeURIComponent(input.bootstrap_token)}`, { waitUntil: 'networkidle' });
   await page.getByPlaceholder('New project').fill(title);
@@ -94,6 +102,7 @@ try {
   await page.getByRole('button', { name: 'Send to both', exact: true }).click();
   checkpoint('fan-out dispatched');
   await waitForMarker(markers.fanout);
+  await waitForNewestTerminal(2);
   checkpoint('fan-out completed');
 
   await selectNewestParents(2);
@@ -101,6 +110,7 @@ try {
   await page.getByRole('button', { name: 'Reciprocal cross-feed', exact: true }).click();
   checkpoint('reciprocal cross-feed dispatched');
   await waitForMarker(markers.crossfeed);
+  await waitForNewestTerminal(2);
   checkpoint('reciprocal cross-feed completed');
 
   await selectNewestParents(2);
