@@ -21,7 +21,7 @@ SUITES: dict[str, tuple[str, list[list[str]], list[str]]] = {
     "lattice-backend": ("axis/chariots/lattice", [["{lattice-python}", "-m", "pytest", "-q"]], ["oracle", "property", "regression", "contract", "smoke", "fuzz", "concurrency"]),
     "lattice-frontend": ("axis/chariots/lattice/web", [["npm", "run", "check"], ["npm", "test", "--", "--run"], ["npm", "run", "build"]], ["contract", "regression"]),
     "lattice-browser": ("axis/chariots/lattice/web", [["npm", "run", "test:browser"]], ["browser-acceptance", "regression"]),
-    "canon": ("sui/mission/projects/canon/dev/quaternary-exhaustion", [["uv", "run", "pytest", "-q", "tests/test_quaternary_workflow.py"]], ["oracle", "contract", "regression"]),
+    "canon": ("sui/mission/projects/canon", [["uv", "run", "pytest", "-q", "tests/discovery/reference_cascade/test_quaternary_workflow.py"]], ["oracle", "contract", "regression"]),
     "field-survey": ("sui/mission/typology/abduction/field-survey/research-pipeline", [["uv", "run", "pytest", "-q"]], ["oracle", "property", "contract", "regression", "concurrency"]),
     "slate-mirror": ("axis/tools/slate-mirror", [["node", "--test", "server.test.js"]], ["contract", "regression"]),
 }
@@ -255,8 +255,8 @@ def run_consumer_canaries(axisvi_root: Path, data_root: Path, installed_lattice:
     root = data_root / "acceptance" / "qualification" / f"consumers-{time.strftime('%Y%m%dT%H%M%S')}"
     root.mkdir(parents=True, exist_ok=False, mode=0o700)
     environment = {**os.environ, "LATTICE_BIN": str(installed_lattice)}
-    canon_root = axisvi_root / "sui/mission/projects/canon/dev/quaternary-exhaustion"
-    canon = _run_json(["uv", "run", "python", "tools/run_lattice_loop_canary.py", "--output-dir", str(root / "canon"), "--timeout", str(timeout)], cwd=canon_root, environment=environment)
+    canon_root = axisvi_root / "sui/mission/projects/canon"
+    canon = _run_json(["uv", "run", "python", "-m", "canon.discovery.reference_cascade.run_lattice_loop_canary", "--output-dir", str(root / "canon"), "--timeout", str(timeout)], cwd=canon_root, environment=environment)
     field_root = axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline"
     field_output = root / "field-survey.json"
     field = _run_json([str(field_root / ".venv/bin/python"), "scripts/run-lattice-consumer-canary.py", "--output", str(field_output), "--lattice-bin", str(installed_lattice), "--timeout", str(timeout)], cwd=field_root, environment=environment)

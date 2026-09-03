@@ -96,7 +96,23 @@ class LatticeConfig:
         if self.quaternary_root_override:
             return self.quaternary_root_override
         if self.axisvi_root:
-            return self.axisvi_root / "sui" / "mission" / "projects" / "canon" / "dev" / "quaternary-exhaustion"
+            return self.axisvi_root / "sui" / "mission" / "projects" / "canon" / "src" / "canon" / "discovery" / "reference_cascade"
+        return None
+
+    @property
+    def quaternary_database(self) -> Path | None:
+        if self.quaternary_root_override:
+            return self.quaternary_root_override / "quaternary.sqlite3"
+        if self.axisvi_root:
+            return self.axisvi_root / "sui" / "mission" / "projects" / "canon" / "data" / "discovery" / "quaternary.sqlite3"
+        return None
+
+    @property
+    def quaternary_gatherctl(self) -> Path | None:
+        if self.quaternary_root_override:
+            return self.quaternary_root_override / "tools" / "gatherctl.py"
+        if self.quaternary_root:
+            return self.quaternary_root / "gatherctl.py"
         return None
 
     @property

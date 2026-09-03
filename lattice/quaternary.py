@@ -400,17 +400,18 @@ class QuaternaryAdapter:
 
     def _driver_manifest(self) -> dict[str, Any]:
         """Bind the executable Python and migration sources that define gatherctl semantics."""
-        roots = (self.gatherctl.parent, self.gatherctl.parent.parent / "migrations")
+        driver_root = self.gatherctl.parent if (self.gatherctl.parent / "migrations").is_dir() else self.gatherctl.parent.parent
+        roots = (self.gatherctl.parent, driver_root / "migrations")
         paths = sorted({path.resolve() for root in roots if root.is_dir() for path in root.rglob("*") if path.is_file() and path.suffix in {".py", ".sql"}})
         if self.gatherctl not in paths:
             raise QuaternaryBoundaryError("quaternary gatherctl is outside its bound driver tree")
         entries = []
         for path in paths:
-            source, content = read_bounded_local_file(str(path), allowed_roots=(self.gatherctl.parent.parent,), max_bytes=8 * 1024 * 1024)
+            source, content = read_bounded_local_file(str(path), allowed_roots=(driver_root,), max_bytes=8 * 1024 * 1024)
             digest = sha256_bytes(content)
             if self.blob_writer is not None and self.blob_writer(content) != digest:
                 raise QuaternaryBoundaryError("quaternary driver source changed while entering the Lattice blob store")
-            entries.append({"path": str(source.relative_to(self.gatherctl.parent.parent)), "content_sha256": digest, "byte_count": len(content), "source_ref": f"lattice:blob/{digest}" if self.blob_writer is not None else f"file:{source}"})
+            entries.append({"path": str(source.relative_to(driver_root)), "content_sha256": digest, "byte_count": len(content), "source_ref": f"lattice:blob/{digest}" if self.blob_writer is not None else f"file:{source}"})
         identity = {"kind": "quaternary-driver-manifest-v1", "entries": entries}
         return {**identity, "tree_sha256": sha256_bytes(canonical_bytes(identity))}
 

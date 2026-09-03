@@ -38,7 +38,7 @@ decisions/        durable architecture decisions and their verification boundari
 ops/              verified runtime installation, launchd supervision, upgrades, backups, and recovery
 ```
 
-Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additional pack roots in a standalone installation. Inside AXISVI, the existing Canon adapter adds `sui/mission/projects/canon/dev/quaternary-exhaustion/workflows/` automatically. A duplicate `pack_id` across roots is a startup error, so an external project can never be silently shadowed by a bundled definition.
+Set `LATTICE_WORKFLOW_PACK_ROOTS` to an `os.pathsep`-separated list of additional pack roots in a standalone installation. Inside AXISVI, the existing Canon adapter adds `sui/mission/projects/canon/src/canon/discovery/reference_cascade/workflows/` automatically. A duplicate `pack_id` across roots is a startup error, so an external project can never be silently shadowed by a bundled definition.
 
 Lattice `0.3.1` separates source assurance from installed-runtime qualification. Exact test counts belong to immutable qualification receipts rather than this living document. The execution-consolidation verifier independently reads base SQLite rows, blob bytes, runtime attestations, consumer source, provider receipts, and historical journal censuses; source tests alone cannot declare the installed execution boundary ready. Operational qualification and its exact current evidence live under [`assurance/execution-consolidation/`](assurance/execution-consolidation/).
 
@@ -103,7 +103,7 @@ Lattice owns the canonical conversational graph, context-manifest contract, rout
 | [Slate](https://github.com/rianczerwinski/AXISVI/tree/main/sui/console/slate) | Frictionless capture and browsable topic/project surfaces | Exposes tagged slices through Lattice’s lattice without copying conversations |
 | [Surface](https://github.com/rianczerwinski/AXISVI/tree/main/axis/soma/habits/surface) | Evidence-bound statements of what a workframe is, is doing, could become, and cannot presently do | Supplies project state as a versioned context module and receives provenance for material changes |
 | [Panels](https://github.com/rianczerwinski/AXISVI/tree/main/axis/panel) | Persistent host for project-specific control surfaces | Natural home for the Lattice cockpit and project-grown interfaces |
-| [Quaternary exhaustion](https://github.com/rianczerwinski/AXISVI/tree/main/sui/mission/projects/canon/dev/quaternary-exhaustion) | Domain protocol, source/search ledgers, corpus evidence, executable workflow pack, and closure claims | First externally owned workflow pack and end-to-end qualification case |
+| [Quaternary reference cascade](https://github.com/rianczerwinski/AXISVI/tree/main/sui/mission/projects/canon/src/canon/discovery/reference_cascade) | Domain protocol, source/search ledgers, corpus evidence, executable workflow pack, and closure claims | First externally owned workflow pack and end-to-end qualification case |
 
 Lattice does not fork Smithers by default, does not absorb the quaternary database, and does not make its execution kernel responsible for domain routing. These are seams, not unfinished mergers.
 
@@ -723,6 +723,6 @@ At that point Lattice is no longer a diagrammatic idea. It is the reusable cogni
 
 ## Design sources
 
-- [Quaternary corpus protocol](https://github.com/rianczerwinski/AXISVI/blob/main/sui/mission/projects/canon/dev/quaternary-exhaustion/PROTOCOL.md)
+- [Quaternary corpus protocol](https://github.com/rianczerwinski/AXISVI/blob/main/sui/mission/projects/canon/src/canon/discovery/reference_cascade/PROTOCOL.md)
 - [Execution submission and result contracts](lattice/contracts.py)
 - [Octopus evidence-bound Platform Foundry decision](https://github.com/rianczerwinski/AXISVI/blob/main/axis/soma/octopus/decisions/061-evidence-bound-platform-foundry.md)

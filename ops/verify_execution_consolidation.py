@@ -1160,7 +1160,7 @@ def _fixed_suite_commands(axisvi_root: Path) -> dict[str, tuple[Path, list[list[
         "lattice-backend": (lattice, [[str(lattice / ".venv/bin/python"), "-m", "pytest", "-q"]]),
         "lattice-frontend": (lattice / "web", [["npm", "run", "check"], ["npm", "test", "--", "--run"], ["npm", "run", "build"]]),
         "lattice-browser": (lattice / "web", [["npm", "run", "test:browser"]]),
-        "canon": (axisvi_root / "sui/mission/projects/canon/dev/quaternary-exhaustion", [["uv", "run", "pytest", "-q", "tests/test_quaternary_workflow.py"]]),
+        "canon": (axisvi_root / "sui/mission/projects/canon", [["uv", "run", "pytest", "-q", "tests/discovery/reference_cascade/test_quaternary_workflow.py"]]),
         "field-survey": (axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline", [["uv", "run", "pytest", "-q"]]),
         "slate-mirror": (axisvi_root / "axis/tools/slate-mirror", [["node", "--test", "server.test.js"]]),
     }
