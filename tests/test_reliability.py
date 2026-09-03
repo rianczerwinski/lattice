@@ -1202,6 +1202,18 @@ def test_negative_control_launchd_reload_waits_out_removal_and_transient_eio(mon
     assert [call[1] for call in calls] == ["print", "bootout", "print", "print", "bootstrap", "bootstrap"]
 
 
+@pytest.mark.regression
+def test_launchd_reload_tolerates_normal_slow_removal(monkeypatch, tmp_path) -> None:
+    results = iter((0, 0, 1, 0))
+    times = iter((0.0, 6.0, 6.0))
+
+    monkeypatch.setattr(deployment.subprocess, "run", lambda _arguments, **_kwargs: argparse.Namespace(returncode=next(results), stdout=b"", stderr=b""))
+    monkeypatch.setattr(deployment.time, "monotonic", lambda: next(times))
+    monkeypatch.setattr(deployment.time, "sleep", lambda _seconds: None)
+
+    deployment.reload_job("com.axisvi.lattice", tmp_path / "lattice.plist")
+
+
 @pytest.mark.property
 def test_negative_control_migration_baseline_rejects_invented_source_rows(lattice_env) -> None:
     baseline = deployment.capture_migration_baseline(lattice_env["config"].data_root)

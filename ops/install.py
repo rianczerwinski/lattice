@@ -35,6 +35,7 @@ LAUNCH_AGENTS = Path.home() / "Library" / "LaunchAgents"
 LOG_ROOT = Path.home() / "Library" / "Logs" / "Lattice"
 SERVICE_LABEL = "com.axisvi.lattice"
 BACKUP_LABEL = "com.axisvi.lattice.backup"
+LAUNCHD_TRANSITION_TIMEOUT_SECONDS = 30
 VERSION_PATTERN = re.compile(rb'^__version__ = "([0-9]+\.[0-9]+\.[0-9]+)"$', re.MULTILINE)
 
 
@@ -675,10 +676,10 @@ def unload_job(label: str) -> None:
     if not _job_loaded(label):
         return
     run(["launchctl", "bootout", target])
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + LAUNCHD_TRANSITION_TIMEOUT_SECONDS
     while _job_loaded(label):
         if time.monotonic() >= deadline:
-            raise RuntimeError(f"launchd did not remove {target} within 5 seconds")
+            raise RuntimeError(f"launchd did not remove {target} within {LAUNCHD_TRANSITION_TIMEOUT_SECONDS} seconds")
         time.sleep(0.1)
 
 
@@ -759,12 +760,12 @@ def reload_job(label: str, path: Path) -> None:
     print_result = subprocess.run(["launchctl", "print", service_target], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     if print_result.returncode == 0:
         run(["launchctl", "bootout", service_target])
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + LAUNCHD_TRANSITION_TIMEOUT_SECONDS
         while subprocess.run(["launchctl", "print", service_target], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode == 0:
             if time.monotonic() >= deadline:
-                raise RuntimeError(f"launchd did not remove {service_target} within 5 seconds")
+                raise RuntimeError(f"launchd did not remove {service_target} within {LAUNCHD_TRANSITION_TIMEOUT_SECONDS} seconds")
             time.sleep(0.1)
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + LAUNCHD_TRANSITION_TIMEOUT_SECONDS
     while True:
         result = subprocess.run(["launchctl", "bootstrap", domain, str(path)], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
         if result.returncode == 0:
