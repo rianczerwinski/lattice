@@ -35,6 +35,15 @@ def _standalone_environment(environment: Mapping[str, str]) -> dict[str, str]:
     return {key: value for key, value in environment.items() if key != "AXISVI_ROOT"}
 
 
+def _runtime_lattice(runtime_manifest: Path) -> Path:
+    """Use the attested runtime entrypoint for a non-Outport restored service."""
+
+    executable = runtime_manifest.parent / ".venv" / "bin" / "lattice"
+    if not executable.is_file():
+        raise RestoreQualificationFailure(f"installed runtime has no Lattice executable: {executable}")
+    return executable.resolve(strict=True)
+
+
 def _validate_recovery_paths(data_root: Path, backup_root: Path, restored_root: Path) -> None:
     """Keep recovery evidence outside the tree that snapshots recursively capture."""
 
@@ -230,6 +239,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, browser_receipt: Pat
     browser = strict_json_loads(browser_receipt.read_bytes())
     if not isinstance(runtime, dict) or not isinstance(browser, dict):
         raise RestoreQualificationFailure("runtime or browser evidence is malformed")
+    runtime_lattice = _runtime_lattice(runtime_manifest)
     project_id = browser.get("project_id")
     if not isinstance(project_id, str):
         raise RestoreQualificationFailure("browser evidence has no project identity")
@@ -257,7 +267,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, browser_receipt: Pat
     logs.mkdir(parents=True, mode=0o700)
     restored_environment = _standalone_environment(environment)
     restored_environment.update({"LATTICE_DATA_DIR": str(restored_root), "LATTICE_PORT": str(port)})
-    process = _server(installed_lattice, restored_environment, port, logs)
+    process = _server(runtime_lattice, restored_environment, port, logs)
     try:
         _wait_health(restored_base, timeout=timeout)
         restored_client = LatticeClient(restored_base, (restored_root / "operator-token").read_text(encoding="utf-8").strip(), f"127.0.0.1:{port}")

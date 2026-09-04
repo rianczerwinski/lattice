@@ -17,6 +17,17 @@ def test_isolated_server_does_not_inherit_axisvi_outport_identity() -> None:
 
 
 @pytest.mark.regression
+def test_isolated_server_uses_the_attested_runtime_not_the_outport_shim(tmp_path: Path) -> None:
+    runtime_manifest = tmp_path / "runtime.json"
+    runtime_manifest.write_text("{}", encoding="utf-8")
+    executable = tmp_path / ".venv" / "bin" / "lattice"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    assert qualify_interruption._runtime_lattice(runtime_manifest) == executable.resolve()
+
+
+@pytest.mark.regression
 def test_interruption_probe_reads_latest_attempt_from_current_schema(tmp_path) -> None:
     database = tmp_path / "lattice.sqlite3"
     with sqlite3.connect(database) as connection:

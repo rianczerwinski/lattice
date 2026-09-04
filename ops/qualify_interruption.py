@@ -30,6 +30,15 @@ def _standalone_environment(environment: Mapping[str, str]) -> dict[str, str]:
     return {key: value for key, value in environment.items() if key != "AXISVI_ROOT"}
 
 
+def _runtime_lattice(runtime_manifest: Path) -> Path:
+    """Use the attested runtime entrypoint, bypassing the AXISVI Outport shim."""
+
+    executable = runtime_manifest.parent / ".venv" / "bin" / "lattice"
+    if not executable.is_file():
+        raise InterruptionFailure(f"installed runtime has no Lattice executable: {executable}")
+    return executable.resolve(strict=True)
+
+
 def _free_port() -> int:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -146,6 +155,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, axisvi_root: Path, i
     runtime = strict_json_loads(runtime_raw)
     if not isinstance(runtime, dict) or canonical_bytes(runtime) != runtime_raw or runtime.get("contract_version") != "LatticeInstalledRuntime/4.0":
         raise InterruptionFailure("installed runtime manifest is not exact")
+    runtime_lattice = _runtime_lattice(runtime_manifest)
     canaries = [path.read_bytes().rstrip(b"\r\n") for path in credential_canary_files]
     if not canaries or any(not value for value in canaries):
         raise InterruptionFailure("interruption qualification requires nonempty credential canaries")
@@ -172,7 +182,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, axisvi_root: Path, i
         "LATTICE_QUALIFICATION_CANARY_A": canaries[0].decode("utf-8", errors="strict"),
         "LATTICE_QUALIFICATION_CANARY_B": (canaries[1] if len(canaries) > 1 else canaries[0]).decode("utf-8", errors="strict"),
     }
-    first = _server(installed_lattice, environment, port, logs)
+    first = _server(runtime_lattice, environment, port, logs)
     second: subprocess.Popen[bytes] | None = None
     try:
         before_health = _wait_health(base_url)
@@ -198,7 +208,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, axisvi_root: Path, i
         except ProcessLookupError:
             pass
         mode_path.write_text("success", encoding="utf-8")
-        second = _server(installed_lattice, environment, port, logs)
+        second = _server(runtime_lattice, environment, port, logs)
         after_health = _wait_health(base_url, expected_boot_id=before_health["boot_id"])
         _attempt_id, post_state = _wait_attempt(isolated_root / "lattice.sqlite3", blocked.invocation_id, {"interrupted", "orphaned", "failed"})
         continuation_key = f"continuation:{uuid.uuid4().hex}"

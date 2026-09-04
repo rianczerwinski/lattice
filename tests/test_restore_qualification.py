@@ -28,6 +28,17 @@ def test_restored_server_does_not_inherit_axisvi_outport_identity() -> None:
 
 
 @pytest.mark.regression
+def test_restored_server_uses_the_attested_runtime_not_the_outport_shim(tmp_path: Path) -> None:
+    runtime_manifest = tmp_path / "runtime.json"
+    runtime_manifest.write_text("{}", encoding="utf-8")
+    executable = tmp_path / ".venv" / "bin" / "lattice"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    assert qualifier._runtime_lattice(runtime_manifest) == executable.resolve()
+
+
+@pytest.mark.regression
 def test_recovery_paths_are_rejected_before_they_can_reenter_snapshot_content(tmp_path: Path) -> None:
     data_root = tmp_path / "Lattice"
     data_root.mkdir()
