@@ -1066,7 +1066,9 @@ def _provider_launches(path: Path) -> list[str]:
         "asyncio.create_subprocess_exec",
         "asyncio.create_subprocess_shell",
     }
-    provider_pattern = re.compile(r"(?<![A-Za-z0-9_-])(claude|codex|agy|grok)(?![A-Za-z0-9_-])")
+    provider_pattern = re.compile(
+        r"(?<![A-Za-z0-9_-])(claude|codex|agy|antigravity|gemini|grok|kimi)(?![A-Za-z0-9_-])"
+    )
     helper_returns: dict[str, set[str]] = {}
 
     imported_calls: dict[str, str] = {}
@@ -1342,7 +1344,7 @@ def verify_consumer_census(axisvi_root: Path, consumers: list[dict[str, Any]], *
         elif path.suffix in {".js", ".mjs", ".cjs", ".ts", ".sh", ".zsh"}:
             scanned_global += 1
             content = path.read_text(encoding="utf-8", errors="strict")
-            provider = r"(?:claude|codex|agy|grok)"
+            provider = r"(?:claude|codex|agy|antigravity|gemini|grok|kimi)"
             patterns = (
                 rf"(?:spawn|execFile|execFileSync)\s*\(\s*['\"]{provider}['\"]",
                 rf"(?:^|[;&|]\s*){provider}(?:\s|$)",

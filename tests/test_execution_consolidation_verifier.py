@@ -174,6 +174,19 @@ def test_negative_control_consumer_census_rejects_direct_provider_launcher(tmp_p
 
 
 @pytest.mark.regression
+def test_negative_control_consumer_census_rejects_legacy_gemini_launcher(tmp_path) -> None:
+    path = tmp_path / "legacy_gemini.py"
+    path.write_text(
+        'import subprocess\nsubprocess.run(["gemini", "-p", "prompt"])\n',
+        encoding="utf-8",
+    )
+
+    assert verifier._provider_launches(path) == [
+        f"{path}:2: direct provider executable gemini"
+    ]
+
+
+@pytest.mark.regression
 def test_negative_control_consumer_census_rejects_indirect_provider_launcher(tmp_path) -> None:
     lattice = tmp_path / "axis/chariots/lattice"
     lattice.mkdir(parents=True)
