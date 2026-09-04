@@ -1058,11 +1058,65 @@ def _provider_launches(path: Path) -> list[str]:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     except (OSError, UnicodeDecodeError, SyntaxError) as error:
         raise ConsolidationVerificationError(f"consumer source is unreadable Python: {path}") from error
-    process_calls = {"run", "Popen", "create_subprocess_exec", "create_subprocess_shell"}
+    process_calls = {
+        "subprocess.run",
+        "subprocess.Popen",
+        "subprocess.create_subprocess_exec",
+        "subprocess.create_subprocess_shell",
+        "asyncio.create_subprocess_exec",
+        "asyncio.create_subprocess_shell",
+    }
     provider_pattern = re.compile(r"(?<![A-Za-z0-9_-])(claude|codex|agy|grok)(?![A-Za-z0-9_-])")
+    helper_returns: dict[str, set[str]] = {}
+
+    imported_calls: dict[str, str] = {}
+    module_aliases: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in {"asyncio", "subprocess"}:
+                    module_aliases[alias.asname or alias.name] = alias.name
+        elif isinstance(node, ast.ImportFrom) and node.module in {"asyncio", "subprocess"}:
+            for alias in node.names:
+                qualified = f"{node.module}.{alias.name}"
+                if qualified in process_calls:
+                    imported_calls[alias.asname or alias.name] = qualified
+
+    def dotted_name(node: ast.AST) -> str:
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            prefix = dotted_name(node.value)
+            return f"{prefix}.{node.attr}" if prefix else node.attr
+        return ""
 
     def call_name(node: ast.Call) -> str:
-        return node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id if isinstance(node.func, ast.Name) else ""
+        name = dotted_name(node.func)
+        if name in imported_calls:
+            return imported_calls[name]
+        first, separator, remainder = name.partition(".")
+        if separator and first in module_aliases:
+            return f"{module_aliases[first]}.{remainder}"
+        return name
+
+    def lexical_nodes(scope: ast.AST) -> list[ast.AST]:
+        """Walk one lexical scope without importing assignments from child scopes."""
+
+        body = getattr(scope, "body", [])
+        stack = list(reversed(body if isinstance(body, list) else []))
+        result: list[ast.AST] = []
+        while stack:
+            node = stack.pop()
+            result.append(node)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+                continue
+            children = []
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+                    continue
+                children.append(child)
+            stack.extend(reversed(children))
+        return result
 
     def origins(node: ast.AST | None, environment: dict[str, set[str]]) -> set[str]:
         if node is None:
@@ -1071,14 +1125,22 @@ def _provider_launches(path: Path) -> list[str]:
             return set(environment.get(node.id, set()))
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return {f"provider:{match}" for match in provider_pattern.findall(node.value)}
-        if isinstance(node, (ast.List, ast.Tuple)):
-            return origins(node.elts[0], environment) if node.elts else set()
+        if isinstance(node, ast.Starred):
+            return origins(node.value, environment)
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            return set().union(*(origins(item, environment) for item in node.elts)) if node.elts else set()
+        if isinstance(node, ast.Dict):
+            return set().union(*(origins(item, environment) for item in (*node.keys, *node.values) if item is not None))
         if isinstance(node, ast.Call):
-            if call_name(node) == "which" and node.args:
+            if call_name(node) in {"shutil.which", "which"} and node.args:
                 return origins(node.args[0], environment)
-            return set().union(*(origins(argument, environment) for argument in node.args)) if node.args else set()
+            arguments = [*node.args, *(keyword.value for keyword in node.keywords)]
+            argument_origins = set().union(*(origins(argument, environment) for argument in arguments)) if arguments else set()
+            return argument_origins | helper_returns.get(call_name(node), set())
         if isinstance(node, ast.BinOp):
             return origins(node.left, environment) | origins(node.right, environment)
+        if isinstance(node, ast.IfExp):
+            return origins(node.body, environment) | origins(node.orelse, environment)
         if isinstance(node, ast.JoinedStr):
             return set().union(*(origins(value, environment) for value in node.values)) if node.values else set()
         if isinstance(node, ast.FormattedValue):
@@ -1094,7 +1156,7 @@ def _provider_launches(path: Path) -> list[str]:
 
     def derive_environment(scope: ast.AST, initial: dict[str, set[str]] | None = None) -> dict[str, set[str]]:
         environment = {name: set(value) for name, value in (initial or {}).items()}
-        assignments = [pair for node in ast.walk(scope) for pair in assigned_names(node)]
+        assignments = [pair for node in lexical_nodes(scope) for pair in assigned_names(node)]
         for _ in range(len(assignments) + 1):
             changed = False
             for name, value in assignments:
@@ -1109,14 +1171,39 @@ def _provider_launches(path: Path) -> list[str]:
     module_environment = derive_environment(tree)
     findings: list[str] = []
     helper_sinks: dict[str, set[int]] = {}
+    functions = [node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    scope_environments: dict[int, dict[str, set[str]]] = {}
 
-    for function in (node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))):
+    # First resolve helpers that construct command values, then rebuild every
+    # function environment with those return origins available.
+    for _ in range(len(functions) + 1):
+        changed = False
+        for function in functions:
+            parameters = [*function.args.posonlyargs, *function.args.args]
+            local_environment = dict(module_environment)
+            for index, parameter in enumerate(parameters):
+                local_environment[parameter.arg] = {f"parameter:{index}"}
+            local_environment = derive_environment(function, local_environment)
+            scope_environments[id(function)] = local_environment
+            returned = set().union(*(
+                origins(node.value, local_environment)
+                for node in lexical_nodes(function)
+                if isinstance(node, ast.Return) and node.value is not None
+            )) if any(isinstance(node, ast.Return) and node.value is not None for node in lexical_nodes(function)) else set()
+            if returned and not returned.issubset(helper_returns.get(function.name, set())):
+                helper_returns.setdefault(function.name, set()).update(returned)
+                changed = True
+        if not changed:
+            break
+
+    for function in functions:
         parameters = [*function.args.posonlyargs, *function.args.args]
         local_environment = dict(module_environment)
         for index, parameter in enumerate(parameters):
             local_environment[parameter.arg] = {f"parameter:{index}"}
         local_environment = derive_environment(function, local_environment)
-        for node in ast.walk(function):
+        scope_environments[id(function)] = local_environment
+        for node in lexical_nodes(function):
             if not isinstance(node, ast.Call) or call_name(node) not in process_calls or not node.args:
                 continue
             command_origins = origins(node.args[0], local_environment)
@@ -1126,21 +1213,49 @@ def _provider_launches(path: Path) -> list[str]:
             for provider in sorted(value.split(":", 1)[1] for value in command_origins if value.startswith("provider:")):
                 findings.append(f"{path}:{node.lineno}: direct provider executable {provider}")
 
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or not node.args:
-            continue
-        name = call_name(node)
-        if name in process_calls:
-            command_origins = origins(node.args[0], module_environment)
-            for provider in sorted(value.split(":", 1)[1] for value in command_origins if value.startswith("provider:")):
-                finding = f"{path}:{node.lineno}: direct provider executable {provider}"
-                if finding not in findings:
-                    findings.append(finding)
-        for index in helper_sinks.get(name, set()):
-            if index >= len(node.args):
+    scopes: list[tuple[ast.AST, dict[str, set[str]]]] = [(tree, module_environment)]
+    scopes.extend((function, scope_environments[id(function)]) for function in functions)
+
+    # Propagate helper parameters until wrappers around wrappers reach the real
+    # process sink. This remains intra-file by design; the repository census
+    # independently scans the called module as well.
+    for _ in range(len(functions) + 1):
+        changed = False
+        for function in functions:
+            environment = scope_environments[id(function)]
+            for node in lexical_nodes(function):
+                if not isinstance(node, ast.Call):
+                    continue
+                for index in helper_sinks.get(call_name(node), set()):
+                    if index >= len(node.args):
+                        continue
+                    parameter_indexes = {
+                        int(value.split(":", 1)[1])
+                        for value in origins(node.args[index], environment)
+                        if value.startswith("parameter:")
+                    }
+                    before = len(helper_sinks.get(function.name, set()))
+                    helper_sinks.setdefault(function.name, set()).update(parameter_indexes)
+                    changed = changed or len(helper_sinks[function.name]) != before
+        if not changed:
+            break
+
+    for scope, environment in scopes:
+        for node in lexical_nodes(scope):
+            if not isinstance(node, ast.Call) or not node.args:
                 continue
-            for provider in sorted(value.split(":", 1)[1] for value in origins(node.args[index], module_environment) if value.startswith("provider:")):
-                findings.append(f"{path}:{node.lineno}: helper-mediated provider executable {provider}")
+            name = call_name(node)
+            if name in process_calls:
+                command_origins = origins(node.args[0], environment)
+                for provider in sorted(value.split(":", 1)[1] for value in command_origins if value.startswith("provider:")):
+                    finding = f"{path}:{node.lineno}: direct provider executable {provider}"
+                    if finding not in findings:
+                        findings.append(finding)
+            for index in helper_sinks.get(name, set()):
+                if index >= len(node.args):
+                    continue
+                for provider in sorted(value.split(":", 1)[1] for value in origins(node.args[index], environment) if value.startswith("provider:")):
+                    findings.append(f"{path}:{node.lineno}: helper-mediated provider executable {provider}")
     return sorted(set(findings))
 
 

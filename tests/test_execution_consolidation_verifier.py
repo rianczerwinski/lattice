@@ -206,6 +206,56 @@ def test_negative_control_consumer_census_rejects_helper_mediated_provider_launc
 
 
 @pytest.mark.regression
+def test_negative_control_consumer_census_rejects_starred_async_provider_command(tmp_path) -> None:
+    path = tmp_path / "starred.py"
+    path.write_text(
+        'import asyncio\nCLAUDE = "/opt/homebrew/bin/claude"\nasync def launch():\n    command = [CLAUDE, "-p"]\n    await asyncio.create_subprocess_exec(*command)\n',
+        encoding="utf-8",
+    )
+
+    assert verifier._provider_launches(path) == [
+        f"{path}:5: direct provider executable claude"
+    ]
+
+
+@pytest.mark.regression
+def test_consumer_census_does_not_confuse_asyncio_run_with_subprocess_run(tmp_path) -> None:
+    path = tmp_path / "asyncio_only.py"
+    path.write_text(
+        'import asyncio\nCLAUDE = "claude"\ncommand = [CLAUDE, "-p"]\nasync def harmless():\n    return command\nasyncio.run(harmless())\n',
+        encoding="utf-8",
+    )
+
+    assert verifier._provider_launches(path) == []
+
+
+@pytest.mark.regression
+def test_negative_control_consumer_census_rejects_class_method_provider_command(tmp_path) -> None:
+    path = tmp_path / "method.py"
+    path.write_text(
+        'import shutil, subprocess\nclass Launcher:\n    def run(self):\n        binary = shutil.which("codex")\n        subprocess.Popen([binary, "exec"])\n',
+        encoding="utf-8",
+    )
+
+    assert verifier._provider_launches(path) == [
+        f"{path}:5: direct provider executable codex"
+    ]
+
+
+@pytest.mark.regression
+def test_negative_control_consumer_census_rejects_provider_command_builder(tmp_path) -> None:
+    path = tmp_path / "builder.py"
+    path.write_text(
+        'import subprocess\ndef command():\n    return ["claude", "-p"]\ndef launch():\n    argv = command()\n    subprocess.run(argv)\n',
+        encoding="utf-8",
+    )
+
+    assert verifier._provider_launches(path) == [
+        f"{path}:6: direct provider executable claude"
+    ]
+
+
+@pytest.mark.regression
 def test_consumer_census_prunes_ephemera_and_dependency_caches(tmp_path) -> None:
     lattice = tmp_path / "axis/chariots/lattice"
     lattice.mkdir(parents=True)
