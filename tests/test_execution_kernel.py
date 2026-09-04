@@ -229,6 +229,8 @@ def test_negative_control_terminal_receipt_write_failure_is_never_reported_as_su
 def test_contract_adapter_definitions_use_subscription_auth_only() -> None:
     assert {adapter.provider_code for adapter in DEFAULT_ADAPTERS} == {"anthropic", "openai", "google", "moonshot", "xai"}
     assert all(adapter.definition()["auth_surface"] == "consumer_subscription_cli" for adapter in DEFAULT_ADAPTERS)
+    anthropic = next(adapter for adapter in DEFAULT_ADAPTERS if adapter.provider_code == "anthropic")
+    assert "claude-fable-5" in anthropic.supported_models
 
 
 @pytest.mark.regression

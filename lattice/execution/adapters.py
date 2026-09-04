@@ -145,7 +145,7 @@ DEFAULT_ADAPTERS = (
         ),
         ("provider-managed system context and admin policy are not byte-disclosed",),
         ("compiled-fresh", "research-fresh", "workspace-agent", "native-continuation"),
-        supported_models=("opus", "claude-opus-5", "sonnet", "claude-sonnet-4-6"),
+        supported_models=("opus", "claude-opus-5", "sonnet", "claude-sonnet-4-6", "claude-fable-5"),
     ),
     ProviderProfile(
         "openai",
