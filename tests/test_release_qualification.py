@@ -153,3 +153,16 @@ def test_provider_qualification_probes_the_shallow_subscription_gate_first(monke
         ("google", "compiled-fresh"),
         ("google", "research-fresh"),
     ]
+
+
+@pytest.mark.regression
+def test_release_qualification_checks_provider_quota_before_local_suites(monkeypatch, tmp_path: Path) -> None:
+    observed: list[str] = []
+
+    monkeypatch.setattr(qualify_release, "run_provider_canaries", lambda *_args, **_kwargs: observed.append("providers") or [])
+    monkeypatch.setattr(qualify_release, "run_suites", lambda *_args, **_kwargs: observed.append("suites") or [])
+    monkeypatch.setattr(qualify_release, "run_consumer_canaries", lambda *_args, **_kwargs: observed.append("consumers") or [])
+
+    qualify_release.collect_release_evidence(object(), tmp_path, tmp_path, tmp_path / "lattice", timeout=1)
+
+    assert observed == ["providers", "suites", "consumers"]

@@ -312,6 +312,15 @@ def run_consumer_canaries(axisvi_root: Path, data_root: Path, installed_lattice:
     return receipts
 
 
+def collect_release_evidence(client: LatticeClient, axisvi_root: Path, data_root: Path, installed_lattice: Path, *, timeout: float) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Fail fast on paid-subscription gates before running local suites."""
+
+    providers = run_provider_canaries(client, data_root, timeout=timeout)
+    suites = run_suites(axisvi_root)
+    consumers = run_consumer_canaries(axisvi_root, data_root, installed_lattice, timeout=timeout)
+    return suites, providers, consumers
+
+
 def _exact_runtime(runtime_manifest_path: Path) -> dict[str, Any]:
     raw = runtime_manifest_path.read_bytes()
     value = strict_json_loads(raw)
@@ -408,9 +417,7 @@ def main() -> int:
     if not installed_lattice.is_file() or not token_path.is_file() or token_path.stat().st_mode & 0o777 != 0o600:
         raise QualificationFailure("installed Lattice executable or mode-0600 operator capability is unavailable")
     client = LatticeClient(args.base_url.rstrip("/"), token_path.read_text(encoding="utf-8").strip(), args.base_url.removeprefix("http://").removeprefix("https://"))
-    suites = run_suites(axisvi_root)
-    providers = run_provider_canaries(client, data_root, timeout=args.timeout)
-    consumers = run_consumer_canaries(axisvi_root, data_root, installed_lattice, timeout=args.timeout)
+    suites, providers, consumers = collect_release_evidence(client, axisvi_root, data_root, installed_lattice, timeout=args.timeout)
     interruption_raw = args.interruption_receipt.read_bytes()
     interruption = strict_json_loads(interruption_raw)
     if not isinstance(interruption, dict) or canonical_bytes(interruption) != interruption_raw:
