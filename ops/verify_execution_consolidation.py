@@ -37,7 +37,7 @@ REQUIRED_EVIDENCE = {
     "restore_continuation": "LatticeRestoreContinuationReceipt/1.0",
     "findings": "LatticeExecutionConsolidationFindings/2.0",
 }
-REQUIRED_SUITES = {"lattice-backend", "lattice-frontend", "lattice-browser", "canon", "field-survey", "slate-mirror"}
+REQUIRED_SUITES = {"lattice-backend", "lattice-frontend", "lattice-browser", "canon", "field-survey", "octopus", "slate-mirror"}
 REQUIRED_BROWSER_ACTIONS = {
     "blank-project",
     "claude-send",
@@ -535,7 +535,7 @@ def _walk_files(root: Path, *, excluded_parts: set[str]) -> list[Path]:
 def _source_inventory(root: Path) -> list[dict[str, Any]]:
     excluded_parts = {".git", ".venv", "node_modules", "__pycache__", "runtime", "results", "archive", "dist", ".svelte-kit", ".pytest_cache"}
     inventory: list[dict[str, Any]] = []
-    for path in _walk_files(root, excluded_parts=excluded_parts):
+    for path in _repository_source_files(root, excluded_parts=excluded_parts):
         relative = path.relative_to(root)
         inventory.append({"path": relative.as_posix(), "sha256": sha256_file(path), "byte_count": path.stat().st_size})
     return inventory
@@ -685,6 +685,8 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
             invocation = connection.execute("SELECT manifest_sha256,state FROM invocations WHERE invocation_id=?", (item["invocation_id"],)).fetchone()
             if row is None or row["state"] != "terminal" or invocation is None or invocation["state"] != "succeeded" or invocation["manifest_sha256"] != item["manifest_sha256"]:
                 raise ConsolidationVerificationError(f"consumer canary is absent, nonterminal, or inexact: {item['consumer_id']}")
+            if item["consumer_id"] == "octopus.model-execution":
+                _verify_octopus_consumer_canary(connection, report_path, item)
         expected_canary_fields = {"provider", "profile", "state", "invocation_id", "manifest_sha256", "output_sha256", "provider_profile_id", "runtime_receipt_sha256"}
         if any(not isinstance(item, dict) or set(item) != expected_canary_fields for item in canaries):
             raise ConsolidationVerificationError("provider canary fields are malformed")
@@ -759,6 +761,62 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
     if value.get("kimi") != {"state": "unavailable", "reason": "unqualified"}:
         raise ConsolidationVerificationError("Kimi availability is not represented truthfully")
     return {"suites": len(suites), "provider_canaries": len(canaries), "consumers": len(consumer_canaries)}
+
+
+def _verify_octopus_consumer_canary(connection: sqlite3.Connection, report_path: Path, canary: dict[str, Any]) -> None:
+    """Reconstruct Octopus's exact sentinel proof from Lattice-owned base records."""
+    report, _raw = exact_json(report_path, label="Octopus consumer canary")
+    verify_generated_object(report, role="snapshot", label="Octopus consumer canary")
+    required = {
+        "generated_object",
+        "contract_version",
+        "consumer_id",
+        "external_project_key",
+        "operation_key",
+        "invocation_id",
+        "attempt_id",
+        "manifest_sha256",
+        "output_sha256",
+        "output_artifact_id",
+        "sentinel_sha256",
+        "provider_attestation_sha256",
+        "journal_receipt_sha256",
+    }
+    if set(report) != required or report.get("contract_version") != "OctopusLatticeCanary/1.0" or report.get("consumer_id") != "octopus.model-execution":
+        raise ConsolidationVerificationError("Octopus consumer canary contract is malformed")
+    if any(report.get(field) != canary.get(field) for field in ("consumer_id", "external_project_key", "invocation_id", "manifest_sha256")):
+        raise ConsolidationVerificationError("Octopus consumer canary disagrees with the qualification receipt")
+    for field in ("manifest_sha256", "output_sha256", "sentinel_sha256", "provider_attestation_sha256", "journal_receipt_sha256"):
+        require_digest(report.get(field), label=f"Octopus consumer canary {field}")
+    if report["output_sha256"] != report["sentinel_sha256"]:
+        raise ConsolidationVerificationError("Octopus consumer canary output is not the exact sentinel bytes")
+    invocation = connection.execute("SELECT route_json FROM invocations WHERE invocation_id=?", (report["invocation_id"],)).fetchone()
+    attempt = connection.execute("SELECT attempt_id,output_sha256,runtime_receipt_json FROM attempts WHERE attempt_id=? AND invocation_id=? AND state='succeeded'", (report["attempt_id"], report["invocation_id"])).fetchone()
+    artifact = connection.execute(
+        """SELECT a.content_sha256,a.generated_json FROM artifacts a JOIN edges e
+           ON e.target_type='artifact' AND e.target_id=a.artifact_id
+           WHERE a.artifact_id=? AND e.relation='produced' AND e.source_type='invocation' AND e.source_id=?""",
+        (report["output_artifact_id"], report["invocation_id"]),
+    ).fetchone()
+    if invocation is None or attempt is None or artifact is None or attempt["output_sha256"] != report["output_sha256"] or artifact["content_sha256"] != report["output_sha256"]:
+        raise ConsolidationVerificationError("Octopus consumer canary output identities do not resolve")
+    route = parse_json(invocation["route_json"], label="Octopus consumer canary route")
+    receipt = parse_json(attempt["runtime_receipt_json"], label="Octopus consumer canary journal receipt")
+    artifact_record = parse_json(artifact["generated_json"], label="Octopus consumer canary artifact")
+    if artifact_record.get("producing_invocation_id") != report["invocation_id"] or artifact_record.get("content_sha256") != report["output_sha256"]:
+        raise ConsolidationVerificationError("Octopus consumer canary artifact lineage is false")
+    provider_attestation = {
+        "profile_id": route.get("provider_profile_id"),
+        "provider": route.get("provider"),
+        "harness": route.get("harness"),
+        "requested_model": route.get("model"),
+        "observed": receipt.get("observed"),
+    }
+    if route.get("provider") != "anthropic" or route.get("harness") != "claude" or route.get("execution_profile") != "compiled-fresh" or sha256_bytes(canonical_bytes(receipt)) != report["journal_receipt_sha256"] or sha256_bytes(canonical_bytes(provider_attestation)) != report["provider_attestation_sha256"]:
+        raise ConsolidationVerificationError("Octopus consumer canary route or execution receipts are false")
+    output = _blob_content(Path(connection.execute("PRAGMA database_list").fetchone()[2]).parent, report["output_sha256"], label="Octopus consumer canary output")
+    if sha256_bytes(output) != report["sentinel_sha256"]:
+        raise ConsolidationVerificationError("Octopus consumer canary sentinel bytes do not resolve")
 
 
 def _blob_content(data_root: Path, digest: str, *, label: str) -> bytes:
@@ -1263,10 +1321,22 @@ def _provider_launches(path: Path) -> list[str]:
 
 def _repository_source_files(root: Path, *, excluded_parts: set[str]) -> list[Path]:
     """Return live repository files without descending into ignored scratch or dependencies."""
-    git_directory = root / ".git"
-    if git_directory.exists():
+    git_root_result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if git_root_result.returncode == 0:
+        git_root = Path(os.fsdecode(git_root_result.stdout).strip()).resolve(strict=True)
+        resolved_root = root.resolve(strict=True)
+        try:
+            relative_root = resolved_root.relative_to(git_root)
+        except ValueError as error:
+            raise ConsolidationVerificationError("repository source root escapes its Git worktree") from error
         completed = subprocess.run(
-            ["git", "-C", str(root), "ls-files", "-co", "--exclude-standard", "-z"],
+            ["git", "-C", str(git_root), "ls-files", "-co", "--exclude-standard", "-z", "--", relative_root.as_posix()],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -1283,10 +1353,13 @@ def _repository_source_files(root: Path, *, excluded_parts: set[str]) -> list[Pa
                 relative = Path(os.fsdecode(raw))
             except UnicodeError as error:
                 raise ConsolidationVerificationError("repository source inventory contains a non-decodable path") from error
-            path = root / relative
-            if not any(part in excluded_parts for part in relative.parts) and path.is_file() and not path.is_symlink():
+            path = git_root / relative
+            if not path.is_relative_to(resolved_root):
+                continue
+            root_relative = path.relative_to(resolved_root)
+            if not any(part in excluded_parts for part in root_relative.parts) and path.is_file() and not path.is_symlink():
                 paths.append(path)
-        return sorted(set(paths), key=lambda item: item.relative_to(root).as_posix())
+        return sorted(set(paths), key=lambda item: item.relative_to(resolved_root).as_posix())
 
     return _walk_files(root, excluded_parts=excluded_parts)
 
@@ -1388,6 +1461,7 @@ def _fixed_suite_commands(axisvi_root: Path) -> dict[str, tuple[Path, list[list[
         "lattice-browser": (lattice / "web", [["npm", "run", "test:browser"]]),
         "canon": (axisvi_root / "sui/mission/projects/canon", [["uv", "run", "pytest", "-q", "tests/discovery/reference_cascade/test_quaternary_workflow.py"]]),
         "field-survey": (axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline", [["uv", "run", "pytest", "-q"]]),
+        "octopus": (axisvi_root / "axis/soma/octopus", [["uv", "run", "pytest", "-q"], ["npm", "run", "build", "--prefix", "packages/web"]]),
         "slate-mirror": (axisvi_root / "axis/tools/slate-mirror", [["node", "--test", "server.test.js"]]),
     }
 

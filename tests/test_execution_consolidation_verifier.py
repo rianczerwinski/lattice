@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from lattice.canonical import canonical_bytes, generated_object, sha256_bytes
-from lattice.contracts import AttemptState, ExecutionSubmissionV1, OutputContractV2
+from lattice.contracts import AttemptState, ExecutionSubmissionV1, OutputContractV2, ProviderRoute
 
 
 VERIFIER_PATH = Path(__file__).parents[1] / "ops" / "verify_execution_consolidation.py"
@@ -26,14 +26,14 @@ def _blob(store, value: dict) -> dict:
     return {"ref": f"lattice:blob/{digest}", "sha256": digest, "byte_count": len(content)}
 
 
-def _completed_external(lattice_env) -> str:
+def _completed_external(lattice_env, *, route=None, response: str = "exact output") -> str:
     request = ExecutionSubmissionV1(
         external_project_key="fixture.consumer",
         operation_key="verified-operation",
         actor="fixture",
         workflow_role="fixture:worker",
         prompt="Return exact output.",
-        route=lattice_env["route"],
+        route=route or lattice_env["route"],
         output_contract=OutputContractV2(mode="text"),
         idempotency_key="fixture:verified-operation",
     )
@@ -59,7 +59,7 @@ def _completed_external(lattice_env) -> str:
         "terminal": {"status": "success"},
         "files": {"request.json": request_file, "checkpoint.json": checkpoint_file, "terminal.json": terminal_file},
     }
-    lattice_env["store"].finish_successful_attempt(attempt["attempt_id"], response="exact output", artifacts=[{"name": "result.txt", "media_type": "text/plain", "content": "exact output"}], journal_path="fixture:journal", runtime_receipt=receipt)
+    lattice_env["store"].finish_successful_attempt(attempt["attempt_id"], response=response, artifacts=[{"name": "result.txt", "media_type": "text/plain", "content": response}], journal_path="fixture:journal", runtime_receipt=receipt)
     return operation["invocation_id"]
 
 
@@ -455,6 +455,68 @@ def test_negative_control_consumer_canary_cannot_point_at_a_different_invocation
 
     with pytest.raises(verifier.ConsolidationVerificationError, match="absent, nonterminal, or inexact"):
         verifier.verify_qualification_receipt(value, runtime={"runtime_artifact_id": value["runtime_artifact_id"]}, consumer_inventories={"fixture.consumer": []}, data_root=lattice_env["config"].data_root)
+
+
+@pytest.mark.oracle
+def test_octopus_consumer_canary_is_reconstructed_from_base_records(lattice_env) -> None:
+    sentinel = "OCTOPUS-LATTICE-CANARY-fixture"
+    route = ProviderRoute(provider="anthropic", model="sonnet", harness="claude", effort="high", execution_profile="compiled-fresh")
+    invocation_id = _completed_external(lattice_env, route=route, response=sentinel)
+    with sqlite3.connect(lattice_env["config"].database) as connection:
+        connection.row_factory = sqlite3.Row
+        invocation = connection.execute("SELECT manifest_sha256,route_json FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+        attempt = connection.execute("SELECT attempt_id,output_sha256,runtime_receipt_json FROM attempts WHERE invocation_id=?", (invocation_id,)).fetchone()
+        artifact = connection.execute("SELECT artifact_id FROM artifacts WHERE content_sha256=?", (attempt["output_sha256"],)).fetchone()
+        runtime_receipt = json.loads(attempt["runtime_receipt_json"])
+        stored_route = json.loads(invocation["route_json"])
+        provider_attestation = {
+            "profile_id": stored_route.get("provider_profile_id"),
+            "provider": stored_route["provider"],
+            "harness": stored_route["harness"],
+            "requested_model": stored_route["model"],
+            "observed": runtime_receipt.get("observed"),
+        }
+        report = {
+            "generated_object": generated_object(kind="octopus-lattice-consumer-canary", schema_name="octopus-lattice-consumer-canary", subject="fixture", role="snapshot", sources=[{"ref": f"lattice:invocation:{invocation_id}", "revision": invocation_id, "sha256": invocation["manifest_sha256"]}]),
+            "contract_version": "OctopusLatticeCanary/1.0",
+            "consumer_id": "octopus.model-execution",
+            "external_project_key": "fixture.consumer",
+            "operation_key": "verified-operation",
+            "invocation_id": invocation_id,
+            "attempt_id": attempt["attempt_id"],
+            "manifest_sha256": invocation["manifest_sha256"],
+            "output_sha256": attempt["output_sha256"],
+            "output_artifact_id": artifact["artifact_id"],
+            "sentinel_sha256": verifier.sha256_bytes(sentinel.encode()),
+            "provider_attestation_sha256": verifier.sha256_bytes(verifier.canonical_bytes(provider_attestation)),
+            "journal_receipt_sha256": verifier.sha256_bytes(verifier.canonical_bytes(runtime_receipt)),
+        }
+        report_path = lattice_env["config"].data_root / "acceptance" / "octopus.json"
+        report_path.parent.mkdir()
+        report_path.write_bytes(canonical_bytes(report))
+        canary = {field: report[field] for field in ("consumer_id", "external_project_key", "invocation_id", "manifest_sha256")}
+        verifier._verify_octopus_consumer_canary(connection, report_path, canary)
+
+
+@pytest.mark.regression
+def test_negative_control_octopus_consumer_canary_rejects_nonexact_sentinel(lattice_env) -> None:
+    route = ProviderRoute(provider="anthropic", model="sonnet", harness="claude", effort="high", execution_profile="compiled-fresh")
+    invocation_id = _completed_external(lattice_env, route=route, response="sentinel with extra bytes")
+    with sqlite3.connect(lattice_env["config"].database) as connection:
+        connection.row_factory = sqlite3.Row
+        invocation = connection.execute("SELECT manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+        attempt = connection.execute("SELECT attempt_id,output_sha256,runtime_receipt_json FROM attempts WHERE invocation_id=?", (invocation_id,)).fetchone()
+        artifact = connection.execute("SELECT artifact_id FROM artifacts WHERE content_sha256=?", (attempt["output_sha256"],)).fetchone()
+        report = {
+            "generated_object": generated_object(kind="octopus-lattice-consumer-canary", schema_name="octopus-lattice-consumer-canary", subject="fixture", role="snapshot", sources=[{"ref": f"lattice:invocation:{invocation_id}", "revision": invocation_id, "sha256": invocation["manifest_sha256"]}]),
+            "contract_version": "OctopusLatticeCanary/1.0", "consumer_id": "octopus.model-execution", "external_project_key": "fixture.consumer", "operation_key": "verified-operation", "invocation_id": invocation_id, "attempt_id": attempt["attempt_id"], "manifest_sha256": invocation["manifest_sha256"], "output_sha256": attempt["output_sha256"], "output_artifact_id": artifact["artifact_id"], "sentinel_sha256": "0" * 64, "provider_attestation_sha256": "1" * 64, "journal_receipt_sha256": "2" * 64,
+        }
+        report_path = lattice_env["config"].data_root / "acceptance" / "octopus-bad.json"
+        report_path.parent.mkdir()
+        report_path.write_bytes(canonical_bytes(report))
+        canary = {field: report[field] for field in ("consumer_id", "external_project_key", "invocation_id", "manifest_sha256")}
+        with pytest.raises(verifier.ConsolidationVerificationError, match="exact sentinel"):
+            verifier._verify_octopus_consumer_canary(connection, report_path, canary)
 
 
 @pytest.mark.contract

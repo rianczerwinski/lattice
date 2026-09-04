@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -25,7 +26,7 @@ def _inputs(tmp_path: Path) -> dict:
     runtime_path = tmp_path / "runtime.json"
     runtime_path.write_bytes(canonical_bytes(runtime))
     consumers = []
-    for identity in ("canon.quaternary-exhaustion", "field-survey.research-pipeline"):
+    for identity in ("canon.quaternary-exhaustion", "field-survey.research-pipeline", "octopus.model-execution"):
         root = tmp_path / identity
         root.mkdir()
         (root / "client.py").write_text("BOUNDARY = True\n", encoding="utf-8")
@@ -60,7 +61,7 @@ def test_qualification_receipt_is_snapshot_and_exactly_source_bound(tmp_path) ->
     assert value["generated_object"]["role"] == "snapshot"
     assert value["contract_version"] == "LatticeQualificationReceipt/1.0"
     assert canonical_bytes(json.loads(output.read_bytes())) == output.read_bytes()
-    assert set(value["consumer_source_inventories"]) == {"canon.quaternary-exhaustion", "field-survey.research-pipeline"}
+    assert set(value["consumer_source_inventories"]) == {"canon.quaternary-exhaustion", "field-survey.research-pipeline", "octopus.model-execution"}
 
 
 @pytest.mark.regression
@@ -70,6 +71,32 @@ def test_negative_control_qualification_refuses_a_missing_provider_profile(tmp_p
 
     with pytest.raises(qualify_release.QualificationFailure, match="provider-profile"):
         qualify_release.write_receipt(tmp_path / "must-not-exist.json", **inputs)
+
+
+@pytest.mark.regression
+def test_negative_control_qualification_refuses_a_missing_consumer_canary(tmp_path) -> None:
+    inputs = _inputs(tmp_path)
+    inputs["consumer_canaries"].pop()
+
+    with pytest.raises(qualify_release.QualificationFailure, match="one exact canary"):
+        qualify_release.write_receipt(tmp_path / "must-not-exist.json", **inputs)
+
+
+@pytest.mark.regression
+def test_source_inventory_uses_enclosing_git_and_ignores_cache(tmp_path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / ".gitignore").write_text("consumer/.pytest_cache/\n", encoding="utf-8")
+    root = tmp_path / "consumer"
+    root.mkdir()
+    live = root / "client.py"
+    live.write_text("BOUNDARY = True\n", encoding="utf-8")
+    ignored = root / ".pytest_cache" / "bad.py"
+    ignored.parent.mkdir()
+    ignored.write_text('subprocess.run(["claude"])\n', encoding="utf-8")
+
+    assert qualify_release._source_inventory(root) == [
+        {"path": "client.py", "sha256": qualify_release._sha256_file(live), "byte_count": live.stat().st_size}
+    ]
 
 
 @pytest.mark.contract

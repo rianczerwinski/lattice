@@ -23,6 +23,7 @@ SUITES: dict[str, tuple[str, list[list[str]], list[str]]] = {
     "lattice-browser": ("axis/chariots/lattice/web", [["npm", "run", "test:browser"]], ["browser-acceptance", "regression"]),
     "canon": ("sui/mission/projects/canon", [["uv", "run", "pytest", "-q", "tests/discovery/reference_cascade/test_quaternary_workflow.py"]], ["oracle", "contract", "regression"]),
     "field-survey": ("sui/mission/typology/abduction/field-survey/research-pipeline", [["uv", "run", "pytest", "-q"]], ["oracle", "property", "contract", "regression", "concurrency"]),
+    "octopus": ("axis/soma/octopus", [["uv", "run", "pytest", "-q"], ["npm", "run", "build", "--prefix", "packages/web"]], ["oracle", "property", "contract", "regression", "concurrency"]),
     "slate-mirror": ("axis/tools/slate-mirror", [["node", "--test", "server.test.js"]], ["contract", "regression"]),
 }
 
@@ -65,8 +66,45 @@ def _sha256_file(path: Path) -> str:
 
 def _source_inventory(root: Path) -> list[dict[str, Any]]:
     excluded = {".git", ".venv", "node_modules", "__pycache__", "runtime", "results", "archive", "dist", ".svelte-kit", ".pytest_cache"}
+    git_root_result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    paths: list[Path] = []
+    if git_root_result.returncode == 0:
+        git_root = Path(os.fsdecode(git_root_result.stdout).strip()).resolve(strict=True)
+        relative_root = root.resolve(strict=True).relative_to(git_root)
+        listed = subprocess.run(
+            ["git", "-C", str(git_root), "ls-files", "-co", "--exclude-standard", "-z", "--", relative_root.as_posix()],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if listed.returncode != 0:
+            detail = listed.stderr.decode("utf-8", errors="replace")[-2000:]
+            raise QualificationFailure(f"source inventory failed: {detail}")
+        for raw in listed.stdout.split(b"\0"):
+            if not raw:
+                continue
+            candidate = (git_root / Path(os.fsdecode(raw))).resolve()
+            if candidate.is_relative_to(root.resolve()) and candidate.is_file() and not candidate.is_symlink():
+                relative = candidate.relative_to(root.resolve())
+                if not any(part in excluded for part in relative.parts):
+                    paths.append(candidate)
+    else:
+        for current_root, directories, files in os.walk(root):
+            current = Path(current_root)
+            directories[:] = sorted(item for item in directories if item not in excluded)
+            relative_current = current.relative_to(root)
+            if any(part in excluded for part in relative_current.parts):
+                continue
+            paths.extend(current / name for name in sorted(files))
     result = []
-    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
+    for path in sorted(set(paths), key=lambda item: item.relative_to(root).as_posix()):
         relative = path.relative_to(root)
         if any(part in excluded for part in relative.parts) or path.is_symlink() or not path.is_file():
             continue
@@ -263,9 +301,13 @@ def run_consumer_canaries(axisvi_root: Path, data_root: Path, installed_lattice:
     field_root = axisvi_root / "sui/mission/typology/abduction/field-survey/research-pipeline"
     field_output = root / "field-survey.json"
     field = _run_json([str(field_root / ".venv/bin/python"), "scripts/run-lattice-consumer-canary.py", "--output", str(field_output), "--lattice-bin", str(installed_lattice), "--timeout", str(timeout)], cwd=field_root, environment=environment)
+    octopus_root = axisvi_root / "axis/soma/octopus"
+    octopus_output = root / "octopus.json"
+    octopus = _run_json(["uv", "run", "python", "scripts/lattice_execution_canary.py", "--output", str(octopus_output), "--lattice-bin", str(installed_lattice), "--timeout", str(timeout)], cwd=octopus_root, environment=environment)
     receipts = [
         {"consumer_id": "canon.quaternary-exhaustion", "external_project_key": canon["external_project_key"], "invocation_id": canon["invocation_id"], "manifest_sha256": canon["manifest_sha256"], "report_path": canon["report_path"], "report_sha256": _sha256_file(Path(canon["report_path"]))},
         {"consumer_id": "field-survey.research-pipeline", "external_project_key": field["external_project_key"], "invocation_id": field["invocation_id"], "manifest_sha256": field["manifest_sha256"], "report_path": str(field_output), "report_sha256": _sha256_file(field_output)},
+        {"consumer_id": "octopus.model-execution", "external_project_key": octopus["external_project_key"], "invocation_id": octopus["invocation_id"], "manifest_sha256": octopus["manifest_sha256"], "report_path": str(octopus_output), "report_sha256": _sha256_file(octopus_output)},
     ]
     return receipts
 
