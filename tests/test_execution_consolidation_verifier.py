@@ -174,6 +174,73 @@ def test_negative_control_consumer_census_rejects_direct_provider_launcher(tmp_p
 
 
 @pytest.mark.regression
+def test_negative_control_consumer_census_rejects_indirect_provider_launcher(tmp_path) -> None:
+    lattice = tmp_path / "axis/chariots/lattice"
+    lattice.mkdir(parents=True)
+    (lattice / "pyproject.toml").write_text('[project]\nname="lattice"\n', encoding="utf-8")
+    live = tmp_path / "sui/mission/projects/live"
+    live.mkdir(parents=True)
+    (live / "indirect.py").write_text(
+        'import shutil, subprocess\nbinary = shutil.which("claude")\ncommand = [binary, "--print"]\nsubprocess.Popen(command)\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="direct provider executable claude"):
+        verifier.verify_consumer_census(tmp_path, [], require_retired_model_runner=False)
+
+
+@pytest.mark.regression
+def test_negative_control_consumer_census_rejects_helper_mediated_provider_launcher(tmp_path) -> None:
+    lattice = tmp_path / "axis/chariots/lattice"
+    lattice.mkdir(parents=True)
+    (lattice / "pyproject.toml").write_text('[project]\nname="lattice"\n', encoding="utf-8")
+    live = tmp_path / "sui/mission/projects/live"
+    live.mkdir(parents=True)
+    (live / "helper.py").write_text(
+        'import subprocess\ndef launch(command):\n    subprocess.run(command)\nbinary = "codex"\ncommand = [binary, "exec"]\nlaunch(command)\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match="helper-mediated provider executable codex"):
+        verifier.verify_consumer_census(tmp_path, [], require_retired_model_runner=False)
+
+
+@pytest.mark.regression
+def test_consumer_census_prunes_ephemera_and_dependency_caches(tmp_path) -> None:
+    lattice = tmp_path / "axis/chariots/lattice"
+    lattice.mkdir(parents=True)
+    (lattice / "pyproject.toml").write_text('[project]\nname="lattice"\n', encoding="utf-8")
+    live = tmp_path / "sui/mission/projects/live"
+    live.mkdir(parents=True)
+    (live / "safe.py").write_text("value = 1\n", encoding="utf-8")
+    ignored = tmp_path / "sui/flux/ephemera/uv-cache/site-packages/package"
+    ignored.mkdir(parents=True)
+    (ignored / "broken.py").write_text('subprocess.run(["claude"\n', encoding="utf-8")
+
+    result = verifier.verify_consumer_census(tmp_path, [], require_retired_model_runner=False)
+
+    assert result["repository_source_files_scanned"] == 1
+    assert result["violations"] == 0
+
+
+@pytest.mark.regression
+def test_consumer_source_inventory_prunes_before_descent(tmp_path, monkeypatch) -> None:
+    (tmp_path / "client.py").write_text("value = 1\n", encoding="utf-8")
+    cache = tmp_path / "runtime/provider/journals"
+    cache.mkdir(parents=True)
+    (cache / "private.bin").write_bytes(b"ignored")
+
+    def reject_rglob(*_args, **_kwargs):
+        raise AssertionError("source inventory must not descend with Path.rglob")
+
+    monkeypatch.setattr(Path, "rglob", reject_rglob)
+
+    assert verifier._source_inventory(tmp_path) == [
+        {"path": "client.py", "sha256": verifier.sha256_file(tmp_path / "client.py"), "byte_count": 10}
+    ]
+
+
+@pytest.mark.regression
 def test_negative_control_forbidden_credential_canary_is_detected(tmp_path) -> None:
     root = tmp_path / "state"
     root.mkdir()

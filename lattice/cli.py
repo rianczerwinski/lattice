@@ -365,6 +365,11 @@ def command_execution_result(args: argparse.Namespace) -> int:
     return 0 if result.state.value not in {"failed", "interrupted"} else 1
 
 
+def command_cancel_attempt(args: argparse.Namespace) -> int:
+    _emit(LatticeClient.from_environment().cancel_attempt(args.attempt_id), as_json=True)
+    return 0
+
+
 def command_artifact(args: argparse.Namespace) -> int:
     _emit(LatticeClient.from_environment().artifact(args.artifact_id), as_json=True)
     return 0
@@ -498,6 +503,10 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--external-project-key", required=True)
     result.add_argument("--operation-key", required=True)
     result.set_defaults(handler=command_execution_result)
+
+    cancel_attempt = subparsers.add_parser("cancel-attempt", help="request cancellation of one provider attempt")
+    cancel_attempt.add_argument("attempt_id")
+    cancel_attempt.set_defaults(handler=command_cancel_attempt)
 
     artifact = subparsers.add_parser("artifact", help="read one content-addressed execution artifact")
     artifact.add_argument("artifact_id")

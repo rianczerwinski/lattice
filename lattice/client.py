@@ -81,6 +81,12 @@ class LatticeClient:
         query = urllib.parse.urlencode({"external_project_key": external_project_key, "operation_key": operation_key})
         return ExecutionResultV1.model_validate(self._request("GET", f"/api/v1/executions?{query}"))
 
+    def cancel_attempt(self, attempt_id: str) -> dict[str, Any]:
+        value = self._request("POST", f"/api/v1/attempts/{urllib.parse.quote(attempt_id, safe='')}/cancel", {})
+        if not isinstance(value, dict):
+            raise LatticeClientError("Lattice cancellation response is malformed")
+        return value
+
     def routes(self, *, probe: bool = False) -> list[dict[str, Any]]:
         value = self._request("POST", "/api/v1/routes/probe", {}) if probe else self._request("GET", "/api/v1/routes")
         if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):

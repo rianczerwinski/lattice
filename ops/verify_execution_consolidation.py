@@ -517,13 +517,26 @@ def verify_runtime_manifest(path: Path, *, database_profiles: dict[str, dict[str
     }
 
 
+def _walk_files(root: Path, *, excluded_parts: set[str]) -> list[Path]:
+    paths: list[Path] = []
+    for current_root, directories, files in os.walk(root):
+        current = Path(current_root)
+        directories[:] = sorted(directory for directory in directories if directory not in excluded_parts)
+        relative_root = current.relative_to(root)
+        if any(part in excluded_parts for part in relative_root.parts):
+            continue
+        for name in sorted(files):
+            path = current / name
+            if path.is_file() and not path.is_symlink():
+                paths.append(path)
+    return paths
+
+
 def _source_inventory(root: Path) -> list[dict[str, Any]]:
     excluded_parts = {".git", ".venv", "node_modules", "__pycache__", "runtime", "results", "archive", "dist", ".svelte-kit", ".pytest_cache"}
     inventory: list[dict[str, Any]] = []
-    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
+    for path in _walk_files(root, excluded_parts=excluded_parts):
         relative = path.relative_to(root)
-        if any(part in excluded_parts for part in relative.parts) or path.is_symlink() or not path.is_file():
-            continue
         inventory.append({"path": relative.as_posix(), "sha256": sha256_file(path), "byte_count": path.stat().st_size})
     return inventory
 
@@ -1045,22 +1058,120 @@ def _provider_launches(path: Path) -> list[str]:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     except (OSError, UnicodeDecodeError, SyntaxError) as error:
         raise ConsolidationVerificationError(f"consumer source is unreadable Python: {path}") from error
+    process_calls = {"run", "Popen", "create_subprocess_exec", "create_subprocess_shell"}
+    provider_pattern = re.compile(r"(?<![A-Za-z0-9_-])(claude|codex|agy|grok)(?![A-Za-z0-9_-])")
+
+    def call_name(node: ast.Call) -> str:
+        return node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id if isinstance(node.func, ast.Name) else ""
+
+    def origins(node: ast.AST | None, environment: dict[str, set[str]]) -> set[str]:
+        if node is None:
+            return set()
+        if isinstance(node, ast.Name):
+            return set(environment.get(node.id, set()))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return {f"provider:{match}" for match in provider_pattern.findall(node.value)}
+        if isinstance(node, (ast.List, ast.Tuple)):
+            return origins(node.elts[0], environment) if node.elts else set()
+        if isinstance(node, ast.Call):
+            if call_name(node) == "which" and node.args:
+                return origins(node.args[0], environment)
+            return set().union(*(origins(argument, environment) for argument in node.args)) if node.args else set()
+        if isinstance(node, ast.BinOp):
+            return origins(node.left, environment) | origins(node.right, environment)
+        if isinstance(node, ast.JoinedStr):
+            return set().union(*(origins(value, environment) for value in node.values)) if node.values else set()
+        if isinstance(node, ast.FormattedValue):
+            return origins(node.value, environment)
+        return set()
+
+    def assigned_names(node: ast.AST) -> list[tuple[str, ast.AST]]:
+        if isinstance(node, ast.Assign):
+            return [(target.id, node.value) for target in node.targets if isinstance(target, ast.Name)]
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+            return [(node.target.id, node.value)]
+        return []
+
+    def derive_environment(scope: ast.AST, initial: dict[str, set[str]] | None = None) -> dict[str, set[str]]:
+        environment = {name: set(value) for name, value in (initial or {}).items()}
+        assignments = [pair for node in ast.walk(scope) for pair in assigned_names(node)]
+        for _ in range(len(assignments) + 1):
+            changed = False
+            for name, value in assignments:
+                derived = origins(value, environment)
+                if derived and not derived.issubset(environment.get(name, set())):
+                    environment.setdefault(name, set()).update(derived)
+                    changed = True
+            if not changed:
+                break
+        return environment
+
+    module_environment = derive_environment(tree)
     findings: list[str] = []
+    helper_sinks: dict[str, set[int]] = {}
+
+    for function in (node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))):
+        parameters = [*function.args.posonlyargs, *function.args.args]
+        local_environment = dict(module_environment)
+        for index, parameter in enumerate(parameters):
+            local_environment[parameter.arg] = {f"parameter:{index}"}
+        local_environment = derive_environment(function, local_environment)
+        for node in ast.walk(function):
+            if not isinstance(node, ast.Call) or call_name(node) not in process_calls or not node.args:
+                continue
+            command_origins = origins(node.args[0], local_environment)
+            parameter_indexes = {int(value.split(":", 1)[1]) for value in command_origins if value.startswith("parameter:")}
+            if parameter_indexes:
+                helper_sinks.setdefault(function.name, set()).update(parameter_indexes)
+            for provider in sorted(value.split(":", 1)[1] for value in command_origins if value.startswith("provider:")):
+                findings.append(f"{path}:{node.lineno}: direct provider executable {provider}")
+
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not node.args:
             continue
-        function = node.func
-        call_name = function.attr if isinstance(function, ast.Attribute) else function.id if isinstance(function, ast.Name) else ""
-        if call_name not in {"run", "Popen", "create_subprocess_exec", "create_subprocess_shell"}:
-            continue
-        command = node.args[0]
-        values = command.elts if isinstance(command, (ast.List, ast.Tuple)) else [command]
-        first = values[0] if values else None
-        if isinstance(first, ast.Constant) and first.value in PROVIDER_EXECUTABLES:
-            findings.append(f"{path}:{node.lineno}: direct provider executable {first.value}")
-        elif isinstance(first, ast.Name) and re.fullmatch(r"(?:claude|codex|agy|grok)(?:_bin)?", first.id):
-            findings.append(f"{path}:{node.lineno}: direct provider executable variable {first.id}")
-    return findings
+        name = call_name(node)
+        if name in process_calls:
+            command_origins = origins(node.args[0], module_environment)
+            for provider in sorted(value.split(":", 1)[1] for value in command_origins if value.startswith("provider:")):
+                finding = f"{path}:{node.lineno}: direct provider executable {provider}"
+                if finding not in findings:
+                    findings.append(finding)
+        for index in helper_sinks.get(name, set()):
+            if index >= len(node.args):
+                continue
+            for provider in sorted(value.split(":", 1)[1] for value in origins(node.args[index], module_environment) if value.startswith("provider:")):
+                findings.append(f"{path}:{node.lineno}: helper-mediated provider executable {provider}")
+    return sorted(set(findings))
+
+
+def _repository_source_files(root: Path, *, excluded_parts: set[str]) -> list[Path]:
+    """Return live repository files without descending into ignored scratch or dependencies."""
+    git_directory = root / ".git"
+    if git_directory.exists():
+        completed = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-co", "--exclude-standard", "-z"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if completed.returncode != 0:
+            detail = completed.stderr.decode("utf-8", errors="replace")[-2000:]
+            raise ConsolidationVerificationError(f"repository source inventory failed: {detail}")
+        paths: list[Path] = []
+        for raw in completed.stdout.split(b"\0"):
+            if not raw:
+                continue
+            try:
+                relative = Path(os.fsdecode(raw))
+            except UnicodeError as error:
+                raise ConsolidationVerificationError("repository source inventory contains a non-decodable path") from error
+            path = root / relative
+            if not any(part in excluded_parts for part in relative.parts) and path.is_file() and not path.is_symlink():
+                paths.append(path)
+        return sorted(set(paths), key=lambda item: item.relative_to(root).as_posix())
+
+    return _walk_files(root, excluded_parts=excluded_parts)
 
 
 def verify_consumer_census(axisvi_root: Path, consumers: list[dict[str, Any]], *, require_retired_model_runner: bool) -> dict[str, Any]:
@@ -1070,14 +1181,14 @@ def verify_consumer_census(axisvi_root: Path, consumers: list[dict[str, Any]], *
         "domain_research/generation/codex.py",
         "domain_research/generation/grok.py",
     }
+    excluded = {".git", ".venv", "node_modules", "recollection", "runtime", "archive", "results", "tests", "fixtures", "__pycache__", "dist", "build", ".svelte-kit", ".pytest_cache", "ephemera", "site-packages", "uv-cache"}
+    lattice_root = axisvi_root / "axis/chariots/lattice"
     violations: list[str] = []
     scanned = 0
     for consumer in consumers:
         root = axisvi_root / consumer["source_root"]
-        for path in sorted(root.rglob("*")):
+        for path in _repository_source_files(root, excluded_parts=excluded):
             relative = path.relative_to(root).as_posix()
-            if any(part in {".git", "runtime", "results", "archive", "tests", "__pycache__"} for part in path.relative_to(root).parts) or not path.is_file():
-                continue
             if relative in forbidden_files:
                 violations.append(f"retired provider launcher remains: {path}")
             if path.suffix not in {".py", ".toml", ".sh"}:
@@ -1096,21 +1207,19 @@ def verify_consumer_census(axisvi_root: Path, consumers: list[dict[str, Any]], *
         violations.append(f"retired sibling execution tree remains: {model_runner}")
     if not require_retired_model_runner and model_runner.exists():
         references = []
-        for path in sorted(axisvi_root.rglob("*.py")):
+        for path in _repository_source_files(axisvi_root, excluded_parts=excluded):
             relative = path.relative_to(axisvi_root)
-            if any(part in {".git", ".venv", "node_modules", "recollection", "runtime", "archive", "tests", "__pycache__"} for part in relative.parts) or path.is_relative_to(model_runner):
+            if path.suffix != ".py" or path.is_relative_to(lattice_root) or path.is_relative_to(model_runner):
                 continue
             if "axis_model_runner" in path.read_text(encoding="utf-8", errors="strict"):
                 references.append(str(path))
         if references:
             violations.extend(f"retired sibling execution package remains active: {path}" for path in references)
 
-    excluded = {".git", ".venv", "node_modules", "recollection", "runtime", "archive", "results", "tests", "fixtures", "__pycache__", "dist", "build", ".svelte-kit", ".pytest_cache"}
-    lattice_root = axisvi_root / "axis/chariots/lattice"
     scanned_global = 0
-    for path in sorted(axisvi_root.rglob("*")):
+    for path in _repository_source_files(axisvi_root, excluded_parts=excluded):
         relative = path.relative_to(axisvi_root)
-        if any(part in excluded for part in relative.parts) or path.is_relative_to(lattice_root) or path.is_relative_to(model_runner) or not path.is_file():
+        if path.is_relative_to(lattice_root) or path.is_relative_to(model_runner):
             continue
         if path.suffix == ".py":
             scanned_global += 1
