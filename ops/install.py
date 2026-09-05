@@ -234,20 +234,48 @@ def required_binary(name: str) -> Path:
 
 
 def runtime_path() -> str:
-    directories: list[str] = []
-    entrypoints = [required_binary("outport")]
+    entrypoints: dict[str, Path] = {"outport": required_binary("outport")}
     for name in ("claude", "codex", "agy", "grok"):
         candidate = shutil.which(name)
         if candidate is not None:
-            entrypoints.append(Path(candidate).absolute())
-    for binary in entrypoints:
+            entrypoints[name] = Path(candidate).absolute()
+
+    directories: list[str] = []
+    for binary in entrypoints.values():
         parent = str(binary.parent)
         if parent not in directories:
             directories.append(parent)
     for directory in ("/usr/bin", "/bin", "/usr/sbin", "/sbin"):
         if directory not in directories:
             directories.append(directory)
-    return os.pathsep.join(directories)
+
+    # PATH is itself part of the provider attestation.  When two directories
+    # contain the same command (for example ~/.grok/bin/grok and a stale
+    # ~/.local/bin/grok), every attested directory must precede directories
+    # that would shadow its selected entrypoint.  A stable topological order
+    # preserves the discovery order where no constraint exists.
+    precedence: dict[str, set[str]] = {directory: set() for directory in directories}
+    for name, selected in entrypoints.items():
+        selected_directory = str(selected.parent)
+        for directory in directories:
+            candidate = Path(directory) / name
+            if directory != selected_directory and candidate.is_file() and os.access(candidate, os.X_OK):
+                precedence[selected_directory].add(directory)
+    ordered: list[str] = []
+    remaining = set(directories)
+    while remaining:
+        ready = next((directory for directory in directories if directory in remaining and not any(directory in targets for source, targets in precedence.items() if source in remaining)), None)
+        if ready is None:
+            raise RuntimeError("provider entrypoints impose incompatible PATH precedence")
+        ordered.append(ready)
+        remaining.remove(ready)
+
+    value = os.pathsep.join(ordered)
+    for name, selected in entrypoints.items():
+        resolved = shutil.which(name, path=value)
+        if resolved is None or Path(resolved).absolute() != selected:
+            raise RuntimeError(f"launchd PATH resolves a different {name} entrypoint: expected {selected}, observed {resolved}")
+    return value
 
 
 def verify_source() -> None:

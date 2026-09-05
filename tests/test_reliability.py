@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import subprocess
 from pathlib import Path
@@ -702,6 +703,30 @@ def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -
     assert deployment.managed_shim(b"#!/bin/sh\nexec something-else\n") is False
     planted = deployment.shim_payload().decode("utf-8").replace(str(deployment.required_binary("outport")), "/bin/sh").encode("utf-8")
     assert deployment.managed_shim(planted) is False
+
+
+@pytest.mark.regression
+def test_launchd_path_preserves_each_attested_entrypoint_when_commands_collide(monkeypatch, tmp_path) -> None:
+    grok_home = tmp_path / "grok-home"
+    local_bin = tmp_path / "local-bin"
+    system_bin = tmp_path / "system-bin"
+    for path in (grok_home / "grok", local_bin / "grok", local_bin / "agy", system_bin / "outport"):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("#!/bin/sh\n", encoding="utf-8")
+        path.chmod(0o755)
+    selected = {
+        "outport": system_bin / "outport",
+        "agy": local_bin / "agy",
+        "grok": grok_home / "grok",
+    }
+    real_which = deployment.shutil.which
+    monkeypatch.setattr(deployment, "required_binary", lambda name: selected[name])
+    monkeypatch.setattr(deployment.shutil, "which", lambda name, path=None: str(selected[name]) if path is None and name in selected else None if path is None else real_which(name, path=path))
+
+    directories = deployment.runtime_path().split(os.pathsep)
+
+    assert directories.index(str(grok_home)) < directories.index(str(local_bin))
+    assert Path(real_which("grok", path=os.pathsep.join(directories))).absolute() == selected["grok"]
 
 
 @pytest.mark.regression
