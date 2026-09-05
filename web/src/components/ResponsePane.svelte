@@ -2,6 +2,7 @@
   import type { ContextAction } from '../contextActions';
   import type { Episode, Invocation } from '../types';
   import { extractFileLinks } from '../fileLinks';
+  import { renderMarkdown } from '../renderMarkdown';
   import { windowedTail, windowedText } from '../virtualizedText';
 
   export let selected: Invocation | null;
@@ -9,7 +10,6 @@
   export let liveProgress: string;
   export let liveProgressState: string;
   export let activityFailure: string;
-  export let responseHtml: string;
   export let working: boolean;
   export let selectedNativeEligible: boolean;
   export let currentEpisode: Episode | null;
@@ -30,6 +30,7 @@
 
   $: progressWindow = windowedTail(liveProgress);
   $: responseWindow = selected?.output_block?.content ? windowedText(selected.output_block.content) : null;
+  $: responseHtml = responseWindow?.text ? renderMarkdown(responseWindow.text) : '';
   $: fileLinks = selected?.output_block?.content ? extractFileLinks(selected.output_block.content) : [];
 </script>
 

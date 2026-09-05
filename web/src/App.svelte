@@ -5,7 +5,6 @@
   import { contextActionIntent } from './contextActions';
   import type { ContextAction } from './contextActions';
   import { buildContextModuleDefinition } from './contextModules';
-  import { renderMarkdown } from './renderMarkdown';
   import { applyModelOverride, buildRoutePayload } from './executionRoutes';
   import { activeAttemptIds as activityAttemptIds, activityFailureForInvocation, activityForInvocation, attentionActivityTransitions, memberForInvocation, mergeActivitySnapshots, projectActivityBadges, projectReplayCursor, terminalActivityTransitions } from './invocationActivity';
   import type { PaletteCommand } from './commandPalette';
@@ -16,6 +15,7 @@
   import { recoveryNotice, type RecoveryNotice } from './recoveryStatus';
   import { resolveSelector, workflowProjectTitle } from './workflowPresentation';
   import { orderByRecentProjects, readUiState, writeProjectUiState, type ProjectUiState } from './uiPersistence';
+  import { reconcileSubmittedComposer } from './submissionState';
   import ConversationHistory from './components/ConversationHistory.svelte';
   import ComposerPane from './components/ComposerPane.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
@@ -82,6 +82,7 @@
   let pinRoleReceipt = '';
   let selected: Invocation | null = null;
   let inspectGeneration = 0;
+  let projectOpenGeneration = 0;
   let selectedNavigation: InvocationNavigation | null = null;
   let selectedSlateSlice: LiveSlice | null = null;
   let navigationError = '';
@@ -164,7 +165,6 @@
   $: routeChoices = routeMode === 'both'
     ? ['anthropic', 'openai'].map((provider) => installedRoutes.find((route) => route.provider_code === provider)).filter((route): route is Route => Boolean(route))
     : [installedRoutes.find((route) => route.provider_code === routeMode)].filter((route): route is Route => Boolean(route));
-  $: responseHtml = selected?.output_block?.content ? renderMarkdown(selected.output_block.content) : '';
   $: trailheads = project?.trailheads ?? [];
   $: activeWorkflowPack = workflowPacks.find((pack) => pack.definition.pack_id === project?.workflow?.pack_id);
   $: workflowPackCurrent = Boolean(project?.workflow?.pack_canonical_sha256 && project.workflow.pack_canonical_sha256 === activeWorkflowPack?.canonical_sha256);
@@ -431,9 +431,11 @@
   async function refreshProjectInvocationActivity(projectId: string) {
     try {
       const incoming = await api<InvocationActivitySnapshot>(`/api/v1/invocation-activity?project_id=${encodeURIComponent(projectId)}&limit=20`);
+      if (project?.project_id !== projectId) return;
       adoptInvocationActivitySnapshot(incoming);
       invocationActivityRefreshError = '';
     } catch (cause) {
+      if (project?.project_id !== projectId) return;
       invocationActivityRefreshError = cause instanceof Error ? cause.message : String(cause);
     }
   }
@@ -507,6 +509,7 @@
   }
 
   async function openProject(projectId: string) {
+    const generation = ++projectOpenGeneration;
     const switchingProjects = project?.project_id !== projectId;
     if (switchingProjects && uiStateReady) flushUiState();
     if (switchingProjects) projectOpening = true;
@@ -525,12 +528,17 @@
       runError = '';
     }
     try {
-      project = await api<Project>(`/api/v1/projects/${projectId}`);
+      const openedProject = await api<Project>(`/api/v1/projects/${projectId}`);
+      if (generation !== projectOpenGeneration) return;
+      project = openedProject;
       try {
-        episodes = await api<Episode[]>(`/api/v1/projects/${projectId}/episodes`);
+        const openedEpisodes = await api<Episode[]>(`/api/v1/projects/${projectId}/episodes`);
+        if (generation !== projectOpenGeneration) return;
+        episodes = openedEpisodes;
         episodeError = '';
         currentEpisode = restored?.currentEpisodeId ? episodes.find((episode) => episode.slice_id === restored.currentEpisodeId) ?? null : switchingProjects ? null : episodes.find((episode) => episode.slice_id === currentEpisode?.slice_id) ?? null;
       } catch (cause) {
+        if (generation !== projectOpenGeneration) return;
         episodes = [];
         currentEpisode = null;
         episodeError = cause instanceof Error ? cause.message : String(cause);
@@ -575,19 +583,25 @@
       const invocationId = restoredInvocationId || fallbackInvocationId;
       if (invocationId) {
         await inspect(invocationId);
+        if (generation !== projectOpenGeneration) return;
         const inspectedInvocationId = (selected as Invocation | null)?.invocation_id ?? '';
         if (restoredInvocationId && inspectedInvocationId !== restoredInvocationId && fallbackInvocationId && fallbackInvocationId !== restoredInvocationId) await inspect(fallbackInvocationId);
       }
       await refreshRuns(projectId);
+      if (generation !== projectOpenGeneration) return;
       await refreshProjectInvocationActivity(projectId);
+      if (generation !== projectOpenGeneration) return;
       markProjectActivitySeen(projectId);
       watchProjectInvocationActivity(projectId, projectReplayCursor(invocationActivity, projectId));
       viewScrollY = restored?.scrollY ?? 0;
       pendingScrollY = viewScrollY;
     } finally {
-      uiStateSuspended = false;
-      if (switchingProjects) projectOpening = false;
+      if (generation === projectOpenGeneration) {
+        uiStateSuspended = false;
+        projectOpening = false;
+      }
     }
+    if (generation !== projectOpenGeneration) return;
     if (!loading) {
       await restorePendingViewPosition();
       persistCurrentProjectUiState();
@@ -723,8 +737,11 @@
         runEvents = [];
       }
     } catch (cause) {
+      if (project?.project_id !== projectId) return;
       runError = cause instanceof Error ? cause.message : String(cause);
-    } finally { runsLoading = false; }
+    } finally {
+      if (project?.project_id === projectId) runsLoading = false;
+    }
   }
 
   async function refreshRun(runId: string) {
@@ -1095,16 +1112,23 @@
         expected_preview_sha256: preview.preview_sha256,
         confirmed_reason_sha256s: confirmedReasonSha256s,
       });
-      promptHistory = recordPrompt(promptHistory, prompt);
+      promptHistory = recordPrompt(promptHistory, submittedUiState?.prompt ?? prompt);
       promptHistoryCursor = null;
       const foregroundInvocationId = batch.invocation_ids.at(-1);
-      const clearedUiState = submittedUiState ? { ...submittedUiState, prompt: '', explicitSelections: [], selectedParentIds: [], selectedInvocationId: foregroundInvocationId ?? submittedUiState.selectedInvocationId, updatedAt: Date.now() } : null;
+      const clearedUiState = submittedUiState ? { ...submittedUiState, prompt: '', explicitSelections: [], selectedParentIds: foregroundInvocationId ? [foregroundInvocationId] : submittedUiState.selectedParentIds, selectedInvocationId: foregroundInvocationId ?? submittedUiState.selectedInvocationId, updatedAt: Date.now() } : null;
       if (project?.project_id === projectId) {
         preview = null;
         pendingBatchRequest = null;
-        prompt = '';
-        explicitSelections = [];
-        selectedParents = new Set();
+        if (submittedUiState) {
+          const reconciled = reconcileSubmittedComposer(
+            { prompt, explicitSelections, selectedParentIds: [...selectedParents] },
+            submittedUiState,
+            foregroundInvocationId,
+          );
+          prompt = reconciled.prompt;
+          explicitSelections = reconciled.explicitSelections;
+          selectedParents = new Set(reconciled.selectedParentIds);
+        }
       } else if (clearedUiState) {
         const persisted = writeProjectUiState(window.localStorage, projectId, clearedUiState, { activate: false });
         if (persisted.error) uiPersistenceError = persisted.error;
@@ -1760,7 +1784,6 @@
             liveProgress={selectedLiveProgress}
             liveProgressState={selectedLiveProgressState}
             activityFailure={selectedActivityFailure}
-            {responseHtml}
             {working}
             {selectedNativeEligible}
             {currentEpisode}

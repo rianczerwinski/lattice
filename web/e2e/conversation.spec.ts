@@ -273,3 +273,45 @@ test('browser regression: secondary surface outages do not erase the conversatio
   await expect(page.locator('.composer textarea')).toBeVisible();
   await expect(page.locator('.error')).toHaveCount(0);
 });
+
+test('browser regression: the latest project choice wins overlapping loads', async ({ page }) => {
+  const projects = [
+    { project_id: 'project_a', title: 'Project Alpha', purpose: 'Fast project', workflow_pack: null, created_at: '20260824T100000' },
+    { project_id: 'project_b', title: 'Project Beta', purpose: 'Slow project', workflow_pack: null, created_at: '20260824T100001' },
+  ];
+  const projectView = (projectId: string) => ({
+    ...projects.find((item) => item.project_id === projectId),
+    roles: [], sessions: [], context_defaults: [], workflow: null, invocations: [],
+    invocation_page: { has_older: false, next_before: null }, trailheads: [], workflow_templates: [], workflow_templates_partial: false,
+  });
+  await page.route('**/api/**', async (intercepted) => {
+    const request = intercepted.request();
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/session') return json(intercepted, { csrf: 'browser-race' });
+    if (path === '/api/health') return json(intercepted, { status: 'ok', startup_recovery_failures: [], durable_run_startup_reconciliation: { adopted_attempt_ids: [], orphaned_attempt_ids: [], processes_proven_dead: [] } });
+    if (path === '/api/v1/projects') return json(intercepted, projects);
+    if (path === '/api/v1/routes') return json(intercepted, []);
+    if (path === '/api/v1/workflow-packs') return json(intercepted, { packs: [], failures: [] });
+    if (path === '/api/v1/context-modules') return json(intercepted, { contract_version: 'LatticeContextModuleCatalogue/1.0', modes: ['manual', 'project_default', 'workflow_required'], sources: [] });
+    if (path === '/api/v1/runs') return json(intercepted, []);
+    if (path === '/api/v1/invocation-activity') return json(intercepted, { items: [], project_cursors: {}, activity_cursors: {}, recent_has_more: {} });
+    const projectMatch = path.match(/^\/api\/v1\/projects\/(project_[ab])$/);
+    if (projectMatch) {
+      if (projectMatch[1] === 'project_b') await new Promise((resolve) => setTimeout(resolve, 250));
+      return json(intercepted, projectView(projectMatch[1]));
+    }
+    if (path.match(/^\/api\/v1\/projects\/project_[ab]\/episodes$/) || path.match(/^\/api\/v1\/projects\/project_[ab]\/runs$/)) return json(intercepted, []);
+    return json(intercepted, { detail: `unhandled race fixture route: ${request.method()} ${path}` }, 501);
+  });
+
+  await page.goto('/');
+  await expect(page.locator('.project-heading h2')).toHaveText('Project Alpha');
+  await page.getByRole('button', { name: /Project Beta/ }).click();
+  await page.waitForTimeout(25);
+  await page.getByRole('button', { name: /Project Alpha/ }).click();
+  await page.waitForTimeout(350);
+
+  await expect(page.locator('.project-heading h2')).toHaveText('Project Alpha');
+  await expect(page.getByRole('button', { name: /Project Alpha/ })).toHaveClass(/active/);
+  await expect(page.getByRole('button', { name: /Project Beta/ })).not.toHaveClass(/active/);
+});
