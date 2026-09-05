@@ -11,7 +11,7 @@ from typing import Any
 from .execution import load_checkpoint
 
 from .canonical import canonical_bytes
-from .snapshot import verify_snapshot
+from .snapshot import materialized_snapshot_database, verify_snapshot
 from .store import CHANGE_TABLES, LatticeStore, SCHEMA_VERSION
 
 
@@ -219,9 +219,9 @@ def _assess_model_runs(runs_root: Path) -> dict[str, int]:
     return {"run_count": run_count, "terminal_count": terminal_count, "journal_bytes": journal_bytes}
 
 
-def assess_data_root(data_root: Path) -> dict[str, Any]:
+def assess_data_root(data_root: Path, *, database_path: Path | None = None) -> dict[str, Any]:
     data_root = data_root.expanduser().resolve(strict=True)
-    database = data_root / "lattice.sqlite3"
+    database = database_path or data_root / "lattice.sqlite3"
     connection = _connect_read_only(database)
     try:
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
@@ -280,7 +280,9 @@ def latest_backup(backups: Path) -> Path | None:
 
 def assess_backup(snapshot_root: Path) -> dict[str, Any]:
     manifest = verify_snapshot(snapshot_root)
-    data = assess_data_root(snapshot_root)
+    with materialized_snapshot_database(snapshot_root, manifest) as database:
+        data = assess_data_root(snapshot_root, database_path=database)
+    data["database"] = str(snapshot_root / manifest.get("database", {}).get("path", "lattice.sqlite3"))
     expected = manifest.get("state_digest")
     if expected is not None and data["state_digest"] != expected:
         raise OSError(f"snapshot logical state changed: expected {expected}, got {data['state_digest']}")

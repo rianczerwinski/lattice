@@ -235,24 +235,62 @@ def test_oracle_snapshot_restore_reproduces_exact_lattice_state(lattice_env, tmp
     assert restored["state_digest"] == source["state_digest"]
     assert manifest["generated_object"]["role"] == "snapshot"
     assert manifest["generated_object"]["sources"] == [{"ref": f"lattice:data-root:{lattice_env['config'].data_root.resolve()}", "revision": source["state_digest"], "sha256": None}]
-    assert {item["path"] for item in manifest["inventory"]} >= {"lattice.sqlite3"}
+    assert manifest["contract_version"] == "LatticeBackup/3.0"
+    assert {item["path"] for item in manifest["inventory"]} >= {"lattice.sqlite3.gz"}
+    assert manifest["database"]["byte_count"] == destination.joinpath("lattice.sqlite3").stat().st_size
+
+
+@pytest.mark.regression
+def test_snapshot_uses_clone_seam_for_immutable_content(monkeypatch, lattice_env, tmp_path) -> None:
+    source = assess_data_root(lattice_env["config"].data_root)
+    cloned: list[tuple[Path, Path]] = []
+
+    def fake_clone(input_path: Path, output_path: Path) -> bool:
+        cloned.append((input_path, output_path))
+        output_path.write_bytes(input_path.read_bytes())
+        return True
+
+    monkeypatch.setattr(snapshot_runtime, "_try_clone_regular", fake_clone)
+    snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="clone-seam", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
+
+    assert cloned
+    assert verify_snapshot(snapshot)["contract_version"] == "LatticeBackup/3.0"
+
+
+@pytest.mark.regression
+def test_negative_control_compressed_snapshot_rejects_a_substituted_database_identity(lattice_env, tmp_path) -> None:
+    source = assess_data_root(lattice_env["config"].data_root)
+    snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="database-identity-mutation", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
+    manifest_path = snapshot / snapshot_runtime.SNAPSHOT_MANIFEST
+    manifest = json.loads(manifest_path.read_bytes())
+    manifest["database"]["sha256"] = "0" * 64
+    manifest_path.write_bytes(canonical_bytes(manifest))
+
+    with pytest.raises(OSError, match="logical identity"):
+        verify_snapshot(snapshot)
 
 
 @pytest.mark.contract
 def test_v2_snapshot_reader_preserves_v010_producer_compatibility(lattice_env, tmp_path) -> None:
     source = assess_data_root(lattice_env["config"].data_root)
     snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="legacy-producer-contract", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
-    manifest_path = snapshot / snapshot_runtime.SNAPSHOT_MANIFEST
-    legacy = json.loads(manifest_path.read_bytes())
+    legacy_root = tmp_path / "legacy-v2"
+    restore_snapshot(snapshot, legacy_root)
+    manifest_path = legacy_root / snapshot_runtime.SNAPSHOT_MANIFEST
+    legacy = json.loads((snapshot / snapshot_runtime.SNAPSHOT_MANIFEST).read_bytes())
+    legacy["contract_version"] = "LatticeBackup/2.0"
+    legacy["generated_object"]["schema"]["version"] = 2
     legacy["generated_object"]["producer"]["version"] = "0.1.0"
+    legacy.pop("database")
+    legacy["inventory"] = snapshot_runtime._inventory(legacy_root)
     manifest_path.write_bytes(canonical_bytes(legacy))
 
-    assert verify_snapshot(snapshot)["generated_object"]["producer"] == {"name": "lattice", "version": "0.1.0"}
+    assert verify_snapshot(legacy_root)["generated_object"]["producer"] == {"name": "lattice", "version": "0.1.0"}
 
     legacy["generated_object"]["producer"]["name"] = "impostor"
     manifest_path.write_bytes(canonical_bytes(legacy))
     with pytest.raises(OSError, match="generated-object envelope is invalid"):
-        verify_snapshot(snapshot)
+        verify_snapshot(legacy_root)
 
 
 @pytest.mark.regression
@@ -359,15 +397,19 @@ def test_negative_control_restore_rejects_missing_blob_even_when_database_is_rea
 def test_legacy_backup_manifest_remains_readable_without_rewriting_history(lattice_env, tmp_path) -> None:
     source = assess_data_root(lattice_env["config"].data_root)
     snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="legacy-reader", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
-    path = snapshot / "snapshot.json"
-    legacy = json.loads(path.read_bytes())
+    legacy_root = tmp_path / "legacy-v1"
+    restore_snapshot(snapshot, legacy_root)
+    path = legacy_root / "snapshot.json"
+    legacy = json.loads((snapshot / "snapshot.json").read_bytes())
     legacy["contract_version"] = "LatticeBackup/1.0"
     legacy["generated_object"]["schema"]["version"] = 1
     legacy["generated_object"]["producer"]["version"] = "0.1.0"
     del legacy["generated_object"]["sources"][0]["sha256"]
+    legacy.pop("database")
+    legacy["inventory"] = snapshot_runtime._inventory(legacy_root)
     path.write_bytes(canonical_bytes(legacy))
 
-    assert verify_snapshot(snapshot)["generated_object"]["artifact_id"] == legacy["generated_object"]["artifact_id"]
+    assert verify_snapshot(legacy_root)["generated_object"]["artifact_id"] == legacy["generated_object"]["artifact_id"]
 
 
 @pytest.mark.concurrency

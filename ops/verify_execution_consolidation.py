@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import gzip
 import hashlib
 import json
 import os
@@ -12,10 +13,12 @@ import re
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 import rfc8785
 
@@ -998,12 +1001,40 @@ def _database_state_digest(database: Path) -> str:
     return digest.hexdigest()
 
 
+@contextmanager
+def _snapshot_database(snapshot_root: Path, snapshot: dict[str, Any]) -> Iterator[Path]:
+    if snapshot.get("contract_version") == "LatticeBackup/2.0":
+        yield snapshot_root / "lattice.sqlite3"
+        return
+    descriptor = snapshot.get("database")
+    if not isinstance(descriptor, dict) or set(descriptor) != {"path", "encoding", "sha256", "byte_count"} or descriptor.get("path") != "lattice.sqlite3.gz" or descriptor.get("encoding") != "gzip":
+        raise ConsolidationVerificationError("compressed restore snapshot database descriptor is malformed")
+    expected_bytes = descriptor.get("byte_count")
+    expected_sha = descriptor.get("sha256")
+    if not isinstance(expected_bytes, int) or expected_bytes <= 0 or not isinstance(expected_sha, str) or HEX64.fullmatch(expected_sha) is None:
+        raise ConsolidationVerificationError("compressed restore snapshot database identity is malformed")
+    with tempfile.TemporaryDirectory(prefix="lattice-verifier-snapshot-") as temporary_root:
+        database = Path(temporary_root) / "lattice.sqlite3"
+        digest = hashlib.sha256()
+        byte_count = 0
+        with gzip.open(snapshot_root / "lattice.sqlite3.gz", "rb") as source, database.open("xb") as destination:
+            while chunk := source.read(1024 * 1024):
+                byte_count += len(chunk)
+                if byte_count > expected_bytes:
+                    raise ConsolidationVerificationError("compressed restore snapshot database exceeds its declared size")
+                digest.update(chunk)
+                destination.write(chunk)
+        if byte_count != expected_bytes or digest.hexdigest() != expected_sha:
+            raise ConsolidationVerificationError("compressed restore snapshot database disagrees with its logical identity")
+        yield database
+
+
 def _verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
     manifest_path = snapshot_root / "snapshot.json"
     value, _raw = exact_json(manifest_path, label="restore snapshot manifest")
     verify_generated_object(value, role="snapshot", label="restore snapshot manifest")
-    if value.get("contract_version") != "LatticeBackup/2.0" or not isinstance(value.get("state_digest"), str) or value.get("active_work") != {"attempts": 0, "commands": 0, "imports": 0, "leases": 0}:
-        raise ConsolidationVerificationError("restore snapshot is not an idle exact LatticeBackup/2.0")
+    if value.get("contract_version") not in {"LatticeBackup/2.0", "LatticeBackup/3.0"} or not isinstance(value.get("state_digest"), str) or value.get("active_work") != {"attempts": 0, "runs": 0, "commands": 0, "imports": 0, "leases": 0}:
+        raise ConsolidationVerificationError("restore snapshot is not an idle exact supported LatticeBackup generation")
     inventory = value.get("inventory")
     if not isinstance(inventory, list) or not inventory:
         raise ConsolidationVerificationError("restore snapshot inventory is empty")
@@ -1020,10 +1051,12 @@ def _verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
             raise ConsolidationVerificationError(f"restore snapshot file disagrees with inventory: {item['path']}")
         declared.add(str(item["path"]))
     actual = {path.relative_to(snapshot_root).as_posix() for path in snapshot_root.rglob("*") if path.is_file() and not path.is_symlink() and path.name != "snapshot.json"}
-    if actual != declared or "lattice.sqlite3" not in declared:
+    expected_database = "lattice.sqlite3.gz" if value["contract_version"] == "LatticeBackup/3.0" else "lattice.sqlite3"
+    if actual != declared or expected_database not in declared:
         raise ConsolidationVerificationError("restore snapshot has undeclared or missing files")
-    if _database_state_digest(snapshot_root / "lattice.sqlite3") != value["state_digest"]:
-        raise ConsolidationVerificationError("restore snapshot state digest disagrees with its database")
+    with _snapshot_database(snapshot_root, value) as database:
+        if _database_state_digest(database) != value["state_digest"]:
+            raise ConsolidationVerificationError("restore snapshot state digest disagrees with its database")
     return value
 
 
@@ -1064,9 +1097,11 @@ def verify_restore_receipt(value: dict[str, Any], *, historical_roots: dict[str,
     verified = verify_database(restored_root, require_terminal_external=False, historical_roots=historical_roots)
     if _database_state_digest(restored_root / "lattice.sqlite3") != value.get("restored_post_continuation_state_digest"):
         raise ConsolidationVerificationError("restored post-continuation state digest is not independently reproducible")
-    _verify_snapshot_prefix(snapshot_root / "lattice.sqlite3", restored_root / "lattice.sqlite3")
+    with _snapshot_database(snapshot_root, snapshot) as snapshot_database:
+        _verify_snapshot_prefix(snapshot_database, restored_root / "lattice.sqlite3")
+    database_payload = "lattice.sqlite3.gz" if snapshot["contract_version"] == "LatticeBackup/3.0" else "lattice.sqlite3"
     for item in snapshot["inventory"]:
-        if item["path"] == "lattice.sqlite3":
+        if item["path"] == database_payload:
             continue
         restored_path = restored_root / item["path"]
         if not restored_path.is_file() or restored_path.is_symlink() or sha256_file(restored_path) != item["sha256"]:
