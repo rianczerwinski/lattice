@@ -30,6 +30,27 @@ def _standalone_environment(environment: Mapping[str, str]) -> dict[str, str]:
     return {key: value for key, value in environment.items() if key != "AXISVI_ROOT"}
 
 
+def _synthetic_provider_environment(environment: Mapping[str, str], *, isolated_root: Path, port: int, fake_bin: Path, canaries: list[bytes]) -> dict[str, str]:
+    """Run installed code without claiming that the synthetic CLI is an attested provider.
+
+    Provider-profile qualification separately exercises the installed runtime's
+    real, attested entrypoints.  This canary needs a deliberately blocking
+    provider process to prove crash recovery, so its server must use source
+    identity while the parent process binds the exact installed executable and
+    runtime manifest into the resulting receipt.
+    """
+
+    return {
+        **_standalone_environment(environment),
+        "PATH": os.pathsep.join((str(fake_bin), environment.get("PATH", ""))),
+        "LATTICE_DATA_DIR": str(isolated_root),
+        "LATTICE_PORT": str(port),
+        "LATTICE_RUNTIME_ID": "source",
+        "LATTICE_QUALIFICATION_CANARY_A": canaries[0].decode("utf-8", errors="strict"),
+        "LATTICE_QUALIFICATION_CANARY_B": (canaries[1] if len(canaries) > 1 else canaries[0]).decode("utf-8", errors="strict"),
+    }
+
+
 def _runtime_lattice(runtime_manifest: Path) -> Path:
     """Use the attested runtime entrypoint, bypassing the AXISVI Outport shim."""
 
@@ -173,15 +194,7 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, axisvi_root: Path, i
     _write_fake_codex(fake_codex, mode_path, pid_path)
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
-    environment = {
-        **_standalone_environment(os.environ),
-        "PATH": os.pathsep.join((str(fake_bin), os.environ.get("PATH", ""))),
-        "LATTICE_DATA_DIR": str(isolated_root),
-        "LATTICE_PORT": str(port),
-        "LATTICE_RUNTIME_ID": runtime["runtime_id"],
-        "LATTICE_QUALIFICATION_CANARY_A": canaries[0].decode("utf-8", errors="strict"),
-        "LATTICE_QUALIFICATION_CANARY_B": (canaries[1] if len(canaries) > 1 else canaries[0]).decode("utf-8", errors="strict"),
-    }
+    environment = _synthetic_provider_environment(os.environ, isolated_root=isolated_root, port=port, fake_bin=fake_bin, canaries=canaries)
     first = _server(runtime_lattice, environment, port, logs)
     second: subprocess.Popen[bytes] | None = None
     try:
@@ -218,8 +231,9 @@ def run(*, installed_lattice: Path, runtime_manifest: Path, axisvi_root: Path, i
         _scan_canaries(isolated_root, canaries)
         value = {
             "generated_object": generated_object(kind="lattice-interruption-receipt", schema_name="lattice-interruption-receipt", subject="lattice:installed-interruption-qualification", role="snapshot", sources=[{"ref": f"file:{runtime_manifest}", "revision": runtime["runtime_id"], "sha256": sha256_bytes(runtime_raw)}], producer_name="lattice-interruption-qualification", producer_version="1.0.0"),
-            "contract_version": "LatticeInterruptionReceipt/1.0",
+            "contract_version": "LatticeInterruptionReceipt/2.0",
             "runtime_artifact_id": runtime["generated_object"]["artifact_id"],
+            "runtime_execution_mode": "installed-bytes-with-synthetic-provider",
             "isolated_root": str(isolated_root),
             "pre_restart_boot_id": before_health["boot_id"],
             "post_restart_boot_id": after_health["boot_id"],

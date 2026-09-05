@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import subprocess
+import os
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,24 @@ from ops import qualify_interruption
 @pytest.mark.regression
 def test_isolated_server_does_not_inherit_axisvi_outport_identity() -> None:
     assert qualify_interruption._standalone_environment({"AXISVI_ROOT": "/repo", "PATH": "/bin"}) == {"PATH": "/bin"}
+
+
+@pytest.mark.regression
+def test_synthetic_provider_does_not_impersonate_the_installed_provider_attestation(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "fake-bin"
+    isolated_root = tmp_path / "state"
+
+    environment = qualify_interruption._synthetic_provider_environment(
+        {"AXISVI_ROOT": "/repo", "PATH": "/real/providers"},
+        isolated_root=isolated_root,
+        port=4567,
+        fake_bin=fake_bin,
+        canaries=[b"first", b"second"],
+    )
+
+    assert environment["LATTICE_RUNTIME_ID"] == "source"
+    assert environment["PATH"].split(os.pathsep) == [str(fake_bin), "/real/providers"]
+    assert "AXISVI_ROOT" not in environment
 
 
 @pytest.mark.regression

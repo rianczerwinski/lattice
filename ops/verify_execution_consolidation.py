@@ -734,7 +734,7 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
     finally:
         connection.close()
     interruption = value.get("interruption")
-    if not isinstance(interruption, dict) or interruption.get("contract_version") != "LatticeInterruptionReceipt/1.0" or interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id") or not interruption.get("parent_invocation_id"):
+    if not isinstance(interruption, dict) or interruption.get("contract_version") != "LatticeInterruptionReceipt/2.0" or interruption.get("runtime_execution_mode") != "installed-bytes-with-synthetic-provider" or interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id") or not interruption.get("parent_invocation_id"):
         raise ConsolidationVerificationError("installed active-work interruption was not proven")
     verify_generated_object(interruption, role="snapshot", label="interruption receipt")
     if interruption.get("runtime_artifact_id") != runtime["runtime_artifact_id"] or interruption.get("pre_restart_boot_id") == interruption.get("post_restart_boot_id"):

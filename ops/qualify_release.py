@@ -355,7 +355,7 @@ def write_receipt(
     expected_consumers = {item["consumer_id"] for item in registry["consumers"]}
     if {item.get("consumer_id") for item in consumer_canaries} != expected_consumers:
         raise QualificationFailure("qualification receipt requires one exact canary per registered consumer")
-    if interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id") or not interruption.get("parent_invocation_id"):
+    if interruption.get("contract_version") != "LatticeInterruptionReceipt/2.0" or interruption.get("runtime_execution_mode") != "installed-bytes-with-synthetic-provider" or interruption.get("pre_restart_state") not in {"leased", "running"} or interruption.get("post_restart_state") not in {"interrupted", "orphaned", "failed"} or not interruption.get("continuation_invocation_id") or not interruption.get("parent_invocation_id"):
         raise QualificationFailure("qualification receipt requires a completed active-work interruption proof")
     canaries = [path.read_bytes().rstrip(b"\r\n") for path in credential_canary_files]
     if not credential_canary_files or any(not path.is_file() or not value for path, value in zip(credential_canary_files, canaries, strict=True)):

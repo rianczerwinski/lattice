@@ -48,7 +48,7 @@ def _inputs(tmp_path: Path) -> dict:
     interruption_source.write_bytes(b"interruption")
     canary = tmp_path / "credential-canary"
     canary.write_bytes(b"LATTICE-SYNTHETIC-CREDENTIAL-CANARY")
-    return {"runtime_manifest_path": runtime_path, "consumer_registry_path": registry_path, "axisvi_root": tmp_path, "suites": suites, "provider_canaries": providers, "consumer_canaries": consumer_canaries, "interruption": {"pre_restart_state": "running", "post_restart_state": "orphaned", "parent_invocation_id": "invocation_parent", "continuation_invocation_id": "invocation_continuation"}, "interruption_source": interruption_source, "credential_canary_files": [canary]}
+    return {"runtime_manifest_path": runtime_path, "consumer_registry_path": registry_path, "axisvi_root": tmp_path, "suites": suites, "provider_canaries": providers, "consumer_canaries": consumer_canaries, "interruption": {"contract_version": "LatticeInterruptionReceipt/2.0", "runtime_execution_mode": "installed-bytes-with-synthetic-provider", "pre_restart_state": "running", "post_restart_state": "orphaned", "parent_invocation_id": "invocation_parent", "continuation_invocation_id": "invocation_continuation"}, "interruption_source": interruption_source, "credential_canary_files": [canary]}
 
 
 @pytest.mark.contract
