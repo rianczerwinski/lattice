@@ -412,6 +412,8 @@ The resulting product is not an imitation of Codex, Claude Code, Temporal, Nextf
 
 ## First action when execution resumes
 
+Reconcile the canonical Surface against the current committed repository before using it as a current-state map. Its existing generation predates the execution-consolidation, durable-run, cockpit, and provider-adapter work and therefore cannot be repaired as a single retirement edit.
+
 Execute Phase 0 against the current source and then continue directly into the smallest end-to-end Phase 1/2 vertical slice. The ownership default is settled here: Lattice owns the semantic protocol, ledger projection, control API, and cockpit; project runners own domain checkpoints; existing process and provider mechanisms remain lower-level adapters. Stop for user input only if the source reveals a genuinely incompatible constraint that would reverse that architecture, not because multiple physical modules could technically host equivalent code.
 
 Use the Relata external N=1 reference as the first live run only after its runner is frozen, semantically atomic, independently resumable, orthogonal to the changing Engine revision, and fail-closed on the exact already-exposed LibriWASN population. If that bounded adapter is not immediately available, continue the Lattice and Engine architecture rather than distorting either one to start compute early.
