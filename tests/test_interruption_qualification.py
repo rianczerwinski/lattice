@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from ops import qualify_interruption
+from lattice.execution.adapters import _codex_capability_probe
 
 
 @pytest.mark.regression
@@ -75,6 +76,7 @@ def test_fake_codex_success_writes_only_the_provider_contract(monkeypatch, tmp_p
     assert completed.returncode == 0
     assert output.read_text(encoding="utf-8") == '{"content": "INTERRUPTION-RECOVERY-SUCCEEDED"}'
     assert not pid.exists()
+    assert _codex_capability_probe(str(binary)) == (True, "qualified Codex isolation controls are present")
 
 
 @pytest.mark.regression

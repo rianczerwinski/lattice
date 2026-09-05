@@ -20,6 +20,7 @@ from typing import Any
 
 from lattice.canonical import canonical_bytes, generated_object, sha256_bytes, strict_json_loads
 from lattice.client import LatticeClient
+from lattice.execution.providers.codex import CODEX_DISABLED_FEATURES, CODEX_REQUIRED_EXEC_OPTIONS
 
 
 class InterruptionFailure(RuntimeError):
@@ -67,6 +68,8 @@ def _free_port() -> int:
 
 
 def _write_fake_codex(path: Path, mode_path: Path, pid_path: Path) -> None:
+    features = "\n".join(f"{name} stable false" for name in CODEX_DISABLED_FEATURES)
+    options = " ".join(CODEX_REQUIRED_EXEC_OPTIONS)
     source = f'''#!/usr/bin/env python3
 import json
 import os
@@ -78,6 +81,12 @@ mode_path = pathlib.Path({str(mode_path)!r})
 pid_path = pathlib.Path({str(pid_path)!r})
 if "--version" in sys.argv:
     print("codex-cli 0.0.0-lattice-interruption-fixture")
+    raise SystemExit(0)
+if sys.argv[1:] == ["features", "list"]:
+    print({features!r})
+    raise SystemExit(0)
+if sys.argv[1:] == ["exec", "--help"]:
+    print({options!r})
     raise SystemExit(0)
 if mode_path.read_text(encoding="utf-8").strip() == "block":
     pid_path.write_text(str(os.getpid()), encoding="ascii")
