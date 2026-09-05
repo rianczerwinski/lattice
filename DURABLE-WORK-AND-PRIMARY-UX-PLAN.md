@@ -325,6 +325,8 @@ Do not turn Lattice into a full text editor before evidence demands it. Opening,
 
 Project-scoped provider activity, cross-project switching, unread/completion state, resumable live journals, selected-route cancellation, and launch-failure discrimination are part of the current cockpit foundation. Complete the remaining daily-driver quality contract with operating-system notifications, retry and editable continuation, prompt history, stable keyboard focus, large-output virtualization, search across conversations and artifacts, exact file links, copy/export affordances, and recovery surfaces that state what survived and what must be repeated.
 
+Provider selection must distinguish structural qualification from current operational availability. A qualified lane whose latest attempt ended in authentication, exhausted subscription, rate limit, outage, or compatibility failure remains visible with that exact blocker but cannot appear runnable; deliberate re-probing may restore availability, while automatic retries and empty-success substitution remain forbidden.
+
 Do not reimplement provider tool loops merely to claim independence. Invoke official subscription-authenticated harnesses through qualified adapters and preserve their provider-specific strengths. Lattice owns the UX, context, authority envelope, durable record, and relationships; provider harnesses remain leased engines.
 
 **Gate:** one representative repository task can begin, navigate source, make edits, run commands, show and review diffs, request and resolve an approval, switch to another project while work continues, survive UI and provider interruption, resume, and finish entirely through Lattice with no material loss of speed, capability, comprehension, or provenance.
