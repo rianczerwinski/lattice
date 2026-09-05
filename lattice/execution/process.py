@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -16,6 +17,15 @@ from .journal import write_all
 
 
 MAX_MODEL_OUTPUT_BYTES = 64 * 1024 * 1024
+_PARENT_DEATH_WATCHDOG = """import os,signal,sys,time
+parent=int(sys.argv[1]); group=int(sys.argv[2])
+while os.getppid()==parent:
+    time.sleep(0.1)
+try:
+    os.killpg(group, signal.SIGKILL)
+except ProcessLookupError:
+    pass
+"""
 
 
 class ProcessCancelled(RuntimeError):
@@ -40,12 +50,13 @@ class ProcessOutputLimit(RuntimeError):
 
 
 def terminate_process_group(proc: subprocess.Popen[object]) -> None:
-    if proc.poll() is not None:
-        return
+    # The direct child may exit while descendants still own its stdout/stderr.
+    # Address the session/process group regardless of the leader's state.
     try:
         os.killpg(proc.pid, signal.SIGTERM)
-    except PermissionError:
-        proc.terminate()
+    except (PermissionError, ProcessLookupError):
+        if proc.poll() is None:
+            proc.terminate()
     try:
         proc.wait(timeout=2)
     except ProcessLookupError:
@@ -57,6 +68,26 @@ def terminate_process_group(proc: subprocess.Popen[object]) -> None:
             proc.kill()
         except ProcessLookupError:
             pass
+        try:
+            proc.wait(timeout=2)
+        except (ProcessLookupError, subprocess.TimeoutExpired):
+            pass
+
+
+def _join_drain_thread(thread: threading.Thread | None, proc: subprocess.Popen[object], *, timeout: float) -> bool:
+    if thread is None:
+        return False
+    thread.join(timeout=max(timeout, 0.001))
+    retained_pipe = thread.is_alive()
+    if thread.is_alive():
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (PermissionError, ProcessLookupError):
+            pass
+        thread.join(timeout=2)
+    if thread.is_alive():
+        raise OSError("provider descendants retained an output pipe after process-group termination")
+    return retained_pipe
 
 
 def _journal_root(stdout_journal: Path | None, stderr_journal: Path | None) -> Path | None:
@@ -91,6 +122,20 @@ def run_bounded(
         env=env,
         start_new_session=True,
     )
+    try:
+        watchdog = subprocess.Popen(
+            [sys.executable, "-c", _PARENT_DEATH_WATCHDOG, str(os.getpid()), str(proc.pid)],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except BaseException:
+        terminate_process_group(proc)
+        for stream in (proc.stdin, proc.stdout, proc.stderr):
+            if stream is not None:
+                stream.close()
+        raise
     root = _journal_root(stdout_journal, stderr_journal)
     stdout_chunks: list[bytes] = []
     stderr_chunks: list[bytes] = []
@@ -210,11 +255,21 @@ def run_bounded(
         interrupted = exc
         terminate_process_group(proc)
     finally:
-        if input_thread is not None:
-            input_thread.join()
-        stdout_thread.join()
-        stderr_thread.join()
+        join_timeout = 2.0 if deadline is None else max(0.001, deadline - time.monotonic())
+        retained_pipe = _join_drain_thread(input_thread, proc, timeout=join_timeout)
+        retained_pipe = _join_drain_thread(stdout_thread, proc, timeout=join_timeout) or retained_pipe
+        retained_pipe = _join_drain_thread(stderr_thread, proc, timeout=join_timeout) or retained_pipe
         refresh_sidecars()
+        if watchdog.poll() is None:
+            watchdog.terminate()
+            try:
+                watchdog.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                watchdog.kill()
+                watchdog.wait(timeout=2)
+
+    if retained_pipe and not timed_out and not cancelled and not output_limit_hit.is_set() and not drain_errors:
+        raise OSError("provider child exited while an unowned descendant retained its output pipe")
 
     stdout = b"".join(stdout_chunks).decode("utf-8", errors="replace")
     stderr = b"".join(stderr_chunks).decode("utf-8", errors="replace")

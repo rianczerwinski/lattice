@@ -14,10 +14,26 @@ from lattice.contracts import AttemptState, ExecutionSubmissionV1, OutputContrac
 
 
 VERIFIER_PATH = Path(__file__).parents[1] / "ops" / "verify_execution_consolidation.py"
+REPOSITORY_ROOT = Path(__file__).parents[1]
 SPEC = importlib.util.spec_from_file_location("verify_execution_consolidation", VERIFIER_PATH)
 assert SPEC and SPEC.loader
 verifier = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(verifier)
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "assurance/execution-consolidation/consumer-registry.json",
+        "assurance/execution-consolidation/findings.json",
+    ),
+)
+def test_committed_closure_inputs_are_exact_canonical_json(relative_path: str) -> None:
+    path = REPOSITORY_ROOT / relative_path
+    raw = path.read_bytes()
+
+    assert canonical_bytes(verifier.parse_json(raw, label=relative_path)) == raw
 
 
 def _blob(store, value: dict) -> dict:

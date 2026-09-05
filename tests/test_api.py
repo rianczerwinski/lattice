@@ -13,6 +13,7 @@ from lattice.config import LatticeConfig
 from lattice.server import create_app
 from lattice.canonical import canonical_bytes, sha256_bytes
 from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, ContextSelection, DraftCreate, DurableRunAuthorityV1, DurableRunDeclarationV2, LocalFileBindingV1, LocalFileClosureV1, LocalRunLaunchProfileV1, ProviderRoute, RunArtifactClass, RunArtifactCreateV1, RunAttemptFinishV1, RunAttemptStartV1, RunUnitDeclarationV1, TagRequest
+from lattice.execution import DEFAULT_ADAPTERS
 from lattice.operations import Lattice
 from lattice.run_executor import LOCAL_EXECUTOR_IDENTITY
 from lattice.security import OperatorSessions, ensure_cli_token
@@ -45,6 +46,25 @@ def _terminal_workflow_output(lattice_env, created, response: str, *, workflow_r
     return completed["output_block"]
 
 
+def _qualify_trigger_route(monkeypatch, lattice_env, provider: str = "openai") -> None:
+    adapter = next(item for item in DEFAULT_ADAPTERS if item.provider_code == provider)
+    binary_sha256 = ("a" if provider == "openai" else "b") * 64
+    status = {
+        **adapter.definition(),
+        "model_code": adapter.model_code,
+        "binary": "/fixture/provider",
+        "binary_sha256": binary_sha256,
+        "installed": True,
+        "qualified": True,
+        "operational": True,
+        "version": "fixture 1",
+        "control_surface_qualified": True,
+        "control_surface_detail": "fixture",
+    }
+    lattice_env["store"].record_provider_qualification(adapter.profile_id, binary_sha256, status, state="passed")
+    monkeypatch.setattr("lattice.execution.installed_adapter_status", lambda *, probe_versions: [dict(status)])
+
+
 @pytest.mark.contract
 def test_contract_mutations_require_same_origin_operator_session(lattice_env) -> None:
     app = create_app(lattice_env["config"])
@@ -75,12 +95,61 @@ def test_negative_control_provider_process_probe_requires_operator_authority(mon
         denied_get = client.get("/api/v1/routes?probe=true")
         denied_post = client.post("/api/v1/routes/probe", json={})
         session = _operator_session(client, lattice_env)
+        authenticated_get = client.get("/api/v1/routes?probe=true")
         allowed_post = client.post("/api/v1/routes/probe", headers={"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}, json={})
 
-    assert denied_get.status_code == 405
+    assert denied_get.status_code == 403
+    assert authenticated_get.status_code == 405
     assert denied_post.status_code == 403
     assert allowed_post.status_code == 200
     assert calls == [True]
+
+
+@pytest.mark.regression
+def test_private_project_reads_require_operator_authority(lattice_env) -> None:
+    app = create_app(lattice_env["config"])
+    project_id = lattice_env["project"]["project_id"]
+    with TestClient(app) as client:
+        assert client.get("/api/v1/projects").status_code == 403
+        assert client.get(f"/api/v1/projects/{project_id}").status_code == 403
+        _operator_session(client, lattice_env)
+        assert client.get("/api/v1/projects").status_code == 200
+        assert client.get(f"/api/v1/projects/{project_id}").status_code == 200
+
+
+@pytest.mark.regression
+def test_route_catalogue_fails_closed_when_qualified_binary_drifts(monkeypatch, lattice_env) -> None:
+    adapter = DEFAULT_ADAPTERS[0]
+    binary_sha256 = "a" * 64
+
+    def fake_status(*, probe_versions: bool):
+        return [{
+            **adapter.definition(),
+            "model_code": adapter.model_code,
+            "binary": "/fixture/provider",
+            "binary_sha256": binary_sha256,
+            "installed": True,
+            "qualified": True,
+            "operational": True if probe_versions else None,
+            "version": "fixture 1",
+            "control_surface_qualified": True if probe_versions else None,
+            "control_surface_detail": "fixture",
+        }]
+
+    monkeypatch.setattr("lattice.execution.installed_adapter_status", fake_status)
+    app = create_app(lattice_env["config"])
+    with TestClient(app) as client:
+        session = _operator_session(client, lattice_env)
+        headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
+        assert client.get("/api/v1/routes").json()[0]["qualified"] is False
+        assert client.post("/api/v1/routes/probe", headers=headers).json()[0]["latest_qualification"]["state"] == "passed"
+        assert client.get("/api/v1/routes").json()[0]["qualified"] is True
+        binary_sha256 = "b" * 64
+        drifted = client.get("/api/v1/routes").json()[0]
+
+    assert drifted["qualified"] is False
+    assert drifted["operational"] is False
+    assert "has not passed" in drifted["qualification_blocker"]
 
 
 @pytest.mark.contract
@@ -433,6 +502,26 @@ def test_smoke_health_and_cockpit_have_distinct_responses(lattice_env) -> None:
 
 
 @pytest.mark.regression
+def test_health_fails_closed_when_installed_provider_attestation_drifts(monkeypatch, lattice_env) -> None:
+    monkeypatch.setattr("lattice.server.installed_runtime_identity", lambda _runtime_id: {
+        "runtime_id": "fixture-runtime",
+        "runtime_artifact_id": "artifact:fixture",
+        "runtime_tree_digest": "a" * 64,
+        "provider_attestation_digest": "b" * 64,
+        "provider_attestations": {"google": {"binary": "/changed/antigravity"}},
+    })
+    monkeypatch.setattr("lattice.runtime_attestation.verify_provider_attestation_freshness", lambda _value: (_ for _ in ()).throw(ValueError("Google provider binary drifted")))
+    app = create_app(lattice_env["config"])
+    with TestClient(app) as client:
+        health = client.get("/api/health").json()
+
+    assert health["status"] == "degraded"
+    assert health["conversation_ready"] is False
+    assert health["provider_execution_ready"] is False
+    assert health["provider_execution_error"] == "Google provider binary drifted"
+
+
+@pytest.mark.regression
 def test_invalid_optional_workflow_pack_does_not_take_down_manual_conversation(tmp_path) -> None:
     broken_root = tmp_path / "broken-workflows"
     broken_pack = broken_root / "platform-foundry"
@@ -441,9 +530,9 @@ def test_invalid_optional_workflow_pack_does_not_take_down_manual_conversation(t
     config = LatticeConfig(data_root=tmp_path / "isolated-data", port=9010, axisvi_root=None, workflow_pack_roots_extra=(broken_root,))
     app = create_app(config)
     with TestClient(app, raise_server_exceptions=False) as client:
-        catalogue = client.get("/api/v1/workflow-packs")
         token = ensure_cli_token(config.operator_token)
         session = client.get("/api/session", headers={"authorization": f"Bearer {token}"})
+        catalogue = client.get("/api/v1/workflow-packs")
         headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
         created = client.post("/api/v1/projects", headers=headers, json={"title": "Conversation survives", "purpose": "No workflow required"})
         rejected = client.post("/api/v1/workflow-packs/platform-foundry/projects", headers=headers, json={"title": "Must fail", "selector": {"platform_id": "pinterest-com"}})
@@ -465,7 +554,8 @@ def test_invalid_optional_workflow_pack_does_not_take_down_manual_conversation(t
 def test_unknown_api_route_is_a_json_404_not_the_cockpit(lattice_env) -> None:
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        response = client.get("/api/v1/typo-that-must-fail")
+        token = ensure_cli_token(lattice_env["config"].operator_token)
+        response = client.get("/api/v1/typo-that-must-fail", headers={"authorization": f"Bearer {token}"})
 
     assert response.status_code == 404
     assert response.json() == {"detail": "API route not found"}
@@ -478,8 +568,8 @@ def test_context_module_catalogue_and_failures_are_explicit(lattice_env) -> None
     source.write_text("exact local weather", encoding="utf-8")
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
-        catalogue = client.get("/api/v1/context-modules")
         session = _operator_session(client, lattice_env)
+        catalogue = client.get("/api/v1/context-modules")
         headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
         resolved = client.post("/api/v1/context-modules/resolve", headers=headers, json={
             "project_id": lattice_env["project"]["project_id"],
@@ -560,6 +650,7 @@ def test_oracle_invocation_inspection_exposes_independently_reconstructed_prompt
     invocation = lattice_env["lattice"].seal(draft["draft_id"])
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
+        _operator_session(client, lattice_env)
         inspected = client.get(f"/api/v1/invocations/{invocation['invocation_id']}").json()
 
     assert "EXACT_VISIBLE_PROMPT" in inspected["compiled_prompt"]
@@ -599,6 +690,7 @@ def test_context_preview_exposes_exact_delta_from_each_selected_parent(lattice_e
     draft = lattice_env["lattice"].fork(parent["invocation_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="child prompt", route=lattice_env["route"])
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
+        _operator_session(client, lattice_env)
         preview = client.get(f"/api/v1/drafts/{draft['draft_id']}/preview").json()
 
     assert len(preview["parent_deltas"]) == 1
@@ -711,6 +803,7 @@ def test_negative_control_artifact_graft_rejects_semantic_source_drift(lattice_e
 
 @pytest.mark.oracle
 def test_closure_transition_automatically_seals_dispatches_and_blinds_challenger(monkeypatch, lattice_env) -> None:
+    _qualify_trigger_route(monkeypatch, lattice_env)
     store = lattice_env["store"]
     pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
     created = store.create_workflow_project_atomic(title="closure workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose bounded closure."}, {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
@@ -752,6 +845,7 @@ def test_closure_transition_automatically_seals_dispatches_and_blinds_challenger
 
 @pytest.mark.regression
 def test_trigger_planning_failure_is_visible_retriable_and_does_not_lie_about_committed_state(monkeypatch, lattice_env) -> None:
+    _qualify_trigger_route(monkeypatch, lattice_env)
     store = lattice_env["store"]
     loaded = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")
     created = store.create_workflow_project_atomic(title="retry workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose bounded closure."}, {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=loaded["canonical_sha256"])
@@ -795,6 +889,7 @@ def test_trigger_planning_failure_is_visible_retriable_and_does_not_lie_about_co
 
 @pytest.mark.regression
 def test_trigger_dispatch_failure_is_retriable_but_never_under_a_changed_pack(monkeypatch, lattice_env) -> None:
+    _qualify_trigger_route(monkeypatch, lattice_env)
     store = lattice_env["store"]
     loaded = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")
     created = store.create_workflow_project_atomic(title="dispatch retry", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose bounded closure."}, {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=loaded["canonical_sha256"])
@@ -1004,6 +1099,7 @@ def test_workflow_project_read_model_exposes_authoritative_blackboard_roles_and_
 
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
+        _operator_session(client, lattice_env)
         exact = client.get(f"/api/v1/context-blocks/{project['workflow']['blackboard']['block_id']}")
     assert exact.json()["content"] == '{"language":"de","state":"calibrating"}'
 
@@ -1034,6 +1130,7 @@ def test_axial_projection_is_bounded_source_bound_and_contains_enduring_concerns
     app = create_app(lattice_env["config"])
 
     with TestClient(app) as client:
+        _operator_session(client, lattice_env)
         project = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}").json()
         response = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}/axial-projection")
 
@@ -1053,6 +1150,7 @@ def test_invocation_navigation_endpoint_exposes_live_identifiers_without_private
     app = create_app(lattice_env["config"])
 
     with TestClient(app) as client:
+        _operator_session(client, lattice_env)
         response = client.get(f"/api/v1/invocations/{invocation['invocation_id']}/navigation")
 
     assert response.status_code == 200
@@ -1079,6 +1177,7 @@ def test_project_history_is_windowed_and_reusable_paths_remain_discoverable(latt
     app = create_app(lattice_env["config"])
 
     with TestClient(app) as client:
+        _operator_session(client, lattice_env)
         project = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}").json()
         recent = client.get(f"/api/v1/projects/{lattice_env['project']['project_id']}/invocations", params={"limit": 2}).json()
         cursor = recent["next_before"]

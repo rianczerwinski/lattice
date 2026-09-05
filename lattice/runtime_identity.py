@@ -20,6 +20,7 @@ def installed_runtime_identity(runtime_id: str) -> dict[str, Any]:
             "provider_attestation_digest": None,
             "runtime_manifest_path": None,
             "runtime_manifest_sha256": None,
+            "provider_attestations": None,
         }
     environment = Path(sys.prefix).resolve()
     executable = Path(sys.executable)
@@ -46,6 +47,7 @@ def installed_runtime_identity(runtime_id: str) -> dict[str, Any]:
         "provider_attestation_digest": sha256_bytes(canonical_bytes(manifest["provider_attestations"])),
         "runtime_manifest_path": str(manifest_path),
         "runtime_manifest_sha256": sha256_bytes(raw),
+        "provider_attestations": manifest["provider_attestations"],
     }
 
 

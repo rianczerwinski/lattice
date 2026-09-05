@@ -360,6 +360,31 @@ def installed_adapter_status(
     return result
 
 
+_RUNTIME_QUALIFICATION_CACHE: dict[tuple[str, str, int, int, int], tuple[bool, str]] = {}
+
+
+def require_current_adapter_qualification(adapter: SubscriptionAdapter) -> None:
+    """Fail closed when the executable or qualified control surface has drifted."""
+
+    binary = shutil.which(adapter.executable)
+    if binary is None:
+        raise SubscriptionRouteUnavailable(f"{adapter.provider_code} official CLI is unavailable")
+    path = Path(binary)
+    metadata = path.stat()
+    cache_key = (adapter.provider_code, str(path), metadata.st_ino, metadata.st_size, metadata.st_mtime_ns)
+    cached = _RUNTIME_QUALIFICATION_CACHE.get(cache_key)
+    if cached is None:
+        status = installed_adapter_status((adapter,), probe_versions=True)[0]
+        qualified = bool(status["qualified"] and status["operational"] is True and status["control_surface_qualified"] is not False)
+        detail = str(status.get("control_surface_detail") or status.get("version") or "provider qualification failed")
+        cached = (qualified, detail)
+        _RUNTIME_QUALIFICATION_CACHE[cache_key] = cached
+        while len(_RUNTIME_QUALIFICATION_CACHE) > 32:
+            _RUNTIME_QUALIFICATION_CACHE.pop(next(iter(_RUNTIME_QUALIFICATION_CACHE)))
+    if not cached[0]:
+        raise SubscriptionRouteUnavailable(f"{adapter.provider_code} execution boundary is not currently qualified: {cached[1]}")
+
+
 def validate_execution_policy(
     adapter: SubscriptionAdapter,
     *,

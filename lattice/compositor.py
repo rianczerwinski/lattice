@@ -71,6 +71,28 @@ class ContextCompositor:
             parent = self.store.get_invocation(parent_id)
             if not parent.get("output_block_id"):
                 raise LatticeConflict(f"parent {parent_id} has no consumable output")
+            # Portable conversational continuity reconstructs the observable
+            # world of the selected parent.  A parent answer alone is not a
+            # conversation: its prompt and selected supporting context are
+            # required to know what that answer meant.
+            for entry in parent["manifest"]["segments"]:
+                if entry["plane"] == "current_prompt":
+                    plane = "knowledge"
+                    label = f"parent-prompt:{parent_id}"
+                elif entry["plane"] == "instruction":
+                    plane = "instruction"
+                    label = f"parent-instruction:{parent_id}:{entry['label']}"
+                else:
+                    plane = entry["plane"]
+                    label = f"parent-context:{parent_id}:{entry['label']}"
+                selections.append(ContextSelection(
+                    block_id=entry["block_id"],
+                    disposition=BlockDisposition.selected,
+                    plane=plane,
+                    label=label,
+                    derived_from_block_ids=entry.get("derived_from_block_ids", []),
+                    reason="selected parent observable context",
+                ))
             # The consuming model needs the observed harness identity to understand
             # conversational routes such as "send the Codex answer to Claude".
             # The immutable invocation ID keeps that human-readable label resolvable.
@@ -322,6 +344,18 @@ class ContextCompositor:
         if preview:
             return preflight, compiled_prompt
 
+        return self.manifest_from_preflight(preflight, draft), compiled_prompt
+
+    @staticmethod
+    def manifest_from_preflight(preflight: dict[str, Any], draft: dict[str, Any]) -> dict[str, Any]:
+        """Promote the exact reviewed preflight without recompiling live defaults."""
+
+        invocation_id = preflight["invocation_id"]
+        sources = preflight["source_bindings"]
+        invocation_identity = sha256_bytes(f"{draft['draft_id']}:{draft['revision']}".encode("utf-8"))
+        if invocation_id != f"invocation_{invocation_identity[:32]}":
+            raise LatticeConflict("reviewed preflight no longer belongs to this draft identity")
+        manifest_artifact_id = f"artifact:{uuid.uuid5(uuid.NAMESPACE_URL, f'lattice-manifest:{invocation_identity}')}"
         manifest: dict[str, Any] = {
             **preflight,
             "generated_object": generated_object(kind="lattice-context-manifest", schema_name="lattice-context-manifest", schema_version=10, subject=f"lattice-invocation:{invocation_id}", sources=sources, artifact_id=manifest_artifact_id, generated_at=draft["updated_at"]),
@@ -329,4 +363,4 @@ class ContextCompositor:
             "result": {"state": "pending", "attempts_ref": f"lattice:invocation/{invocation_id}/attempts"},
         }
         manifest["manifest_sha256"] = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})
-        return manifest, compiled_prompt
+        return manifest

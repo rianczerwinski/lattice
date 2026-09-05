@@ -15,7 +15,10 @@ TEST_QUATERNARY_PACK = TEST_WORKFLOW_PACK_ROOT / "quaternary" / "pack.json"
 
 
 @pytest.fixture
-def lattice_env(tmp_path):
+def lattice_env(tmp_path, monkeypatch):
+    # Unit tests replace provider execution at the supervisor seam. Runtime
+    # qualification itself has dedicated installed-boundary tests.
+    monkeypatch.setattr("lattice.supervisor.require_current_adapter_qualification", lambda _adapter: None)
     config = LatticeConfig(data_root=tmp_path / "data", port=9010, axisvi_root=None, workflow_pack_roots_extra=(TEST_WORKFLOW_PACK_ROOT,))
     store = LatticeStore(config)
     lattice = Lattice(store)

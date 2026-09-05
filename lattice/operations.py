@@ -250,7 +250,8 @@ class Lattice:
             prompt_block_id, prompt_block, prompt_bytes = self._batch_prompt_block(assembly)
             draft = {**member["draft"], "created_at": now, "updated_at": now}
             self.store.blobs.put(prompt_bytes)
-            manifest, compiled = self.compositor.compile(draft, virtual_blocks={prompt_block_id: prompt_block})
+            compiled = member["compiled_prompt_preview"].encode("utf-8")
+            manifest = self.compositor.manifest_from_preflight(member["preflight"], draft)
             self.store.blobs.put(compiled)
             reconstructed = verify_and_reconstruct(
                 self.store,
@@ -410,6 +411,7 @@ class Lattice:
 
         def semantic_identity(item: dict[str, Any]) -> tuple[Any, ...]:
             return (
+                item["ordinal"],
                 item["block_id"],
                 item["plane"],
                 item["disposition"],

@@ -352,10 +352,20 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
-        degraded = bool(supervisor.startup_recovery_failures or workflow_pack_failures)
         runtime = installed_runtime_identity(config.runtime_id)
+        provider_execution_ready: bool | None = None
+        provider_execution_error: str | None = None
+        if runtime.get("provider_attestations") is not None:
+            try:
+                from .runtime_attestation import verify_provider_attestation_freshness
+                verify_provider_attestation_freshness(runtime["provider_attestations"])
+                provider_execution_ready = True
+            except (OSError, ValueError) as error:
+                provider_execution_ready = False
+                provider_execution_error = str(error)
+        degraded = bool(supervisor.startup_recovery_failures or workflow_pack_failures or provider_execution_ready is False)
         closure = latest_closure_state(config.data_root)
-        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures, "durable_run_ready": True, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "durable_run_boot_id": run_supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, **{key: runtime[key] for key in ("runtime_id", "runtime_artifact_id", "runtime_tree_digest", "provider_attestation_digest")}, "closure": closure, "startup_recovery_failures": supervisor.startup_recovery_failures, "durable_run_startup_reconciliation": run_supervisor.startup_reconciliation, "workflow_pack_failures": workflow_pack_failures}
+        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures and provider_execution_ready is not False, "provider_execution_ready": provider_execution_ready, "provider_execution_error": provider_execution_error, "durable_run_ready": True, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "durable_run_boot_id": run_supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, **{key: runtime[key] for key in ("runtime_id", "runtime_artifact_id", "runtime_tree_digest", "provider_attestation_digest")}, "closure": closure, "startup_recovery_failures": supervisor.startup_recovery_failures, "durable_run_startup_reconciliation": run_supervisor.startup_reconciliation, "workflow_pack_failures": workflow_pack_failures}
 
     def set_operator_cookie(response: Response, session: str) -> None:
         response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=bool(config.public_url and config.public_url.startswith("https://")), path="/", max_age=sessions.ttl_seconds)
@@ -381,15 +391,28 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         set_operator_cookie(response, session)
         return {"csrf": csrf}
 
+    def bind_current_provider_qualifications(statuses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for status in statuses:
+            qualification = store.latest_provider_qualification(status["profile_id"])
+            status["latest_qualification"] = qualification
+            current = bool(
+                qualification
+                and qualification["state"] == "passed"
+                and qualification["binary_sha256"] == status.get("binary_sha256")
+            )
+            status["qualified"] = bool(status["qualified"] and current)
+            if not current:
+                status["operational"] = False
+                status["qualification_blocker"] = "the installed provider binary has not passed the current capability probe"
+        return statuses
+
     @app.get("/api/v1/routes")
     async def routes(probe: bool = Query(default=False)) -> list[dict[str, Any]]:
         from .execution import installed_adapter_status
         if probe:
             raise HTTPException(status_code=405, detail="provider probes require an authenticated POST")
         statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=False)
-        for status in statuses:
-            status["latest_qualification"] = store.latest_provider_qualification(status["profile_id"])
-        return statuses
+        return bind_current_provider_qualifications(statuses)
 
     @app.post("/api/v1/routes/probe")
     async def probe_routes() -> list[dict[str, Any]]:
@@ -444,6 +467,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             raise LatticeConflict("automatic invocation trigger requires a model-bound role")
         from .execution import installed_adapter_status
         statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=False)
+        bind_current_provider_qualifications(statuses)
         route_status = next((item for item in statuses if item["qualified"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
         if route_status is None:
             raise LatticeConflict(f"qualified {policy['provider']} trigger route is unavailable")

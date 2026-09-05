@@ -272,6 +272,30 @@ def test_stale_preview_creates_no_partial_batch_objects(lattice_env) -> None:
     assert after == before
 
 
+@pytest.mark.concurrency
+def test_preview_is_the_exact_context_that_seals_when_defaults_change(lattice_env, monkeypatch) -> None:
+    request = _preview_request(lattice_env)
+    preview = lattice_env["lattice"].preview_invocation_batch(request)
+    late = lattice_env["store"].create_context_block(ContextBlockCreate(
+        project_id=lattice_env["project"]["project_id"], semantic_type="evidence", content="MUST NOT ENTER THE REVIEWED PREFLIGHT"
+    ))
+    original = lattice_env["lattice"].preview_invocation_batch
+
+    def mutate_after_preview(value):
+        result = original(value)
+        lattice_env["store"].set_project_context_default(lattice_env["project"]["project_id"], late["block_id"], module_id="late.default", mode="project_default")
+        return result
+
+    monkeypatch.setattr(lattice_env["lattice"], "preview_invocation_batch", mutate_after_preview)
+    receipt = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **request.model_dump(mode="json"), idempotency_key="batch-preview-exact-under-default-race",
+        expected_preview_sha256=preview["preview_sha256"], confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
+    ))
+    invocation = lattice_env["lattice"].inspect(receipt["invocation_ids"][0])
+    assert "MUST NOT ENTER THE REVIEWED PREFLIGHT" not in invocation["compiled_prompt"]
+    assert invocation["manifest"]["preflight_sha256"] == preview["members"][0]["preflight"]["preflight_sha256"]
+
+
 @pytest.mark.regression
 def test_nonterminal_crossfeed_source_is_rejected_before_preview(lattice_env) -> None:
     request = _preview_request(lattice_env)

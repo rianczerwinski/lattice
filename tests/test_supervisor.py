@@ -19,6 +19,7 @@ from lattice.contracts import (
     ProviderRoute,
 )
 from lattice.canonical import opaque_id
+from lattice.execution import SubscriptionInvocationFailed
 from lattice.supervisor import ExecutionSupervisor
 
 
@@ -332,6 +333,86 @@ async def test_native_session_lease_serializes_resume_and_recovers_after_restart
     with lattice_env["store"]._connect() as conn:
         leases = [dict(row) for row in conn.execute("SELECT state,invocation_id FROM native_session_leases WHERE provider='openai' AND native_session_id=? ORDER BY acquired_at", (session_id,))]
     assert [item["state"] for item in leases] == ["released", "active"]
+
+
+@pytest.mark.regression
+@pytest.mark.asyncio
+async def test_failure_receipt_error_cannot_leave_attempt_running(monkeypatch, lattice_env, tmp_path) -> None:
+    draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="fail with broken receipt", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    journal = tmp_path / "broken-receipt"
+    journal.mkdir()
+    (journal / "request.json").write_text("{}")
+
+    def fail(*_args, **_kwargs):
+        raise SubscriptionInvocationFailed("malformed_output", "provider failed", journal=journal)
+
+    monkeypatch.setattr("lattice.supervisor.invoke_subscription", fail)
+    supervisor = ExecutionSupervisor(lattice_env["store"])
+    await supervisor.execute(invocation["invocation_id"], ExecuteRequest(idempotency_key="broken-failure-receipt"))
+    await asyncio.gather(*list(supervisor._tasks.values()))
+    attempt = lattice_env["store"].get_invocation(invocation["invocation_id"])["attempts"][0]
+    assert attempt["state"] == "failed"
+    assert attempt["runtime_receipt"]["kind"] == "lattice-runtime-receipt-failure"
+
+
+@pytest.mark.regression
+@pytest.mark.asyncio
+async def test_database_commit_failure_retains_completed_provider_journal(monkeypatch, lattice_env, tmp_path) -> None:
+    draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="retain terminal journal", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    journal = fake_journal(tmp_path)
+    monkeypatch.setattr("lattice.supervisor.invoke_subscription", lambda *_args, **_kwargs: ({"response": "provider finished", "artifacts": []}, journal))
+    monkeypatch.setattr(lattice_env["store"], "finish_successful_attempt", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("database commit failed")))
+
+    supervisor = ExecutionSupervisor(lattice_env["store"])
+    await supervisor.execute(invocation["invocation_id"], ExecuteRequest(idempotency_key="terminal-journal-before-db"))
+    await asyncio.gather(*list(supervisor._tasks.values()))
+    attempt = lattice_env["store"].get_invocation(invocation["invocation_id"])["attempts"][0]
+
+    assert attempt["state"] == "failed"
+    assert attempt["failure_kind"] == "harness_failure"
+    assert attempt["journal_path"] == str(journal)
+    assert attempt["runtime_receipt"]["terminal"]["status"] == "success"
+
+
+@pytest.mark.regression
+def test_native_session_rejects_sequential_branch_from_stale_head(lattice_env, tmp_path) -> None:
+    workspace = tmp_path / "native-head-workspace"
+    workspace.mkdir()
+    session_id = "44444444-4444-4444-8444-444444444444"
+    parent_route = ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex", execution_profile="workspace-agent", tools=["shell"], workspace=str(workspace), sandbox="read-only")
+    parent_draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="root", route=parent_route))
+    parent = lattice_env["lattice"].seal(parent_draft["draft_id"])
+    parent_attempt = lattice_env["store"].create_attempt(parent["invocation_id"], "native-head-parent", "boot", 9_999_999_999)
+    lattice_env["store"].finish_successful_attempt(parent_attempt["attempt_id"], response="root answer", artifacts=[], journal_path="fixture", runtime_receipt={"native_session": {"id": session_id}})
+    continuation = ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex", execution_profile="native-continuation", session_policy="visible_native_continuation", continuation_mode="resume", native_parent_invocation_id=parent["invocation_id"], tools=["shell"], workspace=str(workspace), sandbox="read-only")
+    first_draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="first branch", route=continuation, parent_invocation_ids=[parent["invocation_id"]]))
+    first = lattice_env["lattice"].seal(first_draft["draft_id"])
+    first_attempt = lattice_env["store"].create_attempt(first["invocation_id"], "native-head-first", "boot", 9_999_999_999)
+    lattice_env["store"].finish_successful_attempt(first_attempt["attempt_id"], response="first answer", artifacts=[], journal_path="fixture", runtime_receipt={"native_session": {"id": session_id}})
+    with pytest.raises(Exception, match="no longer the provider session head"):
+        lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="stale second branch", route=continuation, parent_invocation_ids=[parent["invocation_id"]]))
+
+
+@pytest.mark.regression
+def test_failed_native_attempt_taints_session_and_forces_portable_fallback(lattice_env, tmp_path) -> None:
+    workspace = tmp_path / "tainted-native-workspace"
+    workspace.mkdir()
+    session_id = "55555555-5555-4555-8555-555555555555"
+    parent_route = ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex", execution_profile="workspace-agent", tools=["shell"], workspace=str(workspace), sandbox="read-only")
+    parent_draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="root", route=parent_route))
+    parent = lattice_env["lattice"].seal(parent_draft["draft_id"])
+    parent_attempt = lattice_env["store"].create_attempt(parent["invocation_id"], "tainted-parent", "boot", 9_999_999_999)
+    lattice_env["store"].finish_successful_attempt(parent_attempt["attempt_id"], response="root answer", artifacts=[], journal_path="fixture", runtime_receipt={"native_session": {"id": session_id}})
+    continuation = ProviderRoute(provider="openai", model="gpt-5.6-sol", harness="codex", execution_profile="native-continuation", session_policy="visible_native_continuation", continuation_mode="resume", native_parent_invocation_id=parent["invocation_id"], tools=["shell"], workspace=str(workspace), sandbox="read-only")
+    failed_draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="failed continuation", route=continuation, parent_invocation_ids=[parent["invocation_id"]]))
+    failed = lattice_env["lattice"].seal(failed_draft["draft_id"])
+    failed_attempt = lattice_env["store"].create_attempt(failed["invocation_id"], "tainted-child", "boot", 9_999_999_999)
+    lattice_env["store"].finish_attempt(failed_attempt["attempt_id"], state=AttemptState.failed, failure_kind="harness_failure", error_text="provider stopped", runtime_receipt={"native_session": {"id": session_id}})
+
+    with pytest.raises(Exception, match="tainted"):
+        lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="unsafe reuse", route=continuation, parent_invocation_ids=[parent["invocation_id"]]))
 
 
 @pytest.mark.contract

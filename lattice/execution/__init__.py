@@ -31,6 +31,7 @@ from .adapters import (
     installed_adapter_status,
     invoke_subscription,
     parse_structured_response,
+    require_current_adapter_qualification,
     subscription_environment,
     validate_execution_policy,
 )
@@ -66,6 +67,7 @@ __all__ = [
     "installed_adapter_status",
     "invoke_subscription",
     "parse_structured_response",
+    "require_current_adapter_qualification",
     "subscription_environment",
     "validate_execution_policy",
 ]

@@ -10,6 +10,7 @@ from lattice.canonical import sha256_json
 from lattice.contracts import AttemptState, ExecutionSubmissionV1, HistoricalExecutionImportV1, OutputContractV2, ProviderRoute
 from lattice.store import LatticeConflict
 from lattice.execution import SubscriptionRouteUnavailable
+from lattice.execution import adapters as adapter_module
 from lattice.supervisor import ExecutionSupervisor
 
 
@@ -165,3 +166,14 @@ def test_provider_qualification_receipts_are_append_only(lattice_env) -> None:
 
     with lattice_env["store"]._connect() as conn, pytest.raises(sqlite3.IntegrityError, match="immutable"):
         conn.execute("DELETE FROM provider_qualifications WHERE qualification_id=?", (receipt["qualification_id"],))
+
+
+@pytest.mark.regression
+def test_execution_rejects_a_currently_unqualified_provider_binary(monkeypatch, tmp_path) -> None:
+    executable = tmp_path / "codex"
+    executable.write_text("fixture")
+    monkeypatch.setattr(adapter_module.shutil, "which", lambda _name: str(executable))
+    monkeypatch.setattr(adapter_module, "installed_adapter_status", lambda *_args, **_kwargs: [{"qualified": True, "operational": False, "control_surface_qualified": False, "control_surface_detail": "changed binary"}])
+    adapter_module._RUNTIME_QUALIFICATION_CACHE.clear()
+    with pytest.raises(SubscriptionRouteUnavailable, match="not currently qualified"):
+        adapter_module.require_current_adapter_qualification(adapter_module.DEFAULT_ADAPTERS[1])

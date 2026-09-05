@@ -27,11 +27,9 @@ SAFE_METHODS = {"GET", "HEAD"}
 def _operator_read_required(path: str) -> bool:
     """Identify API reads which expose provider output or durable project work."""
 
-    if path == "/api/v1/executions" or path == "/api/v1/runs":
-        return True
-    if path.startswith(("/api/v1/artifacts/", "/api/v1/blobs/", "/api/v1/runs/", "/api/v1/run-artifacts/")):
-        return True
-    return path.startswith("/api/v1/projects/") and path.endswith(("/runs", "/search"))
+    # Lattice is a personal-data service.  A new read route must therefore be
+    # private by construction instead of depending on an ever-stale allowlist.
+    return path == "/api/v1" or path.startswith("/api/v1/")
 
 
 def configured_development_origin() -> str | None:

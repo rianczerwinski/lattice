@@ -7,6 +7,7 @@ import json
 import threading
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 from .execution import (
@@ -14,6 +15,7 @@ from .execution import (
     SubscriptionInvocationFailed,
     SubscriptionRouteUnavailable,
     invoke_subscription,
+    require_current_adapter_qualification,
 )
 
 from .canonical import canonical_bytes
@@ -113,6 +115,7 @@ class ExecutionSupervisor:
         selected = base.select_model(route["model"])
         if route.get("provider_profile_id") not in {None, selected.profile_id}:
             raise SubscriptionRouteUnavailable("sealed provider profile identity disagrees with the installed execution profile")
+        require_current_adapter_qualification(selected)
         return selected
 
     async def execute(self, invocation_id: str, request: ExecuteRequest) -> dict[str, Any]:
@@ -149,6 +152,16 @@ class ExecutionSupervisor:
         attempt = self.store.get_attempt(attempt_id)
         invocation = self.store.get_invocation(attempt["invocation_id"])
         project_id = invocation["project_id"]
+        journal: Path | None = None
+
+        def recover_runtime_receipt(path: Path | None) -> dict[str, Any] | None:
+            if path is None or not (path / "request.json").is_file():
+                return None
+            try:
+                return _runtime_receipt(path, self.store.blobs)
+            except BaseException as receipt_error:
+                return {"kind": "lattice-runtime-receipt-failure", "error": f"{type(receipt_error).__name__}: {receipt_error}"}
+
         try:
             self.store.mark_attempt_running(attempt_id)
             if invocation["manifest"].get("contract_version") not in {"LatticeContextManifest/2.0", "LatticeContextManifest/3.0", "LatticeContextManifest/4.0", "LatticeContextManifest/5.0", "LatticeContextManifest/6.0", "LatticeContextManifest/7.0", "LatticeContextManifest/8.0", "LatticeContextManifest/9.0", "LatticeContextManifest/10.0", "LoomContextManifest/2.0", "LoomContextManifest/3.0"} or invocation["manifest"].get("response_contract") != invocation["response_schema"]:
@@ -204,7 +217,14 @@ class ExecutionSupervisor:
             self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal), runtime_receipt=_runtime_receipt(journal, self.store.blobs))
         except SubscriptionInvocationFailed as error:
             terminal = AttemptState.interrupted if error.kind == "operator_interruption" else AttemptState.failed
-            receipt = _runtime_receipt(error.journal, self.store.blobs) if error.journal and (error.journal / "request.json").is_file() else None
+            receipt = recover_runtime_receipt(error.journal)
             self.store.finish_attempt(attempt_id, state=terminal, failure_kind=error.kind, error_text=str(error), journal_path=str(error.journal) if error.journal else None, runtime_receipt=receipt)
         except BaseException as error:  # execution boundary must always terminalize
-            self.store.finish_attempt(attempt_id, state=AttemptState.failed, failure_kind="harness_failure", error_text=f"{type(error).__name__}: {error}")
+            self.store.finish_attempt(
+                attempt_id,
+                state=AttemptState.failed,
+                failure_kind="harness_failure",
+                error_text=f"{type(error).__name__}: {error}",
+                journal_path=str(journal) if journal else None,
+                runtime_receipt=recover_runtime_receipt(journal),
+            )

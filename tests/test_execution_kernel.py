@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -163,6 +164,83 @@ def test_adversarial_timeout_keeps_partial_work_for_portable_resume(tmp_path: Pa
     assert load_checkpoint(journal.root)["state"] == "resumable"
     assert "visited source A" in prompt
     assert "visited source A" in continuation["observable_work"]
+
+
+@pytest.mark.regression
+def test_direct_child_exit_with_live_descendant_never_returns_false_success(tmp_path: Path) -> None:
+    command = [
+        sys.executable,
+        "-c",
+        "import subprocess,sys; subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)']); sys.exit(0)",
+    ]
+    started = time.monotonic()
+    with pytest.raises(OSError, match="descendant retained its output pipe"):
+        run_bounded(command, timeout=0.2)
+    assert time.monotonic() - started < 3
+
+
+@pytest.mark.regression
+def test_parent_death_watchdog_kills_provider_process_group(tmp_path: Path) -> None:
+    started = tmp_path / "started"
+    survived = tmp_path / "survived"
+    runner = subprocess.Popen([
+        sys.executable,
+        "-c",
+        "from pathlib import Path; from lattice.execution.process import run_bounded; import sys; run_bounded([sys.executable,'-c',\"from pathlib import Path; import sys,time; Path(sys.argv[1]).write_text('yes'); time.sleep(1); Path(sys.argv[2]).write_text('bad')\",sys.argv[1],sys.argv[2]],timeout=30)",
+        str(started),
+        str(survived),
+    ], cwd=Path(__file__).parents[1])
+    deadline = time.monotonic() + 3
+    while not started.exists() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert started.exists()
+    runner.kill()
+    runner.wait(timeout=2)
+    time.sleep(1.2)
+    assert not survived.exists()
+
+
+@pytest.mark.regression
+def test_watchdog_start_failure_cannot_leave_provider_running(monkeypatch, tmp_path: Path) -> None:
+    survived = tmp_path / "unguarded-provider-survived"
+    real_popen = subprocess.Popen
+    calls = 0
+
+    def fail_watchdog(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("watchdog unavailable")
+        return real_popen(*args, **kwargs)
+
+    monkeypatch.setattr("lattice.execution.process.subprocess.Popen", fail_watchdog)
+    with pytest.raises(OSError, match="watchdog unavailable"):
+        run_bounded(
+            [sys.executable, "-c", "from pathlib import Path; import sys,time; time.sleep(0.5); Path(sys.argv[1]).write_text('bad')", str(survived)],
+            timeout=10,
+        )
+    time.sleep(0.7)
+    assert not survived.exists()
+
+
+@pytest.mark.regression
+def test_journal_fsync_precedes_fallible_chunk_projection(tmp_path: Path) -> None:
+    journal = _journal(tmp_path, driver="codex", model="sol", timeout=10)
+    bind_request(journal, prompt="task", response_format="markdown", resume_strategy="codex")
+
+    def reject_projection(_channel: str, _chunk: bytes) -> None:
+        raise OSError("database unavailable")
+
+    with pytest.raises(OSError, match="database unavailable"):
+        run_bounded(
+            [sys.executable, "-c", "print('durable before projection', flush=True)"],
+            timeout=10,
+            stdout_journal=journal.stdout,
+            stderr_journal=journal.stderr,
+            on_chunk=reject_projection,
+        )
+
+    assert journal.stdout.read_text(encoding="utf-8") == "durable before projection\n"
 
 
 @pytest.mark.contract

@@ -1325,6 +1325,12 @@ class LatticeStore:
             if supplied_session_id is not None and supplied_session_id != observed_session_id:
                 raise LatticeConflict("caller-supplied native session identity disagrees with the parent receipt")
             normalized["native_session_id"] = observed_session_id
+            with self._connect() as conn:
+                session_state = self._native_session_state(conn, normalized["provider"], observed_session_id)
+            if session_state is not None and session_state["state"] != AttemptState.succeeded.value:
+                raise LatticeConflict("provider-native session is tainted by a non-successful attempt; use portable ancestry")
+            if session_state is not None and session_state["invocation_id"] != native_parent_id:
+                raise LatticeConflict("native continuation parent is no longer the provider session head; use portable ancestry or select the latest native invocation")
         try:
             effective_policy = validate_execution_policy(adapter, **execution_policy(normalized))
         except SubscriptionRouteUnavailable as error:
@@ -1342,6 +1348,24 @@ class LatticeStore:
             if changed:
                 raise LatticeConflict(f"native continuation cannot cross authority boundaries: {', '.join(changed)}")
         return normalized
+
+    @staticmethod
+    def _native_session_state(conn: sqlite3.Connection, provider: str, native_session_id: str) -> dict[str, str] | None:
+        row = conn.execute(
+            """SELECT i.invocation_id,a.state FROM attempts a JOIN invocations i USING(invocation_id)
+               WHERE (a.state='succeeded' OR (
+                        a.state IN ('failed','interrupted','orphaned')
+                        AND (
+                            json_extract(a.runtime_receipt_json,'$.native_session.id') IS NOT NULL
+                            OR EXISTS (SELECT 1 FROM events started WHERE started.subject_type='attempt' AND started.subject_id=a.attempt_id AND started.event_type='attempt.running')
+                        )
+                     ))
+                 AND COALESCE(json_extract(a.runtime_receipt_json,'$.native_session.id'),json_extract(i.route_json,'$.native_session_id'))=?
+                 AND json_extract(i.route_json,'$.provider')=?
+               ORDER BY a.rowid DESC LIMIT 1""",
+            (native_session_id, provider),
+        ).fetchone()
+        return {"invocation_id": str(row["invocation_id"]), "state": str(row["state"])} if row else None
 
     def validate_invocation_intent(self, assembly: Any, route: Any) -> dict[str, Any]:
         """Validate a stateless preflight without creating any ledger objects."""
@@ -3374,7 +3398,12 @@ class LatticeStore:
                 (project_id,),
             )]
             blocks = [dict(row) for row in conn.execute(
-                "SELECT block_id,semantic_type,content_sha256,byte_count,producing_invocation_id FROM context_blocks WHERE project_id=? AND byte_count BETWEEN 1 AND 1000000",
+                """SELECT b.block_id,b.semantic_type,b.content_sha256,b.byte_count,
+                          COALESCE(b.producing_invocation_id,(
+                              SELECT i.invocation_id FROM invocations i JOIN drafts d USING(draft_id)
+                              WHERE d.prompt_block_id=b.block_id ORDER BY i.created_at,i.invocation_id LIMIT 1
+                          )) AS producing_invocation_id
+                   FROM context_blocks b WHERE b.project_id=? AND b.byte_count>=1""",
                 (project_id,),
             )]
             artifacts = [dict(row) for row in conn.execute(
@@ -3532,6 +3561,12 @@ class LatticeStore:
             route = json.loads(invocation["route_json"])
             native_session_id = route.get("native_session_id") if route.get("execution_profile") == "native-continuation" else None
             if native_session_id is not None:
+                expected_head = route.get("native_parent_invocation_id")
+                session_state = self._native_session_state(conn, route["provider"], native_session_id)
+                if session_state is not None and session_state["state"] != AttemptState.succeeded.value:
+                    raise LatticeConflict("provider-native session is tainted by a non-successful attempt; execute with portable ancestry")
+                if session_state is not None and session_state["invocation_id"] != expected_head:
+                    raise LatticeConflict("provider-native session advanced after this invocation was sealed; execute with portable ancestry or reseal from its latest head")
                 native_owner = conn.execute(
                     "SELECT invocation_id,attempt_id FROM native_session_leases WHERE provider=? AND native_session_id=? AND state='active'",
                     (route["provider"], native_session_id),
@@ -3858,6 +3893,8 @@ class LatticeStore:
         concern = query.concern_ref
         object_types = set(query.object_types)
         global_scope = slice_row.get("scope", "project") == "global"
+        if snapshot_event_seq is None:
+            snapshot_event_seq = self.latest_event_seq()
         selections: list[str] = []
         params: list[Any] = []
         if "invocation" in object_types:
@@ -3868,8 +3905,8 @@ class LatticeStore:
                      FROM invocations i LEFT JOIN context_blocks b ON b.block_id=i.output_block_id"""
             conditions: list[str] = []
             if concern:
-                conditions.append("EXISTS (SELECT 1 FROM edges e WHERE e.relation='concerns' AND e.source_type='invocation' AND e.source_id=i.invocation_id AND e.target_id=?)")
-                params.append(concern)
+                conditions.append("EXISTS (SELECT 1 FROM edges e JOIN events membership ON membership.subject_type='edge' AND membership.subject_id=e.edge_id AND membership.event_type='edge.created' WHERE e.relation='concerns' AND e.source_type='invocation' AND e.source_id=i.invocation_id AND e.target_id=? AND membership.seq<=?)")
+                params.extend((concern, snapshot_event_seq))
             if not global_scope:
                 conditions.append("i.project_id=?")
                 params.append(slice_row["project_id"])
@@ -3884,8 +3921,8 @@ class LatticeStore:
                      FROM context_blocks b JOIN block_status s USING(block_id)"""
             conditions = []
             if concern:
-                conditions.append("EXISTS (SELECT 1 FROM edges e WHERE e.relation='concerns' AND e.source_type='context-block' AND e.source_id=b.block_id AND e.target_id=?)")
-                params.append(concern)
+                conditions.append("EXISTS (SELECT 1 FROM edges e JOIN events membership ON membership.subject_type='edge' AND membership.subject_id=e.edge_id AND membership.event_type='edge.created' WHERE e.relation='concerns' AND e.source_type='context-block' AND e.source_id=b.block_id AND e.target_id=? AND membership.seq<=?)")
+                params.extend((concern, snapshot_event_seq))
             if not global_scope:
                 conditions.append("b.project_id=?")
                 params.append(slice_row["project_id"])
@@ -3901,8 +3938,8 @@ class LatticeStore:
                      FROM artifacts a"""
             conditions = []
             if concern:
-                conditions.append("EXISTS (SELECT 1 FROM edges e WHERE e.relation='concerns' AND e.source_type='artifact' AND e.source_id=a.artifact_id AND e.target_id=?)")
-                params.append(concern)
+                conditions.append("EXISTS (SELECT 1 FROM edges e JOIN events membership ON membership.subject_type='edge' AND membership.subject_id=e.edge_id AND membership.event_type='edge.created' WHERE e.relation='concerns' AND e.source_type='artifact' AND e.source_id=a.artifact_id AND e.target_id=? AND membership.seq<=?)")
+                params.extend((concern, snapshot_event_seq))
             if not global_scope:
                 conditions.append("a.project_id=?")
                 params.append(slice_row["project_id"])
@@ -3918,8 +3955,6 @@ class LatticeStore:
             cursor_params.extend((cursor[0], cursor[0], cursor[1], cursor[0], cursor[1], cursor[2]))
         bounded_sql += " ORDER BY created_at,object_type,object_id LIMIT ?"
         with self._connect() as conn:
-            if snapshot_event_seq is None:
-                snapshot_event_seq = conn.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
             params.extend((snapshot_event_seq, *cursor_params, limit + 1))
             rows = [dict(row) for row in conn.execute(bounded_sql, params)]
 

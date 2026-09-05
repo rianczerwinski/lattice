@@ -251,6 +251,59 @@ def test_negative_control_slice_rejects_partial_or_forged_continuations(lattice_
 
 
 @pytest.mark.regression
+def test_slice_snapshot_excludes_late_memberships_on_old_objects(lattice_env) -> None:
+    store = lattice_env["store"]
+    blocks = [store.create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type="evidence", content=f"snapshot {index}")) for index in range(3)]
+    blocks.sort(key=lambda item: (item["created_at"], item["block_id"]))
+    tag = TagRequest(concern_ref="slate:snapshot-regression", label="Snapshot regression")
+    saved = store.tag_context_block(blocks[0]["block_id"], tag)["slice"]
+    store.tag_context_block(blocks[2]["block_id"], tag)
+    first = store.get_slice(saved["slice_id"], limit=1)
+    continuation = first["coverage"]["enumeration"]["continuation"]
+    store.tag_context_block(blocks[1]["block_id"], tag)
+    second = store.get_slice(saved["slice_id"], limit=10, **continuation)
+    assert blocks[1]["block_id"] not in {item["object_id"] for item in second["items"]}
+
+
+@pytest.mark.regression
+def test_search_finds_large_prompt_and_resolves_its_invocation(lattice_env) -> None:
+    marker = "LARGE-SEARCH-NEEDLE"
+    draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="large searchable output", route=lattice_env["route"]))
+    invocation = lattice_env["lattice"].seal(draft["draft_id"])
+    lattice_env["store"].create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type="model-response", content=marker + ("x" * 1_000_000), producing_invocation_id=invocation["invocation_id"]))
+    result = lattice_env["store"].search_project(lattice_env["project"]["project_id"], marker)
+    assert result["items"][0]["invocation_id"] == invocation["invocation_id"]
+
+
+@pytest.mark.oracle
+def test_diff_reports_context_order_changes(lattice_env) -> None:
+    blocks = [lattice_env["store"].create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type="evidence", content=value)) for value in ("first", "second")]
+
+    def seal(order):
+        selections = [ContextSelection(block_id=blocks[index]["block_id"], plane="knowledge", label=f"item-{index}") for index in order]
+        draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="compare", route=lattice_env["route"], selections=selections))
+        return lattice_env["lattice"].seal(draft["draft_id"])
+
+    left, right = seal((0, 1)), seal((1, 0))
+    delta = lattice_env["lattice"].diff(left["invocation_id"], right["invocation_id"])
+    assert delta["changed_semantics"]
+
+
+@pytest.mark.oracle
+def test_selected_parent_reconstructs_prompt_support_and_answer(lattice_env) -> None:
+    store = lattice_env["store"]
+    evidence = store.create_context_block(ContextBlockCreate(project_id=lattice_env["project"]["project_id"], semantic_type="evidence", content="ORCHID-SUPPORT"))
+    parent_draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="ORCHID-PROMPT", route=lattice_env["route"], selections=[ContextSelection(block_id=evidence["block_id"], plane="knowledge", label="orchid")]))
+    parent = lattice_env["lattice"].seal(parent_draft["draft_id"])
+    attempt = store.create_attempt(parent["invocation_id"], "parent-continuity", "test", 9_999_999_999)
+    parent = store.finish_successful_attempt(attempt["attempt_id"], response="ORCHID-ANSWER", artifacts=[], journal_path="fixture", runtime_receipt={"fixture": True})
+    child = lattice_env["lattice"].fork(parent["invocation_id"], prompt="continue", route=lattice_env["route"])
+    sealed = lattice_env["lattice"].seal(child["draft_id"])
+    compiled = lattice_env["lattice"].inspect(sealed["invocation_id"])["compiled_prompt"]
+    assert all(value in compiled for value in ("ORCHID-PROMPT", "ORCHID-SUPPORT", "ORCHID-ANSWER"))
+
+
+@pytest.mark.regression
 def test_negative_control_external_concern_edge_rejects_an_unbound_revision(lattice_env) -> None:
     invocation = completed_invocation(lattice_env, "edge", "result")
     with pytest.raises(Exception, match="bind its exact stable identity"):
