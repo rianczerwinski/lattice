@@ -16,7 +16,7 @@ Official consumer-subscription CLI surfaces are the only provider routes. Google
 
 Provider behavior, credential handling, retries, and receipts can no longer diverge silently between projects. Canon, field-survey, and Octopus gain the same recoverable execution identity without moving their epistemic policies into Lattice. Public installation no longer depends on an AXISVI sibling package. A provider-profile, adapter, package-byte, consumer-source, or binary change invalidates the relevant runtime evidence and requires qualification rather than inheriting an earlier claim.
 
-The former `axis/tools/model-runner` package may be removed only after the installed Lattice runtime, all active consumers, historical evidence resolution, rollback rehearsal, and the independent consolidation verifier pass together.
+The former `axis/tools/model-runner` package was retired after Lattice absorbed its active mechanics and tests, all registered consumers crossed the Lattice boundary, the repository-wide execution census found no external import or provider launcher, and the installed environment contained no `axis-model-runner` distribution. Historical checkpoints remain readable through Lattice's legacy schema compatibility and the retired source remains recoverable from Git history. Live provider availability is a commissioning condition for that provider lane, not a reason to retain a second execution implementation.
 
 ## Verification boundary
 
