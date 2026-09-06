@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:b04e8c8f-f946-446e-936f-34e585a394cc",
+  "surface_id": "surface:73349303-4bed-4343-afd8-04c8f839ff35",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:b04e8c8f-f946-446e-936f-34e585a394cc",
-    "generated_at": "20260824T195351",
+    "artifact_id": "artifact:73349303-4bed-4343-afd8-04c8f839ff35",
+    "generated_at": "20260905T191145",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "30358508dae9ddc82577180ba57933ee94f0ac6f",
+        "revision": "1d19c4dbbe1b54d1b5222a8af35dc983bb9a6049",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:66dc92cf-0852-4a62-ad82-cc382ab87884"
+    "parent_artifact_id": "artifact:b04e8c8f-f946-446e-936f-34e585a394cc"
   },
   "workframe": {
     "name": "Lattice",
@@ -31,13 +31,18 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260824T195351",
-    "source_revision": "30358508dae9ddc82577180ba57933ee94f0ac6f",
+    "at": "20260905T191145",
+    "source_revision": "1d19c4dbbe1b54d1b5222a8af35dc983bb9a6049",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "30358508dae9ddc82577180ba57933ee94f0ac6f",
+    "revision": "1d19c4dbbe1b54d1b5222a8af35dc983bb9a6049",
+    "excluded_paths": [
+      "SURFACE.json",
+      "SURFACE.md",
+      "surface.validation.json"
+    ],
     "entries": [
       {
         "path": ".gitignore",
@@ -45,24 +50,54 @@
         "object_id": "d5db73eb8937f86f69077a59170e1eb2b67a6479"
       },
       {
+        "path": ".gitleaksignore",
+        "mode": "100644",
+        "object_id": "cf56b9364c8a7312e22ea04c44d6086bca26db58"
+      },
+      {
         "path": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
         "mode": "100644",
         "object_id": "c6860892ca919741076e795c5862e9a175838e99"
       },
       {
+        "path": "DURABLE-WORK-AND-PRIMARY-UX-PLAN.md",
+        "mode": "100644",
+        "object_id": "942155f9449cab3ac7fa90feaa252a5f65e656c6"
+      },
+      {
         "path": "README.md",
         "mode": "100644",
-        "object_id": "9409fb60e0073c69c195d3fec9d374f01dfcabbd"
+        "object_id": "ee0c3a11b161e16533eedf2a41bbbdac7f98ee61"
       },
       {
         "path": "assurance/README.md",
         "mode": "100644",
-        "object_id": "46cca42c4a931337ce39f211bdbe3a18a8c6b347"
+        "object_id": "8b58c4a21824581c7efae924d455c9c1dcfafe25"
       },
       {
         "path": "assurance/baseline.json",
         "mode": "100644",
         "object_id": "e4db390b8b2d28b154b5033fb4f8295058069990"
+      },
+      {
+        "path": "assurance/execution-consolidation/README.md",
+        "mode": "100644",
+        "object_id": "a4c51725a8abfb78e9c679f518d43095480f28b6"
+      },
+      {
+        "path": "assurance/execution-consolidation/baseline.json",
+        "mode": "100644",
+        "object_id": "3adacc22422a20a42730515fc75a33d9f3c03d38"
+      },
+      {
+        "path": "assurance/execution-consolidation/consumer-registry.json",
+        "mode": "100644",
+        "object_id": "209bcb2da5d1763eb9251f19234191150b22e7d8"
+      },
+      {
+        "path": "assurance/execution-consolidation/findings.json",
+        "mode": "100644",
+        "object_id": "ca846373fce3383b2a556a080d837ce60281d302"
       },
       {
         "path": "assurance/findings.json",
@@ -200,19 +235,64 @@
         "object_id": "d851164a3a5e51c060fac8760c434d9c71508950"
       },
       {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/AUDIT.json",
+        "mode": "100644",
+        "object_id": "12f92009f700ee1888dc0278b3f32b8dd38e6fb1"
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/AUDIT.md",
+        "mode": "100644",
+        "object_id": "dc00c2b7e6e89799e5b9431dbca83a46d65f8e70"
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/README.md",
+        "mode": "100644",
+        "object_id": "1dfc92e049bfc2d10e7549beabd65658df4d8cd9"
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/audit.validation.json",
+        "mode": "100644",
+        "object_id": "5f4fc6c3c7aa3acdcea44b344e4fbc4bb807e313"
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/evidence/README.md",
+        "mode": "100644",
+        "object_id": "716ccc4ccf28d5e520d167875e76ed4ecdf93cdc"
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/evidence/browser-acceptance.txt",
+        "mode": "100644",
+        "object_id": "56bdfa39f42a1420f4d3e04b2d10d510434d33f2"
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/evidence/doctor.json",
+        "mode": "100644",
+        "object_id": "5772d1847b6dcb4495a82c20fb338ce48132e53f"
+      },
+      {
         "path": "audit/README.md",
         "mode": "100644",
-        "object_id": "4cd3e5d4a5b73781d265b1a58bbe2da2a3806205"
+        "object_id": "74e0ed3e5effd68078955e9095ead75a256b810d"
+      },
+      {
+        "path": "decisions/001-lattice-owns-subscription-execution.md",
+        "mode": "100644",
+        "object_id": "1ad941bae9958f914de288b169d1f5d77d8cb60a"
+      },
+      {
+        "path": "decisions/README.md",
+        "mode": "100644",
+        "object_id": "d7f8a9fd44a163568ffe8af24149eb1725fc035e"
       },
       {
         "path": "lattice/__about__.py",
         "mode": "100644",
-        "object_id": "13bfa6f045e3390c778320c8388392f34f1b9b69"
+        "object_id": "a671a65b3a414ba53f1ea84e6ef647395fc98572"
       },
       {
         "path": "lattice/__init__.py",
         "mode": "100644",
-        "object_id": "bec1a9017a7670f92510476747dfcc486d91dca4"
+        "object_id": "32345ccee6ddc6e4c8f7df1985c5d92960075be1"
       },
       {
         "path": "lattice/asgi.py",
@@ -222,27 +302,32 @@
       {
         "path": "lattice/blob_store.py",
         "mode": "100644",
-        "object_id": "49499d65cf542023c916ced628dba784811b8c34"
+        "object_id": "3d1591fef1294e15778e88e0cb3b6076b738bf6a"
       },
       {
         "path": "lattice/canonical.py",
         "mode": "100644",
-        "object_id": "80fbbbd674bddaa4e96c1c0d8cafe37dd1fdeaa4"
+        "object_id": "67a2014ff6e4f0232192b3aee83a178939771da8"
       },
       {
         "path": "lattice/cli.py",
         "mode": "100644",
-        "object_id": "ac6be9a230e1e12a79914848fe7f7fdd32261f4b"
+        "object_id": "bda82a7170308e3609c6196ab794ceba5206c5c9"
+      },
+      {
+        "path": "lattice/client.py",
+        "mode": "100644",
+        "object_id": "33c9c3cb645b26ec06b4c766c9c0877679d5c0e0"
       },
       {
         "path": "lattice/compositor.py",
         "mode": "100644",
-        "object_id": "e9e2e955c23583d6427f79710792e812601ec8db"
+        "object_id": "edc526d73bdb45aa4b939fe433e81cfa88aa968a"
       },
       {
         "path": "lattice/config.py",
         "mode": "100644",
-        "object_id": "a884d37387610e91726a3c068d945e3d53a385f9"
+        "object_id": "a6e9cc789eddf6be44300cdca4d04c6a68ad6c43"
       },
       {
         "path": "lattice/context_modules.py",
@@ -252,17 +337,82 @@
       {
         "path": "lattice/contracts.py",
         "mode": "100644",
-        "object_id": "81c20e6c124841b0049f42b5c8f06791a1c048b7"
+        "object_id": "57d5bd6c6e4721d70574ba842c733307c917101b"
       },
       {
         "path": "lattice/diagnostics.py",
         "mode": "100644",
-        "object_id": "b2188e83f51b91c5492f4e013eb131b6592d2be9"
+        "object_id": "4d3c9ad2c4a6bcd1831001ec4176efc457922bef"
       },
       {
         "path": "lattice/durability.py",
         "mode": "100644",
         "object_id": "e23cbaff71c4dc4950fab1c409e8ae7b4d301ea4"
+      },
+      {
+        "path": "lattice/exact_file.py",
+        "mode": "100644",
+        "object_id": "9d200c96a1c0b95f393f4f11aa4a83ec6b8768f4"
+      },
+      {
+        "path": "lattice/execution/README.md",
+        "mode": "100644",
+        "object_id": "d9f6f6e91c74102cb4976822b69a0381fc7a3b85"
+      },
+      {
+        "path": "lattice/execution/__init__.py",
+        "mode": "100644",
+        "object_id": "d3d80e76efb5e53e340355024fc7d5839a8b6a5f"
+      },
+      {
+        "path": "lattice/execution/adapters.py",
+        "mode": "100644",
+        "object_id": "713aa9fa5d6cdb2cda39ad816e715c0738c7e5e3"
+      },
+      {
+        "path": "lattice/execution/checkpoint.py",
+        "mode": "100644",
+        "object_id": "99ef4f4ed540fe07b493d3b9cd264f93e0d1ae19"
+      },
+      {
+        "path": "lattice/execution/journal.py",
+        "mode": "100644",
+        "object_id": "70e6ed250173780763d8549c1c7619fbeca023f9"
+      },
+      {
+        "path": "lattice/execution/process.py",
+        "mode": "100644",
+        "object_id": "b1ab39b5e7e9ea8e21b4a1169c2d5444a0db9510"
+      },
+      {
+        "path": "lattice/execution/providers/README.md",
+        "mode": "100644",
+        "object_id": "b3f1633648203d1d6012528780fb3712708aa699"
+      },
+      {
+        "path": "lattice/execution/providers/__init__.py",
+        "mode": "100644",
+        "object_id": "a07b3418d36ec0a8ca46c0e673316d02b6c29e93"
+      },
+      {
+        "path": "lattice/execution/providers/antigravity.py",
+        "mode": "100644",
+        "object_id": "769445eb8d177f0f67088deff200acdc64d7f8c8"
+      },
+      {
+        "path": "lattice/execution/providers/claude.py",
+        "mode": "100644",
+        "object_id": "f02120898d174923668866c444bd33bc161f494e"
+      },
+      {
+        "path": "lattice/execution/providers/codex.py",
+        "mode": "100644",
+        "object_id": "a3e964cbdfdb34f488d4284b36cf958b56b93da7"
+      },
+      {
+        "path": "lattice/execution/providers/grok.py",
+        "mode": "100644",
+        "object_id": "c388144cf856199271dcefd5979ffa5bcee15a31"
       },
       {
         "path": "lattice/http_boundary.py",
@@ -272,17 +422,17 @@
       {
         "path": "lattice/manifest_reader.py",
         "mode": "100644",
-        "object_id": "9b27c25a52cab813291fccf8f7a0752b7dc604a5"
+        "object_id": "5cdc58428cc893134fb68908c7dbe63803faa9d4"
       },
       {
         "path": "lattice/octopus_import.py",
         "mode": "100644",
-        "object_id": "82762b2ceb592cb3eaa5713f24bc3ffadd732a18"
+        "object_id": "c14d5324ee5e7a9f5e56831a3bf6c2176e57ecd4"
       },
       {
         "path": "lattice/operations.py",
         "mode": "100644",
-        "object_id": "167194bcfe5c88559d227819975520570e66f48d"
+        "object_id": "f5a5d7475443e5d91169db2e32425561f30834e5"
       },
       {
         "path": "lattice/outport.py",
@@ -297,37 +447,72 @@
       {
         "path": "lattice/quaternary.py",
         "mode": "100644",
-        "object_id": "d4a3a14d39bdff82f710855cc3111184fefc5669"
+        "object_id": "5130ca95d542f2c5b4807c93b80c6b83792274bb"
+      },
+      {
+        "path": "lattice/run_executor.py",
+        "mode": "100644",
+        "object_id": "38a748f33f348d53e0b2a340eedefe7a22f44d7e"
+      },
+      {
+        "path": "lattice/run_journal.py",
+        "mode": "100644",
+        "object_id": "832841db20fab81309015a74c6f3019624cc1853"
+      },
+      {
+        "path": "lattice/run_launcher.py",
+        "mode": "100644",
+        "object_id": "ea1dd00af763faf8a1f8d382216d3151f1b30310"
+      },
+      {
+        "path": "lattice/run_protocol.py",
+        "mode": "100644",
+        "object_id": "699be3a0b8f73abae6669a9e20f5d1053186fe4d"
+      },
+      {
+        "path": "lattice/run_sdk.py",
+        "mode": "100644",
+        "object_id": "86338c61bbd41d400da652930e007c93e3c16a47"
+      },
+      {
+        "path": "lattice/run_supervisor.py",
+        "mode": "100644",
+        "object_id": "2d13fb972ef590bfabe02d83e4a6791891b22404"
       },
       {
         "path": "lattice/runtime_attestation.py",
         "mode": "100644",
-        "object_id": "f7fbd9fa9198258f7c1bbfb9966892e7852e3ca7"
+        "object_id": "2dfd4f9a09b1dcd8c00a22b8ca9178d03408777d"
+      },
+      {
+        "path": "lattice/runtime_identity.py",
+        "mode": "100644",
+        "object_id": "ee5e7fc9d87bcee49f310de4e795327af19adb16"
       },
       {
         "path": "lattice/security.py",
         "mode": "100644",
-        "object_id": "1a27c74db5e9150fc25605d40411de40b748b829"
+        "object_id": "e90847a0751686055fcf6cf5da54ad538f3b2066"
       },
       {
         "path": "lattice/server.py",
         "mode": "100644",
-        "object_id": "aaf84dcf1e2c6ce6cac8ad94963fef4ee089726a"
+        "object_id": "02d76408bc93a5cb8d5d936dc4fc7bb50f54d5aa"
       },
       {
         "path": "lattice/snapshot.py",
         "mode": "100644",
-        "object_id": "46cb2895fdc9b12948054cb3396dc756d354a9b9"
+        "object_id": "388b311ca8f0788956be4ac73bc80cfd1fb8089a"
       },
       {
         "path": "lattice/store.py",
         "mode": "100644",
-        "object_id": "6e902c67307c6d5e1c84c519f09764a3809a409f"
+        "object_id": "f04b0a820c906ba1515ba5b9265d3e6300ae0d72"
       },
       {
         "path": "lattice/supervisor.py",
         "mode": "100644",
-        "object_id": "931eaf8d0eb1bab03ecc8b1913ea2d1ac9bc9575"
+        "object_id": "24728607c24bd2e6c8afb1dcfe7b019f424cfe57"
       },
       {
         "path": "lattice/workflow_template_reader.py",
@@ -340,24 +525,59 @@
         "object_id": "95577b2d960a6c9910f6c82b1bbe0fb5734cebd7"
       },
       {
+        "path": "lattice/workspace_control.py",
+        "mode": "100644",
+        "object_id": "13d5e5a551035cb25d36406ef2c882170b0f08a2"
+      },
+      {
         "path": "ops/README.md",
         "mode": "100644",
-        "object_id": "d924a6b623bf2a402eedb6bce71cda466990913d"
+        "object_id": "9775610d86cee26b920f09dfd6864d4ee123c686"
       },
       {
         "path": "ops/authenticated_acceptance.py",
         "mode": "100755",
-        "object_id": "5f213d49750d21b30c8dc04878f4c39c1c6240be"
+        "object_id": "2724eaaaec19528040a5c8ab264fdd3841a04323"
+      },
+      {
+        "path": "ops/build_execution_closure_bundle.py",
+        "mode": "100755",
+        "object_id": "d463a60a14bd3398c1774b3592e33c0983aa8884"
       },
       {
         "path": "ops/install.py",
         "mode": "100755",
-        "object_id": "f55d5d65df9c1d9da142f0b1ef59086504100ebc"
+        "object_id": "6722a3c2d4e700a1538543383a21e9c1e3a57c21"
+      },
+      {
+        "path": "ops/qualify_browser.py",
+        "mode": "100755",
+        "object_id": "ce05fc631bf684314502d527a77594123b599896"
+      },
+      {
+        "path": "ops/qualify_interruption.py",
+        "mode": "100755",
+        "object_id": "00d37651fc838e7898883ba16a3b9e8292d4e5e5"
+      },
+      {
+        "path": "ops/qualify_release.py",
+        "mode": "100755",
+        "object_id": "ae9898afb3f46f854cad10fe7af74433cb945a76"
+      },
+      {
+        "path": "ops/qualify_restore.py",
+        "mode": "100755",
+        "object_id": "d4473e357c14c07b70e0427d6fcadfd34154a7e7"
+      },
+      {
+        "path": "ops/verify_execution_consolidation.py",
+        "mode": "100644",
+        "object_id": "3df67db68d1398e2b116e49860127ef65a06cb81"
       },
       {
         "path": "pyproject.toml",
         "mode": "100644",
-        "object_id": "26bc6f9155924a1cd88fc1a78c8430a8bbb14275"
+        "object_id": "b25c81e56ede3597e0c0b4bc7f7aef09199e4b69"
       },
       {
         "path": "surface-history/20260821T225026.json",
@@ -390,6 +610,11 @@
         "object_id": "352fbfc5adc4ecd01b86681fe4348c91397f1b47"
       },
       {
+        "path": "surface-history/20260824T195351.json",
+        "mode": "100644",
+        "object_id": "3c996a3c6532e8dee772f17c5f8dff25527583d5"
+      },
+      {
         "path": "surface-history/README.md",
         "mode": "100644",
         "object_id": "c530e42e32d979b62062b44b6577a0ff3ac5c847"
@@ -397,12 +622,22 @@
       {
         "path": "tests/conftest.py",
         "mode": "100644",
-        "object_id": "d9a160b02a569f74c50a6d73b7d4ab7d6c436dc8"
+        "object_id": "1b21c51b691d0d39b54dc3310b4e4d285672aec1"
       },
       {
         "path": "tests/fixtures/README.md",
         "mode": "100644",
         "object_id": "565140730792adbc9d3292b35b04f312e3f34f7c"
+      },
+      {
+        "path": "tests/fixtures/durable_run_crash_host.py",
+        "mode": "100644",
+        "object_id": "c515c1e20ef7a1d49158364dd4802b2045c3a58b"
+      },
+      {
+        "path": "tests/fixtures/durable_run_worker.py",
+        "mode": "100644",
+        "object_id": "86d3a7fba6d7c5b1fd182c9cb1ff1ce8be3e47bf"
       },
       {
         "path": "tests/fixtures/workflow_packs/README.md",
@@ -417,32 +652,82 @@
       {
         "path": "tests/fixtures/workflow_packs/quaternary/pack.json",
         "mode": "100644",
-        "object_id": "897ee0714cc37babdedf8bcb8901d136e1b440d6"
+        "object_id": "41bd3a7ae55111793f1d60071e7daf6f0cc79cfa"
       },
       {
         "path": "tests/test_api.py",
         "mode": "100644",
-        "object_id": "34cef793c81ba36c66adf682951a7d339ad31f01"
+        "object_id": "5faf2f5992d8247ce5d68d01f0634f021c479522"
       },
       {
         "path": "tests/test_authenticated_acceptance.py",
         "mode": "100644",
-        "object_id": "2955c16b687cfe50de71120a0fd8af0c226378fa"
+        "object_id": "7f8aa59718216f97232d307b1f3b1e388ce11305"
+      },
+      {
+        "path": "tests/test_browser_qualification.py",
+        "mode": "100644",
+        "object_id": "041c5229c0c14eeeb52b8549a6e3df59649d3880"
+      },
+      {
+        "path": "tests/test_client.py",
+        "mode": "100644",
+        "object_id": "362a65bbf38d3a8819336faf8a699668be758dcf"
+      },
+      {
+        "path": "tests/test_config.py",
+        "mode": "100644",
+        "object_id": "7f255e100f96552b5e14d061c5b0172393ffbdde"
       },
       {
         "path": "tests/test_conversation_kernel.py",
         "mode": "100644",
-        "object_id": "3e80b14e6373bca05f296cc5878c37f98319bbde"
+        "object_id": "e1d34857000a3333ef6c20b22414d3b7aca12cc1"
+      },
+      {
+        "path": "tests/test_dependency_closure.py",
+        "mode": "100644",
+        "object_id": "bcfca520d2aec15f2909ada680b64e741de246fb"
+      },
+      {
+        "path": "tests/test_durable_runs.py",
+        "mode": "100644",
+        "object_id": "c84a0eb913dbd48afa890f9787fb74db4bc75f73"
+      },
+      {
+        "path": "tests/test_execution_boundary.py",
+        "mode": "100644",
+        "object_id": "8b440aeef57654fce5a548826853fc43f4c00be4"
+      },
+      {
+        "path": "tests/test_execution_closure_bundle.py",
+        "mode": "100644",
+        "object_id": "f6e55a83f285c7f43158297439c3adef294803e9"
+      },
+      {
+        "path": "tests/test_execution_consolidation_verifier.py",
+        "mode": "100644",
+        "object_id": "673b4408c1568247a32475ad1bdcc79cf5fbc6a3"
+      },
+      {
+        "path": "tests/test_execution_kernel.py",
+        "mode": "100644",
+        "object_id": "dcfbeb5a3447432873fe3af5c4af5e6398a3da78"
+      },
+      {
+        "path": "tests/test_interruption_qualification.py",
+        "mode": "100644",
+        "object_id": "3ae76128b838d11f39aad37353ebb1c2ec1f54bf"
       },
       {
         "path": "tests/test_invocation_batches.py",
         "mode": "100644",
-        "object_id": "9fbfe40f60daa6f439b015fb7f2ab10f3fea9b40"
+        "object_id": "263d3a21958de9c714638fbac569bbabb509aac8"
       },
       {
         "path": "tests/test_kernel.py",
         "mode": "100644",
-        "object_id": "8b06ea8662ee661d97ae653b6fdf4f6a7e2c2840"
+        "object_id": "9d7af3f4a7cefcc7bd720f3b65d5a0f68f8f5344"
       },
       {
         "path": "tests/test_octopus_import.py",
@@ -452,47 +737,87 @@
       {
         "path": "tests/test_operations.py",
         "mode": "100644",
-        "object_id": "f685f1d0b9dd64dc73eab67f785816feafd951d0"
+        "object_id": "0a4a0a97723ed8e3a7392f2ae67ad321be31dbba"
+      },
+      {
+        "path": "tests/test_project_search.py",
+        "mode": "100644",
+        "object_id": "87f098907a02347b23fc1afc8272e2cdb8ce76d4"
+      },
+      {
+        "path": "tests/test_provider_boundaries.py",
+        "mode": "100644",
+        "object_id": "d0300f0bf50a12252286238c399ae72dc31c8af7"
+      },
+      {
+        "path": "tests/test_release_qualification.py",
+        "mode": "100644",
+        "object_id": "9e8001605fe1145562bffda654cd45db4f4cde33"
       },
       {
         "path": "tests/test_reliability.py",
         "mode": "100644",
-        "object_id": "86d53d74a88bff546492aebc1037b56b3725a6d0"
+        "object_id": "cec706bd5c5c2704cffb954d4e34ed27c211292d"
+      },
+      {
+        "path": "tests/test_restore_qualification.py",
+        "mode": "100644",
+        "object_id": "752b089dedf5dd3d7a6e9fa82e9f8490fbeae61b"
+      },
+      {
+        "path": "tests/test_run_supervisor.py",
+        "mode": "100644",
+        "object_id": "462e278d8e3f542eb624b1a2501803e2542cd89f"
       },
       {
         "path": "tests/test_supervisor.py",
         "mode": "100644",
-        "object_id": "f4486a02716ef9bd7d1fe3492b8d4e68a3753f22"
+        "object_id": "8de5729bc3c5dd9517cc5273b0fa6f34faab196c"
       },
       {
         "path": "tests/test_workflows.py",
         "mode": "100644",
-        "object_id": "5d466703969898a47deda82cc4624c925cc5cec4"
+        "object_id": "9f750ef1a09bba3e0089f56fee39e7ccdf6fa40c"
+      },
+      {
+        "path": "tests/test_workspace_control.py",
+        "mode": "100644",
+        "object_id": "2e3e306401f84c4b2ef4da97b59fd9e88dd56529"
       },
       {
         "path": "uv.lock",
         "mode": "100644",
-        "object_id": "f2829c2982a95072d907b9331fbbe5b9e0e45c9e"
+        "object_id": "b2d493f380d95eebb1e9df0df12e21fc34a61331"
       },
       {
-        "path": "web/dist/assets/index-BgfOII1L.js",
+        "path": "web/acceptance/README.md",
         "mode": "100644",
-        "object_id": "a595dd9f0be172d8ac110c46756435640d4ee191"
+        "object_id": "1080bb4d4479af0bea2bccdd0fe7d4381fcccdfd"
       },
       {
-        "path": "web/dist/assets/index-DWKh4nZB.css",
+        "path": "web/acceptance/installed-conversation.mjs",
+        "mode": "100755",
+        "object_id": "bdce57e7c7baeea889a5521c708755c4de256019"
+      },
+      {
+        "path": "web/dist/assets/index-AIm4znub.js",
         "mode": "100644",
-        "object_id": "ada32d4a06b3fceef6aea452b16f1646fce646a5"
+        "object_id": "89c2241fc7d9210bceddea1768a34e478aafe5ff"
+      },
+      {
+        "path": "web/dist/assets/index-DSAaWQoB.css",
+        "mode": "100644",
+        "object_id": "3aff4f16f302dd9aa022f6a31e05a96a396fc1c5"
       },
       {
         "path": "web/dist/index.html",
         "mode": "100644",
-        "object_id": "72b9442422c08cb2d9f82e9570edc5b3e5cd0f6d"
+        "object_id": "4fa2c5c4931388e75ca2867a5344f74b36bde317"
       },
       {
         "path": "web/e2e/conversation.spec.ts",
         "mode": "100644",
-        "object_id": "b1fc72c3b5133321090e9cce3b48781909557853"
+        "object_id": "44cd77bdd7ba9c1bb7ee003864c6cc3fa7a824a4"
       },
       {
         "path": "web/index.html",
@@ -517,17 +842,77 @@
       {
         "path": "web/src/App.svelte",
         "mode": "100644",
-        "object_id": "a175c7ee2ea1e3855f67f9b39204dc0417f6970d"
+        "object_id": "05f3c104dd44e99bfdedf30447257c321ea0d04d"
       },
       {
         "path": "web/src/api.test.ts",
         "mode": "100644",
-        "object_id": "51ba3c8896bc0fc77413450fed16586e8809dc7b"
+        "object_id": "07b04ff0ac50618aad7ed616514f1e227d25489b"
       },
       {
         "path": "web/src/api.ts",
         "mode": "100644",
-        "object_id": "754ac3b971721f61f8bce86c33fe411e34554170"
+        "object_id": "924944927dd24be0bb1da40fccef7e7d68d84aba"
+      },
+      {
+        "path": "web/src/commandPalette.test.ts",
+        "mode": "100644",
+        "object_id": "7ca12fc8443f7791d72032190c5ced37e2f29ce0"
+      },
+      {
+        "path": "web/src/commandPalette.ts",
+        "mode": "100644",
+        "object_id": "b436be3c699f0bfc9c29b7b763242123c885ae94"
+      },
+      {
+        "path": "web/src/components/CommandPalette.svelte",
+        "mode": "100644",
+        "object_id": "146069bf30d6e29f470d46f5c743929a711ecd7e"
+      },
+      {
+        "path": "web/src/components/ComposerPane.svelte",
+        "mode": "100644",
+        "object_id": "bd2bd316f13d78f6bd68d83526f4666f049cf745"
+      },
+      {
+        "path": "web/src/components/ContextInspector.svelte",
+        "mode": "100644",
+        "object_id": "44be6935c68823463b2c244d32d5d9589f409c53"
+      },
+      {
+        "path": "web/src/components/ConversationHistory.svelte",
+        "mode": "100644",
+        "object_id": "1c32ed7027ad3c9b7f80af75f280908734f993ee"
+      },
+      {
+        "path": "web/src/components/ProjectRail.svelte",
+        "mode": "100644",
+        "object_id": "481953d920cfd10c57ae78de547f1e3c80feaf3c"
+      },
+      {
+        "path": "web/src/components/README.md",
+        "mode": "100644",
+        "object_id": "7671b07205c26dd461b5ad735f7fd26eb9a03b4c"
+      },
+      {
+        "path": "web/src/components/ResponsePane.svelte",
+        "mode": "100644",
+        "object_id": "3f08ef4360ae92c9da426b6b6857e743cef01e76"
+      },
+      {
+        "path": "web/src/components/RunSurface.svelte",
+        "mode": "100644",
+        "object_id": "d6a34901563e34dca54664cedb6247b8cf38c536"
+      },
+      {
+        "path": "web/src/components/WorkflowControl.svelte",
+        "mode": "100644",
+        "object_id": "749779da3e0cb643c538d56ee7bd8b3d18d1c713"
+      },
+      {
+        "path": "web/src/components/WorkspaceSurface.svelte",
+        "mode": "100644",
+        "object_id": "d8e79d9e0a07cd4211588f8cd55efaff6f7ae543"
       },
       {
         "path": "web/src/contextActions.test.ts",
@@ -550,6 +935,16 @@
         "object_id": "0f4ddf90c9f24d623029b80e75203f8f9868b04c"
       },
       {
+        "path": "web/src/copyExport.test.ts",
+        "mode": "100644",
+        "object_id": "e643c6a432ef9d28934600bf661332aa3a9bb132"
+      },
+      {
+        "path": "web/src/copyExport.ts",
+        "mode": "100644",
+        "object_id": "cff78b6904a563d3ab8f63430bd3ea6a43d30e03"
+      },
+      {
         "path": "web/src/executionRoutes.test.ts",
         "mode": "100644",
         "object_id": "0003be85a6ca43edfcc5f978fcaadcef2dab6b6a"
@@ -558,6 +953,26 @@
         "path": "web/src/executionRoutes.ts",
         "mode": "100644",
         "object_id": "bade1f1ad8701b6be86fe3013f0f6999328e38c4"
+      },
+      {
+        "path": "web/src/fileLinks.test.ts",
+        "mode": "100644",
+        "object_id": "cb136c8cc349533ea527d1b96c3f7a72e25a023b"
+      },
+      {
+        "path": "web/src/fileLinks.ts",
+        "mode": "100644",
+        "object_id": "65b3f6d1833719cb21e2d95544d2511a3be1c27e"
+      },
+      {
+        "path": "web/src/invocationActivity.test.ts",
+        "mode": "100644",
+        "object_id": "7f4a2a0d6a4ecd72e172bdf4377e315d41254c3b"
+      },
+      {
+        "path": "web/src/invocationActivity.ts",
+        "mode": "100644",
+        "object_id": "7ed0e4ad23bcd5cc967691179b002525b9035721"
       },
       {
         "path": "web/src/invocationBatch.test.ts",
@@ -575,6 +990,36 @@
         "object_id": "d0187822a23f4118bab4a5dab20dd15b26f55734"
       },
       {
+        "path": "web/src/operatorNotifications.test.ts",
+        "mode": "100644",
+        "object_id": "82b4c4ec0051d4110e6692f7422f759a4163e974"
+      },
+      {
+        "path": "web/src/operatorNotifications.ts",
+        "mode": "100644",
+        "object_id": "ed9df474161235ed54b533fd2480e2f3af18ee03"
+      },
+      {
+        "path": "web/src/promptHistory.test.ts",
+        "mode": "100644",
+        "object_id": "85a069e88a51e9d790a9a50433a84e220d26e8cd"
+      },
+      {
+        "path": "web/src/promptHistory.ts",
+        "mode": "100644",
+        "object_id": "1e3844847e47e46a003d782d7eb2ca25a2ae368c"
+      },
+      {
+        "path": "web/src/recoveryStatus.test.ts",
+        "mode": "100644",
+        "object_id": "31100e02b6a9b584749137cdf11823bc4de57ae3"
+      },
+      {
+        "path": "web/src/recoveryStatus.ts",
+        "mode": "100644",
+        "object_id": "a283dea7ac5dd9be1c2e97d07a2aa1f56c706ea9"
+      },
+      {
         "path": "web/src/renderMarkdown.test.ts",
         "mode": "100644",
         "object_id": "889ecb153e09c2ed55bf125e212665c1eddb0748"
@@ -587,12 +1032,42 @@
       {
         "path": "web/src/style.css",
         "mode": "100644",
-        "object_id": "0c356c31bef8f5b75d8575f291ec806a4c613f79"
+        "object_id": "e74bec5c1f7c819a7182c2d4a4449c39f0c6afe9"
+      },
+      {
+        "path": "web/src/submissionState.test.ts",
+        "mode": "100644",
+        "object_id": "e2cc7bedced13721432c2394549ef0dc8372499a"
+      },
+      {
+        "path": "web/src/submissionState.ts",
+        "mode": "100644",
+        "object_id": "c994c216931cd9202d08210332c3ecd8ba9017de"
       },
       {
         "path": "web/src/types.ts",
         "mode": "100644",
-        "object_id": "dd98b6c974b0b59dc7fe5afd2c9f56201bb848ee"
+        "object_id": "1f77573f5c320eafa21322664987db9b7ea206db"
+      },
+      {
+        "path": "web/src/uiPersistence.test.ts",
+        "mode": "100644",
+        "object_id": "128288ae013421c2d9beaa404f92f76e13dcea35"
+      },
+      {
+        "path": "web/src/uiPersistence.ts",
+        "mode": "100644",
+        "object_id": "8e71adf87c1955a3c3f06ebad3a873d6424252d7"
+      },
+      {
+        "path": "web/src/virtualizedText.test.ts",
+        "mode": "100644",
+        "object_id": "9afa215d84a10107439d4117af1e372506194c28"
+      },
+      {
+        "path": "web/src/virtualizedText.ts",
+        "mode": "100644",
+        "object_id": "bf66faac2f24b26c7d96b62fbb450adcdabc922f"
       },
       {
         "path": "web/src/workflowPresentation.test.ts",
@@ -622,15 +1097,10 @@
       {
         "path": "workflow_packs/platform-foundry/pack.json",
         "mode": "100644",
-        "object_id": "ba8357a4a2c1626342bbbe1864b1e990e2fb7a75"
+        "object_id": "9204970b81d8ff7342c44dcd6f718408e275004f"
       }
     ],
-    "entries_sha256": "23e28ec9ea2b5e00f8e15eac512e205e87202cf47e8f8baba13c81baa0145521",
-    "excluded_paths": [
-      "SURFACE.json",
-      "SURFACE.md",
-      "surface.validation.json"
-    ],
+    "entries_sha256": "6da6543e89bfebf93e0a11ebce7dc508e7bc36d307ec681a6a1b317f5650cbf5",
     "mappings": [
       {
         "path": ".gitignore",
@@ -642,6 +1112,17 @@
         "reason": "Workframe policy, product contract, or active-plan state distributed over substantive modules."
       },
       {
+        "path": ".gitleaksignore",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:99f3ddf9-77a1-5a6e-aea8-f15dad9078bd"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
         "path": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
         "disposition": "decoration",
         "item_ids": [
@@ -649,6 +1130,17 @@
         ],
         "node_ids": [],
         "reason": "Workframe policy, product contract, or active-plan state distributed over substantive modules."
+      },
+      {
+        "path": "DURABLE-WORK-AND-PRIMARY-UX-PLAN.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:579124fa-97bf-5efe-b2b7-f467502c8b22"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary roadmap for the active durable-work and primary-UX program."
       },
       {
         "path": "README.md",
@@ -680,6 +1172,50 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "assurance/execution-consolidation/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:26437408-e50d-53ba-bc6c-50c9773fb448"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "assurance/execution-consolidation/baseline.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1dcd90f1-dd2e-5f24-8920-7a3ab206e5e8"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "assurance/execution-consolidation/consumer-registry.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1aac5eba-e850-572e-ae42-830310597f02"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "assurance/execution-consolidation/findings.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0dc5799c-1ec8-5b6f-8cb7-eb290ed63086"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
       },
       {
         "path": "assurance/findings.json",
@@ -979,6 +1515,83 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/AUDIT.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:fd17b037-33fc-53d6-9450-bc743ae6aa33"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/AUDIT.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:6052932e-6d6f-5c92-8633-00da517f1c26"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:68541cf1-1eb8-5456-ab98-0e9afbc4ba18"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/audit.validation.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:dbe704d6-41cd-54ba-99ef-f8c944a974ae"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/evidence/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:9fc0da40-baa0-58f4-95df-d0032539ac0c"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/evidence/browser-acceptance.txt",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:d76ccad9-8a39-5cf7-8b9c-e1308ba12b33"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "audit/20260824T200108-conversation-first-remediation-final/evidence/doctor.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:348886d2-b81d-5dd7-a084-bfda1bd176fe"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
         "path": "audit/README.md",
         "disposition": "mapped",
         "item_ids": [
@@ -988,6 +1601,28 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "decisions/001-lattice-owns-subscription-execution.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a23d99e9-4340-52c7-bf8f-e6b12ee60129"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Decision authority for the execution and provider boundary."
+      },
+      {
+        "path": "decisions/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:d887c0e9-89c4-50cf-8967-d7f65cdd56c3"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Decision authority for the execution and provider boundary."
       },
       {
         "path": "lattice/__about__.py",
@@ -1056,6 +1691,17 @@
         "reason": "Primary source for the execution capability boundary."
       },
       {
+        "path": "lattice/client.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e9c620f7-9643-5528-97f9-b7785862bb23"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
         "path": "lattice/compositor.py",
         "disposition": "mapped",
         "item_ids": [
@@ -1120,6 +1766,149 @@
           "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
         ],
         "reason": "Primary source for the kernel capability boundary."
+      },
+      {
+        "path": "lattice/exact_file.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:631a5e7a-b965-5f30-b759-698861bb78c4"
+        ],
+        "node_ids": [
+          "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
+        ],
+        "reason": "Primary source for the durable lattice kernel capability boundary."
+      },
+      {
+        "path": "lattice/execution/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0eecb504-a5a8-5462-9746-37f3bd726911"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/__init__.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:08708be4-d095-584d-91c0-171cb46085dc"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/adapters.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5b63f2b7-a96d-5c46-a55c-85f1d47bf228"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/checkpoint.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:943886ed-9a53-5d2f-94b5-88b2ba23ca78"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/journal.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f271eeb3-e6e6-5d60-8851-ed9f61bda4cd"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/process.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ffe3fd58-77e9-505d-864c-3f933e726069"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/providers/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3ecccc9f-d47a-5932-875a-2da1eed7292f"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/providers/__init__.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:41f96169-ee3d-5a76-9e85-a6b86a093812"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/providers/antigravity.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:6ccf6e09-be2a-53b0-a723-fa8fb677e2be"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/providers/claude.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5e373afa-0b27-55ec-ac0b-8a2bf8fd816f"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/providers/codex.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:884846ff-2b52-5a37-a941-67ba981af25d"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/providers/grok.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:dae275d6-6d48-5e67-863d-8207a109f6c9"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
       },
       {
         "path": "lattice/http_boundary.py",
@@ -1199,6 +1988,72 @@
         "reason": "Primary source for the integration capability boundary."
       },
       {
+        "path": "lattice/run_executor.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:8e2f0f84-00d0-53ed-aa53-19c712dd5676"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/run_journal.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b20867a9-885e-54b3-827d-6d70728dbb51"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/run_launcher.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a696ee56-c1d2-57b1-b58f-7dac15d05304"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/run_protocol.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3a92e266-294f-5869-845f-540a928d4ced"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/run_sdk.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:bbacf1a8-4858-5204-802f-ae5943be443b"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/run_supervisor.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:7dd868ee-2903-5591-8edd-d44ef931db33"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
         "path": "lattice/runtime_attestation.py",
         "disposition": "mapped",
         "item_ids": [
@@ -1208,6 +2063,17 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "lattice/runtime_identity.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:6a65dda7-ad5d-5542-97ad-c2ae5dc955f1"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
       },
       {
         "path": "lattice/security.py",
@@ -1287,6 +2153,17 @@
         "reason": "Primary source for the integration capability boundary."
       },
       {
+        "path": "lattice/workspace_control.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:98bb8ad8-deba-554b-a3ea-e4c4cb24dce3"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
         "path": "ops/README.md",
         "disposition": "mapped",
         "item_ids": [
@@ -1309,6 +2186,17 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "ops/build_execution_closure_bundle.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f27fd976-3077-5217-af7c-5fd1f2fdb539"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
         "path": "ops/install.py",
         "disposition": "mapped",
         "item_ids": [
@@ -1318,6 +2206,61 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "ops/qualify_browser.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:d39c0cf1-c5ec-5f83-a5d4-5f7d9b5dfcdf"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "ops/qualify_interruption.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:81059fa1-5943-55f3-ada4-baffe4cd7240"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "ops/qualify_release.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:36a66af8-39d6-5833-830f-826f9944c424"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "ops/qualify_restore.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:55e3a70a-5de8-53dc-b547-cd77dc619f3a"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "ops/verify_execution_consolidation.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b8f6b8de-2778-5874-918c-5de87ab48289"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
       },
       {
         "path": "pyproject.toml",
@@ -1397,6 +2340,17 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "surface-history/20260824T195351.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ce710c82-aa0d-53b5-9412-ad3a90aca6b6"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
         "path": "surface-history/README.md",
         "disposition": "mapped",
         "item_ids": [
@@ -1428,6 +2382,28 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/fixtures/durable_run_crash_host.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:cec9002a-9a2b-5211-a2a2-d283f530fc9c"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/fixtures/durable_run_worker.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:33009020-2071-5955-8b72-a548d7940541"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
       },
       {
         "path": "tests/fixtures/workflow_packs/README.md",
@@ -1485,6 +2461,39 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "tests/test_browser_qualification.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:6e0732e0-4f21-549f-9bfb-8774fe1d3e3a"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_client.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3ee9adad-c1f4-56e7-b44e-6ec7e7aa81d1"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_config.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ea040146-5c44-57f0-b113-f9f5072d202a"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
         "path": "tests/test_conversation_kernel.py",
         "disposition": "mapped",
         "item_ids": [
@@ -1494,6 +2503,83 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_dependency_closure.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:39c3194d-ac23-565d-8b6a-7c68e1fe9398"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_durable_runs.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:c7c53350-9248-5bbf-9593-9771e35e5142"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_execution_boundary.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1cc98559-9bbb-5c27-8ad4-77ae7aa90ec4"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_execution_closure_bundle.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1c1e30e6-d7f1-54b7-af09-40c6fc10ec87"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_execution_consolidation_verifier.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b5e8ef18-9853-51dc-a9b9-6d5ff083099d"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_execution_kernel.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e69793cd-1fd5-5c71-bbea-31d708c5f996"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_interruption_qualification.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ab7d4785-36a7-5be3-9911-5557cdeb04eb"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
       },
       {
         "path": "tests/test_invocation_batches.py",
@@ -1540,6 +2626,39 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "tests/test_project_search.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:dd994a8a-c998-525e-81cc-c7796c035d8d"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_provider_boundaries.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:4c9ca3ca-f267-5c1d-9735-55dce4965288"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_release_qualification.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:313dfe24-f69f-5374-9f61-4598e65db58c"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
         "path": "tests/test_reliability.py",
         "disposition": "mapped",
         "item_ids": [
@@ -1549,6 +2668,28 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_restore_qualification.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b71a712b-d362-5a32-ad8d-236976248793"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "tests/test_run_supervisor.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:cc9a65db-1dad-5f4f-b2ab-9d1e1b4f95c6"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
       },
       {
         "path": "tests/test_supervisor.py",
@@ -1573,6 +2714,17 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
+        "path": "tests/test_workspace_control.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:20466786-9d37-5c0b-949f-23120dd66eb0"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
         "path": "uv.lock",
         "disposition": "mapped",
         "item_ids": [
@@ -1584,26 +2736,48 @@
         "reason": "Primary source for the assurance capability boundary."
       },
       {
-        "path": "web/dist/assets/index-BgfOII1L.js",
+        "path": "web/acceptance/README.md",
         "disposition": "mapped",
         "item_ids": [
-          "item:2053748b-aecc-551a-8e9d-95b0eadea0b6"
+          "item:9ca42f0f-4652-58be-a299-2ba7ae5d66fc"
         ],
         "node_ids": [
           "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
         ],
-        "reason": "Primary source for the cockpit capability boundary."
+        "reason": "Primary source for the response-first cockpit capability boundary."
       },
       {
-        "path": "web/dist/assets/index-DWKh4nZB.css",
+        "path": "web/acceptance/installed-conversation.mjs",
         "disposition": "mapped",
         "item_ids": [
-          "item:028ba948-6dc8-5feb-b1d4-a2243e5b8802"
+          "item:b05d967a-cb77-5f8e-9ac8-84827bc29b72"
         ],
         "node_ids": [
           "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
         ],
-        "reason": "Primary source for the cockpit capability boundary."
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/dist/assets/index-AIm4znub.js",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:15fab4d4-e6ec-5986-82b9-c12b01a3a07b"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/dist/assets/index-DSAaWQoB.css",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0595de2a-7fd8-56a9-bfbd-eee54ba1fb90"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
       },
       {
         "path": "web/dist/index.html",
@@ -1705,6 +2879,138 @@
         "reason": "Primary source for the cockpit capability boundary."
       },
       {
+        "path": "web/src/commandPalette.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b52b56d6-9db5-5602-8c0a-39deedd2339b"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/commandPalette.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:01384fdd-efae-50a7-ae5f-8d715f3a0812"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/CommandPalette.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:3690416b-9d0c-58cc-a149-44b536c2dd27"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/ComposerPane.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:df0b1cef-c365-57f7-94a7-10ca7060e5a9"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/ContextInspector.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:6fcb4da2-3f25-5f07-b481-3010ae3e6b3a"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/ConversationHistory.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b86e4309-5055-5545-8d35-772e90d6b357"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/ProjectRail.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:93987193-5265-51a2-8704-f11b3d2517b3"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/README.md",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:d5813ffe-a433-56d3-a235-3e8e77678c82"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/ResponsePane.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:e674cd0e-c08b-53ab-bde5-8a8c2eb243bd"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/RunSurface.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5a80e189-d944-5b32-a467-40e10364b44a"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/WorkflowControl.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:5b4ea3a4-b33c-5a01-931d-98078205cb5b"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/components/WorkspaceSurface.svelte",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1f7b8ebc-6301-508b-a550-014fe3b33b7a"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
         "path": "web/src/contextActions.test.ts",
         "disposition": "mapped",
         "item_ids": [
@@ -1749,6 +3055,28 @@
         "reason": "Primary source for the cockpit capability boundary."
       },
       {
+        "path": "web/src/copyExport.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:1628850c-b74b-582c-84e2-2e6b0817d69f"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/copyExport.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:4b2a1732-cb61-5533-9478-9b7c68d698f5"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
         "path": "web/src/executionRoutes.test.ts",
         "disposition": "mapped",
         "item_ids": [
@@ -1769,6 +3097,50 @@
           "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
         ],
         "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/fileLinks.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:7d601d69-1f8b-52cb-8ff2-399f2edf3e41"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/fileLinks.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:bb5dc92e-b387-5950-8d37-65d213de36bc"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/invocationActivity.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:cc865321-94c1-538a-b51b-7f56ceabeef9"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/invocationActivity.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:03a8e6b8-e40e-531f-ac22-86eda8676005"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
       },
       {
         "path": "web/src/invocationBatch.test.ts",
@@ -1804,6 +3176,72 @@
         "reason": "Primary source for the cockpit capability boundary."
       },
       {
+        "path": "web/src/operatorNotifications.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:f23a4e3e-3fee-5197-8eb0-3fbb8473288b"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/operatorNotifications.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:da0de014-7eb7-5139-95db-488ce8ec05c3"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/promptHistory.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:58378d98-3a97-5133-90ee-4e33955f46f3"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/promptHistory.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0a70da62-0e4c-53f7-b249-31f0730964b3"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/recoveryStatus.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:6343ca15-5f50-5462-a603-68c6c6ecc154"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/recoveryStatus.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2a9bac80-d7b8-54ca-8a45-6f6556a4a36a"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
         "path": "web/src/renderMarkdown.test.ts",
         "disposition": "mapped",
         "item_ids": [
@@ -1837,6 +3275,28 @@
         "reason": "Primary source for the cockpit capability boundary."
       },
       {
+        "path": "web/src/submissionState.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2a8384e8-fd02-515d-9582-976d0405fc0b"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/submissionState.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:4ee47375-1eb1-5719-8372-d720ace28d2f"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
         "path": "web/src/types.ts",
         "disposition": "mapped",
         "item_ids": [
@@ -1846,6 +3306,50 @@
           "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
         ],
         "reason": "Primary source for the cockpit capability boundary."
+      },
+      {
+        "path": "web/src/uiPersistence.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:72b239a2-cf63-5f6c-97a8-492cf3cb2ded"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/uiPersistence.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:4e0e2e72-c6c7-5b3a-b0b6-f2bc39092155"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/virtualizedText.test.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:23e596bc-e82e-5b8a-96c4-bc8ec5ff795d"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
+      },
+      {
+        "path": "web/src/virtualizedText.ts",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:0acc29d6-49f0-5e42-8263-3c345d6f4e0c"
+        ],
+        "node_ids": [
+          "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
+        ],
+        "reason": "Primary source for the response-first cockpit capability boundary."
       },
       {
         "path": "web/src/workflowPresentation.test.ts",
@@ -1917,7 +3421,7 @@
   },
   "evidence_census": {
     "method": "combined",
-    "scope": "Historical audit attestation plus exact installed-runtime, authenticated-provider, and recovery proofs for the conversation-first release.",
+    "scope": "Historical audit and prior authenticated acceptance plus exact current installed-runtime, doctor, and recovery evidence; formal execution-consolidation qualification is represented separately as open work.",
     "entries": [
       {
         "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
@@ -1936,20 +3440,28 @@
         "reason": "The immutable authenticated report proves the exact manual lattice and provider-profile acceptance path without storing response text in the Surface."
       },
       {
-        "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-cb5e27b25e30-eeef1ba475f6/runtime.json",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-5c34733eabe4/runtime.json",
         "kind": "materialized_state",
-        "state_token": "artifact:138bd4d7-7fc6-4f53-8e6a-99020a28b8b4",
+        "state_token": "artifact:9306cabe-66be-4895-9e7a-b06b7bb40da8",
         "disposition": "included",
         "source_id": "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-        "reason": "The installed-runtime generation resolves the exact executable source and byte inventories selected by launchd."
+        "reason": "The installed-runtime generation resolves the exact executable source, package, provider, and installed-byte inventories selected by launchd."
       },
       {
-        "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T194152-bb8eeb55-ed7/snapshot.json",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260905T122320-bfde03c5-3cd/snapshot.json",
         "kind": "materialized_state",
-        "state_token": "artifact:bb8eeb55-ed7e-42c0-9f64-3b463ac90345",
+        "state_token": "artifact:bfde03c5-3cd7-41a9-89be-2bfef8840dab",
         "disposition": "included",
         "source_id": "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
-        "reason": "The verified snapshot and isolated restore provide the independent recovery denominator for the accepted state."
+        "reason": "The verified snapshot is the current independently addressable recovery denominator."
+      },
+      {
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/execution-closure/20260905T190324-doctor.json",
+        "kind": "materialized_state",
+        "state_token": "artifact:83ddc3b8-f1c1-47e5-bc79-f5362b8c0cc2",
+        "disposition": "included",
+        "source_id": "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
+        "reason": "The immutable doctor receipt establishes current installed runtime and local operational health without claiming formal closure."
       }
     ]
   },
@@ -1962,7 +3474,7 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The store and compositor implement direct or role-bound actors, atomic invocation batches, exact derived blocks, overlapping episodes, immutable v9 manifests, resolvable parent-harness attribution, and separately reconstructed provider-safe conversation bytes and Claude system instructions."
+      "observation": "The store, compositor, contracts, and independent reader implement direct or role-bound actors, atomic route-specific batches, exact derived context, overlapping episodes, durable run relationships, and independently reconstructable provider-facing manifests."
     },
     {
       "id": "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -1970,9 +3482,10 @@
       "kind": "code",
       "provenance": "observed",
       "mode_affinity": [
-        "is"
+        "is",
+        "doing"
       ],
-      "observation": "The supervisor and route contracts implement leased fresh, workspace-agent, and authority-guarded native-continuation execution; semantically checked Claude and Codex cross-feed, fork, resume, portable fallback, failure recovery, and restart continuation all passed on the installed v0.2.0 runtime."
+      "observation": "The supervisor, execution kernel, provider adapters, runtime identity, and workspace controls implement leased fresh, workspace-agent, native-continuation, cancellation, restart reconciliation, and fail-closed executable attestation."
     },
     {
       "id": "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -1992,18 +3505,18 @@
       "mode_affinity": [
         "is"
       ],
-      "observation": "The cockpit foregrounds response and composer, exposes inline multi-provider routing and exact selection actions, and isolates optional graph, episode, workflow, navigation, and Slate failures."
+      "observation": "The cockpit foregrounds response and composer, preserves latest-wins project state, exposes inline multi-provider and exact-selection actions, virtualizes long responses, and renders provider, transport, and backend failure distinctly."
     },
     {
       "id": "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-      "ref": "tests/test_reliability.py",
+      "ref": "tests/test_execution_consolidation_verifier.py",
       "kind": "code",
       "provenance": "observed",
       "mode_affinity": [
         "is",
         "doing"
       ],
-      "observation": "The truth-typed assurance suite rejects migration, batch, context, forged harness and system metadata, semantic refusal, episode, Outport, launchd classification, final-health, snapshot, installed-runtime, producer-version, provider-drift, and browser-failure mutations before publication."
+      "observation": "The assurance tests reject incomplete consumer inventories, stale or mismatched installed runtimes, forged closure inputs, missing evidence, direct-provider resurrection, credential leakage, and unqualified retirement claims."
     },
     {
       "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
@@ -2013,7 +3526,7 @@
       "mode_affinity": [
         "constraints"
       ],
-      "observation": "The canonical workframe contract states Lattice's conversation-first telos, architectural boundaries, v0.2.0 release identity, v9 provider-channel semantics, semantically checked real-data-ready manual acceptance, and unavailable German Gemini qualification."
+      "observation": "The canonical workframe contract states Lattice 0.3.1 as a conversation-first local harness, documents exact-context and provider-execution boundaries, and distinguishes implemented capability from formal execution-consolidation qualification."
     },
     {
       "id": "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
@@ -2057,28 +3570,59 @@
     },
     {
       "id": "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-      "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.2.0-cb5e27b25e30-eeef1ba475f6/runtime.json",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-5c34733eabe4/runtime.json",
       "kind": "materialized_state",
       "provenance": "observed",
       "mode_affinity": [
         "is"
       ],
-      "observation": "The selected non-editable runtime binds Lattice cb5e27b25e30 and model-runner eeef1ba475f6 to exact source and installed module-tree inventories, including model-runner 1.3.0 and the v9 provider channel, under Outport and interactive launchd supervision."
+      "observation": "The selected non-editable Lattice 0.3.1 runtime binds source revision 5c34733eabe4, installed module bytes, package inventory, provider executables, and provider attestations under Outport and launchd supervision."
     },
     {
       "id": "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
-      "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260824T194152-bb8eeb55-ed7/snapshot.json",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260905T122320-bfde03c5-3cd/snapshot.json",
       "kind": "materialized_state",
       "provenance": "observed",
       "mode_affinity": [
         "is"
       ],
-      "observation": "The post-acceptance snapshot restored into an isolated nonexistent root and reproduced state digest c41d9b84366ca2ad976b46104987cfac47493367625b2db70f45281c4d1dcfcb."
+      "observation": "The latest verified snapshot inventories the canonical database, append-only state, and content-addressed blobs for recovery; current separate-root continuation remains part of formal qualification."
+    },
+    {
+      "id": "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/execution-closure/20260905T190324-doctor.json",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is",
+        "doing"
+      ],
+      "observation": "The current installed-runtime doctor receipt passes runtime identity, provider attestation, database, append-chain, blob, migration, backup, service, and Outport checks while reporting formal closure as unqualified."
+    },
+    {
+      "id": "source:020b6359-622a-52e0-976e-8b22e2a61f1b",
+      "ref": "assurance/execution-consolidation/findings.json",
+      "kind": "ledger",
+      "provenance": "observed",
+      "mode_affinity": [
+        "doing"
+      ],
+      "observation": "The execution-consolidation ledger retains seven S1/S2 findings in implemented-pending-verification state; none is represented as independently closed."
+    },
+    {
+      "id": "source:7bf182e2-7d4a-58a0-b9c1-16a3766d87b8",
+      "ref": "DURABLE-WORK-AND-PRIMARY-UX-PLAN.md",
+      "kind": "ledger",
+      "provenance": "observed",
+      "mode_affinity": [
+        "doing"
+      ],
+      "observation": "The active plan records the remaining durable-run dogfooding, executor adaptation, information-preserving progress UX, and primary-harness adoption program."
     }
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:b04e8c8f-f946-446e-936f-34e585a394cc",
+    "artifact_id": "carve:73349303-4bed-4343-afd8-04c8f839ff35",
     "subject": "Lattice conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -2102,12 +3646,34 @@
         ]
       },
       {
+        "id": "item:99f3ddf9-77a1-5a6e-aea8-f15dad9078bd",
+        "label": ".gitleaksignore",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": ".gitleaksignore",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:ac819482-0272-54e2-b539-2c26679a3926",
         "label": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
         "role": "decoration",
         "evidence": [
           {
             "ref": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:579124fa-97bf-5efe-b2b7-f467502c8b22",
+        "label": "DURABLE-WORK-AND-PRIMARY-UX-PLAN.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "DURABLE-WORK-AND-PRIMARY-UX-PLAN.md",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2146,12 +3712,89 @@
         ]
       },
       {
+        "id": "item:26437408-e50d-53ba-bc6c-50c9773fb448",
+        "label": "assurance/execution-consolidation/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/execution-consolidation/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1dcd90f1-dd2e-5f24-8920-7a3ab206e5e8",
+        "label": "assurance/execution-consolidation/baseline.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/execution-consolidation/baseline.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1aac5eba-e850-572e-ae42-830310597f02",
+        "label": "assurance/execution-consolidation/consumer-registry.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/execution-consolidation/consumer-registry.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0dc5799c-1ec8-5b6f-8cb7-eb290ed63086",
+        "label": "assurance/execution-consolidation/findings.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/execution-consolidation/findings.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:46a2470a-36cd-5dda-91e6-560d2e6f5afe",
         "label": "assurance/findings.json",
         "role": "constituent",
         "evidence": [
           {
             "ref": "assurance/findings.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:3cfd4b57-9e2f-59c3-a48f-e2fba97664a0",
+        "label": "assurance/history/20260824T171018-findings.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/history/20260824T171018-findings.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:7704fa4b-3838-5bca-97ca-75187f2d7770",
+        "label": "assurance/history/20260824T194418-findings.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/history/20260824T194418-findings.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:c5d0607e-d391-5974-aeab-aaf14991f3ab",
+        "label": "assurance/history/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "assurance/history/README.md",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2344,12 +3987,188 @@
         ]
       },
       {
+        "id": "item:cdc4027f-92c6-55d0-84c3-23804ee84d17",
+        "label": "audit/20260824T100820-conversation-first-remediation/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/AUDIT.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:aeea4586-e68e-570c-b7f6-71e9058b5202",
+        "label": "audit/20260824T100820-conversation-first-remediation/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/AUDIT.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ca67de37-7ea7-5e29-88ca-be3357ab5da0",
+        "label": "audit/20260824T100820-conversation-first-remediation/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b849589e-57ef-515b-bb24-6758d9f6e294",
+        "label": "audit/20260824T100820-conversation-first-remediation/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/audit.validation.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:6d7a61ab-3c0e-5105-8694-d996e9846dfb",
+        "label": "audit/20260824T100820-conversation-first-remediation/evidence/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/evidence/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:01eaaddc-8f51-5b47-867a-e6a712006613",
+        "label": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:fd17b037-33fc-53d6-9450-bc743ae6aa33",
+        "label": "audit/20260824T200108-conversation-first-remediation-final/AUDIT.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T200108-conversation-first-remediation-final/AUDIT.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:6052932e-6d6f-5c92-8633-00da517f1c26",
+        "label": "audit/20260824T200108-conversation-first-remediation-final/AUDIT.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T200108-conversation-first-remediation-final/AUDIT.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:68541cf1-1eb8-5456-ab98-0e9afbc4ba18",
+        "label": "audit/20260824T200108-conversation-first-remediation-final/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T200108-conversation-first-remediation-final/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:dbe704d6-41cd-54ba-99ef-f8c944a974ae",
+        "label": "audit/20260824T200108-conversation-first-remediation-final/audit.validation.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T200108-conversation-first-remediation-final/audit.validation.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:9fc0da40-baa0-58f4-95df-d0032539ac0c",
+        "label": "audit/20260824T200108-conversation-first-remediation-final/evidence/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T200108-conversation-first-remediation-final/evidence/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:d76ccad9-8a39-5cf7-8b9c-e1308ba12b33",
+        "label": "audit/20260824T200108-conversation-first-remediation-final/evidence/browser-acceptance.txt",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T200108-conversation-first-remediation-final/evidence/browser-acceptance.txt",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:348886d2-b81d-5dd7-a084-bfda1bd176fe",
+        "label": "audit/20260824T200108-conversation-first-remediation-final/evidence/doctor.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "audit/20260824T200108-conversation-first-remediation-final/evidence/doctor.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
         "label": "audit/README.md",
         "role": "constituent",
         "evidence": [
           {
             "ref": "audit/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:a23d99e9-4340-52c7-bf8f-e6b12ee60129",
+        "label": "decisions/001-lattice-owns-subscription-execution.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "decisions/001-lattice-owns-subscription-execution.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:d887c0e9-89c4-50cf-8967-d7f65cdd56c3",
+        "label": "decisions/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "decisions/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0d248e77-fc58-5cd1-b6cf-b11920126a39",
+        "label": "lattice/__about__.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/__about__.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2405,6 +4224,17 @@
         "evidence": [
           {
             "ref": "lattice/cli.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:e9c620f7-9643-5528-97f9-b7785862bb23",
+        "label": "lattice/client.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/client.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2471,6 +4301,149 @@
         "evidence": [
           {
             "ref": "lattice/durability.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:631a5e7a-b965-5f30-b759-698861bb78c4",
+        "label": "lattice/exact_file.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/exact_file.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0eecb504-a5a8-5462-9746-37f3bd726911",
+        "label": "lattice/execution/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:08708be4-d095-584d-91c0-171cb46085dc",
+        "label": "lattice/execution/__init__.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/__init__.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5b63f2b7-a96d-5c46-a55c-85f1d47bf228",
+        "label": "lattice/execution/adapters.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/adapters.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:943886ed-9a53-5d2f-94b5-88b2ba23ca78",
+        "label": "lattice/execution/checkpoint.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/checkpoint.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:f271eeb3-e6e6-5d60-8851-ed9f61bda4cd",
+        "label": "lattice/execution/journal.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/journal.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ffe3fd58-77e9-505d-864c-3f933e726069",
+        "label": "lattice/execution/process.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/process.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:3ecccc9f-d47a-5932-875a-2da1eed7292f",
+        "label": "lattice/execution/providers/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/providers/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:41f96169-ee3d-5a76-9e85-a6b86a093812",
+        "label": "lattice/execution/providers/__init__.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/providers/__init__.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:6ccf6e09-be2a-53b0-a723-fa8fb677e2be",
+        "label": "lattice/execution/providers/antigravity.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/providers/antigravity.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5e373afa-0b27-55ec-ac0b-8a2bf8fd816f",
+        "label": "lattice/execution/providers/claude.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/providers/claude.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:884846ff-2b52-5a37-a941-67ba981af25d",
+        "label": "lattice/execution/providers/codex.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/providers/codex.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:dae275d6-6d48-5e67-863d-8207a109f6c9",
+        "label": "lattice/execution/providers/grok.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/providers/grok.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2553,6 +4526,94 @@
         ]
       },
       {
+        "id": "item:8e2f0f84-00d0-53ed-aa53-19c712dd5676",
+        "label": "lattice/run_executor.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/run_executor.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b20867a9-885e-54b3-827d-6d70728dbb51",
+        "label": "lattice/run_journal.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/run_journal.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:a696ee56-c1d2-57b1-b58f-7dac15d05304",
+        "label": "lattice/run_launcher.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/run_launcher.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:3a92e266-294f-5869-845f-540a928d4ced",
+        "label": "lattice/run_protocol.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/run_protocol.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:bbacf1a8-4858-5204-802f-ae5943be443b",
+        "label": "lattice/run_sdk.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/run_sdk.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:7dd868ee-2903-5591-8edd-d44ef931db33",
+        "label": "lattice/run_supervisor.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/run_supervisor.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:95069f87-d56f-52bf-b4f6-61d2d3ac8318",
+        "label": "lattice/runtime_attestation.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/runtime_attestation.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:6a65dda7-ad5d-5542-97ad-c2ae5dc955f1",
+        "label": "lattice/runtime_identity.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/runtime_identity.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:f6509f49-cb38-56ab-a1ba-dc340bb9e0d2",
         "label": "lattice/security.py",
         "role": "constituent",
@@ -2630,6 +4691,17 @@
         ]
       },
       {
+        "id": "item:98bb8ad8-deba-554b-a3ea-e4c4cb24dce3",
+        "label": "lattice/workspace_control.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/workspace_control.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:b6e7abba-6ca0-507d-9286-9261e0a1b814",
         "label": "ops/README.md",
         "role": "constituent",
@@ -2652,12 +4724,78 @@
         ]
       },
       {
+        "id": "item:f27fd976-3077-5217-af7c-5fd1f2fdb539",
+        "label": "ops/build_execution_closure_bundle.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/build_execution_closure_bundle.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:3f817ad8-02d6-5fed-80cb-54dafab69444",
         "label": "ops/install.py",
         "role": "constituent",
         "evidence": [
           {
             "ref": "ops/install.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:d39c0cf1-c5ec-5f83-a5d4-5f7d9b5dfcdf",
+        "label": "ops/qualify_browser.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/qualify_browser.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:81059fa1-5943-55f3-ada4-baffe4cd7240",
+        "label": "ops/qualify_interruption.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/qualify_interruption.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:36a66af8-39d6-5833-830f-826f9944c424",
+        "label": "ops/qualify_release.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/qualify_release.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:55e3a70a-5de8-53dc-b547-cd77dc619f3a",
+        "label": "ops/qualify_restore.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/qualify_restore.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b8f6b8de-2778-5874-918c-5de87ab48289",
+        "label": "ops/verify_execution_consolidation.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/verify_execution_consolidation.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2696,6 +4834,61 @@
         ]
       },
       {
+        "id": "item:dd419047-4a7b-56f6-a904-8957cb720509",
+        "label": "surface-history/20260824T100100.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260824T100100.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:2ecfc994-868b-54b7-9791-d2b9faf113fb",
+        "label": "surface-history/20260824T171458.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260824T171458.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:e17834d5-a38e-5644-974b-df9c0aaf859a",
+        "label": "surface-history/20260824T172412.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260824T172412.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:8a1124a7-655e-500f-a577-05b8dcd873cf",
+        "label": "surface-history/20260824T182341.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260824T182341.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ce710c82-aa0d-53b5-9412-ad3a90aca6b6",
+        "label": "surface-history/20260824T195351.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260824T195351.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:327bcb35-d3eb-5906-a962-b858c5229a19",
         "label": "surface-history/README.md",
         "role": "constituent",
@@ -2724,6 +4917,28 @@
         "evidence": [
           {
             "ref": "tests/fixtures/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:cec9002a-9a2b-5211-a2a2-d283f530fc9c",
+        "label": "tests/fixtures/durable_run_crash_host.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/fixtures/durable_run_crash_host.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:33009020-2071-5955-8b72-a548d7940541",
+        "label": "tests/fixtures/durable_run_worker.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/fixtures/durable_run_worker.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2784,12 +4999,122 @@
         ]
       },
       {
+        "id": "item:6e0732e0-4f21-549f-9bfb-8774fe1d3e3a",
+        "label": "tests/test_browser_qualification.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_browser_qualification.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:3ee9adad-c1f4-56e7-b44e-6ec7e7aa81d1",
+        "label": "tests/test_client.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_client.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ea040146-5c44-57f0-b113-f9f5072d202a",
+        "label": "tests/test_config.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_config.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:5fc79186-a2b2-5a01-a924-b7fec27a1e78",
         "label": "tests/test_conversation_kernel.py",
         "role": "constituent",
         "evidence": [
           {
             "ref": "tests/test_conversation_kernel.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:39c3194d-ac23-565d-8b6a-7c68e1fe9398",
+        "label": "tests/test_dependency_closure.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_dependency_closure.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:c7c53350-9248-5bbf-9593-9771e35e5142",
+        "label": "tests/test_durable_runs.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_durable_runs.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1cc98559-9bbb-5c27-8ad4-77ae7aa90ec4",
+        "label": "tests/test_execution_boundary.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_execution_boundary.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1c1e30e6-d7f1-54b7-af09-40c6fc10ec87",
+        "label": "tests/test_execution_closure_bundle.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_execution_closure_bundle.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b5e8ef18-9853-51dc-a9b9-6d5ff083099d",
+        "label": "tests/test_execution_consolidation_verifier.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_execution_consolidation_verifier.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:e69793cd-1fd5-5c71-bbea-31d708c5f996",
+        "label": "tests/test_execution_kernel.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_execution_kernel.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:ab7d4785-36a7-5be3-9911-5557cdeb04eb",
+        "label": "tests/test_interruption_qualification.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_interruption_qualification.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2839,12 +5164,67 @@
         ]
       },
       {
+        "id": "item:dd994a8a-c998-525e-81cc-c7796c035d8d",
+        "label": "tests/test_project_search.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_project_search.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:4c9ca3ca-f267-5c1d-9735-55dce4965288",
+        "label": "tests/test_provider_boundaries.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_provider_boundaries.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:313dfe24-f69f-5374-9f61-4598e65db58c",
+        "label": "tests/test_release_qualification.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_release_qualification.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:65cab222-6dd6-5862-8340-18d305313dcc",
         "label": "tests/test_reliability.py",
         "role": "constituent",
         "evidence": [
           {
             "ref": "tests/test_reliability.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b71a712b-d362-5a32-ad8d-236976248793",
+        "label": "tests/test_restore_qualification.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_restore_qualification.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:cc9a65db-1dad-5f4f-b2ab-9d1e1b4f95c6",
+        "label": "tests/test_run_supervisor.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_run_supervisor.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -2872,6 +5252,17 @@
         ]
       },
       {
+        "id": "item:20466786-9d37-5c0b-949f-23120dd66eb0",
+        "label": "tests/test_workspace_control.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_workspace_control.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:91ab609d-be36-5d49-b80c-c1ee31f92be5",
         "label": "uv.lock",
         "role": "constituent",
@@ -2883,23 +5274,45 @@
         ]
       },
       {
-        "id": "item:2053748b-aecc-551a-8e9d-95b0eadea0b6",
-        "label": "web/dist/assets/index-BgfOII1L.js",
+        "id": "item:9ca42f0f-4652-58be-a299-2ba7ae5d66fc",
+        "label": "web/acceptance/README.md",
         "role": "constituent",
         "evidence": [
           {
-            "ref": "web/dist/assets/index-BgfOII1L.js",
+            "ref": "web/acceptance/README.md",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
       },
       {
-        "id": "item:028ba948-6dc8-5feb-b1d4-a2243e5b8802",
-        "label": "web/dist/assets/index-DWKh4nZB.css",
+        "id": "item:b05d967a-cb77-5f8e-9ac8-84827bc29b72",
+        "label": "web/acceptance/installed-conversation.mjs",
         "role": "constituent",
         "evidence": [
           {
-            "ref": "web/dist/assets/index-DWKh4nZB.css",
+            "ref": "web/acceptance/installed-conversation.mjs",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:15fab4d4-e6ec-5986-82b9-c12b01a3a07b",
+        "label": "web/dist/assets/index-AIm4znub.js",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/dist/assets/index-AIm4znub.js",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0595de2a-7fd8-56a9-bfbd-eee54ba1fb90",
+        "label": "web/dist/assets/index-DSAaWQoB.css",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/dist/assets/index-DSAaWQoB.css",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -3004,6 +5417,138 @@
         ]
       },
       {
+        "id": "item:b52b56d6-9db5-5602-8c0a-39deedd2339b",
+        "label": "web/src/commandPalette.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/commandPalette.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:01384fdd-efae-50a7-ae5f-8d715f3a0812",
+        "label": "web/src/commandPalette.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/commandPalette.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:3690416b-9d0c-58cc-a149-44b536c2dd27",
+        "label": "web/src/components/CommandPalette.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/CommandPalette.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:df0b1cef-c365-57f7-94a7-10ca7060e5a9",
+        "label": "web/src/components/ComposerPane.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/ComposerPane.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:6fcb4da2-3f25-5f07-b481-3010ae3e6b3a",
+        "label": "web/src/components/ContextInspector.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/ContextInspector.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:b86e4309-5055-5545-8d35-772e90d6b357",
+        "label": "web/src/components/ConversationHistory.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/ConversationHistory.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:93987193-5265-51a2-8704-f11b3d2517b3",
+        "label": "web/src/components/ProjectRail.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/ProjectRail.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:d5813ffe-a433-56d3-a235-3e8e77678c82",
+        "label": "web/src/components/README.md",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/README.md",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:e674cd0e-c08b-53ab-bde5-8a8c2eb243bd",
+        "label": "web/src/components/ResponsePane.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/ResponsePane.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5a80e189-d944-5b32-a467-40e10364b44a",
+        "label": "web/src/components/RunSurface.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/RunSurface.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:5b4ea3a4-b33c-5a01-931d-98078205cb5b",
+        "label": "web/src/components/WorkflowControl.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/WorkflowControl.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:1f7b8ebc-6301-508b-a550-014fe3b33b7a",
+        "label": "web/src/components/WorkspaceSurface.svelte",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/components/WorkspaceSurface.svelte",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:ee180c8b-0960-5c9a-b8af-689d547c67ae",
         "label": "web/src/contextActions.test.ts",
         "role": "constituent",
@@ -3048,6 +5593,28 @@
         ]
       },
       {
+        "id": "item:1628850c-b74b-582c-84e2-2e6b0817d69f",
+        "label": "web/src/copyExport.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/copyExport.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:4b2a1732-cb61-5533-9478-9b7c68d698f5",
+        "label": "web/src/copyExport.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/copyExport.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:804abf6b-0684-5b82-9882-c48104164790",
         "label": "web/src/executionRoutes.test.ts",
         "role": "constituent",
@@ -3065,6 +5632,50 @@
         "evidence": [
           {
             "ref": "web/src/executionRoutes.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:7d601d69-1f8b-52cb-8ff2-399f2edf3e41",
+        "label": "web/src/fileLinks.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/fileLinks.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:bb5dc92e-b387-5950-8d37-65d213de36bc",
+        "label": "web/src/fileLinks.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/fileLinks.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:cc865321-94c1-538a-b51b-7f56ceabeef9",
+        "label": "web/src/invocationActivity.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/invocationActivity.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:03a8e6b8-e40e-531f-ac22-86eda8676005",
+        "label": "web/src/invocationActivity.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/invocationActivity.ts",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -3103,6 +5714,72 @@
         ]
       },
       {
+        "id": "item:f23a4e3e-3fee-5197-8eb0-3fbb8473288b",
+        "label": "web/src/operatorNotifications.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/operatorNotifications.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:da0de014-7eb7-5139-95db-488ce8ec05c3",
+        "label": "web/src/operatorNotifications.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/operatorNotifications.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:58378d98-3a97-5133-90ee-4e33955f46f3",
+        "label": "web/src/promptHistory.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/promptHistory.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0a70da62-0e4c-53f7-b249-31f0730964b3",
+        "label": "web/src/promptHistory.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/promptHistory.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:6343ca15-5f50-5462-a603-68c6c6ecc154",
+        "label": "web/src/recoveryStatus.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/recoveryStatus.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:2a9bac80-d7b8-54ca-8a45-6f6556a4a36a",
+        "label": "web/src/recoveryStatus.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/recoveryStatus.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637",
         "label": "web/src/renderMarkdown.test.ts",
         "role": "constituent",
@@ -3136,12 +5813,78 @@
         ]
       },
       {
+        "id": "item:2a8384e8-fd02-515d-9582-976d0405fc0b",
+        "label": "web/src/submissionState.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/submissionState.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:4ee47375-1eb1-5719-8372-d720ace28d2f",
+        "label": "web/src/submissionState.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/submissionState.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:507eccda-e353-5be2-b317-241a9e5f03df",
         "label": "web/src/types.ts",
         "role": "constituent",
         "evidence": [
           {
             "ref": "web/src/types.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:72b239a2-cf63-5f6c-97a8-492cf3cb2ded",
+        "label": "web/src/uiPersistence.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/uiPersistence.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:4e0e2e72-c6c7-5b3a-b0b6-f2bc39092155",
+        "label": "web/src/uiPersistence.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/uiPersistence.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:23e596bc-e82e-5b8a-96c4-bc8ec5ff795d",
+        "label": "web/src/virtualizedText.test.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/virtualizedText.test.ts",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:0acc29d6-49f0-5e42-8263-3c345d6f4e0c",
+        "label": "web/src/virtualizedText.ts",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "web/src/virtualizedText.ts",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -3211,171 +5954,6 @@
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
-      },
-      {
-        "id": "item:cdc4027f-92c6-55d0-84c3-23804ee84d17",
-        "label": "audit/20260824T100820-conversation-first-remediation/AUDIT.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "audit/20260824T100820-conversation-first-remediation/AUDIT.json",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:aeea4586-e68e-570c-b7f6-71e9058b5202",
-        "label": "audit/20260824T100820-conversation-first-remediation/AUDIT.md",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "audit/20260824T100820-conversation-first-remediation/AUDIT.md",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:ca67de37-7ea7-5e29-88ca-be3357ab5da0",
-        "label": "audit/20260824T100820-conversation-first-remediation/README.md",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "audit/20260824T100820-conversation-first-remediation/README.md",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:b849589e-57ef-515b-bb24-6758d9f6e294",
-        "label": "audit/20260824T100820-conversation-first-remediation/audit.validation.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "audit/20260824T100820-conversation-first-remediation/audit.validation.json",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:6d7a61ab-3c0e-5105-8694-d996e9846dfb",
-        "label": "audit/20260824T100820-conversation-first-remediation/evidence/README.md",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "audit/20260824T100820-conversation-first-remediation/evidence/README.md",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:01eaaddc-8f51-5b47-867a-e6a712006613",
-        "label": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "audit/20260824T100820-conversation-first-remediation/evidence/assurance.txt",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:0d248e77-fc58-5cd1-b6cf-b11920126a39",
-        "label": "lattice/__about__.py",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "lattice/__about__.py",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:95069f87-d56f-52bf-b4f6-61d2d3ac8318",
-        "label": "lattice/runtime_attestation.py",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "lattice/runtime_attestation.py",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:dd419047-4a7b-56f6-a904-8957cb720509",
-        "label": "surface-history/20260824T100100.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "surface-history/20260824T100100.json",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:2ecfc994-868b-54b7-9791-d2b9faf113fb",
-        "label": "surface-history/20260824T171458.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "surface-history/20260824T171458.json",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:3cfd4b57-9e2f-59c3-a48f-e2fba97664a0",
-        "label": "assurance/history/20260824T171018-findings.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "assurance/history/20260824T171018-findings.json",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:c5d0607e-d391-5974-aeab-aaf14991f3ab",
-        "label": "assurance/history/README.md",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "assurance/history/README.md",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:e17834d5-a38e-5644-974b-df9c0aaf859a",
-        "label": "surface-history/20260824T172412.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "surface-history/20260824T172412.json",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:7704fa4b-3838-5bca-97ca-75187f2d7770",
-        "label": "assurance/history/20260824T194418-findings.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "assurance/history/20260824T194418-findings.json",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
-      },
-      {
-        "id": "item:8a1124a7-655e-500f-a577-05b8dcd873cf",
-        "label": "surface-history/20260824T182341.json",
-        "role": "constituent",
-        "evidence": [
-          {
-            "ref": "surface-history/20260824T182341.json",
-            "note": "Tracked source at the reconciled committed revision."
-          }
-        ]
       }
     ],
     "relations": [
@@ -3420,9 +5998,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:66dc92cf-0852-4a62-ad82-cc382ab87884",
+      "parent_artifact_id": "carve:b04e8c8f-f946-446e-936f-34e585a394cc",
       "reconciliation_scope": "local",
-      "decision": "The manifest-bound Claude system channel and resolvable parent-harness provenance deepen the existing durable-kernel and execution-authority boundaries, while interactive launchd classification, final health gating, and post-acceptance recovery deepen operations and assurance; none changes an operational-ownership root or sibling boundary.",
+      "decision": "Preserve the five operational ownership boundaries; reconcile their expanded execution kernel, durable-run control plane, cockpit, consumer integrations, and assurance sources.",
       "preserved_node_ids": [
         "node:9db167ff-3831-52f8-9313-9858090362cc",
         "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
@@ -3455,6 +6033,7 @@
             "item:34434f6c-f2ab-59cd-9b06-e2f5ed87d8fb",
             "item:7d949ae0-5f7a-515b-beab-e515aed4feb0",
             "item:37dfd09e-dfdb-59c8-8cfc-d4ce10e05766",
+            "item:631a5e7a-b965-5f30-b759-698861bb78c4",
             "item:305d0545-4542-5571-a900-fd0b0e544812",
             "item:a1f86371-bc4a-5c37-b9ed-6f0cf0aba8d8",
             "item:38b5a658-5270-588e-a412-d22b6a1f6bec"
@@ -3469,16 +6048,39 @@
           "gloss": "Outport-addressed loopback authority, snapshot recovery, and leased subscription-CLI execution with explicit profile qualification and durable failure state.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
+            "item:a23d99e9-4340-52c7-bf8f-e6b12ee60129",
+            "item:d887c0e9-89c4-50cf-8967-d7f65cdd56c3",
             "item:667e8f08-47d4-5599-a31f-54d653203c03",
             "item:c95600b3-9933-5e33-84b6-1f762b6a1586",
+            "item:e9c620f7-9643-5528-97f9-b7785862bb23",
             "item:c15f664b-9be0-5b00-8fec-cc58406cd59f",
             "item:7ba502fc-ca1e-5d9a-9321-e37b23dd046e",
+            "item:0eecb504-a5a8-5462-9746-37f3bd726911",
+            "item:08708be4-d095-584d-91c0-171cb46085dc",
+            "item:5b63f2b7-a96d-5c46-a55c-85f1d47bf228",
+            "item:943886ed-9a53-5d2f-94b5-88b2ba23ca78",
+            "item:f271eeb3-e6e6-5d60-8851-ed9f61bda4cd",
+            "item:ffe3fd58-77e9-505d-864c-3f933e726069",
+            "item:3ecccc9f-d47a-5932-875a-2da1eed7292f",
+            "item:41f96169-ee3d-5a76-9e85-a6b86a093812",
+            "item:6ccf6e09-be2a-53b0-a723-fa8fb677e2be",
+            "item:5e373afa-0b27-55ec-ac0b-8a2bf8fd816f",
+            "item:884846ff-2b52-5a37-a941-67ba981af25d",
+            "item:dae275d6-6d48-5e67-863d-8207a109f6c9",
             "item:2c8e13ec-128f-5ac0-917b-2311d641634b",
             "item:c17bc2c0-f5d1-5655-88f6-4dc37136775a",
+            "item:8e2f0f84-00d0-53ed-aa53-19c712dd5676",
+            "item:b20867a9-885e-54b3-827d-6d70728dbb51",
+            "item:a696ee56-c1d2-57b1-b58f-7dac15d05304",
+            "item:3a92e266-294f-5869-845f-540a928d4ced",
+            "item:bbacf1a8-4858-5204-802f-ae5943be443b",
+            "item:7dd868ee-2903-5591-8edd-d44ef931db33",
+            "item:6a65dda7-ad5d-5542-97ad-c2ae5dc955f1",
             "item:f6509f49-cb38-56ab-a1ba-dc340bb9e0d2",
             "item:f1534b56-d009-59f3-b06a-0a51b13d8e4f",
             "item:cb39cb4b-0675-5a7e-91e4-f8fd8afacab9",
-            "item:bd25b5f7-343e-5dff-b2dd-c3202cdc1f3b"
+            "item:bd25b5f7-343e-5dff-b2dd-c3202cdc1f3b",
+            "item:98bb8ad8-deba-554b-a3ea-e4c4cb24dce3"
           ],
           "children": [],
           "facets": []
@@ -3509,8 +6111,10 @@
           "gloss": "The response-first Svelte conversation surface, exact selection actions, inline routing, progressive graph authorship, and isolated secondary drawers.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
-            "item:2053748b-aecc-551a-8e9d-95b0eadea0b6",
-            "item:028ba948-6dc8-5feb-b1d4-a2243e5b8802",
+            "item:9ca42f0f-4652-58be-a299-2ba7ae5d66fc",
+            "item:b05d967a-cb77-5f8e-9ac8-84827bc29b72",
+            "item:15fab4d4-e6ec-5986-82b9-c12b01a3a07b",
+            "item:0595de2a-7fd8-56a9-bfbd-eee54ba1fb90",
             "item:9b90b33e-e89d-5643-a7d2-823bebe8b707",
             "item:3a98cd18-2ab0-54f0-a89c-3f25fdc3cc73",
             "item:f489ef36-55ac-5d04-850a-4789bf396db6",
@@ -3520,19 +6124,49 @@
             "item:578f69de-c56c-5b30-939e-2385d80c074d",
             "item:b8724d3a-a21f-5349-a81a-22b66dec084e",
             "item:d281d945-c739-5cc8-9617-c07d9dd220c5",
+            "item:b52b56d6-9db5-5602-8c0a-39deedd2339b",
+            "item:01384fdd-efae-50a7-ae5f-8d715f3a0812",
+            "item:3690416b-9d0c-58cc-a149-44b536c2dd27",
+            "item:df0b1cef-c365-57f7-94a7-10ca7060e5a9",
+            "item:6fcb4da2-3f25-5f07-b481-3010ae3e6b3a",
+            "item:b86e4309-5055-5545-8d35-772e90d6b357",
+            "item:93987193-5265-51a2-8704-f11b3d2517b3",
+            "item:d5813ffe-a433-56d3-a235-3e8e77678c82",
+            "item:e674cd0e-c08b-53ab-bde5-8a8c2eb243bd",
+            "item:5a80e189-d944-5b32-a467-40e10364b44a",
+            "item:5b4ea3a4-b33c-5a01-931d-98078205cb5b",
+            "item:1f7b8ebc-6301-508b-a550-014fe3b33b7a",
             "item:ee180c8b-0960-5c9a-b8af-689d547c67ae",
             "item:a04866ef-8a38-599b-8a74-ee44d27a96c9",
             "item:52a9c018-0526-5ae6-a03d-cbb48dda68d4",
             "item:12a7c532-6aed-523e-b528-a038cbf7b84e",
+            "item:1628850c-b74b-582c-84e2-2e6b0817d69f",
+            "item:4b2a1732-cb61-5533-9478-9b7c68d698f5",
             "item:804abf6b-0684-5b82-9882-c48104164790",
             "item:e951c922-e622-5a28-9667-e0eaaeb44026",
+            "item:7d601d69-1f8b-52cb-8ff2-399f2edf3e41",
+            "item:bb5dc92e-b387-5950-8d37-65d213de36bc",
+            "item:cc865321-94c1-538a-b51b-7f56ceabeef9",
+            "item:03a8e6b8-e40e-531f-ac22-86eda8676005",
             "item:af6365db-4107-5b01-9818-2493d05e6d86",
             "item:2d7cf609-1e77-5b75-864d-d42315aa4e11",
             "item:de0467eb-480d-5697-8baa-e18610d381ab",
+            "item:f23a4e3e-3fee-5197-8eb0-3fbb8473288b",
+            "item:da0de014-7eb7-5139-95db-488ce8ec05c3",
+            "item:58378d98-3a97-5133-90ee-4e33955f46f3",
+            "item:0a70da62-0e4c-53f7-b249-31f0730964b3",
+            "item:6343ca15-5f50-5462-a603-68c6c6ecc154",
+            "item:2a9bac80-d7b8-54ca-8a45-6f6556a4a36a",
             "item:65f3fe1b-df10-50e8-9aae-ee347c0ba637",
             "item:1f0fee8e-8712-59b8-bd45-d9ed449ed2a9",
             "item:5d44d1b5-155a-55ad-8a81-b5ab7eb2999a",
+            "item:2a8384e8-fd02-515d-9582-976d0405fc0b",
+            "item:4ee47375-1eb1-5719-8372-d720ace28d2f",
             "item:507eccda-e353-5be2-b317-241a9e5f03df",
+            "item:72b239a2-cf63-5f6c-97a8-492cf3cb2ded",
+            "item:4e0e2e72-c6c7-5b3a-b0b6-f2bc39092155",
+            "item:23e596bc-e82e-5b8a-96c4-bc8ec5ff795d",
+            "item:0acc29d6-49f0-5e42-8263-3c345d6f4e0c",
             "item:f9d0e3d3-d167-516e-b470-db34f083d4e1",
             "item:fd33ca72-9b0a-5137-b696-020de5329411",
             "item:da06c3e5-4840-5fc2-991f-64a2e2b9b11c",
@@ -3548,9 +6182,18 @@
           "gloss": "Pinned installation, launchd supervision, backup and restore, dependency locks, finding ledger, historical audits, and truth-typed regression suites.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
+            "item:99f3ddf9-77a1-5a6e-aea8-f15dad9078bd",
+            "item:579124fa-97bf-5efe-b2b7-f467502c8b22",
             "item:34219bca-adba-5a25-8cbc-963610319c47",
             "item:06ad3779-81c6-5122-bce6-083a924bb7b7",
+            "item:26437408-e50d-53ba-bc6c-50c9773fb448",
+            "item:1dcd90f1-dd2e-5f24-8920-7a3ab206e5e8",
+            "item:1aac5eba-e850-572e-ae42-830310597f02",
+            "item:0dc5799c-1ec8-5b6f-8cb7-eb290ed63086",
             "item:46a2470a-36cd-5dda-91e6-560d2e6f5afe",
+            "item:3cfd4b57-9e2f-59c3-a48f-e2fba97664a0",
+            "item:7704fa4b-3838-5bca-97ca-75187f2d7770",
+            "item:c5d0607e-d391-5974-aeab-aaf14991f3ab",
             "item:a324bf89-7b74-5dea-8ded-a88f2c33826e",
             "item:0313971f-2a3f-57f5-a79f-37f39d6f729c",
             "item:0dac8a44-a4ae-5d26-8c28-39757ea073ef",
@@ -3568,45 +6211,74 @@
             "item:93b40191-c3b1-50f9-8373-970f59218ed1",
             "item:b6318a80-64c4-55c9-8bb8-80752984b0bb",
             "item:f26a7fed-121a-5b8f-81e0-a441b5c01ca1",
-            "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
-            "item:b6e7abba-6ca0-507d-9286-9261e0a1b814",
-            "item:1590001f-182d-50e8-a22c-cb260eca2322",
-            "item:3f817ad8-02d6-5fed-80cb-54dafab69444",
-            "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
-            "item:ed83afee-c94a-5588-a774-2f6b4ca14249",
-            "item:55c69407-f462-5c3c-b06f-84f23272f5b4",
-            "item:327bcb35-d3eb-5906-a962-b858c5229a19",
-            "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
-            "item:8da8cf3b-61d0-5edd-b7ef-a589f33ad59f",
-            "item:fd5cab4a-7465-5afe-865f-2e33e910c0f4",
-            "item:2739bb1d-48ad-565c-b565-a8eed81c22bc",
-            "item:28bb19a3-327f-5dae-bfb9-064c7868d514",
-            "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd",
-            "item:7a1f99ee-8ae0-5648-9322-19daa7270156",
-            "item:5fc79186-a2b2-5a01-a924-b7fec27a1e78",
-            "item:cc78e4be-295b-5798-9bc9-7ef028129ac3",
-            "item:3950ee5a-7ee6-551a-b8c9-82ff94f70582",
-            "item:5379b5ce-b9d8-58dc-a8b4-00eaead251e6",
-            "item:cba1d1ea-e741-5eb5-a02e-b54245ceca0e",
-            "item:65cab222-6dd6-5862-8340-18d305313dcc",
-            "item:515300a2-aa71-5244-9946-3116181f8143",
-            "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265",
-            "item:91ab609d-be36-5d49-b80c-c1ee31f92be5",
             "item:cdc4027f-92c6-55d0-84c3-23804ee84d17",
             "item:aeea4586-e68e-570c-b7f6-71e9058b5202",
             "item:ca67de37-7ea7-5e29-88ca-be3357ab5da0",
             "item:b849589e-57ef-515b-bb24-6758d9f6e294",
             "item:6d7a61ab-3c0e-5105-8694-d996e9846dfb",
             "item:01eaaddc-8f51-5b47-867a-e6a712006613",
+            "item:fd17b037-33fc-53d6-9450-bc743ae6aa33",
+            "item:6052932e-6d6f-5c92-8633-00da517f1c26",
+            "item:68541cf1-1eb8-5456-ab98-0e9afbc4ba18",
+            "item:dbe704d6-41cd-54ba-99ef-f8c944a974ae",
+            "item:9fc0da40-baa0-58f4-95df-d0032539ac0c",
+            "item:d76ccad9-8a39-5cf7-8b9c-e1308ba12b33",
+            "item:348886d2-b81d-5dd7-a084-bfda1bd176fe",
+            "item:8efe7ee7-fc5f-5343-bba1-bf539809ce30",
             "item:0d248e77-fc58-5cd1-b6cf-b11920126a39",
             "item:95069f87-d56f-52bf-b4f6-61d2d3ac8318",
+            "item:b6e7abba-6ca0-507d-9286-9261e0a1b814",
+            "item:1590001f-182d-50e8-a22c-cb260eca2322",
+            "item:f27fd976-3077-5217-af7c-5fd1f2fdb539",
+            "item:3f817ad8-02d6-5fed-80cb-54dafab69444",
+            "item:d39c0cf1-c5ec-5f83-a5d4-5f7d9b5dfcdf",
+            "item:81059fa1-5943-55f3-ada4-baffe4cd7240",
+            "item:36a66af8-39d6-5833-830f-826f9944c424",
+            "item:55e3a70a-5de8-53dc-b547-cd77dc619f3a",
+            "item:b8f6b8de-2778-5874-918c-5de87ab48289",
+            "item:bfbb5da3-11ce-5364-8466-70eea4556e29",
+            "item:ed83afee-c94a-5588-a774-2f6b4ca14249",
+            "item:55c69407-f462-5c3c-b06f-84f23272f5b4",
             "item:dd419047-4a7b-56f6-a904-8957cb720509",
             "item:2ecfc994-868b-54b7-9791-d2b9faf113fb",
-            "item:3cfd4b57-9e2f-59c3-a48f-e2fba97664a0",
-            "item:c5d0607e-d391-5974-aeab-aaf14991f3ab",
             "item:e17834d5-a38e-5644-974b-df9c0aaf859a",
-            "item:7704fa4b-3838-5bca-97ca-75187f2d7770",
-            "item:8a1124a7-655e-500f-a577-05b8dcd873cf"
+            "item:8a1124a7-655e-500f-a577-05b8dcd873cf",
+            "item:ce710c82-aa0d-53b5-9412-ad3a90aca6b6",
+            "item:327bcb35-d3eb-5906-a962-b858c5229a19",
+            "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
+            "item:8da8cf3b-61d0-5edd-b7ef-a589f33ad59f",
+            "item:cec9002a-9a2b-5211-a2a2-d283f530fc9c",
+            "item:33009020-2071-5955-8b72-a548d7940541",
+            "item:fd5cab4a-7465-5afe-865f-2e33e910c0f4",
+            "item:2739bb1d-48ad-565c-b565-a8eed81c22bc",
+            "item:28bb19a3-327f-5dae-bfb9-064c7868d514",
+            "item:f61f7ec3-1824-5a7c-aae9-6f56e76171bd",
+            "item:7a1f99ee-8ae0-5648-9322-19daa7270156",
+            "item:6e0732e0-4f21-549f-9bfb-8774fe1d3e3a",
+            "item:3ee9adad-c1f4-56e7-b44e-6ec7e7aa81d1",
+            "item:ea040146-5c44-57f0-b113-f9f5072d202a",
+            "item:5fc79186-a2b2-5a01-a924-b7fec27a1e78",
+            "item:39c3194d-ac23-565d-8b6a-7c68e1fe9398",
+            "item:c7c53350-9248-5bbf-9593-9771e35e5142",
+            "item:1cc98559-9bbb-5c27-8ad4-77ae7aa90ec4",
+            "item:1c1e30e6-d7f1-54b7-af09-40c6fc10ec87",
+            "item:b5e8ef18-9853-51dc-a9b9-6d5ff083099d",
+            "item:e69793cd-1fd5-5c71-bbea-31d708c5f996",
+            "item:ab7d4785-36a7-5be3-9911-5557cdeb04eb",
+            "item:cc78e4be-295b-5798-9bc9-7ef028129ac3",
+            "item:3950ee5a-7ee6-551a-b8c9-82ff94f70582",
+            "item:5379b5ce-b9d8-58dc-a8b4-00eaead251e6",
+            "item:cba1d1ea-e741-5eb5-a02e-b54245ceca0e",
+            "item:dd994a8a-c998-525e-81cc-c7796c035d8d",
+            "item:4c9ca3ca-f267-5c1d-9735-55dce4965288",
+            "item:313dfe24-f69f-5374-9f61-4598e65db58c",
+            "item:65cab222-6dd6-5862-8340-18d305313dcc",
+            "item:b71a712b-d362-5a32-ad8d-236976248793",
+            "item:cc9a65db-1dad-5f4f-b2ab-9d1e1b4f95c6",
+            "item:515300a2-aa71-5244-9946-3116181f8143",
+            "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265",
+            "item:20466786-9d37-5c0b-949f-23120dd66eb0",
+            "item:91ab609d-be36-5d49-b80c-c1ee31f92be5"
           ],
           "children": [],
           "facets": []
@@ -3637,33 +6309,34 @@
         },
         "one_ply_lookahead": {
           "status": "passed",
-          "claim": "Exact manifest provenance, provider-facing user bytes, and a separately qualified system channel remain views of one context-sealing capability; release identity, responsiveness, semantic acceptance, backup recovery, and audit lineage remain one install-recover-prove capability.",
+          "claim": "Durable run declarations, execution journals, provider adapters, runtime identity, and exact context manifests remain distinct views of the execution boundary rather than stable peer subsystems.",
           "evidence": [
-            "lattice/compositor.py",
-            "lattice/manifest_reader.py",
+            "lattice/run_protocol.py",
+            "lattice/execution/process.py",
             "lattice/supervisor.py",
-            "ops/authenticated_acceptance.py",
-            "assurance/findings.json"
+            "lattice/compositor.py",
+            "ops/qualify_release.py"
           ]
         },
         "kind_homogeneity": {
           "status": "passed",
-          "claim": "All five children remain operational capability subsystems: context and provider-channel sealing belong to the kernel, provider execution to authority, integrations to evidence, interaction to the cockpit, and release proof to operations and assurance.",
+          "claim": "All five children remain operational capability subsystems: durable graph truth, execution authority, evidence integrations, conversational interaction, and release assurance.",
           "evidence": [
-            "lattice/compositor.py",
-            "lattice/supervisor.py",
+            "lattice/store.py",
+            "lattice/execution/adapters.py",
+            "lattice/octopus_import.py",
             "web/src/App.svelte",
-            "ops/install.py",
-            "tests/test_authenticated_acceptance.py"
+            "ops/verify_execution_consolidation.py"
           ]
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "A format-version, provider, or release-stage challenger would scatter context truth and runtime proof across transient stages, while the incumbent operational-ownership carve keeps manifest, provider payload, execution, and assurance owners intact.",
+          "claim": "A provider-, artifact-, or execution-stage carve would split each capability owner across transient stages; the incumbent operational-ownership carve still follows the boundaries that change and fail together.",
           "evidence": [
             "lattice/compositor.py",
-            "lattice/manifest_reader.py",
+            "lattice/execution/adapters.py",
             "lattice/operations.py",
+            "web/src/App.svelte",
             "ops/install.py"
           ]
         }
@@ -3673,21 +6346,21 @@
       "excluded_decorations": [
         {
           "item_id": "item:20cc4b37-8c07-5063-afff-b3ab3031c1f7",
-          "distributed_as": "Local-state and build-residue policy distributed across every module.",
+          "distributed_as": "Workframe-wide policy or product framing distributed across the substantive capability modules.",
           "evidence": [
             ".gitignore"
           ]
         },
         {
           "item_id": "item:ac819482-0272-54e2-b539-2c26679a3926",
-          "distributed_as": "Active remediation state distributed through module overlays and the finding ledger.",
+          "distributed_as": "Workframe-wide policy or product framing distributed across the substantive capability modules.",
           "evidence": [
             "CONVERSATION-FIRST-REMEDIATION-PLAN.md"
           ]
         },
         {
           "item_id": "item:987075b1-a3a6-58b2-9fec-872d881e8424",
-          "distributed_as": "Canonical product and architecture contract distributed across every module.",
+          "distributed_as": "Workframe-wide policy or product framing distributed across the substantive capability modules.",
           "evidence": [
             "README.md"
           ]
@@ -3731,7 +6404,7 @@
           "id": "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
           "mode": "is",
           "state": "shipped",
-          "summary": "Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific fan-out batches, preserves exact excerpts and overlapping episodes, and independently reconstructs full provenance, provider-facing conversation bytes, parent-harness attribution, and manifest-bound Claude system instructions.",
+          "summary": "Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific batches, preserves exact context and overlapping episodes, relates durable runs to invocations, and independently reconstructs provider-facing manifests.",
           "detail": null,
           "source_ids": [
             "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
@@ -3749,14 +6422,13 @@
         {
           "id": "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
           "mode": "is",
-          "state": "shipped",
-          "summary": "Outport authority, interactive launchd supervision, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, snapshots, restore, and provider-drift diagnosis execute; semantic Claude and Codex cross-feed, fork, resume, fallback, failure recovery, and restart continuation passed.",
+          "state": "partial",
+          "summary": "Outport authority, launchd supervision, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, cancellation, durable-run recovery, snapshots, and fail-closed provider attestation execute; current authenticated profile and restored-continuation qualification remains unclosed.",
           "detail": null,
           "source_ids": [
             "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
-            "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
             "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-            "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3"
+            "source:a7c67d5f-688b-50ec-a92b-d14257cef778"
           ],
           "origin": null,
           "owner_confirmed": null,
@@ -3792,7 +6464,7 @@
           "id": "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
           "mode": "is",
           "state": "shipped",
-          "summary": "The same-origin cockpit supports direct Claude, Codex, or dual routing, side quests, exact grafts, compare, return, cross-feed, joins, dormant trailheads, continuously visible context deltas, and failure-isolated secondary drawers.",
+          "summary": "The same-origin cockpit supports direct and dual routing, side quests, exact grafts, compare, return, cross-feed, joins, dormant trailheads, latest-wins project navigation, virtualized long responses, visible context deltas, and typed failure surfaces.",
           "detail": null,
           "source_ids": [
             "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
@@ -3810,15 +6482,44 @@
         {
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
-          "state": "shipped",
-          "summary": "Lattice 0.2.0 runs from a source- and byte-attested pinned environment under responsive launchd supervision, with verified post-acceptance backup and restore, exact-current browser and 78-assertion semantic authenticated provider acceptance, and all 24 remediation findings closed.",
+          "state": "partial",
+          "summary": "Lattice 0.3.1 runs from a source- and byte-attested pinned environment under launchd supervision, and the current doctor passes runtime, provider, state, Outport, and backup checks; formal execution-consolidation closure remains unqualified.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-            "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
-            "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
             "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-            "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3"
+            "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
+            "source:a7c67d5f-688b-50ec-a92b-d14257cef778"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": []
+        },
+        {
+          "id": "claim:92c05c36-dd41-546f-b638-d514e964fa35",
+          "mode": "doing",
+          "state": "open",
+          "summary": "Execution consolidation awaits an independently passing current-runtime bundle covering browser, authenticated providers, restart, separate-root restore, all registered consumers, historical imports, negative controls, and final finding closure.",
+          "detail": null,
+          "source_ids": [
+            "source:020b6359-622a-52e0-976e-8b22e2a61f1b",
+            "source:a7c67d5f-688b-50ec-a92b-d14257cef778"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": []
+        },
+        {
+          "id": "claim:aa9af209-ff83-57cb-ba54-7a5197e2aad9",
+          "mode": "doing",
+          "state": "open",
+          "summary": "The durable-work program is extending Lattice from conversational provider execution into the ordinary control plane for resumable local jobs, incremental evidence, resource-aware progress, and real-work dogfooding.",
+          "detail": null,
+          "source_ids": [
+            "source:7bf182e2-7d4a-58a0-b9c1-16a3766d87b8",
+            "source:1bed9604-7f0c-589c-a954-1508e9e796f2"
           ],
           "origin": null,
           "owner_confirmed": null,
@@ -3829,7 +6530,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:66dc92cf-0852-4a62-ad82-cc382ab87884",
+    "parent_surface_id": "surface:b04e8c8f-f946-446e-936f-34e585a394cc",
     "preserved_claim_ids": [
       "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
@@ -3837,23 +6538,30 @@
       "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
       "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328"
     ],
-    "added_claim_ids": [],
+    "added_claim_ids": [
+      "claim:92c05c36-dd41-546f-b638-d514e964fa35",
+      "claim:aa9af209-ff83-57cb-ba54-7a5197e2aad9"
+    ],
     "retired_claim_ids": [],
     "preserved_source_ids": [
-      "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
-      "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
-      "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
       "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+      "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
+      "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
+      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
+      "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
+      "source:f333a39f-3890-565c-82cb-93805cfab6c6",
       "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
       "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
       "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
-      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
-      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
-      "source:f333a39f-3890-565c-82cb-93805cfab6c6"
+      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3"
     ],
-    "added_source_ids": [],
+    "added_source_ids": [
+      "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
+      "source:020b6359-622a-52e0-976e-8b22e2a61f1b",
+      "source:7bf182e2-7d4a-58a0-b9c1-16a3766d87b8"
+    ],
     "retired_source_ids": []
   },
   "surface_residuals": {
@@ -3863,7 +6571,11 @@
     "staleness": [
       {
         "source_id": "source:f333a39f-3890-565c-82cb-93805cfab6c6",
-        "reason": "The earlier whole-system audit remains historical assurance at its frozen pre-conversation-first revision; a new immutable-revision audit is published separately from this Surface generation."
+        "reason": "The earlier whole-system audit remains historical assurance at its frozen pre-conversation-first revision."
+      },
+      {
+        "source_id": "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+        "reason": "The authenticated acceptance report proves the earlier conversation-first runtime, not the current installed runtime or current execution-consolidation closure."
       }
     ],
     "legacy_unresolved": []
