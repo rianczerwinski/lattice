@@ -468,9 +468,14 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         from .execution import installed_adapter_status
         statuses = await asyncio.to_thread(installed_adapter_status, probe_versions=False)
         bind_current_provider_qualifications(statuses)
-        route_status = next((item for item in statuses if item["qualified"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"] and (not policy["allowed_models"] or item["model_code"] in policy["allowed_models"])), None)
+        route_status = next((item for item in statuses if item["qualified"] and item["provider_code"] == policy["provider"] and item["official_cli"] == policy["harness"]), None)
         if route_status is None:
             raise LatticeConflict(f"qualified {policy['provider']} trigger route is unavailable")
+        if policy["allowed_models"]:
+            selected_model = next((model for model in policy["allowed_models"] if model in route_status.get("supported_models", [])), None)
+            if selected_model is None:
+                raise LatticeConflict(f"qualified {policy['provider']} trigger route admits none of the workflow's allowed models")
+            route_status = {**route_status, "model_code": selected_model}
         return session, policy, route_status
 
     def materialize_trigger_invocation(*, project_id: str, trigger: dict[str, Any], action: dict[str, Any], evidence_block_ids: list[str], trigger_plan: tuple[dict[str, Any], dict[str, Any], dict[str, Any]]) -> dict[str, Any]:

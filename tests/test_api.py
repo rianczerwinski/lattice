@@ -803,10 +803,10 @@ def test_negative_control_artifact_graft_rejects_semantic_source_drift(lattice_e
 
 @pytest.mark.oracle
 def test_closure_transition_automatically_seals_dispatches_and_blinds_challenger(monkeypatch, lattice_env) -> None:
-    _qualify_trigger_route(monkeypatch, lattice_env)
+    _qualify_trigger_route(monkeypatch, lattice_env, provider="anthropic")
     store = lattice_env["store"]
     pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
-    created = store.create_workflow_project_atomic(title="closure workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose bounded closure."}, {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
+    created = store.create_workflow_project_atomic(title="closure workflow", purpose="", workflow_pack="quaternary", initial_state="countersearch", role_specs=[{"role_id": "sol", "name": "Orchestrator", "provider": "openai", "harness": "codex", "allowed_models": [], "authority": "propose-only", "instructions": "Propose bounded closure."}, {"role_id": "verifier", "name": "Blinded closure challenger", "provider": "anthropic", "harness": "claude", "allowed_models": ["claude-opus-5"], "authority": "challenge-only", "instructions": "Recompute independently."}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None, pack_canonical_sha256=pack_sha)
     project_id = created["project"]["project_id"]
     evidence = _terminal_workflow_output(lattice_env, created, "INDEPENDENT_BASE_EVIDENCE", workflow_role_key="sol")
     candidate = store.create_context_block(ContextBlockCreate(project_id=project_id, semantic_type="closure-candidate", content="SECRET_PROPOSER_CONCLUSION"))
@@ -828,6 +828,7 @@ def test_closure_transition_automatically_seals_dispatches_and_blinds_challenger
     assert granted.status_code == 200, granted.text
     assert response.status_code == 200, response.text
     challenger = response.json()["challenger_invocation"]
+    assert challenger["route"]["model"] == "claude-opus-5"
     assert response.json()["challenger_attempt"]["state"] == "leased"
     assert dispatched == [challenger["invocation_id"]]
     exact_context = store.blobs.get(challenger["compiled_prompt_sha256"])
