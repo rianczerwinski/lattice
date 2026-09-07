@@ -808,6 +808,11 @@ def test_contract_explicit_login_failure_is_authentication() -> None:
 
 
 @pytest.mark.regression
+def test_regression_keychain_parameter_failure_is_a_host_boundary_failure() -> None:
+    assert classify_provider_failure(1, "", "keychain item for meta is unreadable (os status -50)") == "harness_failure"
+
+
+@pytest.mark.regression
 def test_negative_control_non_json_response_is_rejected(tmp_path: Path) -> None:
     adapter = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "xai")
     with pytest.raises(SubscriptionInvocationFailed) as raised:

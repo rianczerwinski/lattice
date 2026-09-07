@@ -717,6 +717,7 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
             "failed to initialize in-process app-server client",
             "invalid_json_schema",
             "invalid schema for response_format",
+            "keychain item for meta is unreadable (os status -50)",
         )
     ):
         return "harness_failure"
@@ -726,7 +727,6 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
             "authentication failed",
             "authentication required",
             "missing meta credentials",
-            "keychain item for meta is unreadable",
             "login required",
             "log in to continue",
             "please login",
