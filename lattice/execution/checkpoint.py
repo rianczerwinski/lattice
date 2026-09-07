@@ -87,6 +87,7 @@ def bind_request(
     journal: RunJournal,
     *,
     prompt: str,
+    provider_prompt: str | None = None,
     system_prompt: str | None = None,
     response_format: str,
     resume_strategy: str,
@@ -97,6 +98,9 @@ def bind_request(
     """Bind immutable request bytes before a provider process starts."""
     prompt_bytes = prompt.encode("utf-8")
     write_new_file(journal.prompt, prompt_bytes)
+    provider_prompt_bytes = provider_prompt.encode("utf-8") if provider_prompt is not None else None
+    if provider_prompt_bytes is not None:
+        write_new_file(journal.provider_prompt, provider_prompt_bytes)
     system_prompt_bytes = system_prompt.encode("utf-8") if system_prompt is not None else None
     if system_prompt_bytes is not None:
         write_new_file(journal.system_prompt, system_prompt_bytes)
@@ -110,6 +114,8 @@ def bind_request(
         "effort": start["effort"],
         "prompt": journal.prompt.name,
         "prompt_sha256": _sha256(prompt_bytes),
+        "provider_prompt": journal.provider_prompt.name if provider_prompt_bytes is not None else None,
+        "provider_prompt_sha256": _sha256(provider_prompt_bytes) if provider_prompt_bytes is not None else None,
         "system_prompt": journal.system_prompt.name if system_prompt_bytes is not None else None,
         "system_prompt_sha256": _sha256(system_prompt_bytes) if system_prompt_bytes is not None else None,
         "response_format": response_format,
@@ -131,6 +137,17 @@ def bind_request(
                     "revision": None,
                     "sha256": request["prompt_sha256"],
                 },
+                *(
+                    [
+                        {
+                            "ref": str(journal.provider_prompt),
+                            "revision": None,
+                            "sha256": request["provider_prompt_sha256"],
+                        }
+                    ]
+                    if provider_prompt_bytes is not None
+                    else []
+                ),
                 *(
                     [
                         {
@@ -181,6 +198,14 @@ def load_checkpoint(path_or_root: Path | str) -> dict[str, Any]:
     prompt_path = checkpoint_path.parent / request["prompt"]
     if _sha256(prompt_path.read_bytes()) != request["prompt_sha256"]:
         raise ValueError(f"checkpoint prompt binding failed: {prompt_path}")
+    provider_prompt_name = request.get("provider_prompt")
+    provider_prompt_sha256 = request.get("provider_prompt_sha256")
+    if provider_prompt_name is not None:
+        provider_prompt_path = checkpoint_path.parent / provider_prompt_name
+        if not isinstance(provider_prompt_sha256, str) or _sha256(provider_prompt_path.read_bytes()) != provider_prompt_sha256:
+            raise ValueError(f"checkpoint provider prompt binding failed: {provider_prompt_path}")
+    elif provider_prompt_sha256 is not None:
+        raise ValueError("checkpoint carries a provider prompt digest without a file")
     system_prompt_name = request.get("system_prompt")
     system_prompt_sha256 = request.get("system_prompt_sha256")
     if system_prompt_name is not None:

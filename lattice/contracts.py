@@ -472,9 +472,9 @@ class RunAttemptFinishV1(StrictModel):
 
 class ProviderRoute(StrictModel):
     route_kind: Literal["execution", "historical-import"] = "execution"
-    provider: Literal["anthropic", "openai", "google", "xai"]
+    provider: Literal["anthropic", "openai", "google", "xai", "meta"]
     model: str = Field(min_length=1)
-    harness: Literal["claude", "codex", "antigravity", "grok"]
+    harness: Literal["claude", "codex", "antigravity", "grok", "muse"]
     provider_profile_id: str | None = Field(default=None, pattern=r"^provider-profile:[0-9a-f]{64}$")
     effort: Literal["low", "medium", "high", "xhigh", "max", "ultra"] = "high"
     execution_profile: Literal["compiled-fresh", "research-fresh", "workspace-agent", "native-continuation"] = "compiled-fresh"
@@ -491,7 +491,7 @@ class ProviderRoute(StrictModel):
 
     @model_validator(mode="after")
     def provider_matches_official_harness(self) -> "ProviderRoute":
-        expected = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "xai": "grok"}
+        expected = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "xai": "grok", "meta": "muse"}
         if expected[self.provider] != self.harness:
             raise ValueError(f"{self.provider} is qualified only through {expected[self.provider]}")
         if self.route_kind == "historical-import":
@@ -1052,15 +1052,15 @@ class ContextModuleDefinition(StrictModel):
 class WorkflowRoleDefinition(StrictModel):
     role_id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
     name: str = Field(min_length=1, max_length=120)
-    provider: Literal["anthropic", "openai", "google", "xai", "local", "operator"]
-    harness: Literal["claude", "codex", "antigravity", "grok"] | None = None
+    provider: Literal["anthropic", "openai", "google", "xai", "meta", "local", "operator"]
+    harness: Literal["claude", "codex", "antigravity", "grok", "muse"] | None = None
     allowed_models: list[str] = Field(default_factory=list)
     authority: str = Field(min_length=1)
     instructions: str | None = Field(default=None, min_length=1, max_length=100_000)
 
     @model_validator(mode="after")
     def execution_boundary_is_explicit(self) -> "WorkflowRoleDefinition":
-        expected = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "xai": "grok"}
+        expected = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "xai": "grok", "meta": "muse"}
         if self.provider in expected and self.harness != expected[self.provider]:
             raise ValueError(f"{self.provider} workflow roles require the {expected[self.provider]} harness")
         if self.provider in {"local", "operator"} and self.harness is not None:

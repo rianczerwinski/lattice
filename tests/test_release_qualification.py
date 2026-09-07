@@ -147,9 +147,11 @@ def test_provider_qualification_probes_the_shallow_subscription_gate_first(monke
 
     qualify_release.run_provider_canaries(object(), tmp_path, timeout=1)
 
-    assert observed[:4] == [
+    assert observed[:6] == [
         ("xai", "compiled-fresh"),
         ("xai", "research-fresh"),
+        ("meta", "compiled-fresh"),
+        ("meta", "research-fresh"),
         ("google", "compiled-fresh"),
         ("google", "research-fresh"),
     ]

@@ -22,7 +22,7 @@ from jsonschema.exceptions import SchemaError
 from .checkpoint import bind_request
 from .journal import create_run_journal, finish_run_journal
 from .process import MAX_MODEL_OUTPUT_BYTES, ProcessCancelled, ProcessOutputLimit, run_bounded
-from .providers import antigravity, claude, codex, grok
+from .providers import antigravity, claude, codex, grok, muse
 
 
 FAILURE_KINDS = {
@@ -234,6 +234,36 @@ DEFAULT_ADAPTERS = (
         capability_compiler="grok-isolation/1",
         parser_revision="grok-structured-output/1",
     ),
+    ProviderProfile(
+        "meta",
+        "muse",
+        "muse",
+        "muse-spark-1.3-contributor",
+        "muse_jsonl",
+        (
+            "native-config-root-censused-and-execution-settings-overridden",
+            "isolated-data-cache-state-and-workspace",
+            "owner-only-device-code-oauth-metadata",
+            "keychain-backed-subscription-session",
+            "developer-api-credentials-excluded",
+            "foreign-personal-context-disabled",
+            "session-persistence-disabled",
+            "shell-and-write-tools-disabled",
+            "web-tools-gated-by-execution-profile",
+            "untrusted-headless-approval",
+            "parallel-tool-calls-disabled",
+            "single-model-step",
+        ),
+        (
+            "provider-managed system and developer context plus built-in tool schemas are not byte-disclosed",
+            "Muse has no native JSON-schema response flag; Lattice appends and journals the exact schema contract in the provider prompt",
+        ),
+        ("compiled-fresh", "research-fresh"),
+        supported_models=("muse-spark-1.3-contributor",),
+        supported_efforts=("low", "medium", "high", "xhigh"),
+        capability_compiler="muse-isolation/1",
+        parser_revision="muse-jsonl-terminal/1",
+    ),
 )
 
 
@@ -249,7 +279,11 @@ CLAUDE_PERMISSION = re.compile(r"^[A-Za-z][A-Za-z0-9]*(?:\([^()\r\n,]{1,500}\))?
 
 def _cli_version(binary: str) -> str:
     try:
-        completed = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=20, check=False)
+        environment = None
+        if Path(binary).name == "muse":
+            environment = os.environ.copy()
+            environment["MUSE_NO_AUTO_UPDATE"] = "1"
+        completed = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=20, check=False, env=environment)
         lines = (completed.stdout + "\n" + completed.stderr).strip().splitlines()
         return lines[0] if lines else "unreported: empty version response"
     except (OSError, subprocess.TimeoutExpired) as error:
@@ -354,6 +388,8 @@ def installed_adapter_status(
                 compatibility, compatibility_detail = antigravity.capability_probe(binary, model=adapter.model_code, effort="high", allow_web=False)
             elif adapter.provider_code == "xai":
                 compatibility, compatibility_detail = grok.capability_probe(binary, model=adapter.model_code, effort="high", allow_web=False)
+            elif adapter.provider_code == "meta":
+                compatibility, compatibility_detail = muse.capability_probe(binary, model=adapter.model_code, effort="high", allow_web=False)
             if compatibility is not None:
                 operational = bool(operational) and compatibility
         result.append({**adapter.definition(), "model_code": adapter.model_code, "binary": binary, "binary_sha256": binary_sha256, "installed": bool(binary), "qualified": bool(binary) and adapter.exact_context_qualified, "operational": operational, "version": version, "control_surface_qualified": compatibility, "control_surface_detail": compatibility_detail})
@@ -443,6 +479,7 @@ def validate_execution_policy(
             "openai": ["web_search"],
             "google": ["read_url"],
             "xai": ["web_search", "web_fetch"],
+            "meta": ["web_search"],
         }.get(adapter.provider_code)
         if expected_tools is None or normalized_tools != expected_tools or network_policy != "provider_managed":
             raise SubscriptionRouteUnavailable(f"{adapter.provider_code} research-fresh requires its exact qualified web-only tool surface")
@@ -661,6 +698,8 @@ def build_command(
         raise SubscriptionRouteUnavailable("Antigravity command construction requires its isolated subscription-home boundary")
     if adapter.provider_code == "xai":
         raise SubscriptionRouteUnavailable("Grok command construction requires its isolated subscription-OIDC boundary")
+    if adapter.provider_code == "meta":
+        raise SubscriptionRouteUnavailable("Muse command construction requires its isolated Meta subscription-OAuth boundary")
     raise SubscriptionRouteUnavailable(
         f"{adapter.provider_code} has no qualified official subscription CLI adapter"
     )
@@ -686,6 +725,8 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
         for marker in (
             "authentication failed",
             "authentication required",
+            "missing meta credentials",
+            "keychain item for meta is unreadable",
             "login required",
             "log in to continue",
             "please login",
@@ -914,6 +955,7 @@ def invoke_subscription(
         output_path = isolated / "structured-output.json"
         execution_cwd = Path(effective_policy["workspace"]) if effective_policy["workspace"] else isolated
         execution_environment = subscription_environment()
+        provider_prompt = None
         if adapter.provider_code == "google":
             allow_web = effective_policy["execution_profile"] == "research-fresh"
             qualified, detail = antigravity.capability_probe(binary, model=adapter.model_code, effort=effort, allow_web=allow_web)
@@ -944,6 +986,20 @@ def invoke_subscription(
                 schema=schema,
                 allow_web=allow_web,
             )
+        elif adapter.provider_code == "meta":
+            allow_web = effective_policy["execution_profile"] == "research-fresh"
+            qualified, detail = muse.capability_probe(binary, model=adapter.model_code, effort=effort, allow_web=allow_web)
+            if not qualified:
+                raise SubscriptionRouteUnavailable(detail)
+            command, input_text, execution_cwd, execution_environment, observed_files, provider_prompt = muse.prepare(
+                binary=binary,
+                root=isolated,
+                model=adapter.model_code,
+                effort=effort,
+                prompt=prompt,
+                schema=schema,
+                allow_web=allow_web,
+            )
         else:
             command, input_text, observed_files = build_command(
                 adapter,
@@ -956,9 +1012,12 @@ def invoke_subscription(
                 system_prompt=system_prompt,
                 effective_policy=effective_policy,
             )
+        if provider_prompt is not None and len(provider_prompt.encode("utf-8")) > MAX_MODEL_INPUT_BYTES:
+            raise ValueError(f"compiled provider input exceeds {MAX_MODEL_INPUT_BYTES} bytes")
         bind_request(
             journal,
             prompt=prompt,
+            provider_prompt=provider_prompt,
             system_prompt=system_prompt,
             response_format="json-schema",
             resume_strategy=adapter.harness,
@@ -1037,9 +1096,14 @@ def invoke_subscription(
                 validation_error = next(_schema_validator(schema).iter_errors(payload), None)
                 if validation_error is not None:
                     raise SubscriptionInvocationFailed("malformed_output", f"structured response failed its Draft 2020-12 contract: {validation_error.message[:500]}")
+            elif adapter.provider_code == "meta":
+                payload = muse.parse_output(result.stdout)
+                validation_error = next(_schema_validator(schema).iter_errors(payload), None)
+                if validation_error is not None:
+                    raise SubscriptionInvocationFailed("malformed_output", f"structured response failed its Draft 2020-12 contract: {validation_error.message[:500]}")
             else:
                 payload = parse_structured_response(adapter, result.stdout, output_path, schema)
-        except (SubscriptionInvocationFailed, antigravity.AntigravityBoundaryError, grok.GrokBoundaryError) as error:
+        except (SubscriptionInvocationFailed, antigravity.AntigravityBoundaryError, grok.GrokBoundaryError, muse.MuseBoundaryError) as error:
             if not isinstance(error, SubscriptionInvocationFailed):
                 error = SubscriptionInvocationFailed("malformed_output", str(error))
             finish_run_journal(journal, "failed", failure_kind=error.kind)

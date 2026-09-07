@@ -94,6 +94,28 @@ def test_oracle_binds_separate_system_instruction_bytes(tmp_path: Path) -> None:
         load_checkpoint(journal.root)
 
 
+@pytest.mark.oracle
+def test_oracle_binds_the_exact_provider_compiled_prompt(tmp_path: Path) -> None:
+    journal = _journal(tmp_path, driver="muse", subject="provider-prompt")
+    bind_request(
+        journal,
+        prompt="exact Lattice context",
+        provider_prompt="exact Lattice context\n\nprovider response contract",
+        response_format="json",
+        resume_strategy="muse",
+    )
+    request = json.loads(journal.request.read_text(encoding="utf-8"))
+
+    assert journal.provider_prompt.read_text(encoding="utf-8") == "exact Lattice context\n\nprovider response contract"
+    assert request["provider_prompt"] == "provider-prompt.txt"
+    assert len(request["provider_prompt_sha256"]) == 64
+    assert len(load_checkpoint(journal.root)["generated_object"]["sources"]) == 2
+
+    journal.provider_prompt.write_text("mutated provider prompt", encoding="utf-8")
+    with pytest.raises(ValueError, match="provider prompt binding failed"):
+        load_checkpoint(journal.root)
+
+
 @pytest.mark.property
 def test_property_stream_events_advance_exact_counts_and_lineage(tmp_path: Path) -> None:
     journal = _journal(tmp_path, timeout=10)
@@ -305,7 +327,7 @@ def test_negative_control_terminal_receipt_write_failure_is_never_reported_as_su
 
 @pytest.mark.contract
 def test_contract_adapter_definitions_use_subscription_auth_only() -> None:
-    assert {adapter.provider_code for adapter in DEFAULT_ADAPTERS} == {"anthropic", "openai", "google", "moonshot", "xai"}
+    assert {adapter.provider_code for adapter in DEFAULT_ADAPTERS} == {"anthropic", "openai", "google", "moonshot", "xai", "meta"}
     assert all(adapter.definition()["auth_surface"] == "consumer_subscription_cli" for adapter in DEFAULT_ADAPTERS)
     anthropic = next(adapter for adapter in DEFAULT_ADAPTERS if adapter.provider_code == "anthropic")
     assert {
@@ -644,15 +666,18 @@ def test_contract_native_resume_and_fork_require_an_observed_session(tmp_path: P
 
 
 @pytest.mark.contract
-def test_contract_google_and_xai_refuse_generic_command_construction(tmp_path: Path) -> None:
+def test_contract_provider_owned_isolation_boundaries_refuse_generic_command_construction(tmp_path: Path) -> None:
     schema_path = tmp_path / "schema.json"
     schema_path.write_text('{"type":"object"}', encoding="utf-8")
     google = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "google")
     grok = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "xai")
+    meta = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "meta")
     with pytest.raises(SubscriptionRouteUnavailable, match="isolated subscription-home"):
         build_command(google, binary="/agy", isolated=tmp_path, schema_path=schema_path, output_path=tmp_path / "out.json", effort="high", prompt="return JSON")
     with pytest.raises(SubscriptionRouteUnavailable, match="isolated subscription-OIDC"):
         build_command(grok, binary="/grok", isolated=tmp_path, schema_path=schema_path, output_path=tmp_path / "out.json", effort="high", prompt="return JSON")
+    with pytest.raises(SubscriptionRouteUnavailable, match="isolated Meta subscription-OAuth"):
+        build_command(meta, binary="/muse", isolated=tmp_path, schema_path=schema_path, output_path=tmp_path / "out.json", effort="high", prompt="return JSON")
 
 
 @pytest.mark.property
@@ -695,7 +720,7 @@ def test_contract_commands_disable_tools_where_supported(tmp_path: Path) -> None
     schema_path.write_text('{"type":"object"}', encoding="utf-8")
     commands = {}
     for adapter in DEFAULT_ADAPTERS:
-        if adapter.provider_code in {"moonshot", "google", "xai"}:
+        if adapter.provider_code in {"moonshot", "google", "xai", "meta"}:
             continue
         command, _, _ = build_command(
             adapter,
@@ -720,7 +745,7 @@ def test_contract_provider_prompts_are_never_process_arguments(tmp_path: Path) -
     schema_path = tmp_path / "schema.json"
     schema_path.write_text('{"type":"object"}', encoding="utf-8")
     for adapter in DEFAULT_ADAPTERS:
-        if adapter.provider_code in {"moonshot", "google", "xai"}:
+        if adapter.provider_code in {"moonshot", "google", "xai", "meta"}:
             continue
         command, input_text, _ = build_command(
             adapter,
@@ -890,3 +915,41 @@ def test_negative_control_response_schema_cannot_retrieve_external_authority(tmp
     adapter = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "xai")
     with pytest.raises(ValueError, match="external references"):
         parse_structured_response(adapter, "{}", tmp_path / "missing.json", {"$ref": "https://example.com/schema.json"})
+
+
+@pytest.mark.oracle
+def test_oracle_meta_dispatch_parses_muse_jsonl_and_journals_the_provider_prompt(tmp_path: Path) -> None:
+    adapter = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "meta")
+    schema = {"type": "object", "additionalProperties": False, "required": ["status"], "properties": {"status": {"const": "ok"}}}
+    provider_prompt = "exact lattice context\n\nexact provider response contract"
+    terminal = json.dumps(
+        {
+            "schema_version": 1,
+            "payload_type": "run.terminal.completed",
+            "payload": {"terminal": "completed", "text": '{"status":"ok"}', "reason": None},
+        }
+    )
+
+    def fake_prepare(**kwargs):
+        root = kwargs["root"]
+        return ["/fixture/muse"], None, root, {}, {}, provider_prompt
+
+    with patch("lattice.execution.adapters.shutil.which", return_value="/fixture/muse"), patch(
+        "lattice.execution.adapters._cli_version", return_value="Muse Code fixture"
+    ), patch("lattice.execution.adapters.muse.capability_probe", return_value=(True, "qualified")), patch(
+        "lattice.execution.adapters.muse.prepare", side_effect=fake_prepare
+    ), patch(
+        "lattice.execution.adapters.run_bounded", return_value=SimpleNamespace(returncode=0, stdout=terminal, stderr="")
+    ):
+        payload, journal = invoke_subscription(
+            adapter,
+            prompt="exact lattice context",
+            schema=schema,
+            runs_dir=tmp_path / "runs",
+            subject="meta-dispatch",
+        )
+
+    request = json.loads((journal / "request.json").read_text(encoding="utf-8"))
+    assert payload == {"status": "ok"}
+    assert (journal / "provider-prompt.txt").read_text(encoding="utf-8") == provider_prompt
+    assert request["provider_prompt_sha256"] == __import__("hashlib").sha256(provider_prompt.encode()).hexdigest()

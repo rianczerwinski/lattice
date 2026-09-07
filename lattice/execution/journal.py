@@ -28,6 +28,7 @@ class RunJournal:
     continuation: Path
     request: Path
     prompt: Path
+    provider_prompt: Path
     system_prompt: Path
 
 
@@ -77,6 +78,7 @@ def journal_from_root(root: Path) -> RunJournal:
         continuation=root / "continuation.json",
         request=root / "request.json",
         prompt=root / "prompt.txt",
+        provider_prompt=root / "provider-prompt.txt",
         system_prompt=root / "system-prompt.txt",
     )
 

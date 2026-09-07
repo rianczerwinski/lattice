@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from lattice.execution import adapters
-from lattice.execution.providers import antigravity, grok
+from lattice.execution.providers import antigravity, grok, muse
 
 
 def _grok_auth(root: Path, *, mode: str = "oidc") -> Path:
@@ -33,6 +33,117 @@ def _grok_auth(root: Path, *, mode: str = "oidc") -> Path:
     )
     auth.chmod(0o600)
     return auth
+
+
+def _muse_auth(root: Path, *, mechanism: str = "oauth") -> Path:
+    state = root / ".config" / "muse"
+    state.mkdir(mode=0o700, parents=True)
+    auth = state / "auth.json"
+    auth.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "providers": {
+                    "meta": {
+                        "api_base_url": "https://api.meta.ai/v1",
+                        "mechanism": mechanism,
+                        "obtained_via": "device_code",
+                        "storage": "keychain",
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    auth.chmod(0o600)
+    return auth
+
+
+@pytest.mark.contract
+def test_muse_isolates_device_code_oauth_and_excludes_developer_credentials(monkeypatch, tmp_path: Path) -> None:
+    source = tmp_path / "real-home"
+    _muse_auth(source)
+    monkeypatch.setattr(muse.Path, "home", classmethod(lambda _cls: source))
+    monkeypatch.setenv("META_API_KEY", "developer-secret-must-not-cross")
+    monkeypatch.setenv("HTTPS_PROXY", "https://interceptor.invalid")
+
+    home, workspace, environment = muse.isolated_state(tmp_path / "run")
+
+    admitted_auth = Path(environment["MUSE_AUTH_PATH"])
+    assert admitted_auth == source / ".config" / "muse" / "auth.json"
+    assert admitted_auth.stat().st_mode & 0o077 == 0
+    assert environment["XDG_CONFIG_HOME"] == str(source / ".config")
+    assert not (tmp_path / "run" / "config").exists()
+    assert environment["HOME"] == str(home)
+    assert environment["MUSE_NO_AUTO_UPDATE"] == "1"
+    assert "META_API_KEY" not in environment
+    assert "HTTPS_PROXY" not in environment
+    assert workspace.parent == tmp_path / "run"
+
+
+@pytest.mark.regression
+def test_muse_rejects_developer_auth_metadata(monkeypatch, tmp_path: Path) -> None:
+    _muse_auth(tmp_path, mechanism="api_key")
+    monkeypatch.setattr(muse.Path, "home", classmethod(lambda _cls: tmp_path))
+
+    with pytest.raises(muse.MuseBoundaryError, match="device-code OAuth"):
+        muse._validated_auth_source()
+
+
+@pytest.mark.regression
+def test_muse_rejects_unqualified_native_config(monkeypatch, tmp_path: Path) -> None:
+    auth = _muse_auth(tmp_path)
+    (auth.parent / "provider-override.json").write_text('{"base_url":"https://proxy.invalid"}', encoding="utf-8")
+    monkeypatch.setattr(muse.Path, "home", classmethod(lambda _cls: tmp_path))
+
+    with pytest.raises(muse.MuseBoundaryError, match="unqualified entries"):
+        muse.isolated_state(tmp_path / "run")
+
+
+@pytest.mark.contract
+def test_muse_compiles_schema_into_a_separate_provider_prompt_file(monkeypatch, tmp_path: Path) -> None:
+    _muse_auth(tmp_path)
+    monkeypatch.setattr(muse.Path, "home", classmethod(lambda _cls: tmp_path))
+    monkeypatch.setattr(muse, "_binary_identity", lambda _binary: (("/fixture/muse", "digest"),))
+    muse._ATTESTED[("/fixture/muse", "muse-spark-1.3-contributor", "high", False)] = (("/fixture/muse", "digest"),)
+    schema = {"type": "object", "required": ["answer"], "properties": {"answer": {"type": "string"}}}
+
+    command, input_text, _workspace, _environment, _observed, provider_prompt = muse.prepare(
+        binary="/fixture/muse",
+        root=tmp_path / "run",
+        model="muse-spark-1.3-contributor",
+        effort="high",
+        prompt="PRIVATE_PROMPT_MARKER",
+        schema=schema,
+        allow_web=False,
+    )
+
+    prompt_path = Path(command[command.index("--prompt-file") + 1])
+    assert prompt_path.read_text(encoding="utf-8") == provider_prompt
+    assert "PRIVATE_PROMPT_MARKER" in provider_prompt
+    assert json.dumps(schema, sort_keys=True, separators=(",", ":")) in provider_prompt
+    assert "PRIVATE_PROMPT_MARKER" not in command
+    assert input_text is None
+    assert "--disable-web-tools" in command
+    assert "--no-session-log" in command
+
+
+@pytest.mark.regression
+def test_muse_jsonl_parser_accepts_only_one_completed_terminal_object() -> None:
+    payload = {"answer": "done"}
+    completed = {
+        "schema_version": 1,
+        "payload_type": "run.terminal.completed",
+        "payload": {"terminal": "completed", "text": json.dumps(payload), "reason": None},
+    }
+    assert muse.parse_output(json.dumps(completed)) == payload
+
+    with pytest.raises(muse.MuseBoundaryError, match="exactly one terminal"):
+        muse.parse_output("\n".join((json.dumps(completed), json.dumps(completed))))
+
+    completed["payload"]["text"] = '{"answer":"first","answer":"forged"}'
+    with pytest.raises(muse.MuseBoundaryError, match="duplicate JSON key"):
+        muse.parse_output(json.dumps(completed))
 
 
 @pytest.mark.regression

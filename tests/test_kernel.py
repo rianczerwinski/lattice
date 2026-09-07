@@ -557,6 +557,15 @@ def test_negative_control_manifest_cannot_claim_execution_authority_the_runner_d
     assert "shell-tools-disabled" in sealed["manifest"]["capabilities"]["enforcement"]
 
 
+@pytest.mark.contract
+def test_meta_routes_are_bound_to_muse_and_the_spark_subscription_model() -> None:
+    route = ProviderRoute(provider="meta", model="muse-spark-1.3-contributor", harness="muse")
+
+    assert route.provider_profile_id is not None
+    with pytest.raises(Exception, match="qualified only through muse"):
+        ProviderRoute(provider="meta", model="muse-spark-1.3-contributor", harness="grok")
+
+
 @pytest.mark.regression
 def test_regression_trailheads_are_branch_tips_not_roots(lattice_env) -> None:
     root = completed_invocation(lattice_env, "root", "root answer")

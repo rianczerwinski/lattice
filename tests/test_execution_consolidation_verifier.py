@@ -21,6 +21,15 @@ verifier = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(verifier)
 
 
+@pytest.mark.contract
+def test_independent_verifier_recognizes_the_qualified_meta_muse_profiles() -> None:
+    assert verifier.PROVIDER_HARNESSES["meta"] == "muse"
+    assert {profile for provider, profile in verifier.REQUIRED_PROVIDER_PROFILES if provider == "meta"} == {
+        "compiled-fresh",
+        "research-fresh",
+    }
+
+
 @pytest.mark.regression
 @pytest.mark.parametrize(
     "relative_path",

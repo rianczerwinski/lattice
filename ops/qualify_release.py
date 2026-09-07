@@ -32,6 +32,7 @@ PROVIDERS = {
     "openai": {"model": "gpt-5.6-sol", "harness": "codex", "effort": "high"},
     "google": {"model": "gemini-3.7-flash-high", "harness": "antigravity", "effort": "high"},
     "xai": {"model": "grok-4.5", "harness": "grok", "effort": "high"},
+    "meta": {"model": "muse-spark-1.3-contributor", "harness": "muse", "effort": "high"},
 }
 
 EXPECTED_CANARY_PROFILES = {
@@ -49,6 +50,8 @@ EXPECTED_CANARY_PROFILES = {
     ("google", "research-fresh"),
     ("xai", "compiled-fresh"),
     ("xai", "research-fresh"),
+    ("meta", "compiled-fresh"),
+    ("meta", "research-fresh"),
 }
 
 
@@ -169,7 +172,7 @@ def _route(provider: str, *, profile: str, workspace: Path | None = None, parent
         "network_policy": "disabled",
     }
     if profile == "research-fresh":
-        value["tools"] = {"google": ["read_url"], "xai": ["web_search", "web_fetch"]}[provider]
+        value["tools"] = {"google": ["read_url"], "xai": ["web_search", "web_fetch"], "meta": ["web_search"]}[provider]
         value["network_policy"] = "provider_managed"
     elif profile in {"workspace-agent", "native-continuation"}:
         if provider == "anthropic":
@@ -252,7 +255,7 @@ def run_provider_canaries(client: LatticeClient, data_root: Path, *, timeout: fl
     # Subscription exhaustion is cheapest to discover on the two-call providers.
     # Run Grok first so a depleted balance cannot waste the ten deeper Claude and
     # Codex continuity canaries before the qualification is certain to fail.
-    for provider in ("xai", "google"):
+    for provider in ("xai", "meta", "google"):
         for route_profile in ("compiled-fresh", "research-fresh"):
             marker = f"QUAL-{provider.upper()}-{route_profile.upper()}"
             receipt, _result = _execute_canary(client, _submission(provider, route_profile, route_profile=route_profile, marker=marker, research=route_profile == "research-fresh"), provider=provider, profile_label=route_profile, marker=marker, timeout=timeout)

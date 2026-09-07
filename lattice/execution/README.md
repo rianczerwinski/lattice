@@ -16,7 +16,7 @@ Neither mode reconstructs hidden model cognition. Both preserve externally manif
 
 - `stdout.log`, `stderr.log`, and `progress.jsonl` are append-only evidence. They are never rewritten or compacted.
 - `continuation.json` is a derived view of the checkpoint and observable stream events, not a model-authored status report.
-- Every checkpoint update mints a new generated-object identity, points to its predecessor, and remains bound to the exact initial prompt and, when present, the exact system-instruction bytes.
+- Every checkpoint update mints a new generated-object identity, points to its predecessor, and remains bound to the exact initial prompt and, when present, the exact provider-compiled prompt and system-instruction bytes.
 - Historical checkpoints may still name producer `axis-model-runner`. Loaders verify request, prompt, and system-prompt hashes rather than producer identity. The checkpoint schema name remains `axis-model-run-checkpoint` so those journals stay readable.
 
 ## Bounds
@@ -26,3 +26,7 @@ Provider adapters admit at most 64 MiB of input and 64 MiB of combined provider 
 ## Claude system-instruction channel
 
 Claude exposes its official system-prompt file surface. Exact system instructions are written to a temporary file, journaled and hashed independently from the user-message bytes, and passed only as a file path in process arguments. Other providers reject a separate system channel until their official CLIs expose and pass qualification for an equivalent surface.
+
+## Muse response-contract channel
+
+Muse Code exposes prompt-file input and machine-readable JSONL events but no native response-schema flag. Its adapter preserves the original Lattice context as `prompt.txt`, deterministically appends the Draft 2020-12 schema contract in `provider-prompt.txt`, binds both files in `request.json`, and passes only the temporary provider-prompt path to Muse. The final object is accepted only from the single completed terminal event and is then validated by Lattice against the original schema.

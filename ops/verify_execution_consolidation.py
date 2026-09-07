@@ -26,8 +26,8 @@ import rfc8785
 EXPECTED_SCHEMA_VERSION = 15
 TERMINAL_INVOCATION_STATES = {"succeeded", "failed", "interrupted", "imported"}
 TERMINAL_ATTEMPT_STATES = {"succeeded", "failed", "interrupted", "orphaned"}
-PROVIDER_HARNESSES = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "moonshot": "kimi", "xai": "grok"}
-PROVIDER_EXECUTABLES = {"claude", "codex", "agy", "grok"}
+PROVIDER_HARNESSES = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "moonshot": "kimi", "xai": "grok", "meta": "muse"}
+PROVIDER_EXECUTABLES = {"claude", "codex", "agy", "grok", "muse"}
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 ARTIFACT_ID = re.compile(r"artifact:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
 REQUIRED_EVIDENCE = {
@@ -80,6 +80,8 @@ REQUIRED_PROVIDER_PROFILES = {
     ("google", "research-fresh"),
     ("xai", "compiled-fresh"),
     ("xai", "research-fresh"),
+    ("meta", "compiled-fresh"),
+    ("meta", "research-fresh"),
 }
 HISTORICAL_EXECUTION_KEY = "field-survey.research-pipeline.historical-topology-v2"
 LEGACY_HISTORICAL_EXECUTION_KEY = "field-survey.research-pipeline"
