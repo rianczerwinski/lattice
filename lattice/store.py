@@ -2722,6 +2722,7 @@ class LatticeStore:
         content = value.content.encode("utf-8")
         digest = self.blobs.put(content)
         now = stamp()
+        stable_issuer_ref = f"{pack_id}:{issuer_ref}"
         with self.transaction() as conn:
             instance = self._row(
                 conn.execute(
@@ -2736,30 +2737,67 @@ class LatticeStore:
                 raise LatticeConflict("workflow adapter evidence belongs to another workflow pack")
             if instance["revision"] != expected_workflow_revision:
                 raise LatticeConflict("workflow state changed before adapter evidence became durable")
-            self._insert_context_block(
-                conn,
-                value,
-                block_id=block_id,
-                content=content,
-                digest=digest,
-                now=now,
-                issuer_kind="workflow-adapter",
-                issuer_ref=f"{pack_id}:{issuer_ref}",
-            )
-            self._event(
-                conn,
-                project_id=value.project_id,
-                event_type="workflow.adapter-evidence-admitted",
-                subject_type="context-block",
-                subject_id=block_id,
-                payload={
-                    "pack_id": pack_id,
-                    "pack_canonical_sha256": instance["pack_canonical_sha256"],
-                    "workflow_revision": expected_workflow_revision,
-                    "issuer_ref": issuer_ref,
+            existing = conn.execute(
+                """SELECT b.*,s.status,json_extract(e.payload_json,'$.workflow_revision') AS workflow_revision
+                   FROM context_blocks b
+                   JOIN block_status s USING(block_id)
+                   JOIN events e ON e.project_id=b.project_id
+                     AND e.event_type='workflow.adapter-evidence-admitted'
+                     AND e.subject_type='context-block' AND e.subject_id=b.block_id
+                   WHERE b.project_id=? AND b.issuer_kind='workflow-adapter' AND b.issuer_ref=?
+                   ORDER BY e.seq""",
+                (value.project_id, stable_issuer_ref),
+            ).fetchall()
+            if len(existing) > 1:
+                raise LatticeConflict("workflow adapter issuer receipt is ambiguous")
+            if existing:
+                prior = dict(existing[0])
+                expected = {
+                    "project_id": value.project_id,
+                    "semantic_type": value.semantic_type,
                     "content_sha256": digest,
-                },
-            )
+                    "byte_count": len(content),
+                    "initial_status": value.status.value,
+                    "producing_invocation_id": value.producing_invocation_id,
+                    "source_ref": value.source_ref,
+                    "source_sha256": value.source_sha256,
+                    "authority": value.authority,
+                    "evidence_level": value.evidence_level,
+                    "issuer_kind": "workflow-adapter",
+                    "issuer_ref": stable_issuer_ref,
+                    "sensitivity": value.sensitivity,
+                    "transformation_json": canonical_bytes(value.transformation).decode() if value.transformation is not None else None,
+                    "status": value.status.value,
+                    "workflow_revision": expected_workflow_revision,
+                }
+                if any(prior[key] != expected_value for key, expected_value in expected.items()):
+                    raise LatticeConflict("workflow adapter issuer receipt was reused for different evidence")
+                block_id = str(prior["block_id"])
+            else:
+                self._insert_context_block(
+                    conn,
+                    value,
+                    block_id=block_id,
+                    content=content,
+                    digest=digest,
+                    now=now,
+                    issuer_kind="workflow-adapter",
+                    issuer_ref=stable_issuer_ref,
+                )
+                self._event(
+                    conn,
+                    project_id=value.project_id,
+                    event_type="workflow.adapter-evidence-admitted",
+                    subject_type="context-block",
+                    subject_id=block_id,
+                    payload={
+                        "pack_id": pack_id,
+                        "pack_canonical_sha256": instance["pack_canonical_sha256"],
+                        "workflow_revision": expected_workflow_revision,
+                        "issuer_ref": issuer_ref,
+                        "content_sha256": digest,
+                    },
+                )
         return self.get_block(block_id, include_content=False)
 
     def create_derived_text_block(self, value: DerivedTextBlockCreate) -> dict[str, Any]:
@@ -4786,10 +4824,13 @@ class LatticeStore:
         now = stamp()
         with self.transaction() as conn:
             instance = self._row(conn.execute("SELECT pack_id FROM workflow_instances WHERE project_id=?", (project_id,)).fetchone(), project_id)
-            previous = conn.execute("""SELECT b.block_id,s.revision FROM context_blocks b JOIN block_status s USING(block_id)
+            previous = conn.execute("""SELECT b.block_id,b.content_sha256,b.source_ref,s.revision FROM context_blocks b JOIN block_status s USING(block_id)
                                        JOIN events e ON e.subject_type='context-block' AND e.subject_id=b.block_id AND e.event_type='context-block.created'
                                        WHERE b.project_id=? AND b.semantic_type='workflow-blackboard-snapshot' AND s.status='active'
                                        ORDER BY e.seq DESC LIMIT 1""", (project_id,)).fetchone()
+            if previous and previous["content_sha256"] == content_sha and previous["source_ref"] == source_ref:
+                block_id = str(previous["block_id"])
+                return self.get_block(block_id, include_content=False)
             conn.execute("""INSERT INTO context_blocks(block_id,project_id,semantic_type,content_sha256,byte_count,initial_status,source_ref,source_sha256,authority,evidence_level,issuer_kind,issuer_ref,sensitivity,created_at)
                          VALUES(?,?,?,?,?,'active',?,?,?,'authoritative-read','workflow-engine',?,'private',?)""", (block_id, project_id, "workflow-blackboard-snapshot", content_sha, len(content), source_ref, content_sha, instance["pack_id"], instance["pack_id"], now))
             created_event = self._event(conn, project_id=project_id, event_type="context-block.created", subject_type="context-block", subject_id=block_id, payload={"sha256": content_sha, "semantic_type": "workflow-blackboard-snapshot", "status": "active"})

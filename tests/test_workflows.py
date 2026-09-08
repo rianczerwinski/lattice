@@ -815,6 +815,7 @@ def test_workflow_adapter_evidence_has_a_server_controlled_issuer_and_revision(l
     value = ContextBlockCreate(project_id=project_id, semantic_type="native-query-validation", content='{"accepted":true}', authority="quaternary-query-validator", evidence_level="accepted")
     operator_forgery = store.create_context_block(value)
     adapter_receipt = store.create_workflow_adapter_evidence(value, pack_id="quaternary", expected_workflow_revision=1, issuer_ref="fixture-validator:receipt-1")
+    exact_retry = store.create_workflow_adapter_evidence(value, pack_id="quaternary", expected_workflow_revision=1, issuer_ref="fixture-validator:receipt-1")
     requirement = [{"issuer_kind": "workflow-adapter", "semantic_type": "native-query-validation", "authority": "quaternary-query-validator", "evidence_level": "accepted", "status": "active", "minimum_count": 1}]
 
     with pytest.raises(Exception, match="typed evidence requirement"):
@@ -822,10 +823,25 @@ def test_workflow_adapter_evidence_has_a_server_controlled_issuer_and_revision(l
 
     accepted = store.advance_workflow(project_id=project_id, pack_id="quaternary", expected_revision=1, from_state="native-query-proposal", to_state="frozen-query", evidence_block_ids=[adapter_receipt["block_id"]], payload={}, trigger=None, minimum_evidence_blocks=1, evidence_requirements=requirement)
     assert accepted["workflow"]["state"] == "frozen-query"
+    assert exact_retry["block_id"] == adapter_receipt["block_id"]
     assert adapter_receipt["issuer_kind"] == "workflow-adapter"
     assert adapter_receipt["issuer_ref"] == "quaternary:fixture-validator:receipt-1"
     with pytest.raises(Exception, match="state changed"):
         store.create_workflow_adapter_evidence(value, pack_id="quaternary", expected_workflow_revision=1, issuer_ref="fixture-validator:stale")
+
+
+@pytest.mark.regression
+def test_workflow_adapter_issuer_receipt_cannot_replay_changed_evidence(lattice_env):
+    store = lattice_env["store"]
+    created = store.create_workflow_project_atomic(title="adapter idempotency", purpose="", workflow_pack="quaternary", initial_state="native-query-proposal", role_specs=[{"name": "worker", "authority": "proposal", "instructions": "work"}], blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref=None)
+    project_id = created["project"]["project_id"]
+    first = ContextBlockCreate(project_id=project_id, semantic_type="native-query-validation", content='{"accepted":true}', authority="quaternary-query-validator", evidence_level="accepted")
+    changed = ContextBlockCreate(project_id=project_id, semantic_type="native-query-validation", content='{"accepted":false}', authority="quaternary-query-validator", evidence_level="accepted")
+
+    store.create_workflow_adapter_evidence(first, pack_id="quaternary", expected_workflow_revision=1, issuer_ref="fixture-validator:stable-receipt")
+
+    with pytest.raises(Exception, match="reused for different evidence"):
+        store.create_workflow_adapter_evidence(changed, pack_id="quaternary", expected_workflow_revision=1, issuer_ref="fixture-validator:stable-receipt")
 
 
 @pytest.mark.concurrency

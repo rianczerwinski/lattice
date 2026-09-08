@@ -1101,7 +1101,13 @@ def test_workflow_project_read_model_exposes_authoritative_blackboard_roles_and_
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
         _operator_session(client, lattice_env)
+        workflow_project = client.get(f"/api/v1/workflow-projects/{project_id}")
         exact = client.get(f"/api/v1/context-blocks/{project['workflow']['blackboard']['block_id']}")
+    assert workflow_project.status_code == 200
+    assert workflow_project.json()["project_id"] == project_id
+    assert workflow_project.json()["workflow"]["state"] == "semantic-intent"
+    assert [role["name"] for role in workflow_project.json()["roles"]] == ["Native partner"]
+    assert len(workflow_project.json()["sessions"]) == 1
     assert exact.json()["content"] == '{"language":"de","state":"calibrating"}'
 
 
@@ -1229,9 +1235,11 @@ def test_oracle_workflow_blackboard_refresh_replaces_current_view_and_preserves_
     project_id = created["project"]["project_id"]
 
     refreshed = store.refresh_workflow_blackboard(project_id, content=b'{"generation":2}', source_ref="fixture:g2")
+    exact_retry = store.refresh_workflow_blackboard(project_id, content=b'{"generation":2}', source_ref="fixture:g2")
     project = store.get_project(project_id)
 
     assert "content" not in refreshed
+    assert exact_retry["block_id"] == refreshed["block_id"]
     assert store.get_block(refreshed["block_id"])["content"] == '{"generation":2}'
     assert project["workflow"]["blackboard"]["block_id"] == refreshed["block_id"]
     assert project["workflow"]["selector"] == {"language": "de"}

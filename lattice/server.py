@@ -1056,7 +1056,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/v1/workflow-projects/{project_id}")
     async def inspect_workflow_project(project_id: str):
-        return store.get_workflow_instance(project_id)
+        return store.get_project(project_id)
 
     @app.post("/api/v1/workflow-packs/{pack_id}/projects/{project_id}/refresh")
     async def refresh_workflow_project(pack_id: str, project_id: str):
