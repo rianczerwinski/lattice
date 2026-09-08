@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:aceddda0-612c-49c7-8242-1e11bbc68f4a",
+  "surface_id": "surface:0c099a42-ad63-4258-8d6c-b3e9d5d1e922",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:aceddda0-612c-49c7-8242-1e11bbc68f4a",
-    "generated_at": "20260908T034755",
+    "artifact_id": "artifact:0c099a42-ad63-4258-8d6c-b3e9d5d1e922",
+    "generated_at": "20260908T040139",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "26ae0704b88a3add3e01380b1e0148baaed34427",
+        "revision": "1a801dc291065911d495ceb7eea8c9b71c17d67c",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:c48b7f84-61c8-4fb9-b6ca-420923294df8"
+    "parent_artifact_id": "artifact:aceddda0-612c-49c7-8242-1e11bbc68f4a"
   },
   "workframe": {
     "name": "Lattice",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260908T034755",
-    "source_revision": "26ae0704b88a3add3e01380b1e0148baaed34427",
+    "at": "20260908T040139",
+    "source_revision": "1a801dc291065911d495ceb7eea8c9b71c17d67c",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "26ae0704b88a3add3e01380b1e0148baaed34427",
+    "revision": "1a801dc291065911d495ceb7eea8c9b71c17d67c",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -52,7 +52,7 @@
       {
         "path": ".gitleaksignore",
         "mode": "100644",
-        "object_id": "fc12da82de84f87792a61e079b8e6934888c3ca6"
+        "object_id": "6ffae12704aa90199a2915fdb032d349d0255d42"
       },
       {
         "path": "CONVERSATION-FIRST-REMEDIATION-PLAN.md",
@@ -625,6 +625,16 @@
         "object_id": "8b042c77f2d660cb40f7a84bcb62ab3a4620c822"
       },
       {
+        "path": "surface-history/20260906T014921.json",
+        "mode": "100644",
+        "object_id": "c9745b6b2fd17cecff464a522d97f1b6e6951974"
+      },
+      {
+        "path": "surface-history/20260908T034755.json",
+        "mode": "100644",
+        "object_id": "4a913b3917e4655b9f15ae8b5d02a335e5f1dac4"
+      },
+      {
         "path": "surface-history/README.md",
         "mode": "100644",
         "object_id": "c530e42e32d979b62062b44b6577a0ff3ac5c847"
@@ -1110,7 +1120,7 @@
         "object_id": "9204970b81d8ff7342c44dcd6f718408e275004f"
       }
     ],
-    "entries_sha256": "efc004da4734138e61b8c56df3fd93434e9399dd48b5bb1c8695c0455bf34720",
+    "entries_sha256": "5a3b3ba4971ed7cc6bbd7831d937367d565864f9faa7d4a0e34367c6d32bce96",
     "mappings": [
       {
         "path": ".gitignore",
@@ -2381,6 +2391,28 @@
           "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
         ],
         "reason": "Primary source for the operations and assurance capability boundary."
+      },
+      {
+        "path": "surface-history/20260906T014921.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:7adaf76f-883e-4460-b5f6-0352f83abee4"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Immutable parent generation for the Surface assurance lineage."
+      },
+      {
+        "path": "surface-history/20260908T034755.json",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:8b4e5b56-9153-4a63-b286-91dab5ab2833"
+        ],
+        "node_ids": [
+          "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        ],
+        "reason": "Immutable parent generation for the Surface assurance lineage."
       },
       {
         "path": "surface-history/README.md",
@@ -3672,7 +3704,7 @@
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:aceddda0-612c-49c7-8242-1e11bbc68f4a",
+    "artifact_id": "carve:0c099a42-ad63-4258-8d6c-b3e9d5d1e922",
     "subject": "Lattice conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -4961,6 +4993,28 @@
         ]
       },
       {
+        "id": "item:7adaf76f-883e-4460-b5f6-0352f83abee4",
+        "label": "surface-history/20260906T014921.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260906T014921.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:8b4e5b56-9153-4a63-b286-91dab5ab2833",
+        "label": "surface-history/20260908T034755.json",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "surface-history/20260908T034755.json",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
         "id": "item:327bcb35-d3eb-5906-a962-b858c5229a19",
         "label": "surface-history/README.md",
         "role": "constituent",
@@ -6070,9 +6124,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:c48b7f84-61c8-4fb9-b6ca-420923294df8",
+      "parent_artifact_id": "carve:aceddda0-612c-49c7-8242-1e11bbc68f4a",
       "reconciliation_scope": "local",
-      "decision": "Preserve the five operational ownership boundaries; extend the execution boundary with Muse because its authentication, isolation, journaling, and failure semantics change with the existing provider-adapter subsystem rather than constituting a new peer module.",
+      "decision": "Preserve the five operational ownership boundaries; the newly published parent generations are assurance-lineage constituents and fit the existing operations-and-assurance subsystem without changing the semantic carve.",
       "preserved_node_ids": [
         "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
         "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -6318,6 +6372,8 @@
             "item:8a1124a7-655e-500f-a577-05b8dcd873cf",
             "item:ce710c82-aa0d-53b5-9412-ad3a90aca6b6",
             "item:fe1a9c46-a41b-4d5f-a0be-af078df2b9e2",
+            "item:7adaf76f-883e-4460-b5f6-0352f83abee4",
+            "item:8b4e5b56-9153-4a63-b286-91dab5ab2833",
             "item:327bcb35-d3eb-5906-a962-b858c5229a19",
             "item:b47fe7af-b676-5398-936c-8c959a38f1e0",
             "item:8da8cf3b-61d0-5edd-b7ef-a589f33ad59f",
@@ -6407,14 +6463,16 @@
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "A provider-specific root would fragment the shared invocation, isolation, journal, and assurance contract; Muse fits the incumbent execution boundary without increasing cross-module coupling, so the operational-ownership carve still wins.",
+          "claim": "The two new immutable Surface parents are lifecycle evidence rather than new capabilities; homing them under operations and assurance preserves the incumbent operational-ownership carve with no new cross-module relation.",
           "evidence": [
             "lattice/compositor.py",
             "lattice/execution/adapters.py",
             "lattice/operations.py",
             "web/src/App.svelte",
             "ops/install.py",
-            "lattice/execution/providers/muse.py"
+            "lattice/execution/providers/muse.py",
+            "surface-history/20260906T014921.json",
+            "surface-history/20260908T034755.json"
           ]
         }
       }
@@ -6608,7 +6666,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:c48b7f84-61c8-4fb9-b6ca-420923294df8",
+    "parent_surface_id": "surface:aceddda0-612c-49c7-8242-1e11bbc68f4a",
     "preserved_claim_ids": [
       "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
@@ -6631,15 +6689,14 @@
       "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
       "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
       "source:adb769f3-7122-41ed-992f-92182a32bcc4",
+      "source:be924094-db39-433c-a457-44fb91c98bbe",
       "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
       "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
       "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
       "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
       "source:f333a39f-3890-565c-82cb-93805cfab6c6"
     ],
-    "added_source_ids": [
-      "source:be924094-db39-433c-a457-44fb91c98bbe"
-    ],
+    "added_source_ids": [],
     "retired_source_ids": []
   },
   "surface_residuals": {

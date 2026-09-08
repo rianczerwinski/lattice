@@ -1,8 +1,8 @@
 # Lattice — Surface
 
-surface-id: surface:aceddda0-612c-49c7-8242-1e11bbc68f4a · source-revision: 26ae0704b88a3add3e01380b1e0148baaed34427 · generated: 20260908T034755
-view-artifact: artifact:04f0570b-2427-5d54-b77e-cf5f714d0222 · role: derived-view · parent-artifact: artifact:aceddda0-612c-49c7-8242-1e11bbc68f4a
-source-surface: SURFACE.json · parent-sha256: bb79712b4d2b1ee9c73d72718a1b57a72c332c4c3db9cf9c16f35c2972dc5470 · renderer: surface-renderer/2.0.1
+surface-id: surface:0c099a42-ad63-4258-8d6c-b3e9d5d1e922 · source-revision: 1a801dc291065911d495ceb7eea8c9b71c17d67c · generated: 20260908T040139
+view-artifact: artifact:8f68cf6a-ca78-5297-816d-ea6654806de6 · role: derived-view · parent-artifact: artifact:0c099a42-ad63-4258-8d6c-b3e9d5d1e922
+source-surface: SURFACE.json · parent-sha256: 478cd06957c39e5bf0b7c0e0aee102e1c6fe1ad0b4be29e1487cafaa7f5c0c03 · renderer: surface-renderer/2.0.1
 
 ## 1 · Durable lattice kernel — Direct and role-bound actors, atomic invocation batches, exact content-addressed context, overlapping episodes, graph operations, and independent manifest reconstruction. [1✓]
 - ✓ **shipped** — Lattice natively authors direct or role-bound conversational graph edges, atomically seals route-specific batches, preserves exact context and overlapping episodes, relates durable runs to invocations, and independently reconstructs provider-facing manifests. _(sources: lattice/store.py)_
