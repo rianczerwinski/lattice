@@ -229,8 +229,8 @@ def _initialize_runtime(config: LatticeConfig):
         if config.quaternary_root and (config.quaternary_root / "workflows").is_dir():
             pack_roots.append(config.quaternary_root / "workflows")
         workflows = WorkflowRegistry(pack_roots)
-        if config.quaternary_database and config.quaternary_database.is_file() and config.quaternary_gatherctl and config.quaternary_gatherctl.is_file():
-            workflows.register("quaternary", QuaternaryAdapter(config.quaternary_database, config.quaternary_gatherctl, allowed_input_roots=config.allowed_file_roots, blob_reader=store.blobs.get, blob_writer=store.blobs.put))
+        if config.quaternary_database and config.quaternary_database.is_file() and config.quaternary_gatherctl and config.quaternary_gatherctl.is_file() and config.quaternary_command_prefix:
+            workflows.register("quaternary", QuaternaryAdapter(config.quaternary_database, config.quaternary_gatherctl, command_prefix=config.quaternary_command_prefix, allowed_input_roots=config.allowed_file_roots, blob_reader=store.blobs.get, blob_writer=store.blobs.put))
         workflows.register("platform-foundry", PlatformFoundryAdapter(config.octopus_base_url))
         loaded_packs: dict[str, dict[str, Any]] = {}
         workflow_pack_failures = workflows.catalogue()["failures"]

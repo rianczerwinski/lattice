@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from lattice.config import LatticeConfig
@@ -12,8 +13,9 @@ def test_axisvi_quaternary_paths_follow_the_canon_package_layout(tmp_path: Path)
 
     canon = tmp_path / "axisvi" / "sui" / "mission" / "projects" / "canon"
     assert config.quaternary_root == canon / "src" / "canon" / "discovery" / "reference_cascade"
-    assert config.quaternary_database == canon / "data" / "discovery" / "quaternary.sqlite3"
+    assert config.quaternary_database == canon / "data" / "canon.db"
     assert config.quaternary_gatherctl == canon / "src" / "canon" / "discovery" / "reference_cascade" / "gatherctl.py"
+    assert config.quaternary_command_prefix == (str(canon / "dev" / "runtime" / "venv" / "bin" / "canon-gather"),)
 
 
 def test_explicit_quaternary_override_retains_the_portable_layout(tmp_path: Path) -> None:
@@ -23,3 +25,4 @@ def test_explicit_quaternary_override_retains_the_portable_layout(tmp_path: Path
     assert config.quaternary_root == override
     assert config.quaternary_database == override / "quaternary.sqlite3"
     assert config.quaternary_gatherctl == override / "tools" / "gatherctl.py"
+    assert config.quaternary_command_prefix == (sys.executable, str(override / "tools" / "gatherctl.py"))

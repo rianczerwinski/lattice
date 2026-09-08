@@ -104,7 +104,7 @@ class LatticeConfig:
         if self.quaternary_root_override:
             return self.quaternary_root_override / "quaternary.sqlite3"
         if self.axisvi_root:
-            return self.axisvi_root / "sui" / "mission" / "projects" / "canon" / "data" / "discovery" / "quaternary.sqlite3"
+            return self.axisvi_root / "sui" / "mission" / "projects" / "canon" / "data" / "canon.db"
         return None
 
     @property
@@ -113,6 +113,15 @@ class LatticeConfig:
             return self.quaternary_root_override / "tools" / "gatherctl.py"
         if self.quaternary_root:
             return self.quaternary_root / "gatherctl.py"
+        return None
+
+    @property
+    def quaternary_command_prefix(self) -> tuple[str, ...] | None:
+        if self.quaternary_root_override:
+            return (sys.executable, str(self.quaternary_root_override / "tools" / "gatherctl.py"))
+        if self.axisvi_root:
+            canon_root = self.axisvi_root / "sui" / "mission" / "projects" / "canon"
+            return (str(canon_root / "dev" / "runtime" / "venv" / "bin" / "canon-gather"),)
         return None
 
     @property

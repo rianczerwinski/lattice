@@ -200,6 +200,43 @@ def test_quaternary_boundary_rejects_arbitrary_commands_and_arguments(tmp_path: 
         adapter.command("record-language-authority", {"preparation_id": "qep_fixture", "language_code": "de", "locator": "https://example.invalid", "body_path": str(outside)})
 
 
+@pytest.mark.contract
+def test_quaternary_command_uses_the_configured_canon_runtime_and_authoritative_database(tmp_path: Path):
+    database = tmp_path / "canon.db"
+    gatherctl = tmp_path / "src" / "canon" / "discovery" / "reference_cascade" / "gatherctl.py"
+    gatherctl.parent.mkdir(parents=True)
+    gatherctl.write_text("# fixture", encoding="utf-8")
+    command_prefix = (str(tmp_path / "venv" / "bin" / "canon-gather"),)
+    calls = []
+
+    def planted_runner(command, **_kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout='{"ok":true}', stderr="")
+
+    adapter = QuaternaryAdapter(database, gatherctl, command_prefix=command_prefix, runner=planted_runner)
+    result = adapter.command("language-status", {"language": "de"})
+
+    assert calls == [[*command_prefix, "--database", str(database), "language-status", "--language", "de"]]
+    assert result["receipt"]["command_prefix"] == list(command_prefix)
+    assert result["receipt"]["driver_manifest"]["command_prefix"] == list(command_prefix)
+
+
+@pytest.mark.regression
+def test_quaternary_missing_canon_runtime_is_a_typed_launch_failure(tmp_path: Path):
+    gatherctl = tmp_path / "gatherctl.py"
+    gatherctl.write_text("# fixture", encoding="utf-8")
+    adapter = QuaternaryAdapter(
+        tmp_path / "canon.db",
+        gatherctl,
+        command_prefix=(str(tmp_path / "missing" / "canon-gather"),),
+    )
+
+    with pytest.raises(QuaternaryBoundaryError, match="quaternary-command-launch-failed") as failure:
+        adapter.command("language-status", {"language": "de"})
+
+    assert not isinstance(failure.value, QuaternaryOutcomeUnknown)
+
+
 @pytest.mark.regression
 def test_quaternary_subprocess_timeout_is_a_typed_visible_failure(tmp_path: Path):
     gatherctl = tmp_path / "gatherctl.py"

@@ -81,9 +81,12 @@ class QuaternaryAdapter:
     MAX_CAPTURE_BYTES = 64 * 1024 * 1024
     MAX_INSPECT_ACTIONS = 100
 
-    def __init__(self, database: Path, gatherctl: Path, *, runner: Callable[..., subprocess.CompletedProcess[str]] | None = None, allowed_input_roots: tuple[Path, ...] | None = None, blob_reader: Callable[[str], bytes] | None = None, blob_writer: Callable[[bytes], str] | None = None):
+    def __init__(self, database: Path, gatherctl: Path, *, command_prefix: tuple[str, ...] | None = None, runner: Callable[..., subprocess.CompletedProcess[str]] | None = None, allowed_input_roots: tuple[Path, ...] | None = None, blob_reader: Callable[[str], bytes] | None = None, blob_writer: Callable[[bytes], str] | None = None):
         self.database = database.resolve()
         self.gatherctl = gatherctl.resolve()
+        self.command_prefix = tuple(command_prefix or (sys.executable, str(self.gatherctl)))
+        if not self.command_prefix or any(not isinstance(item, str) or not item for item in self.command_prefix):
+            raise QuaternaryBoundaryError("quaternary command prefix is malformed")
         self.runner = runner
         self.allowed_input_roots = tuple(path.resolve() for path in (allowed_input_roots or (self.database.parent,)))
         self.blob_reader = blob_reader
@@ -271,7 +274,7 @@ class QuaternaryAdapter:
                 snapshot.unlink(missing_ok=True)
             raise
         try:
-            command = [sys.executable, str(self.gatherctl), "--database", str(self.database), operation]
+            command = [*self.command_prefix, "--database", str(self.database), operation]
             for key in self.ARGUMENTS:
                 if key in execution_arguments:
                     command.extend([self.ARGUMENTS[key], str(execution_arguments[key])])
@@ -282,7 +285,10 @@ class QuaternaryAdapter:
                 snapshot.unlink(missing_ok=True)
             raise
         try:
-            result = self._run_bounded(command, process_timeout) if self.runner is None else self.runner(command, text=True, capture_output=True, check=False, timeout=process_timeout)
+            result = self._run_bounded(command, process_timeout, operation) if self.runner is None else self.runner(command, text=True, capture_output=True, check=False, timeout=process_timeout)
+        except OSError as error:
+            launch_receipt = {"kind": "quaternary-command-launch-failed", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "command_prefix": list(self.command_prefix), "error": {"type": type(error).__name__, "errno": error.errno, "detail": str(error)}, "completed_at": stamp()}
+            raise QuaternaryBoundaryError(json.dumps(launch_receipt, ensure_ascii=False)) from error
         except subprocess.TimeoutExpired as error:
             driver_after = self._post_dispatch_driver_manifest(operation, driver_before)
             timeout_receipt = {"kind": "quaternary-command-timeout", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_before": driver_before, "driver_after_sha256": driver_after["tree_sha256"], "timeout_seconds": process_timeout, "completed_at": stamp()}
@@ -299,7 +305,7 @@ class QuaternaryAdapter:
         if driver_after["tree_sha256"] != driver_before["tree_sha256"]:
             drift_receipt = {"kind": "quaternary-command-driver-drift", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "driver_before": driver_before, "driver_after": driver_after, "exit_code": result.returncode, "stdout_sha256": sha256_bytes(result.stdout.encode()), "stderr_sha256": sha256_bytes(result.stderr.encode()), "completed_at": stamp()}
             raise QuaternaryOutcomeUnknown(json.dumps(drift_receipt, ensure_ascii=False))
-        receipt = {"kind": "quaternary-command-receipt", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_manifest": driver_before, "interpreter": {"executable": sys.executable, "version": sys.version}, "exit_code": result.returncode, "stdout_sha256": sha256_bytes(result.stdout.encode()), "stderr_sha256": sha256_bytes(result.stderr.encode()), "completed_at": stamp()}
+        receipt = {"kind": "quaternary-command-receipt", "command_contract": "lattice-quaternary-command-v2", "operation": operation, "arguments_sha256": sha256_bytes(canonical_bytes(resolved_arguments)), "argument_keys": sorted(resolved_arguments), "input_receipts": input_receipts, "driver_manifest": driver_before, "command_prefix": list(self.command_prefix), "interpreter": {"executable": sys.executable, "version": sys.version}, "exit_code": result.returncode, "stdout_sha256": sha256_bytes(result.stdout.encode()), "stderr_sha256": sha256_bytes(result.stderr.encode()), "completed_at": stamp()}
         if result.returncode != 0:
             failure = QuaternaryBoundaryError if operation in self.READ_OPERATIONS else QuaternaryOutcomeUnknown
             raise failure(json.dumps({**receipt, "stderr": result.stderr[-4000:]}, ensure_ascii=False))
@@ -328,7 +334,7 @@ class QuaternaryAdapter:
             failure = QuaternaryBoundaryError if operation in self.READ_OPERATIONS else QuaternaryOutcomeUnknown
             raise failure(json.dumps(receipt, ensure_ascii=False)) from error
 
-    def _run_bounded(self, command: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+    def _run_bounded(self, command: list[str], timeout: int, operation: str) -> subprocess.CompletedProcess[str]:
         """Drain both pipes concurrently and stop the process group at the exact output bound."""
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
         if process.stdout is None or process.stderr is None:
@@ -366,7 +372,7 @@ class QuaternaryAdapter:
             stdout = bytes(streams[process.stdout]).decode("utf-8", errors="strict")
             stderr = bytes(streams[process.stderr]).decode("utf-8", errors="strict")
         except UnicodeDecodeError as error:
-            failure = QuaternaryBoundaryError if command[4] in self.READ_OPERATIONS else QuaternaryOutcomeUnknown
+            failure = QuaternaryBoundaryError if operation in self.READ_OPERATIONS else QuaternaryOutcomeUnknown
             raise failure("quaternary command output was not exact UTF-8") from error
         return subprocess.CompletedProcess(command, return_code, stdout=stdout, stderr=stderr)
 
@@ -412,7 +418,7 @@ class QuaternaryAdapter:
             if self.blob_writer is not None and self.blob_writer(content) != digest:
                 raise QuaternaryBoundaryError("quaternary driver source changed while entering the Lattice blob store")
             entries.append({"path": str(source.relative_to(driver_root)), "content_sha256": digest, "byte_count": len(content), "source_ref": f"lattice:blob/{digest}" if self.blob_writer is not None else f"file:{source}"})
-        identity = {"kind": "quaternary-driver-manifest-v1", "entries": entries}
+        identity = {"kind": "quaternary-driver-manifest-v1", "command_prefix": list(self.command_prefix), "entries": entries}
         return {**identity, "tree_sha256": sha256_bytes(canonical_bytes(identity))}
 
     @staticmethod
