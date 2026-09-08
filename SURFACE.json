@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:c48b7f84-61c8-4fb9-b6ca-420923294df8",
+  "surface_id": "surface:aceddda0-612c-49c7-8242-1e11bbc68f4a",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:c48b7f84-61c8-4fb9-b6ca-420923294df8",
-    "generated_at": "20260906T014921",
+    "artifact_id": "artifact:aceddda0-612c-49c7-8242-1e11bbc68f4a",
+    "generated_at": "20260908T034755",
     "producer": {
       "name": "surface-skill",
       "version": "2.0.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "07087aef254986211fbf461a12267ff005320216",
+        "revision": "26ae0704b88a3add3e01380b1e0148baaed34427",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:73349303-4bed-4343-afd8-04c8f839ff35"
+    "parent_artifact_id": "artifact:c48b7f84-61c8-4fb9-b6ca-420923294df8"
   },
   "workframe": {
     "name": "Lattice",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20260906T014921",
-    "source_revision": "07087aef254986211fbf461a12267ff005320216",
+    "at": "20260908T034755",
+    "source_revision": "26ae0704b88a3add3e01380b1e0148baaed34427",
     "compiler": "surface-skill/2.0.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "07087aef254986211fbf461a12267ff005320216",
+    "revision": "26ae0704b88a3add3e01380b1e0148baaed34427",
     "excluded_paths": [
       "SURFACE.json",
       "SURFACE.md",
@@ -67,7 +67,7 @@
       {
         "path": "README.md",
         "mode": "100644",
-        "object_id": "ee0c3a11b161e16533eedf2a41bbbdac7f98ee61"
+        "object_id": "949235ec669fee929070f56aa62a00cc359a3ee1"
       },
       {
         "path": "assurance/README.md",
@@ -337,7 +337,7 @@
       {
         "path": "lattice/contracts.py",
         "mode": "100644",
-        "object_id": "57d5bd6c6e4721d70574ba842c733307c917101b"
+        "object_id": "0c2f1db6a9200e151e70dc51c07f99b7ca2f5a87"
       },
       {
         "path": "lattice/diagnostics.py",
@@ -357,7 +357,7 @@
       {
         "path": "lattice/execution/README.md",
         "mode": "100644",
-        "object_id": "d9f6f6e91c74102cb4976822b69a0381fc7a3b85"
+        "object_id": "b53d79a78ed83d89efc0a77f7f9e848dadbde152"
       },
       {
         "path": "lattice/execution/__init__.py",
@@ -367,17 +367,17 @@
       {
         "path": "lattice/execution/adapters.py",
         "mode": "100644",
-        "object_id": "713aa9fa5d6cdb2cda39ad816e715c0738c7e5e3"
+        "object_id": "ead1640a417e87f4a44c0fcaab33b0ed3743380e"
       },
       {
         "path": "lattice/execution/checkpoint.py",
         "mode": "100644",
-        "object_id": "99ef4f4ed540fe07b493d3b9cd264f93e0d1ae19"
+        "object_id": "f0ca1734a7492185756a45d76b45ad1d1aafea20"
       },
       {
         "path": "lattice/execution/journal.py",
         "mode": "100644",
-        "object_id": "70e6ed250173780763d8549c1c7619fbeca023f9"
+        "object_id": "b6b94253a50753d0eb239730380c479d8a14d815"
       },
       {
         "path": "lattice/execution/process.py",
@@ -387,12 +387,12 @@
       {
         "path": "lattice/execution/providers/README.md",
         "mode": "100644",
-        "object_id": "b3f1633648203d1d6012528780fb3712708aa699"
+        "object_id": "1c364281bdbf16e30cea647fcfbd19a7bd8c9de6"
       },
       {
         "path": "lattice/execution/providers/__init__.py",
         "mode": "100644",
-        "object_id": "a07b3418d36ec0a8ca46c0e673316d02b6c29e93"
+        "object_id": "599620c3d054cd440c3240b2a1c5fa8186ae1ea4"
       },
       {
         "path": "lattice/execution/providers/antigravity.py",
@@ -413,6 +413,11 @@
         "path": "lattice/execution/providers/grok.py",
         "mode": "100644",
         "object_id": "c388144cf856199271dcefd5979ffa5bcee15a31"
+      },
+      {
+        "path": "lattice/execution/providers/muse.py",
+        "mode": "100644",
+        "object_id": "796f974ddafaa3e75804c6f88a171abe9ab73030"
       },
       {
         "path": "lattice/http_boundary.py",
@@ -562,7 +567,7 @@
       {
         "path": "ops/qualify_release.py",
         "mode": "100755",
-        "object_id": "ae9898afb3f46f854cad10fe7af74433cb945a76"
+        "object_id": "be29465c9f6a2274e91f744fe762599119508147"
       },
       {
         "path": "ops/qualify_restore.py",
@@ -572,7 +577,7 @@
       {
         "path": "ops/verify_execution_consolidation.py",
         "mode": "100644",
-        "object_id": "3df67db68d1398e2b116e49860127ef65a06cb81"
+        "object_id": "3e5231103f0c8e98973014befe89e62d8eca07a0"
       },
       {
         "path": "pyproject.toml",
@@ -712,12 +717,12 @@
       {
         "path": "tests/test_execution_consolidation_verifier.py",
         "mode": "100644",
-        "object_id": "673b4408c1568247a32475ad1bdcc79cf5fbc6a3"
+        "object_id": "708524cb20ae095a0f06c739c468de4e02abccb7"
       },
       {
         "path": "tests/test_execution_kernel.py",
         "mode": "100644",
-        "object_id": "dcfbeb5a3447432873fe3af5c4af5e6398a3da78"
+        "object_id": "533b9f2add838a0b0defe4fd3e9c2fa6817f2935"
       },
       {
         "path": "tests/test_interruption_qualification.py",
@@ -732,7 +737,7 @@
       {
         "path": "tests/test_kernel.py",
         "mode": "100644",
-        "object_id": "9d7af3f4a7cefcc7bd720f3b65d5a0f68f8f5344"
+        "object_id": "b90a6cededcf14641450d708999c9b35748b982d"
       },
       {
         "path": "tests/test_octopus_import.py",
@@ -752,12 +757,12 @@
       {
         "path": "tests/test_provider_boundaries.py",
         "mode": "100644",
-        "object_id": "d0300f0bf50a12252286238c399ae72dc31c8af7"
+        "object_id": "88f0f6ad42fe198886a2935a46dc812142f9355e"
       },
       {
         "path": "tests/test_release_qualification.py",
         "mode": "100644",
-        "object_id": "9e8001605fe1145562bffda654cd45db4f4cde33"
+        "object_id": "e00c329e0ac684330f98b12cb52616e5029db9dc"
       },
       {
         "path": "tests/test_reliability.py",
@@ -1105,7 +1110,7 @@
         "object_id": "9204970b81d8ff7342c44dcd6f718408e275004f"
       }
     ],
-    "entries_sha256": "d3f76f28a3c2151da9a31f5ee6ccf542e6eea4f0d2be7c7951f9499aed9a45d8",
+    "entries_sha256": "efc004da4734138e61b8c56df3fd93434e9399dd48b5bb1c8695c0455bf34720",
     "mappings": [
       {
         "path": ".gitignore",
@@ -1914,6 +1919,17 @@
           "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
         ],
         "reason": "Primary source for the execution and authority capability boundary."
+      },
+      {
+        "path": "lattice/execution/providers/muse.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2ba46b85-e46a-434a-b7cd-0a12bf9e486c"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Primary source for the Muse subscription adapter within the execution and authority capability boundary."
       },
       {
         "path": "lattice/http_boundary.py",
@@ -3437,7 +3453,7 @@
   },
   "evidence_census": {
     "method": "combined",
-    "scope": "Historical audit and prior authenticated acceptance plus exact current installed-runtime, doctor, and recovery evidence; formal execution-consolidation qualification is represented separately as open work.",
+    "scope": "Historical audit and prior authenticated acceptance plus exact current installed-runtime, Muse canary, doctor, and post-canary recovery evidence; formal execution-consolidation qualification is represented separately as open work.",
     "entries": [
       {
         "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
@@ -3456,28 +3472,36 @@
         "reason": "The immutable authenticated report proves the exact manual lattice and provider-profile acceptance path without storing response text in the Surface."
       },
       {
-        "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-c29af6067d19/runtime.json",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-26ae0704b88a/runtime.json",
         "kind": "materialized_state",
-        "state_token": "artifact:f4b99295-496d-47a8-b53b-cc92ebfa499b",
+        "state_token": "artifact:8615410f-e842-45d5-a466-5ff29c4bf8c2",
         "disposition": "included",
         "source_id": "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-        "reason": "The installed-runtime generation resolves the exact executable source, package, provider, and installed-byte inventories selected by launchd."
+        "reason": "The installed-runtime generation resolves the exact executable source, package, provider, and installed-byte inventories selected by launchd, including the Muse profile."
       },
       {
-        "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260906T013653-27fbbe79-190/snapshot.json",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260908T034618-af03b8e7-f92/snapshot.json",
         "kind": "materialized_state",
-        "state_token": "artifact:27fbbe79-1904-45f4-8380-9ca2c96297c3",
+        "state_token": "artifact:af03b8e7-f92e-4cc7-bc28-490293df3e41",
         "disposition": "included",
         "source_id": "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
-        "reason": "The verified snapshot is the current independently addressable recovery denominator."
+        "reason": "The verified post-canary snapshot is the current independently addressable recovery denominator."
       },
       {
-        "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/execution-closure/20260906T014700-doctor.json",
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/execution-closure/20260908T033700-muse-doctor.json",
         "kind": "materialized_state",
-        "state_token": "artifact:efd4157f-f906-4e04-ba61-0c2b5eedce76",
+        "state_token": "artifact:f03749da-ad24-445b-9bbc-35c1299f57b6",
         "disposition": "included",
         "source_id": "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
-        "reason": "The immutable doctor receipt establishes current installed runtime and local operational health without claiming formal closure."
+        "reason": "The immutable doctor receipt establishes the selected Muse-bearing runtime and local operational health without claiming formal closure."
+      },
+      {
+        "ref": "file:/Users/rian/Library/Application Support/Lattice/model-runs/20260908T033635-muse-9f01769d/continuation.json",
+        "kind": "materialized_state",
+        "state_token": "artifact:780726d7-d3a4-44bb-8760-3c2a5c8fb4e4",
+        "disposition": "included",
+        "source_id": "source:be924094-db39-433c-a457-44fb91c98bbe",
+        "reason": "The exact-byte continuation projection preserves the installed Muse hello-world result and binds its canonical checkpoint generation."
       }
     ]
   },
@@ -3501,7 +3525,7 @@
         "is",
         "doing"
       ],
-      "observation": "The supervisor, execution kernel, provider adapters, runtime identity, and workspace controls implement leased fresh, workspace-agent, native-continuation, cancellation, restart reconciliation, and fail-closed executable attestation."
+      "observation": "The supervisor, execution kernel, provider adapters, runtime identity, and workspace controls implement leased fresh, research-fresh, workspace-agent, native-continuation, cancellation, restart reconciliation, and fail-closed executable attestation; the Muse boundary adds Meta consumer OAuth with isolated execution state and deterministic schema compilation."
     },
     {
       "id": "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
@@ -3532,7 +3556,7 @@
         "is",
         "doing"
       ],
-      "observation": "The assurance tests reject incomplete consumer inventories, stale or mismatched installed runtimes, forged closure inputs, missing evidence, direct-provider resurrection, credential leakage, and unqualified retirement claims."
+      "observation": "The assurance tests reject incomplete consumer inventories, stale or mismatched installed runtimes, forged closure inputs, missing evidence, direct-provider resurrection, credential leakage, unqualified retirement claims, and malformed or misclassified Muse execution boundaries."
     },
     {
       "id": "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
@@ -3542,7 +3566,7 @@
       "mode_affinity": [
         "constraints"
       ],
-      "observation": "The canonical workframe contract states Lattice 0.3.1 as a conversation-first local harness, documents exact-context and provider-execution boundaries, and distinguishes implemented capability from formal execution-consolidation qualification."
+      "observation": "The canonical workframe contract states Lattice 0.3.1 as a conversation-first local harness, documents exact-context and Claude/Codex/Antigravity/Grok/Muse execution boundaries, and distinguishes implemented capability from formal execution-consolidation qualification."
     },
     {
       "id": "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
@@ -3586,34 +3610,34 @@
     },
     {
       "id": "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-      "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-c29af6067d19/runtime.json",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-26ae0704b88a/runtime.json",
       "kind": "materialized_state",
       "provenance": "observed",
       "mode_affinity": [
         "is"
       ],
-      "observation": "The selected non-editable Lattice 0.3.1 runtime binds source revision c29af6067d19, installed module bytes, package inventory, provider executables, and provider attestations under Outport and launchd supervision."
+      "observation": "The selected non-editable Lattice 0.3.1 runtime binds source revision 26ae0704b88a, installed module bytes, package inventory, provider executables, and a qualified Meta/Muse provider profile under Outport and launchd supervision."
     },
     {
       "id": "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
-      "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260906T013653-27fbbe79-190/snapshot.json",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/backups/20260908T034618-af03b8e7-f92/snapshot.json",
       "kind": "materialized_state",
       "provenance": "observed",
       "mode_affinity": [
         "is"
       ],
-      "observation": "The latest verified snapshot inventories the canonical database, append-only state, and content-addressed blobs for recovery; current separate-root continuation remains part of formal qualification."
+      "observation": "The post-canary verified snapshot captures the canonical database, append-only state, content-addressed blobs, installed Muse journal, and acceptance evidence under the normal recovery boundary."
     },
     {
       "id": "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
-      "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/execution-closure/20260906T014700-doctor.json",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/acceptance/execution-closure/20260908T033700-muse-doctor.json",
       "kind": "materialized_state",
       "provenance": "observed",
       "mode_affinity": [
         "is",
         "doing"
       ],
-      "observation": "The current installed-runtime doctor receipt passes runtime identity, provider attestation, database, append-chain, blob, migration, backup, service, and Outport checks while reporting formal closure as unqualified."
+      "observation": "The current installed-runtime doctor receipt passes runtime identity, launchd service, provider attestation, database, append-chain, blob, Outport, and backup checks for runtime 0.3.1-26ae0704b88a while reporting formal execution-consolidation closure as unqualified."
     },
     {
       "id": "source:020b6359-622a-52e0-976e-8b22e2a61f1b",
@@ -3634,11 +3658,21 @@
         "doing"
       ],
       "observation": "The active plan records the remaining durable-run dogfooding, executor adaptation, information-preserving progress UX, and primary-harness adoption program."
+    },
+    {
+      "id": "source:be924094-db39-433c-a457-44fb91c98bbe",
+      "ref": "file:/Users/rian/Library/Application Support/Lattice/model-runs/20260908T033635-muse-9f01769d/continuation.json",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is"
+      ],
+      "observation": "The installed Muse adapter completed the exact schema-bound hello-world request through the Meta consumer subscription and durably recorded the structured result {\"message\":\"hello world\"} in the canonical model-run store."
     }
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:c48b7f84-61c8-4fb9-b6ca-420923294df8",
+    "artifact_id": "carve:aceddda0-612c-49c7-8242-1e11bbc68f4a",
     "subject": "Lattice conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -4460,6 +4494,17 @@
         "evidence": [
           {
             "ref": "lattice/execution/providers/grok.py",
+            "note": "Tracked source entry in the frozen Lattice workframe census."
+          }
+        ]
+      },
+      {
+        "id": "item:2ba46b85-e46a-434a-b7cd-0a12bf9e486c",
+        "label": "lattice/execution/providers/muse.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "lattice/execution/providers/muse.py",
             "note": "Tracked source entry in the frozen Lattice workframe census."
           }
         ]
@@ -6025,16 +6070,16 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:73349303-4bed-4343-afd8-04c8f839ff35",
+      "parent_artifact_id": "carve:c48b7f84-61c8-4fb9-b6ca-420923294df8",
       "reconciliation_scope": "local",
-      "decision": "Preserve the five operational ownership boundaries; reconcile exact allowlisted model selection for automatic workflow invocations.",
+      "decision": "Preserve the five operational ownership boundaries; extend the execution boundary with Muse because its authentication, isolation, journaling, and failure semantics change with the existing provider-adapter subsystem rather than constituting a new peer module.",
       "preserved_node_ids": [
-        "node:9db167ff-3831-52f8-9313-9858090362cc",
-        "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
-        "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
         "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
-        "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
-        "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05"
+        "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+        "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+        "node:9db167ff-3831-52f8-9313-9858090362cc",
+        "node:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+        "node:d8ccdbad-93a7-58ca-90ef-9064091f3a7c"
       ],
       "added_node_ids": [],
       "retired_node_ids": []
@@ -6072,7 +6117,7 @@
           "id": "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
           "label": "Execution and authority boundary",
           "kind": "Lattice capability subsystem",
-          "gloss": "Outport-addressed loopback authority, snapshot recovery, and leased subscription-CLI execution with explicit profile qualification and durable failure state.",
+          "gloss": "Outport-addressed loopback authority, snapshot recovery, and leased subscription-CLI execution across Claude, Codex, Antigravity, Grok, and Muse with explicit profile qualification and durable failure state.",
           "cohesion_basis": "These artifacts share one operational obligation and change together at that boundary.",
           "member_ids": [
             "item:a23d99e9-4340-52c7-bf8f-e6b12ee60129",
@@ -6094,6 +6139,7 @@
             "item:5e373afa-0b27-55ec-ac0b-8a2bf8fd816f",
             "item:884846ff-2b52-5a37-a941-67ba981af25d",
             "item:dae275d6-6d48-5e67-863d-8207a109f6c9",
+            "item:2ba46b85-e46a-434a-b7cd-0a12bf9e486c",
             "item:2c8e13ec-128f-5ac0-917b-2311d641634b",
             "item:c17bc2c0-f5d1-5655-88f6-4dc37136775a",
             "item:8e2f0f84-00d0-53ed-aa53-19c712dd5676",
@@ -6343,7 +6389,8 @@
             "lattice/execution/process.py",
             "lattice/supervisor.py",
             "lattice/compositor.py",
-            "ops/qualify_release.py"
+            "ops/qualify_release.py",
+            "lattice/execution/providers/muse.py"
           ]
         },
         "kind_homogeneity": {
@@ -6354,18 +6401,20 @@
             "lattice/execution/adapters.py",
             "lattice/octopus_import.py",
             "web/src/App.svelte",
-            "ops/verify_execution_consolidation.py"
+            "ops/verify_execution_consolidation.py",
+            "lattice/execution/providers/muse.py"
           ]
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "A provider-, artifact-, or execution-stage carve would split each capability owner across transient stages; the incumbent operational-ownership carve still follows the boundaries that change and fail together.",
+          "claim": "A provider-specific root would fragment the shared invocation, isolation, journal, and assurance contract; Muse fits the incumbent execution boundary without increasing cross-module coupling, so the operational-ownership carve still wins.",
           "evidence": [
             "lattice/compositor.py",
             "lattice/execution/adapters.py",
             "lattice/operations.py",
             "web/src/App.svelte",
-            "ops/install.py"
+            "ops/install.py",
+            "lattice/execution/providers/muse.py"
           ]
         }
       }
@@ -6451,12 +6500,13 @@
           "id": "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
           "mode": "is",
           "state": "partial",
-          "summary": "Outport authority, launchd supervision, leased attempts, typed failure, fresh and workspace execution, guarded native continuation, cancellation, durable-run recovery, snapshots, and fail-closed provider attestation execute; current authenticated profile and restored-continuation qualification remains unclosed.",
+          "summary": "Outport authority, launchd supervision, leased attempts, typed failure, Claude/Codex/Antigravity/Grok/Muse fresh execution, guarded native continuation, cancellation, durable-run recovery, snapshots, and fail-closed provider attestation execute; current full authenticated-profile and restored-continuation qualification remains unclosed.",
           "detail": null,
           "source_ids": [
             "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
             "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-            "source:a7c67d5f-688b-50ec-a92b-d14257cef778"
+            "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
+            "source:be924094-db39-433c-a457-44fb91c98bbe"
           ],
           "origin": null,
           "owner_confirmed": null,
@@ -6511,7 +6561,7 @@
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
           "state": "partial",
-          "summary": "Lattice 0.3.1 runs from a source- and byte-attested pinned environment under launchd supervision, and the current doctor passes runtime, provider, state, Outport, and backup checks; formal execution-consolidation closure remains unqualified.",
+          "summary": "Lattice 0.3.1 runs from the source- and byte-attested revision 26ae0704b88a under launchd supervision; the current doctor passes runtime, provider, state, Outport, and backup checks, the installed Muse canary succeeds, and formal execution-consolidation closure remains unqualified.",
           "detail": null,
           "source_ids": [
             "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
@@ -6558,36 +6608,38 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:73349303-4bed-4343-afd8-04c8f839ff35",
+    "parent_surface_id": "surface:c48b7f84-61c8-4fb9-b6ca-420923294df8",
     "preserved_claim_ids": [
       "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
       "claim:2387d056-177a-5f82-8dd2-c4dd2a8ebd53",
       "claim:5c2fbf3d-dbd9-5281-a305-11e8fe46dbae",
       "claim:63dab2fd-7087-554b-84bd-e87865bb54fb",
-      "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328",
       "claim:92c05c36-dd41-546f-b638-d514e964fa35",
-      "claim:aa9af209-ff83-57cb-ba54-7a5197e2aad9"
+      "claim:aa9af209-ff83-57cb-ba54-7a5197e2aad9",
+      "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328"
     ],
     "added_claim_ids": [],
     "retired_claim_ids": [],
     "preserved_source_ids": [
-      "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
-      "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
       "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
-      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
-      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
-      "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
-      "source:f333a39f-3890-565c-82cb-93805cfab6c6",
-      "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
-      "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
-      "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
-      "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
       "source:020b6359-622a-52e0-976e-8b22e2a61f1b",
-      "source:7bf182e2-7d4a-58a0-b9c1-16a3766d87b8"
+      "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
+      "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
+      "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
+      "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
+      "source:7bf182e2-7d4a-58a0-b9c1-16a3766d87b8",
+      "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+      "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
+      "source:adb769f3-7122-41ed-992f-92182a32bcc4",
+      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
+      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
+      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
+      "source:f333a39f-3890-565c-82cb-93805cfab6c6"
     ],
-    "added_source_ids": [],
+    "added_source_ids": [
+      "source:be924094-db39-433c-a457-44fb91c98bbe"
+    ],
     "retired_source_ids": []
   },
   "surface_residuals": {
