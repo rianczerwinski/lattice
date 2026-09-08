@@ -1105,6 +1105,56 @@ def test_workflow_project_read_model_exposes_authoritative_blackboard_roles_and_
     assert exact.json()["content"] == '{"language":"de","state":"calibrating"}'
 
 
+@pytest.mark.contract
+def test_workflow_project_api_accepts_only_an_exact_stable_slice_predecessor(lattice_env) -> None:
+    store = lattice_env["store"]
+    predecessor = store.create_workflow_project_atomic(
+        title="German historical generation",
+        purpose="",
+        workflow_pack="quaternary",
+        initial_state="semantic-intent",
+        role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}],
+        blackboard_content=b'{"generation":1}',
+        blackboard_source_ref="fixture:g1",
+        slice_external_ref="slate:canon-quaternary-german",
+    )
+    app = create_app(lattice_env["config"])
+
+    class CurrentAdapter:
+        def inspect(self, selector):
+            return {"selector": selector, "state_sha256": "1" * 64}
+
+    app.state.workflows.adapters["quaternary"] = CurrentAdapter()
+    with TestClient(app) as client:
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
+        headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
+        rejected = client.post(
+            "/api/v1/workflow-packs/quaternary/projects",
+            headers=headers,
+            json={
+                "title": "German unsafe successor",
+                "selector": {"language": "de"},
+                "slice_external_ref": "slate:canon-quaternary-german",
+            },
+        )
+        accepted = client.post(
+            "/api/v1/workflow-packs/quaternary/projects",
+            headers=headers,
+            json={
+                "title": "German current generation",
+                "selector": {"language": "de"},
+                "slice_external_ref": "slate:canon-quaternary-german",
+                "supersedes_project_id": predecessor["project"]["project_id"],
+            },
+        )
+
+    assert rejected.status_code == 409
+    assert "name its owning workflow project" in rejected.text
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["supersession"]["predecessor_project_id"] == predecessor["project"]["project_id"]
+    assert store.get_slice_by_external_ref("slate:canon-quaternary-german")["project_id"] == accepted.json()["project"]["project_id"]
+
+
 @pytest.mark.oracle
 def test_workflow_adapter_evidence_is_derived_server_side_and_revision_bound(lattice_env) -> None:
     store = lattice_env["store"]

@@ -14,6 +14,7 @@ from lattice.canonical import canonical_bytes, sha256_bytes
 from lattice.contracts import AttemptState, ContextBlockCreate, ContextModuleDefinition, ContextModuleMode, DraftCreate, DraftPatch, ProjectCreate, ProviderRoute, RoleCreate, RoleSessionCreate, WorkflowPackDefinition
 from lattice.quaternary import QuaternaryAdapter, QuaternaryBoundaryError, QuaternaryOutcomeUnknown
 from lattice.platform_foundry import PlatformFoundryAdapter
+from lattice.store import LatticeConflict
 from lattice.workflows import WorkflowRegistry
 from conftest import TEST_QUATERNARY_PACK, TEST_WORKFLOW_PACK_ROOTS
 
@@ -579,6 +580,106 @@ def test_workflow_project_bootstrap_is_atomic(lattice_env):
     with pytest.raises(sqlite3.IntegrityError):
         store.create_workflow_project_atomic(title="must roll back", purpose="negative control", workflow_pack="quaternary", initial_state="semantic-intent", role_specs=duplicated_roles, blackboard_content=b"{}", blackboard_source_ref="fixture:state", slice_external_ref="slate:atomic-negative")
     assert len(store.list_projects()) == before
+
+
+@pytest.mark.oracle
+def test_workflow_successor_atomically_transfers_stable_slice_without_rewriting_history(lattice_env):
+    store = lattice_env["store"]
+    pack_sha = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")["canonical_sha256"]
+    predecessor = store.create_workflow_project_atomic(
+        title="German generation 1",
+        purpose="historical fixture",
+        workflow_pack="quaternary",
+        initial_state="semantic-intent",
+        role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}],
+        blackboard_content=b'{"generation":1}',
+        blackboard_source_ref="fixture:g1",
+        slice_external_ref="slate:canon-quaternary-german",
+        selector={"language": "de", "preparation_id": "qep_old"},
+        pack_canonical_sha256="0" * 64,
+    )
+    predecessor_project_id = predecessor["project"]["project_id"]
+    predecessor_slice_id = predecessor["slice"]["slice_id"]
+
+    with pytest.raises(LatticeConflict, match="name its owning workflow project"):
+        store.create_workflow_project_atomic(
+            title="unsafe generic replacement",
+            purpose="negative control",
+            workflow_pack="quaternary",
+            initial_state="semantic-intent",
+            role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}],
+            blackboard_content=b'{"generation":2}',
+            blackboard_source_ref="fixture:g2",
+            slice_external_ref="slate:canon-quaternary-german",
+            selector={"language": "de", "preparation_id": "qep_current"},
+            pack_canonical_sha256=pack_sha,
+        )
+
+    successor = store.create_workflow_project_atomic(
+        title="German generation 2",
+        purpose="current fixture",
+        workflow_pack="quaternary",
+        initial_state="semantic-intent",
+        role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}],
+        blackboard_content=b'{"generation":2}',
+        blackboard_source_ref="fixture:g2",
+        slice_external_ref="slate:canon-quaternary-german",
+        selector={"language": "de", "preparation_id": "qep_current"},
+        pack_canonical_sha256=pack_sha,
+        supersedes_project_id=predecessor_project_id,
+    )
+
+    historical_slice = store.get_slice(predecessor_slice_id)
+    current_slice = store.get_slice_by_external_ref("slate:canon-quaternary-german")
+    assert historical_slice["external_ref"] is None
+    assert historical_slice["revision"] == 2
+    assert historical_slice["query"]["concern_ref"] == "slate:canon-quaternary-german"
+    assert current_slice is not None
+    assert current_slice["project_id"] == successor["project"]["project_id"]
+    assert {item["response"] for item in historical_slice["items"]} == {'{"generation":1}', '{"generation":2}'}
+    assert {item["response"] for item in current_slice["items"]} == {'{"generation":1}', '{"generation":2}'}
+    assert successor["supersession"]["predecessor_project_id"] == predecessor_project_id
+    with store._connect() as conn:
+        relation = conn.execute(
+            "SELECT * FROM edges WHERE relation='supersedes' AND source_id=? AND target_id=?",
+            (successor["project"]["project_id"], predecessor_project_id),
+        ).fetchone()
+        released = conn.execute(
+            "SELECT payload_json FROM events WHERE event_type='slice.external-ref-released' AND subject_id=?",
+            (predecessor_slice_id,),
+        ).fetchone()
+    assert relation is not None
+    assert json.loads(released["payload_json"])["successor_slice_id"] == successor["slice"]["slice_id"]
+
+
+@pytest.mark.regression
+def test_workflow_successor_rejects_wrong_predecessor_without_partial_creation(lattice_env):
+    store = lattice_env["store"]
+    predecessor = store.create_workflow_project_atomic(
+        title="German predecessor",
+        purpose="",
+        workflow_pack="quaternary",
+        initial_state="semantic-intent",
+        role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}],
+        blackboard_content=b"{}",
+        blackboard_source_ref="fixture:g1",
+        slice_external_ref="slate:canon-quaternary-german",
+    )
+    before = len(store.list_projects())
+    with pytest.raises(LatticeConflict, match="does not currently own"):
+        store.create_workflow_project_atomic(
+            title="wrong successor",
+            purpose="",
+            workflow_pack="quaternary",
+            initial_state="semantic-intent",
+            role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}],
+            blackboard_content=b"{}",
+            blackboard_source_ref="fixture:g2",
+            slice_external_ref="slate:canon-quaternary-german",
+            supersedes_project_id="project_wrong",
+        )
+    assert len(store.list_projects()) == before
+    assert store.get_slice_by_external_ref("slate:canon-quaternary-german")["project_id"] == predecessor["project"]["project_id"]
 
 
 @pytest.mark.contract

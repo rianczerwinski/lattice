@@ -221,7 +221,7 @@ A trigger is a declarative condition over canonical state that makes a new invoc
 
 ### Slice
 
-A slice is a saved query over the lattice, not a copy of its contents. A Slate topic such as `Canon > Quaternary > German` can therefore expose every relevant human message, model invocation, query, source receipt, result, decision, and residual while preserving each object’s single canonical identity.
+A slice is a saved query over the lattice, not a copy of its contents. A Slate topic such as `Canon > Quaternary > German` can therefore expose every relevant human message, model invocation, query, source receipt, result, decision, and residual while preserving each object’s single canonical identity. When a new governed project succeeds a historical project at the same stable Slate address, Lattice transfers that external identity in the same transaction as project creation, preserves the predecessor slice by its internal identity and concern query, and records the exact supersession relation; it never upgrades the predecessor in place or lets an ordinary create overwrite the address.
 
 ### Workflow pack
 

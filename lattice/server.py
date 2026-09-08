@@ -165,6 +165,13 @@ class WorkflowProjectRequest(StrictRequest):
     purpose: str = ""
     selector: dict[str, Any] = Field(default_factory=dict)
     slice_external_ref: str | None = Field(default=None, min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+    supersedes_project_id: str | None = Field(default=None, min_length=1, max_length=96, pattern=r"^[A-Za-z0-9_:-]+$")
+
+    @model_validator(mode="after")
+    def supersession_transfers_a_stable_slice(self) -> "WorkflowProjectRequest":
+        if self.supersedes_project_id is not None and self.slice_external_ref is None:
+            raise ValueError("workflow project supersession requires the stable slice identity to transfer")
+        return self
 
 
 class WorkflowAdapterEvidenceRequest(StrictRequest):
@@ -983,7 +990,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         for role_spec in definition["roles"]:
             instructions = role_spec.get("instructions") or f"Act only as {role_spec['name']} inside the {definition['title']} workflow. Your authority is {role_spec['authority']}. Treat model outputs as proposals unless the authoritative workflow explicitly accepts them."
             role_specs.append({**role_spec, "instructions": instructions})
-        return store.create_workflow_project_atomic(title=value.title, purpose=value.purpose, workflow_pack=pack_id, initial_state=definition["initial_state"], role_specs=role_specs, blackboard_content=state_bytes, blackboard_source_ref=f"{pack_id}:state:{sha256_bytes(state_bytes)}", slice_external_ref=value.slice_external_ref, selector=selector, context_modules=resolved_modules, pack_canonical_sha256=loaded["canonical_sha256"], pack_definition_sha256=pack_definition_sha256)
+        return store.create_workflow_project_atomic(title=value.title, purpose=value.purpose, workflow_pack=pack_id, initial_state=definition["initial_state"], role_specs=role_specs, blackboard_content=state_bytes, blackboard_source_ref=f"{pack_id}:state:{sha256_bytes(state_bytes)}", slice_external_ref=value.slice_external_ref, selector=selector, context_modules=resolved_modules, pack_canonical_sha256=loaded["canonical_sha256"], pack_definition_sha256=pack_definition_sha256, supersedes_project_id=value.supersedes_project_id)
 
     @app.post("/api/v1/workflow-packs/{pack_id}/inspect")
     async def inspect_workflow(pack_id: str, value: WorkflowInspectRequest):

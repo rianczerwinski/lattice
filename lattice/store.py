@@ -2441,8 +2441,15 @@ class LatticeStore:
         context_modules: list[dict[str, Any]] | None = None,
         pack_canonical_sha256: str | None = None,
         pack_definition_sha256: str | None = None,
+        supersedes_project_id: str | None = None,
     ) -> dict[str, Any]:
-        """Install a workflow project and its first authoritative snapshot as one ledger transition."""
+        """Install a workflow project and its first authoritative snapshot as one ledger transition.
+
+        A named predecessor transfers an already-owned stable slice identity to
+        the new pack-bound project in the same transaction. The predecessor
+        slice remains directly readable and keeps its historical concern query;
+        only its status as the current external address is released.
+        """
         project_id = opaque_id("project")
         now = stamp()
         blackboard_id = opaque_id("block")
@@ -2456,7 +2463,27 @@ class LatticeStore:
             content = module["content"]
             prepared_modules.append((module, opaque_id("block"), self.blobs.put(content)))
         slice_id = opaque_id("slice") if slice_external_ref else None
+        if supersedes_project_id is not None and slice_external_ref is None:
+            raise LatticeConflict("workflow project supersession requires the stable slice identity to transfer")
+        supersession: dict[str, Any] | None = None
         with self.transaction() as conn:
+            predecessor = None
+            if slice_external_ref is not None:
+                predecessor = conn.execute(
+                    """SELECT s.slice_id,s.project_id,s.revision,p.workflow_pack,
+                              w.state,w.revision AS workflow_revision,w.selector_json,w.pack_canonical_sha256
+                       FROM slices s JOIN projects p USING(project_id)
+                       LEFT JOIN workflow_instances w USING(project_id)
+                       WHERE s.external_ref=?""",
+                    (slice_external_ref,),
+                ).fetchone()
+                if predecessor is not None and supersedes_project_id is None:
+                    raise LatticeConflict("external Lattice slice identity already exists; name its owning workflow project as the predecessor to transfer it")
+                if supersedes_project_id is not None:
+                    if predecessor is None or predecessor["project_id"] != supersedes_project_id:
+                        raise LatticeConflict("named predecessor does not currently own the stable slice identity")
+                    if predecessor["workflow_pack"] != workflow_pack or predecessor["workflow_revision"] is None:
+                        raise LatticeConflict("workflow projects may supersede only a predecessor governed by the same pack")
             conn.execute("INSERT INTO projects(project_id,title,purpose,workflow_pack,created_at) VALUES(?,?,?,?,?)", (project_id, title, purpose, workflow_pack, now))
             self._event(conn, project_id=project_id, event_type="project.created", subject_type="project", subject_id=project_id, payload={"title": title, "purpose": purpose, "workflow_pack": workflow_pack})
             if pack_definition_sha256 is not None and pack_definition_sha256 != pack_canonical_sha256:
@@ -2493,11 +2520,70 @@ class LatticeStore:
             conn.execute("INSERT INTO block_status(block_id,status,revision,event_id) VALUES(?,'active',1,?)", (blackboard_id, blackboard_event))
             conn.execute("UPDATE workflow_instances SET current_blackboard_block_id=? WHERE project_id=?", (blackboard_id, project_id))
             if slice_external_ref and slice_id:
+                if predecessor is not None:
+                    previous_slice_revision = int(predecessor["revision"])
+                    conn.execute(
+                        "UPDATE slices SET external_ref=NULL,revision=?,updated_at=? WHERE slice_id=? AND external_ref=?",
+                        (previous_slice_revision + 1, now, predecessor["slice_id"], slice_external_ref),
+                    )
+                    released_event_id = self._event(
+                        conn,
+                        project_id=predecessor["project_id"],
+                        event_type="slice.external-ref-released",
+                        subject_type="slice",
+                        subject_id=predecessor["slice_id"],
+                        payload={
+                            "external_ref": slice_external_ref,
+                            "previous_revision": previous_slice_revision,
+                            "revision": previous_slice_revision + 1,
+                            "successor_project_id": project_id,
+                            "successor_slice_id": slice_id,
+                        },
+                    )
+                    predecessor_revision = sha256_bytes(canonical_bytes({
+                        "project_id": predecessor["project_id"],
+                        "pack_id": predecessor["workflow_pack"],
+                        "pack_canonical_sha256": predecessor["pack_canonical_sha256"],
+                        "selector": json.loads(predecessor["selector_json"]),
+                        "state": predecessor["state"],
+                        "revision": predecessor["workflow_revision"],
+                    }))
+                    successor_revision = sha256_bytes(canonical_bytes({
+                        "project_id": project_id,
+                        "pack_id": workflow_pack,
+                        "pack_canonical_sha256": pack_canonical_sha256,
+                        "selector": selector or {},
+                        "state": initial_state,
+                        "revision": 1,
+                    }))
+                    supersedes_edge_id = self._insert_edge(
+                        conn,
+                        project_id=project_id,
+                        relation=EdgeRelation.supersedes,
+                        source_type="workflow-instance",
+                        source_id=project_id,
+                        source_revision=successor_revision,
+                        target_type="workflow-instance",
+                        target_id=predecessor["project_id"],
+                        target_revision=predecessor_revision,
+                        metadata={
+                            "external_ref": slice_external_ref,
+                            "predecessor_slice_id": predecessor["slice_id"],
+                            "successor_slice_id": slice_id,
+                        },
+                    )
+                    supersession = {
+                        "predecessor_project_id": predecessor["project_id"],
+                        "predecessor_slice_id": predecessor["slice_id"],
+                        "external_ref": slice_external_ref,
+                        "released_event_id": released_event_id,
+                        "supersedes_edge_id": supersedes_edge_id,
+                    }
                 self._insert_edge(conn, project_id=project_id, relation=EdgeRelation.concerns, source_type="context-block", source_id=blackboard_id, source_revision=blackboard_sha, target_type="external-concern", target_id=slice_external_ref, target_revision=sha256_bytes(slice_external_ref.encode("utf-8")), metadata={"workflow_pack": workflow_pack})
                 query = {"concern_ref": slice_external_ref, "object_types": ["invocation", "context-block"]}
                 conn.execute("INSERT INTO slices(slice_id,project_id,scope,name,query_json,external_ref,created_at,updated_at) VALUES(?,?,'global',?,?,?,?,?)", (slice_id, project_id, title, canonical_bytes(query).decode(), slice_external_ref, now, now))
-                self._event(conn, project_id=project_id, event_type="slice.created", subject_type="slice", subject_id=slice_id, payload={"project_id": project_id, "name": title, "query": query, "external_ref": slice_external_ref})
-        return {"project": self.get_project(project_id), "blackboard": self.get_block(blackboard_id, include_content=False), "slice": self.get_slice(slice_id) if slice_id else None}
+                self._event(conn, project_id=project_id, event_type="slice.created", subject_type="slice", subject_id=slice_id, payload={"project_id": project_id, "name": title, "query": query, "external_ref": slice_external_ref, "supersedes_project_id": supersedes_project_id})
+        return {"project": self.get_project(project_id), "blackboard": self.get_block(blackboard_id, include_content=False), "slice": self.get_slice(slice_id) if slice_id else None, "supersession": supersession}
 
     def list_role_context_defaults(self, role_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
