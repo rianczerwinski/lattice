@@ -783,6 +783,21 @@ def test_regression_rate_limit_is_operational_not_semantic_failure() -> None:
 
 
 @pytest.mark.regression
+@pytest.mark.parametrize("message", [
+    "API Error: Connection refused — a firewall or proxy may be blocking it (ConnectionRefused)",
+    "connect ECONNREFUSED 127.0.0.1:443",
+])
+@pytest.mark.parametrize("returncode", [0, 1])
+def test_regression_transport_refusal_is_not_a_model_policy_refusal(message: str, returncode: int) -> None:
+    assert classify_provider_failure(returncode, message, "") == "outage"
+
+
+@pytest.mark.contract
+def test_contract_genuine_provider_policy_refusal_remains_semantic() -> None:
+    assert classify_provider_failure(1, "Request refused under the safety policy", "") == "policy_refusal"
+
+
+@pytest.mark.regression
 def test_regression_exhausted_consumer_balance_is_not_a_provider_outage() -> None:
     stderr = 'API error (status 402 Payment Required): Grok Build usage balance exhausted'
 

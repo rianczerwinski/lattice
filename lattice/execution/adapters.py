@@ -741,6 +741,10 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
         return "subscription_exhausted"
     if "rate limit" in text or "too many requests" in text or "quota" in text:
         return "rate_limit"
+    # A socket rejecting the connection is operational, not a refusal of the
+    # prompt. Claude can report this in a terminal JSON result with exit code 0.
+    if any(marker in text for marker in ("connection refused", "connectionrefused", "econnrefused")):
+        return "outage"
     if "policy" in text or "refus" in text or "not allowed" in text:
         return "policy_refusal"
     if "timeout" in text or "timed out" in text:
