@@ -1289,9 +1289,12 @@ class LatticeStore:
             session = self.get_role_session(role_session_id)
             role = self.get_role(session["role_id"])
             policy = role["route_policy"]
+            from .route_amendments import assert_route
+            with self._connect() as conn:
+                amended_route = assert_route(conn, role_session_id, route)
             if policy["kind"] == "non-model":
                 raise LatticeConflict(f"{role['name']} is not a model-execution role")
-            if policy["kind"] == "model":
+            if policy["kind"] == "model" and amended_route is None:
                 if route["provider"] != policy["provider"] or route["harness"] != policy["harness"]:
                     raise LatticeConflict(f"{role['name']} is bound to {policy['provider']} through {policy['harness']}")
                 if policy["allowed_models"] and route["model"] not in policy["allowed_models"]:
@@ -3548,7 +3551,7 @@ class LatticeStore:
                 if prior["invocation_id"] != invocation_id:
                     raise LatticeConflict("idempotency key belongs to another invocation")
                 return dict(prior)
-            invocation = self._row(conn.execute("SELECT project_id,state,route_json FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
+            invocation = self._row(conn.execute("SELECT project_id,state,route_json,role_session_id FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
             if invocation["state"] not in {InvocationState.sealed.value, InvocationState.failed.value, InvocationState.interrupted.value}:
                 raise LatticeConflict(f"invocation cannot execute from {invocation['state']}")
             active = conn.execute("SELECT 1 FROM leases WHERE invocation_id=? AND state='active'", (invocation_id,)).fetchone()
@@ -3559,6 +3562,9 @@ class LatticeStore:
             lease_id = opaque_id("lease")
             now = stamp()
             route = json.loads(invocation["route_json"])
+            if invocation["role_session_id"] is not None:
+                from .route_amendments import assert_route
+                assert_route(conn, invocation["role_session_id"], route)
             native_session_id = route.get("native_session_id") if route.get("execution_profile") == "native-continuation" else None
             if native_session_id is not None:
                 expected_head = route.get("native_parent_invocation_id")

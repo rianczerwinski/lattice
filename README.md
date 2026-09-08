@@ -157,6 +157,22 @@ Role identity and model identity are orthogonal. Using the same model for two ro
 
 The role session provides continuity without requiring every invocation to inherit the full transcript. It holds an addressable history, a stable instruction prefix, and a current role view derived from canonical state.
 
+#### Operator-gated runner amendments
+
+[`lattice/route_amendments.py`](lattice/route_amendments.py) implements runner substitution for role sessions. A request binds the terminal source invocation and manifest, the previous and proposed provider/harness/model routes, a reason, and separate active failure and task-qualification evidence blocks with their hashes and status revisions. It appends `role-route.requested` and leaves that session `awaiting-operator`. Requesting a switch never approves it or launches the reserve. New dispatch is blocked transactionally, including retries and invocations sealed before the pause; another role session can continue independently. An active attempt must finish or be cancelled before the request can be accepted.
+
+The separate decision appends `role-route.decided`: `approve` selects the proposed runner after rechecking evidence freshness; `resume-current` explicitly retains the old runner. Both require an operator note and preserve all previous invocation bytes. Duplicate identical delivery is idempotent. The recorded runner then governs the session until another amendment; it does not widen tool permissions, certify domain competence, or rewrite the workflow's default role binding. Domain workflows own failure classification, task/lane qualification, approval scope, and when to request another amendment. Direct one-node executions are not role sessions and do not inherit this gate.
+
+The authenticated API exposes `GET`/`POST /api/v1/role-sessions/{session_id}/route-amendments` and a separate `POST /api/v1/role-sessions/{session_id}/route-amendments/{amendment_id}/decision`. The native CLI exposes the same boundary:
+
+```bash
+lattice route-amendment SESSION_ID
+lattice route-amendment SESSION_ID --request route-amendment.json
+lattice route-amendment SESSION_ID --amendment-id AMENDMENT_ID --decision approve --note "Reviewed failure and qualification for the affected task."
+```
+
+The request JSON follows `RouteAmendmentRequest` in [`lattice/contracts.py`](lattice/contracts.py): `source_invocation_id`, `proposed_route`, `reason`, `failure_evidence_block_id`, and `qualification_evidence_block_id`. API/CLI decisions use Lattice's existing operator credential boundary; that credential authenticates operator authority, not whether a human physically clicked. Autonomous consumers must not submit the decision without the operator's explicit instruction. The CLI/API history is the inspection surface; a dedicated cockpit approval control is not implemented. Source regression and falsifier checks live in [`tests/test_route_amendments.py`](tests/test_route_amendments.py); installing a committed source revision remains a separate runtime step.
+
 ### Context block
 
 A context block is the smallest reusable, content-addressed unit that may enter an invocation. Examples include a response excerpt, source receipt, active constraint, project Surface claim, validated native lexeme, search-result batch, status projection, file, memory, tool schema, or live module output.

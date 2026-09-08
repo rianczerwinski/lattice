@@ -43,6 +43,8 @@ from .contracts import (
     RoleCreate,
     RolePinCreate,
     RoleSessionCreate,
+    RouteAmendmentRequest,
+    RouteAmendmentDecision,
     SliceCreate,
     TagRequest,
     WorkflowTransitionRequest,
@@ -63,6 +65,7 @@ from .security import OperatorBoundaryMiddleware, OperatorSessions, ServiceInsta
 from .store import LatticeConflict, LatticeNotFound, LatticeStore
 from .supervisor import ExecutionSupervisor
 from .workflows import WorkflowRegistry
+from . import route_amendments
 from .workspace_control import WorkspaceControl, WorkspaceControlError
 
 
@@ -558,6 +561,18 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.post("/api/v1/role-sessions")
     async def create_role_session(value: RoleSessionCreate):
         return store.create_role_session(value)
+
+    @app.get("/api/v1/role-sessions/{session_id}/route-amendments")
+    async def inspect_route_amendments(session_id: str):
+        return route_amendments.inspect(store, session_id)
+
+    @app.post("/api/v1/role-sessions/{session_id}/route-amendments")
+    async def request_route_amendment(session_id: str, value: RouteAmendmentRequest):
+        return route_amendments.request(store, session_id, value)
+
+    @app.post("/api/v1/role-sessions/{session_id}/route-amendments/{amendment_id}/decision")
+    async def decide_route_amendment(session_id: str, amendment_id: str, value: RouteAmendmentDecision):
+        return route_amendments.decide(store, session_id, amendment_id, value)
 
     @app.post("/api/v1/context-blocks")
     async def create_context_block(value: ContextBlockCreate):

@@ -575,6 +575,19 @@ class RoleSessionCreate(StrictModel):
     label: str = Field(min_length=1, max_length=200)
 
 
+class RouteAmendmentRequest(StrictModel):
+    source_invocation_id: str = Field(min_length=1)
+    proposed_route: ProviderRoute
+    reason: str = Field(min_length=1, max_length=4000)
+    failure_evidence_block_id: str = Field(min_length=1)
+    qualification_evidence_block_id: str = Field(min_length=1)
+
+
+class RouteAmendmentDecision(StrictModel):
+    decision: Literal["approve", "resume-current"]
+    note: str = Field(min_length=1, max_length=4000)
+
+
 class RolePinCreate(RoleCreate):
     """Create a future role from an exact completed conversational demonstration."""
 

@@ -387,6 +387,25 @@ def command_routes(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_route_amendment(args: argparse.Namespace) -> int:
+    client = LatticeClient.from_environment()
+    if args.request:
+        if args.decision is not None or args.note is not None:
+            raise ValueError("requesting a switch cannot also approve it")
+        payload = strict_json_loads(Path(args.request).expanduser().read_bytes())
+        value = client.request_route_amendment(args.session_id, payload)
+    elif args.amendment_id:
+        if args.decision is None or args.note is None:
+            raise ValueError("a route decision requires --decision and --note")
+        value = client.decide_route_amendment(args.session_id, args.amendment_id, decision=args.decision, note=args.note)
+    else:
+        if args.decision is not None or args.note is not None:
+            raise ValueError("a route decision requires --amendment-id")
+        value = client.route_amendments(args.session_id)
+    _emit(value, as_json=True)
+    return 0
+
+
 def command_import_history(args: argparse.Namespace) -> int:
     path = Path(args.request).expanduser()
     raw = path.read_bytes()
@@ -519,6 +538,15 @@ def parser() -> argparse.ArgumentParser:
     routes = subparsers.add_parser("routes", help="read Lattice provider profiles and qualification state")
     routes.add_argument("--probe", action="store_true", help="run the bounded official-CLI capability probes")
     routes.set_defaults(handler=command_routes)
+
+    amendment = subparsers.add_parser("route-amendment", help="inspect, request, or explicitly decide a paused runner switch")
+    amendment.add_argument("session_id")
+    action = amendment.add_mutually_exclusive_group()
+    action.add_argument("--request", help="RouteAmendmentRequest JSON file; records a pause, never an approval")
+    action.add_argument("--amendment-id")
+    amendment.add_argument("--decision", choices=("approve", "resume-current"))
+    amendment.add_argument("--note", help="operator decision and evidence review")
+    amendment.set_defaults(handler=command_route_amendment)
 
     import_history = subparsers.add_parser("import-history", help="register an immutable census of historical execution files")
     import_history.add_argument("--request", required=True, help="HistoricalExecutionImport/1.0 JSON file")

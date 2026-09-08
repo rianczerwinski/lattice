@@ -93,6 +93,19 @@ class LatticeClient:
             raise LatticeClientError("Lattice provider catalogue is malformed")
         return value
 
+    def route_amendments(self, session_id: str) -> dict[str, Any]:
+        return self._request("GET", f"/api/v1/role-sessions/{urllib.parse.quote(session_id, safe='')}/route-amendments")
+
+    def request_route_amendment(self, session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        from .contracts import RouteAmendmentRequest
+        value = RouteAmendmentRequest.model_validate(payload)
+        return self._request("POST", f"/api/v1/role-sessions/{urllib.parse.quote(session_id, safe='')}/route-amendments", value.model_dump(mode="json"))
+
+    def decide_route_amendment(self, session_id: str, amendment_id: str, *, decision: str, note: str) -> dict[str, Any]:
+        from .contracts import RouteAmendmentDecision
+        value = RouteAmendmentDecision(decision=decision, note=note)
+        return self._request("POST", f"/api/v1/role-sessions/{urllib.parse.quote(session_id, safe='')}/route-amendments/{urllib.parse.quote(amendment_id, safe='')}/decision", value.model_dump(mode="json"))
+
     def artifact(self, artifact_id: str) -> dict[str, Any]:
         value = self._request("GET", f"/api/v1/artifacts/{urllib.parse.quote(artifact_id, safe='')}")
         if not isinstance(value, dict):
