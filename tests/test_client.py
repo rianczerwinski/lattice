@@ -78,6 +78,78 @@ def test_contract_project_creation_validates_and_sends_only_manual_fields(monkey
         client.create_project(ProjectCreate(title="Wrong boundary", workflow_pack="quaternary"))
 
 
+def test_contract_workflow_client_uses_pack_bound_resources(monkeypatch) -> None:
+    calls = []
+    project_id = "project_0123456789abcdef0123456789abcdef"
+
+    def request(_self, method, path, payload=None, **_kwargs):
+        calls.append((method, path, payload))
+        if path.endswith("/projects"):
+            return {"project": {"project_id": project_id}}
+        if path.endswith("/refresh"):
+            return {"workflow": {"project_id": project_id, "revision": 1}, "blackboard": {"block_id": "block_fixture"}}
+        if path.endswith("/adapter-evidence"):
+            return {"block_id": "block_fixture", "issuer_kind": "workflow-adapter"}
+        if path.endswith("/transitions"):
+            return {"workflow": {"project_id": project_id, "revision": 2}}
+        if path.startswith("/api/v1/workflow-projects/"):
+            return {"project_id": project_id, "revision": 1}
+        return {"project_id": project_id, "workflow": {"revision": 1}}
+
+    monkeypatch.setattr(LatticeClient, "_request", request)
+    client = LatticeClient("http://127.0.0.1:9010", "token", "127.0.0.1:9010")
+    created = client.create_workflow_project("quaternary", {"title": "German", "selector": {"language": "de"}})
+    workflow = client.workflow_project(project_id)
+    refreshed = client.refresh_workflow_project("quaternary", project_id)
+    evidence = client.create_workflow_adapter_evidence("quaternary", project_id, {"expected_revision": 1, "evidence_kind": "prevalidated-query-arm", "subject": {"arm_id": "arm_1"}})
+    transition = client.transition_workflow("quaternary", {"project_id": project_id, "expected_revision": 1, "from_state": "coverage", "to_state": "query-frozen", "evidence_block_ids": [evidence["block_id"]]})
+
+    assert created["project"]["project_id"] == project_id
+    assert workflow["revision"] == 1
+    assert refreshed["blackboard"]["block_id"] == "block_fixture"
+    assert transition["workflow"]["revision"] == 2
+    assert [call[:2] for call in calls] == [
+        ("POST", "/api/v1/workflow-packs/quaternary/projects"),
+        ("GET", f"/api/v1/workflow-projects/{project_id}"),
+        ("POST", f"/api/v1/workflow-packs/quaternary/projects/{project_id}/refresh"),
+        ("POST", f"/api/v1/workflow-packs/quaternary/projects/{project_id}/adapter-evidence"),
+        ("POST", "/api/v1/workflow-packs/quaternary/transitions"),
+    ]
+
+
+def test_contract_workflow_cli_reads_the_role_session_view_and_exposes_refresh(monkeypatch, capsys) -> None:
+    from lattice.cli import parser
+
+    calls: list[tuple[str, ...]] = []
+
+    class FakeClient:
+        def workflow_project(self, project_id):
+            calls.append(("workflow-project", project_id))
+            return {"project_id": project_id, "workflow": {"revision": 3}, "roles": [], "sessions": []}
+
+        def refresh_workflow_project(self, pack_id, project_id):
+            calls.append(("workflow-refresh", pack_id, project_id))
+            return {"workflow": {"revision": 3}, "blackboard": {"block_id": "block_current"}}
+
+        def project(self, _project_id):
+            raise AssertionError("workflow-project must not collapse to the generic project view")
+
+    monkeypatch.setattr(LatticeClient, "from_environment", lambda: FakeClient())
+    read_args = parser().parse_args(["workflow-project", "project_fixture"])
+    refresh_args = parser().parse_args(["workflow-refresh", "quaternary", "project_fixture"])
+
+    assert read_args.handler(read_args) == 0
+    assert refresh_args.handler(refresh_args) == 0
+
+    output = capsys.readouterr().out
+    assert '"roles": []' in output
+    assert '"block_id": "block_current"' in output
+    assert calls == [
+        ("workflow-project", "project_fixture"),
+        ("workflow-refresh", "quaternary", "project_fixture"),
+    ]
+
+
 def test_contract_invocation_batch_methods_validate_payloads_and_resources(monkeypatch) -> None:
     calls = []
     preview_request = _batch_preview()

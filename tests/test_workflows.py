@@ -52,6 +52,53 @@ def test_quaternary_adapter_reads_authoritative_state_without_writing(tmp_path: 
     assert database.read_bytes() == before
 
 
+@pytest.mark.oracle
+def test_quaternary_adapter_derives_evidence_from_an_exact_cas_bound_subject(tmp_path: Path):
+    gatherctl = tmp_path / "gatherctl.py"
+    gatherctl.write_text("# fixture", encoding="utf-8")
+    blobs: dict[str, bytes] = {}
+    observed: dict[str, object] = {}
+
+    def put(content: bytes) -> str:
+        digest = sha256_bytes(content)
+        blobs[digest] = content
+        return digest
+
+    def run(command, **_kwargs):
+        subject_path = Path(command[command.index("--input") + 1])
+        observed["subject"] = json.loads(subject_path.read_bytes())
+        observed["command"] = command
+        value = {
+            "contract_version": "WorkflowAdapterEvidence/1.0",
+            "semantic_type": "prevalidated-query-arm",
+            "authority": "quaternary",
+            "evidence_level": "frozen-before-run",
+            "content": {"arm_id": "arm_floor_1", "validated": True},
+            "source_ref": "canon:query-intents@17",
+            "source_sha256": "c" * 64,
+            "issuer_ref": "floor-compiler:arm_floor_1:17",
+        }
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps(value), stderr="")
+
+    adapter = QuaternaryAdapter(
+        tmp_path / "canon.db",
+        gatherctl,
+        runner=run,
+        blob_reader=blobs.__getitem__,
+        blob_writer=put,
+    )
+    result = adapter.evidence(
+        "prevalidated-query-arm",
+        {"language": "de", "preparation_id": "qep_fixture"},
+        {"arm_id": "arm_floor_1"},
+    )
+
+    assert observed["subject"] == {"arm_id": "arm_floor_1"}
+    assert "workflow-evidence" in observed["command"]
+    assert result["semantic_type"] == "prevalidated-query-arm"
+    assert result["issuer_ref"].startswith("floor-compiler:")
+
+
 @pytest.mark.regression
 def test_quaternary_adapter_closes_each_read_connection(monkeypatch, tmp_path: Path):
     database = tmp_path / "quaternary.sqlite3"

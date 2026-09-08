@@ -17,6 +17,7 @@ from .contracts import WorkflowPackDefinition
 class WorkflowAdapter(Protocol):
     def inspect(self, selector: dict[str, Any]) -> dict[str, Any]: ...
     def command(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]: ...
+    def evidence(self, evidence_kind: str, selector: dict[str, Any], subject: dict[str, Any]) -> dict[str, Any]: ...
 
 
 class WorkflowRegistry:
@@ -175,6 +176,23 @@ class WorkflowRegistry:
             return self.adapters[pack_id].command(operation, resolved)
         except KeyError as error:
             raise ValueError(f"workflow has no registered adapter: {pack_id}") from error
+
+    def evidence(self, pack_id: str, evidence_kind: str, selector: dict[str, Any], subject: dict[str, Any]) -> dict[str, Any]:
+        """Ask the registered adapter to derive evidence from its authoritative system."""
+
+        selector = self.resolve_selector(pack_id, selector)
+        if not isinstance(evidence_kind, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,119}", evidence_kind):
+            raise ValueError("workflow adapter evidence kind is malformed")
+        if not isinstance(subject, dict):
+            raise ValueError("workflow adapter evidence subject must be an object")
+        try:
+            adapter = self.adapters[pack_id]
+        except KeyError as error:
+            raise ValueError(f"workflow has no registered adapter: {pack_id}") from error
+        producer = getattr(adapter, "evidence", None)
+        if producer is None:
+            raise ValueError(f"workflow adapter does not produce governed evidence: {pack_id}")
+        return producer(evidence_kind, selector, subject)
 
     def validate_transition(self, pack_id: str, from_state: str, to_state: str) -> dict[str, Any]:
         definition = self.load(pack_id)["definition"]

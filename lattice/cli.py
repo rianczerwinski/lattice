@@ -22,7 +22,7 @@ from .execution import installed_adapter_status
 
 from .canonical import canonical_bytes, generated_object, sha256_bytes, strict_json_loads
 from .client import LatticeClient
-from .contracts import ExecutionSubmissionV1, HistoricalExecutionImportV1
+from .contracts import ExecutionSubmissionV1, HistoricalExecutionImportV1, InvocationBatchCreateV1, InvocationBatchPreviewV1
 from .__about__ import __version__
 from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
@@ -345,15 +345,19 @@ def command_restore(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_invoke(args: argparse.Namespace) -> int:
-    path = Path(args.request).expanduser()
-    raw = path.read_bytes()
+def _read_json_object(path_value: str, *, label: str) -> dict[str, Any]:
+    raw = Path(path_value).expanduser().read_bytes()
     try:
         payload = strict_json_loads(raw)
     except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
-        raise ValueError(f"execution request is not exact JSON: {error}") from error
+        raise ValueError(f"{label} is not exact JSON: {error}") from error
     if not isinstance(payload, dict):
-        raise ValueError("execution request must be a JSON object")
+        raise ValueError(f"{label} must be a JSON object")
+    return payload
+
+
+def command_invoke(args: argparse.Namespace) -> int:
+    payload = _read_json_object(args.request, label="execution request")
     result = LatticeClient.from_environment().submit(ExecutionSubmissionV1.model_validate(payload), wait=args.wait, timeout=args.timeout)
     _emit(result.model_dump(mode="json"), as_json=True)
     return 0 if result.state.value not in {"failed", "interrupted"} else 1
@@ -387,6 +391,51 @@ def command_routes(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_workflow_project_create(args: argparse.Namespace) -> int:
+    payload = _read_json_object(args.request, label="workflow-project request")
+    _emit(LatticeClient.from_environment().create_workflow_project(args.pack_id, payload), as_json=True)
+    return 0
+
+
+def command_workflow_project(args: argparse.Namespace) -> int:
+    _emit(LatticeClient.from_environment().workflow_project(args.project_id), as_json=True)
+    return 0
+
+
+def command_workflow_refresh(args: argparse.Namespace) -> int:
+    _emit(LatticeClient.from_environment().refresh_workflow_project(args.pack_id, args.project_id), as_json=True)
+    return 0
+
+
+def command_workflow_adapter_evidence(args: argparse.Namespace) -> int:
+    payload = _read_json_object(args.request, label="workflow-adapter evidence request")
+    _emit(LatticeClient.from_environment().create_workflow_adapter_evidence(args.pack_id, args.project_id, payload), as_json=True)
+    return 0
+
+
+def command_workflow_transition(args: argparse.Namespace) -> int:
+    payload = _read_json_object(args.request, label="workflow-transition request")
+    _emit(LatticeClient.from_environment().transition_workflow(args.pack_id, payload), as_json=True)
+    return 0
+
+
+def command_batch_preview(args: argparse.Namespace) -> int:
+    payload = _read_json_object(args.request, label="invocation-batch preview request")
+    _emit(LatticeClient.from_environment().preview_invocation_batch(InvocationBatchPreviewV1.model_validate(payload)), as_json=True)
+    return 0
+
+
+def command_batch_create(args: argparse.Namespace) -> int:
+    payload = _read_json_object(args.request, label="invocation-batch creation request")
+    _emit(LatticeClient.from_environment().create_invocation_batch(InvocationBatchCreateV1.model_validate(payload)), as_json=True)
+    return 0
+
+
+def command_invocation(args: argparse.Namespace) -> int:
+    _emit(LatticeClient.from_environment().invocation(args.invocation_id), as_json=True)
+    return 0
+
+
 def command_route_amendment(args: argparse.Namespace) -> int:
     client = LatticeClient.from_environment()
     if args.request:
@@ -407,14 +456,7 @@ def command_route_amendment(args: argparse.Namespace) -> int:
 
 
 def command_import_history(args: argparse.Namespace) -> int:
-    path = Path(args.request).expanduser()
-    raw = path.read_bytes()
-    try:
-        payload = strict_json_loads(raw)
-    except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
-        raise ValueError(f"historical execution request is not exact JSON: {error}") from error
-    if not isinstance(payload, dict):
-        raise ValueError("historical execution request must be a JSON object")
+    payload = _read_json_object(args.request, label="historical execution request")
     result = LatticeClient.from_environment().import_history(HistoricalExecutionImportV1.model_validate(payload))
     _emit(result.model_dump(mode="json"), as_json=True)
     return 0
@@ -538,6 +580,43 @@ def parser() -> argparse.ArgumentParser:
     routes = subparsers.add_parser("routes", help="read Lattice provider profiles and qualification state")
     routes.add_argument("--probe", action="store_true", help="run the bounded official-CLI capability probes")
     routes.set_defaults(handler=command_routes)
+
+    workflow_create = subparsers.add_parser("workflow-project-create", help="create one pack-bound workflow project")
+    workflow_create.add_argument("pack_id")
+    workflow_create.add_argument("--request", required=True, help="workflow-project request JSON file")
+    workflow_create.set_defaults(handler=command_workflow_project_create)
+
+    workflow_project = subparsers.add_parser("workflow-project", help="read one workflow project and its role sessions")
+    workflow_project.add_argument("project_id")
+    workflow_project.set_defaults(handler=command_workflow_project)
+
+    workflow_refresh = subparsers.add_parser("workflow-refresh", help="refresh one workflow project's authoritative blackboard")
+    workflow_refresh.add_argument("pack_id")
+    workflow_refresh.add_argument("project_id")
+    workflow_refresh.set_defaults(handler=command_workflow_refresh)
+
+    workflow_evidence = subparsers.add_parser("workflow-adapter-evidence", help="derive and admit evidence through a registered workflow adapter")
+    workflow_evidence.add_argument("pack_id")
+    workflow_evidence.add_argument("project_id")
+    workflow_evidence.add_argument("--request", required=True, help="workflow-adapter evidence request JSON file")
+    workflow_evidence.set_defaults(handler=command_workflow_adapter_evidence)
+
+    workflow_transition = subparsers.add_parser("workflow-transition", help="advance one pack-bound workflow transition")
+    workflow_transition.add_argument("pack_id")
+    workflow_transition.add_argument("--request", required=True, help="workflow-transition request JSON file")
+    workflow_transition.set_defaults(handler=command_workflow_transition)
+
+    batch_preview = subparsers.add_parser("batch-preview", help="preview an idempotent invocation batch")
+    batch_preview.add_argument("--request", required=True, help="InvocationBatchPreviewV1 JSON file")
+    batch_preview.set_defaults(handler=command_batch_preview)
+
+    batch_create = subparsers.add_parser("batch-create", help="create and dispatch an approved invocation batch")
+    batch_create.add_argument("--request", required=True, help="InvocationBatchCreateV1 JSON file")
+    batch_create.set_defaults(handler=command_batch_create)
+
+    invocation = subparsers.add_parser("invocation", help="read one invocation and its terminal artifacts")
+    invocation.add_argument("invocation_id")
+    invocation.set_defaults(handler=command_invocation)
 
     amendment = subparsers.add_parser("route-amendment", help="inspect, request, or explicitly decide a paused runner switch")
     amendment.add_argument("session_id")

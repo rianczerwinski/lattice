@@ -1289,6 +1289,19 @@ class WorkflowTransitionRequest(StrictModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class WorkflowAdapterEvidenceV1(StrictModel):
+    """Exact evidence projection produced by a registered workflow adapter."""
+
+    contract_version: Literal["WorkflowAdapterEvidence/1.0"] = "WorkflowAdapterEvidence/1.0"
+    semantic_type: str = Field(min_length=1, max_length=120)
+    authority: str = Field(min_length=1, max_length=300)
+    evidence_level: str = Field(min_length=1, max_length=300)
+    content: dict[str, Any]
+    source_ref: str = Field(min_length=1, max_length=4000, pattern=r"^[^\x00-\x1f\x7f]+$")
+    source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    issuer_ref: str = Field(min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+
+
 class WorkflowAutomationGrantRequest(StrictModel):
     expected_revision: int = Field(ge=1)
     enabled: bool

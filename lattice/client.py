@@ -86,6 +86,56 @@ class LatticeClient:
             raise LatticeClientError("Lattice project creation response is malformed")
         return result
 
+    def project(self, project_id: str) -> dict[str, Any]:
+        result = self._request("GET", f"/api/v1/projects/{urllib.parse.quote(project_id, safe='')}")
+        if not isinstance(result, dict) or result.get("project_id") != project_id:
+            raise LatticeClientError("Lattice project response is malformed")
+        return result
+
+    def workflow_pack(self, pack_id: str) -> dict[str, Any]:
+        result = self._request("GET", f"/api/v1/workflow-packs/{urllib.parse.quote(pack_id, safe='')}")
+        if not isinstance(result, dict) or not isinstance(result.get("canonical_sha256"), str):
+            raise LatticeClientError("Lattice workflow-pack response is malformed")
+        return result
+
+    def create_workflow_project(self, pack_id: str, request: dict[str, Any]) -> dict[str, Any]:
+        result = self._request("POST", f"/api/v1/workflow-packs/{urllib.parse.quote(pack_id, safe='')}/projects", request)
+        project = result.get("project") if isinstance(result, dict) else None
+        if not isinstance(project, dict) or not isinstance(project.get("project_id"), str):
+            raise LatticeClientError("Lattice workflow-project creation response is malformed")
+        return result
+
+    def workflow_project(self, project_id: str) -> dict[str, Any]:
+        result = self._request("GET", f"/api/v1/workflow-projects/{urllib.parse.quote(project_id, safe='')}")
+        if not isinstance(result, dict) or result.get("project_id") != project_id:
+            raise LatticeClientError("Lattice workflow-project response is malformed")
+        return result
+
+    def refresh_workflow_project(self, pack_id: str, project_id: str) -> dict[str, Any]:
+        result = self._request("POST", f"/api/v1/workflow-packs/{urllib.parse.quote(pack_id, safe='')}/projects/{urllib.parse.quote(project_id, safe='')}/refresh", {})
+        workflow = result.get("workflow") if isinstance(result, dict) else None
+        blackboard = result.get("blackboard") if isinstance(result, dict) else None
+        if not isinstance(workflow, dict) or not isinstance(blackboard, dict) or not isinstance(blackboard.get("block_id"), str):
+            raise LatticeClientError("Lattice workflow refresh response is malformed")
+        return result
+
+    def create_workflow_adapter_evidence(self, pack_id: str, project_id: str, request: dict[str, Any]) -> dict[str, Any]:
+        result = self._request(
+            "POST",
+            f"/api/v1/workflow-packs/{urllib.parse.quote(pack_id, safe='')}/projects/{urllib.parse.quote(project_id, safe='')}/adapter-evidence",
+            request,
+        )
+        if not isinstance(result, dict) or not isinstance(result.get("block_id"), str) or result.get("issuer_kind") != "workflow-adapter":
+            raise LatticeClientError("Lattice workflow-adapter evidence response is malformed")
+        return result
+
+    def transition_workflow(self, pack_id: str, request: dict[str, Any]) -> dict[str, Any]:
+        result = self._request("POST", f"/api/v1/workflow-packs/{urllib.parse.quote(pack_id, safe='')}/transitions", request)
+        workflow = result.get("workflow") if isinstance(result, dict) else None
+        if not isinstance(workflow, dict) or not isinstance(workflow.get("revision"), int):
+            raise LatticeClientError("Lattice workflow-transition response is malformed")
+        return result
+
     def preview_invocation_batch(self, request: InvocationBatchPreviewV1 | dict[str, Any]) -> dict[str, Any]:
         value = request if isinstance(request, InvocationBatchPreviewV1) else InvocationBatchPreviewV1.model_validate(request)
         result = self._request("POST", "/api/v1/invocation-batches/preview", value.model_dump(mode="json"))
@@ -106,6 +156,19 @@ class LatticeClient:
         result = self._request("GET", f"/api/v1/invocation-batches/{urllib.parse.quote(batch_id, safe='')}")
         if not isinstance(result, dict) or result.get("batch_id") != batch_id or not isinstance(result.get("members"), list):
             raise LatticeClientError("Lattice invocation-batch inspection response is malformed")
+        return result
+
+    def invocation(self, invocation_id: str) -> dict[str, Any]:
+        result = self._request("GET", f"/api/v1/invocations/{urllib.parse.quote(invocation_id, safe='')}")
+        if not isinstance(result, dict) or result.get("invocation_id") != invocation_id:
+            raise LatticeClientError("Lattice invocation response is malformed")
+        return result
+
+    def execute_invocation(self, invocation_id: str, idempotency_key: str) -> dict[str, Any]:
+        value = ExecuteRequest(idempotency_key=idempotency_key)
+        result = self._request("POST", f"/api/v1/invocations/{urllib.parse.quote(invocation_id, safe='')}/execute", value.model_dump(mode="json"))
+        if not isinstance(result, dict):
+            raise LatticeClientError("Lattice invocation execution response is malformed")
         return result
 
     def result(self, external_project_key: str, operation_key: str) -> ExecutionResultV1:

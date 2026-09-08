@@ -48,6 +48,7 @@ from .contracts import (
     SliceCreate,
     TagRequest,
     WorkflowTransitionRequest,
+    WorkflowAdapterEvidenceV1,
     WorkflowAutomationGrantRequest,
     EdgeRelation,
     EpisodeCreate,
@@ -164,6 +165,12 @@ class WorkflowProjectRequest(StrictRequest):
     purpose: str = ""
     selector: dict[str, Any] = Field(default_factory=dict)
     slice_external_ref: str | None = Field(default=None, min_length=1, max_length=500, pattern=r"^[^\x00-\x1f\x7f]+$")
+
+
+class WorkflowAdapterEvidenceRequest(StrictRequest):
+    expected_revision: int = Field(ge=1)
+    evidence_kind: str = Field(pattern=r"^[a-z][a-z0-9-]{0,119}$")
+    subject: dict[str, Any] = Field(default_factory=dict)
 
 
 class ResolveContextModuleRequest(StrictRequest):
@@ -1050,6 +1057,41 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             return await refresh_workflow_state(pack_id, project_id)
         except (ValueError, QuaternaryBoundaryError, FileNotFoundError, sqlite3.Error) as error:
             raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/v1/workflow-packs/{pack_id}/projects/{project_id}/adapter-evidence")
+    async def create_workflow_adapter_evidence(pack_id: str, project_id: str, value: WorkflowAdapterEvidenceRequest):
+        instance, _loaded = require_current_workflow_instance(pack_id, project_id)
+        if instance["revision"] != value.expected_revision:
+            raise LatticeConflict("workflow state changed before adapter evidence production")
+        try:
+            produced = WorkflowAdapterEvidenceV1.model_validate(
+                await asyncio.to_thread(
+                    workflows.evidence,
+                    pack_id,
+                    value.evidence_kind,
+                    instance["selector"],
+                    value.subject,
+                )
+            )
+        except (ValueError, QuaternaryBoundaryError, FileNotFoundError, sqlite3.Error) as error:
+            raise HTTPException(422, str(error)) from error
+        content = canonical_bytes(produced.content).decode("utf-8")
+        block = ContextBlockCreate(
+            project_id=project_id,
+            semantic_type=produced.semantic_type,
+            content=content,
+            source_ref=produced.source_ref,
+            source_sha256=produced.source_sha256,
+            authority=produced.authority,
+            evidence_level=produced.evidence_level,
+            sensitivity="private",
+        )
+        return store.create_workflow_adapter_evidence(
+            block,
+            pack_id=pack_id,
+            expected_workflow_revision=value.expected_revision,
+            issuer_ref=produced.issuer_ref,
+        )
 
     @app.post("/api/v1/workflow-packs/{pack_id}/transitions")
     async def transition_workflow(pack_id: str, value: WorkflowTransitionRequest):

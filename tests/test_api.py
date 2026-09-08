@@ -1106,6 +1106,73 @@ def test_workflow_project_read_model_exposes_authoritative_blackboard_roles_and_
 
 
 @pytest.mark.oracle
+def test_workflow_adapter_evidence_is_derived_server_side_and_revision_bound(lattice_env) -> None:
+    store = lattice_env["store"]
+    loaded = WorkflowRegistry(TEST_WORKFLOW_PACK_ROOTS).load("quaternary")
+    created = store.create_workflow_project_atomic(
+        title="governed adapter evidence",
+        purpose="",
+        workflow_pack="quaternary",
+        initial_state="semantic-intent",
+        role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}],
+        blackboard_content=b"{}",
+        blackboard_source_ref="fixture:state",
+        slice_external_ref=None,
+        selector={"language": "de", "preparation_id": "qep_fixture"},
+        pack_canonical_sha256=loaded["canonical_sha256"],
+    )
+    project_id = created["project"]["project_id"]
+    app = create_app(lattice_env["config"])
+
+    class EvidenceAdapter:
+        calls: list[tuple[str, dict, dict]] = []
+
+        def inspect(self, _selector):
+            return {"state_sha256": "a" * 64}
+
+        def command(self, _operation, _arguments):
+            raise AssertionError("evidence production must not use an operator command")
+
+        def evidence(self, evidence_kind, selector, subject):
+            self.calls.append((evidence_kind, selector, subject))
+            return {
+                "contract_version": "WorkflowAdapterEvidence/1.0",
+                "semantic_type": "native-query-validation",
+                "authority": "quaternary-query-validator",
+                "evidence_level": "accepted",
+                "content": {"accepted": True, "arm_id": subject["arm_id"]},
+                "source_ref": "canon:arm/arm_fixture@17",
+                "source_sha256": "b" * 64,
+                "issuer_ref": "query-validator:arm_fixture:17",
+            }
+
+    adapter = EvidenceAdapter()
+    app.state.workflows.adapters["quaternary"] = adapter
+    with TestClient(app) as client:
+        csrf = _operator_session(client, lattice_env).json()["csrf"]
+        headers = {"x-lattice-csrf": csrf, "origin": "http://testserver"}
+        accepted = client.post(
+            f"/api/v1/workflow-packs/quaternary/projects/{project_id}/adapter-evidence",
+            headers=headers,
+            json={"expected_revision": 1, "evidence_kind": "native-query-validation", "subject": {"arm_id": "arm_fixture"}},
+        )
+        stale = client.post(
+            f"/api/v1/workflow-packs/quaternary/projects/{project_id}/adapter-evidence",
+            headers=headers,
+            json={"expected_revision": 2, "evidence_kind": "native-query-validation", "subject": {"arm_id": "arm_stale"}},
+        )
+
+    assert accepted.status_code == 200, accepted.text
+    block = accepted.json()
+    assert block["issuer_kind"] == "workflow-adapter"
+    assert block["issuer_ref"] == "quaternary:query-validator:arm_fixture:17"
+    assert store.get_block(block["block_id"])["content"] == '{"accepted":true,"arm_id":"arm_fixture"}'
+    assert adapter.calls == [("native-query-validation", {"language": "de", "preparation_id": "qep_fixture"}, {"arm_id": "arm_fixture"})]
+    assert stale.status_code == 409
+    assert "state changed" in stale.text
+
+
+@pytest.mark.oracle
 def test_oracle_workflow_blackboard_refresh_replaces_current_view_and_preserves_history(lattice_env) -> None:
     store = lattice_env["store"]
     created = store.create_workflow_project_atomic(title="refreshable", purpose="", workflow_pack="quaternary", initial_state="semantic-intent", role_specs=[{"name": "Operator", "authority": "read", "instructions": "Inspect."}], blackboard_content=b'{"generation":1}', blackboard_source_ref="fixture:g1", slice_external_ref="slate:refreshable", selector={"language": "de"})

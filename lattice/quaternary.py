@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .canonical import canonical_bytes, sha256_bytes, stamp, strict_json_loads
+from .contracts import WorkflowAdapterEvidenceV1
 from .context_modules import ContextModuleError, read_bounded_local_file
 
 
@@ -39,7 +40,7 @@ class _CapturedOutputLimit(RuntimeError):
 class QuaternaryAdapter:
     """Read typed state directly; mutate only through gatherctl's public commands."""
 
-    READ_OPERATIONS = {"language-status", "peek", "next-language"}
+    READ_OPERATIONS = {"language-status", "peek", "next-language", "workflow-evidence"}
     WRITE_OPERATIONS = {
         "prepare-language",
         "qualify-language",
@@ -77,6 +78,7 @@ class QuaternaryAdapter:
         "recorder": "--recorder",
         "run_id": "--run-id",
         "requester": "--requester",
+        "evidence_kind": "--evidence-kind",
     }
     MAX_CAPTURE_BYTES = 64 * 1024 * 1024
     MAX_INSPECT_ACTIONS = 100
@@ -215,6 +217,31 @@ class QuaternaryAdapter:
             state_sha256 = sha256_bytes(canonical_bytes(state))
             conn.commit()
         return {"kind": "quaternary-state-receipt", "source_ref": f"sqlite:{self.database}#lattice-quaternary-state-v3", "query_contract": "lattice-quaternary-state-v3", "sqlite_schema_version": schema_version, "state_sha256": state_sha256, **state, "observed_at": stamp()}
+
+    def evidence(self, evidence_kind: str, selector: dict[str, Any], subject: dict[str, Any]) -> dict[str, Any]:
+        """Derive one typed evidence projection through Canon's installed boundary."""
+
+        preparation_id = selector.get("preparation_id")
+        if not isinstance(preparation_id, str) or not preparation_id.startswith("qep_"):
+            raise QuaternaryBoundaryError("quaternary workflow evidence requires an exact preparation selector")
+        if self.blob_writer is None:
+            raise QuaternaryBoundaryError("quaternary workflow evidence has no Lattice blob writer")
+        subject_bytes = canonical_bytes(subject)
+        subject_sha256 = self.blob_writer(subject_bytes)
+        if subject_sha256 != sha256_bytes(subject_bytes):
+            raise QuaternaryBoundaryError("quaternary workflow evidence subject was not preserved exactly")
+        result = self.command(
+            "workflow-evidence",
+            {
+                "preparation_id": preparation_id,
+                "evidence_kind": evidence_kind,
+                "input": f"lattice:blob/{subject_sha256}",
+            },
+        )
+        try:
+            return WorkflowAdapterEvidenceV1.model_validate(result["output"]).model_dump(mode="json")
+        except (KeyError, TypeError, ValueError) as error:
+            raise QuaternaryBoundaryError("Canon returned malformed workflow adapter evidence") from error
 
     def command(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if operation not in self.READ_OPERATIONS | self.WRITE_OPERATIONS:
