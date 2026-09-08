@@ -12,7 +12,7 @@ from typing import Any
 
 from .canonical import canonical_bytes
 from .config import LatticeConfig
-from .contracts import DurableRunDeclarationV1, DurableRunDeclarationV2, ExecuteRequest, ExecutionResultV1, ExecutionSubmissionV1, HistoricalExecutionImportResultV1, HistoricalExecutionImportV1
+from .contracts import DurableRunDeclarationV1, DurableRunDeclarationV2, ExecuteRequest, ExecutionResultV1, ExecutionSubmissionV1, HistoricalExecutionImportResultV1, HistoricalExecutionImportV1, InvocationBatchCreateV1, InvocationBatchPreviewV1, ProjectCreate
 from .outport import resolve_lattice_service
 from .security import ensure_cli_token
 
@@ -76,6 +76,37 @@ class LatticeClient:
         value = submission if isinstance(submission, ExecutionSubmissionV1) else ExecutionSubmissionV1.model_validate(submission)
         result = ExecutionResultV1.model_validate(self._request("POST", "/api/v1/executions", value.model_dump(mode="json")))
         return self.wait(result.external_project_key, result.operation_key, result.project_id, timeout=timeout) if wait and result.state.value not in {"succeeded", "failed", "interrupted"} else result
+
+    def create_project(self, project: ProjectCreate | dict[str, Any]) -> dict[str, Any]:
+        value = project if isinstance(project, ProjectCreate) else ProjectCreate.model_validate(project)
+        if value.workflow_pack is not None:
+            raise ValueError("the manual project endpoint does not accept a workflow pack")
+        result = self._request("POST", "/api/v1/projects", value.model_dump(mode="json", exclude={"workflow_pack"}))
+        if not isinstance(result, dict) or not isinstance(result.get("project_id"), str):
+            raise LatticeClientError("Lattice project creation response is malformed")
+        return result
+
+    def preview_invocation_batch(self, request: InvocationBatchPreviewV1 | dict[str, Any]) -> dict[str, Any]:
+        value = request if isinstance(request, InvocationBatchPreviewV1) else InvocationBatchPreviewV1.model_validate(request)
+        result = self._request("POST", "/api/v1/invocation-batches/preview", value.model_dump(mode="json"))
+        if not isinstance(result, dict) or result.get("batch_id") != value.batch_id or not isinstance(result.get("preview_sha256"), str):
+            raise LatticeClientError("Lattice invocation-batch preview response is malformed")
+        return result
+
+    def create_invocation_batch(self, request: InvocationBatchCreateV1 | dict[str, Any]) -> dict[str, Any]:
+        value = request if isinstance(request, InvocationBatchCreateV1) else InvocationBatchCreateV1.model_validate(request)
+        result = self._request("POST", "/api/v1/invocation-batches", value.model_dump(mode="json"))
+        if not isinstance(result, dict) or result.get("batch_id") != value.batch_id or not isinstance(result.get("members"), list):
+            raise LatticeClientError("Lattice invocation-batch creation response is malformed")
+        return result
+
+    def invocation_batch(self, batch_id: str) -> dict[str, Any]:
+        if not batch_id:
+            raise ValueError("Lattice invocation-batch identity cannot be empty")
+        result = self._request("GET", f"/api/v1/invocation-batches/{urllib.parse.quote(batch_id, safe='')}")
+        if not isinstance(result, dict) or result.get("batch_id") != batch_id or not isinstance(result.get("members"), list):
+            raise LatticeClientError("Lattice invocation-batch inspection response is malformed")
+        return result
 
     def result(self, external_project_key: str, operation_key: str) -> ExecutionResultV1:
         query = urllib.parse.urlencode({"external_project_key": external_project_key, "operation_key": operation_key})
