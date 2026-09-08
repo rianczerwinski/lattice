@@ -6,3 +6,5 @@ SURFACE.json:generic-api-key:3453
 surface-history/20260905T191145.json:generic-api-key:3429
 # Preserved parent Surface evidence digest; the field is a content hash, not a credential.
 surface-history/20260906T014921.json:generic-api-key:3445
+# Preserved parent Surface evidence digest; the field is a content hash, not a credential.
+surface-history/20260908T034755.json:generic-api-key:3461
