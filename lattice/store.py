@@ -1278,6 +1278,7 @@ class LatticeStore:
         role_session_id: str | None,
         route: dict[str, Any],
         parent_invocation_ids: list[str] | tuple[str, ...] = (),
+        route_scope_refs: list[str] | tuple[str, ...] = (),
     ) -> dict[str, Any]:
         role = None
         if actor_kind == "direct":
@@ -1291,7 +1292,7 @@ class LatticeStore:
             policy = role["route_policy"]
             from .route_amendments import assert_route
             with self._connect() as conn:
-                amended_route = assert_route(conn, role_session_id, route)
+                amended_route = assert_route(conn, role_session_id, route, route_scope_refs)
             if policy["kind"] == "non-model":
                 raise LatticeConflict(f"{role['name']} is not a model-execution role")
             if policy["kind"] == "model" and amended_route is None:
@@ -1370,13 +1371,13 @@ class LatticeStore:
         ).fetchone()
         return {"invocation_id": str(row["invocation_id"]), "state": str(row["state"])} if row else None
 
-    def validate_invocation_intent(self, assembly: Any, route: Any) -> dict[str, Any]:
+    def validate_invocation_intent(self, assembly: Any, route: Any, *, route_scope_refs: list[str] | tuple[str, ...] = ()) -> dict[str, Any]:
         """Validate a stateless preflight without creating any ledger objects."""
 
         project = self.get_project(assembly.project_id)
         actor = assembly.actor_binding.model_dump(mode="json")
         role_session_id = actor.get("role_session_id")
-        normalized_route = self._assert_actor_route_authorized(actor["kind"], role_session_id, route.model_dump(mode="json"), assembly.parent_invocation_ids)
+        normalized_route = self._assert_actor_route_authorized(actor["kind"], role_session_id, route.model_dump(mode="json"), assembly.parent_invocation_ids, route_scope_refs)
         if project["workflow_pack"] is not None and actor["kind"] == "direct":
             # Direct conversation may coexist with a workflow project, but it
             # cannot impersonate a named workflow actor or satisfy role gates.
@@ -3354,6 +3355,8 @@ class LatticeStore:
                         if concern_slice is None or (concern_slice["scope"] != "global" and concern_slice["project_id"] != draft["project_id"]):
                             raise LatticeConflict("batch concern does not resolve to a visible saved slice")
                         self._insert_edge(conn, project_id=draft["project_id"], relation=EdgeRelation.concerns, source_type="invocation", source_id=manifest["invocation_id"], source_revision=manifest["manifest_sha256"], target_type="external-concern", target_id=concern_ref, target_revision=sha256_bytes(concern_ref.encode("utf-8")), metadata={"batch_id": batch_id})
+                    for scope_ref in item.get("route_scope_refs", []):
+                        self._insert_edge(conn, project_id=draft["project_id"], relation=EdgeRelation.scoped_by, source_type="invocation", source_id=manifest["invocation_id"], source_revision=manifest["manifest_sha256"], target_type="route-scope", target_id=scope_ref, target_revision=sha256_bytes(scope_ref.encode("utf-8")), metadata={"batch_id": batch_id})
 
                 conn.execute(
                     "INSERT INTO invocation_batches(batch_id,project_id,idempotency_key,request_sha256,preview_sha256,receipt_json,receipt_sha256,created_at) VALUES(?,?,?,?,?,?,?,?)",
@@ -3687,8 +3690,8 @@ class LatticeStore:
             now = stamp()
             route = json.loads(invocation["route_json"])
             if invocation["role_session_id"] is not None:
-                from .route_amendments import assert_route
-                assert_route(conn, invocation["role_session_id"], route)
+                from .route_amendments import assert_route, invocation_scope_refs
+                assert_route(conn, invocation["role_session_id"], route, invocation_scope_refs(conn, invocation_id))
             native_session_id = route.get("native_session_id") if route.get("execution_profile") == "native-continuation" else None
             if native_session_id is not None:
                 expected_head = route.get("native_parent_invocation_id")

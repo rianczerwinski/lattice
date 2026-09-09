@@ -27,6 +27,7 @@ class EdgeRelation(StrEnum):
     validates = "validates"
     triggered_by = "triggered_by"
     concerns = "concerns"
+    scoped_by = "scoped_by"
     produced = "produced"
 
 
@@ -581,6 +582,23 @@ class RouteAmendmentRequest(StrictModel):
     reason: str = Field(min_length=1, max_length=4000)
     failure_evidence_block_id: str = Field(min_length=1)
     qualification_evidence_block_id: str = Field(min_length=1)
+    route_scope_sets: list[list[str]] = Field(min_length=1, max_length=16)
+
+    @field_validator("route_scope_sets")
+    @classmethod
+    def route_scopes_are_exact_and_canonical(cls, value: list[list[str]]) -> list[list[str]]:
+        canonical: list[list[str]] = []
+        for scope_refs in value:
+            if not scope_refs or len(scope_refs) > 16:
+                raise ValueError("each route scope must contain one to sixteen identities")
+            if len(scope_refs) != len(set(scope_refs)) or scope_refs != sorted(scope_refs):
+                raise ValueError("route scope identities must be unique and lexically ordered")
+            if any(not item or len(item) > 500 or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in scope_refs):
+                raise ValueError("route scope identities must be printable")
+            canonical.append(scope_refs)
+        if len({tuple(item) for item in canonical}) != len(canonical) or canonical != sorted(canonical):
+            raise ValueError("route scope sets must be unique and lexically ordered")
+        return value
 
 
 class RouteAmendmentDecision(StrictModel):
@@ -921,6 +939,7 @@ class InvocationSpecV1(StrictModel):
     assembly: ContextAssemblyV1
     route: ProviderRoute
     concern_refs: list[str] = Field(default_factory=list, max_length=100)
+    route_scope_refs: list[str] = Field(default_factory=list, max_length=16)
 
     @field_validator("concern_refs")
     @classmethod
@@ -929,6 +948,15 @@ class InvocationSpecV1(StrictModel):
             raise ValueError("invocation concern identities must be unique")
         if any(not item or len(item) > 500 or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in value):
             raise ValueError("invocation concern identities must be printable")
+        return value
+
+    @field_validator("route_scope_refs")
+    @classmethod
+    def route_scopes_are_unique_printable_and_canonical(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)) or value != sorted(value):
+            raise ValueError("invocation route scope identities must be unique and lexically ordered")
+        if any(not item or len(item) > 500 or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in value):
+            raise ValueError("invocation route scope identities must be printable")
         return value
 
 

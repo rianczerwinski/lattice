@@ -1,11 +1,14 @@
-"""Runner substitution requires a distinct, evidenced operator decision."""
+"""Runner substitution requires a distinct, evidenced, scope-bound operator decision."""
+
+import hashlib
+import itertools
 
 import pytest
 from fastapi.testclient import TestClient
 
 from lattice import LatticeStore
 from lattice import route_amendments as routes
-from lattice.contracts import AttemptState, BlockStatus, ContextBlockCreate, DraftCreate, ProviderRoute, RoleSessionCreate, RouteAmendmentDecision, RouteAmendmentRequest
+from lattice.contracts import AttemptState, BlockStatus, ContextAssemblyV1, ContextBlockCreate, DraftCreate, EdgeRelation, InvocationBatchCreateV1, InvocationBatchPreviewV1, InvocationSpecV1, ProviderRoute, RoleSessionActorBinding, RoleSessionCreate, RouteAmendmentDecision, RouteAmendmentRequest
 from lattice.server import create_app
 from lattice.security import ensure_cli_token
 from lattice.store import LatticeConflict
@@ -16,14 +19,41 @@ def _seal(env, route=None):
     return env["lattice"].seal(draft["draft_id"])
 
 
+_BATCH_SEQUENCE = itertools.count()
+INTERPRETATION_SCOPE = ["lane:de-DE", "task:native-interpretation"]
+FORMULATION_SCOPE = ["lane:de-DE", "task:native-formulation"]
+
+
+def _seal_scoped(env, scope_refs, route=None):
+    material = f"{next(_BATCH_SEQUENCE)}:{scope_refs}".encode()
+    identity = hashlib.sha256(material).hexdigest()
+    assembly = ContextAssemblyV1(
+        project_id=env["project"]["project_id"],
+        actor_binding=RoleSessionActorBinding(role_session_id=env["session"]["role_session_id"]),
+        prompt="interpret source-backed patterns",
+    )
+    preview_request = InvocationBatchPreviewV1(
+        batch_id=f"batch_{identity[:32]}",
+        specifications=[InvocationSpecV1(spec_id="scoped", assembly=assembly, route=route or env["route"], route_scope_refs=scope_refs)],
+    )
+    preview = env["lattice"].preview_invocation_batch(preview_request)
+    receipt = env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+        **preview_request.model_dump(mode="json"),
+        idempotency_key=f"scope-test:{identity}",
+        expected_preview_sha256=preview["preview_sha256"],
+        confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
+    ))
+    return env["store"].get_invocation(receipt["invocation_ids"][0])
+
+
 def _request(env):
-    invocation = _seal(env)
+    invocation = _seal_scoped(env, INTERPRETATION_SCOPE)
     store = env["store"]
     attempt = store.create_attempt(invocation["invocation_id"], "source-failure", "test", 9_999_999_999)
     store.finish_attempt(attempt["attempt_id"], state=AttemptState.failed, failure_kind="timeout", error_text="planted transport failure")
     failure = store.create_context_block(ContextBlockCreate(project_id=env["project"]["project_id"], semantic_type="runner-failure", content="planted failure receipt", authority="test", evidence_level="observed"))
     qualification = store.create_context_block(ContextBlockCreate(project_id=env["project"]["project_id"], semantic_type="task-qualification", content="planted independent qualification for this lane and role", authority="test", evidence_level="passed"))
-    request = RouteAmendmentRequest(source_invocation_id=invocation["invocation_id"], proposed_route=ProviderRoute(provider="anthropic", harness="claude", model="claude-opus-5"), reason="The current runner timed out; request reserve for the qualified task.", failure_evidence_block_id=failure["block_id"], qualification_evidence_block_id=qualification["block_id"])
+    request = RouteAmendmentRequest(source_invocation_id=invocation["invocation_id"], proposed_route=ProviderRoute(provider="anthropic", harness="claude", model="claude-opus-5"), reason="The current runner timed out; request reserve for the qualified task.", failure_evidence_block_id=failure["block_id"], qualification_evidence_block_id=qualification["block_id"], route_scope_sets=[FORMULATION_SCOPE, INTERPRETATION_SCOPE])
     return invocation, request
 
 
@@ -33,7 +63,7 @@ def test_pause_survives_restart_and_blocks_presealed_dispatch(lattice_env):
     store = env["store"]
     session = env["session"]["role_session_id"]
     source, request = _request(env)
-    presealed = _seal(env)
+    presealed = _seal_scoped(env, INTERPRETATION_SCOPE)
     pending = routes.request(store, session, request)
     assert pending["state"] == "awaiting-operator"
     assert pending["current_route"]["model"] == "gpt-5.6-sol"
@@ -70,10 +100,55 @@ def test_approval_records_exact_change_without_rewriting_or_auto_dispatch(lattic
     assert view["history"][1]["request_event_id"] == pending["event_id"]
     assert routes.decide(store, session, pending["amendment_id"], decision) == view
     assert store.get_invocation(source["invocation_id"]) == old
-    reserve = _seal(env, request.proposed_route)
+    reserve = _seal_scoped(env, INTERPRETATION_SCOPE, request.proposed_route)
     assert store.create_attempt(reserve["invocation_id"], "approved-reserve", "test", 9_999_999_999)["state"] == "leased"
-    with pytest.raises(LatticeConflict, match="recorded route amendment"):
+    with pytest.raises(LatticeConflict, match="requires its approved runner"):
         store.create_attempt(source["invocation_id"], "stale-primary", "test", 9_999_999_999)
+
+
+@pytest.mark.contract
+def test_approved_reserve_cannot_escape_its_exact_lane_and_task_scope(lattice_env):
+    env = lattice_env
+    source, request = _request(env)
+    pending = routes.request(env["store"], env["session"]["role_session_id"], request)["pending"]
+    routes.decide(env["store"], env["session"]["role_session_id"], pending["amendment_id"], RouteAmendmentDecision(decision="approve", note="Operator approved only the declared native German tasks."))
+
+    with pytest.raises(LatticeConflict, match="outside its approved route scope"):
+        _seal_scoped(env, ["lane:fr-FR", "task:native-interpretation"], request.proposed_route)
+    with pytest.raises(LatticeConflict, match="outside its approved route scope"):
+        _seal_scoped(env, ["lane:de-DE", "task:coverage-deliberation"], request.proposed_route)
+
+    unrelated_primary = _seal_scoped(env, ["lane:de-DE", "task:coverage-deliberation"])
+    assert env["store"].create_attempt(unrelated_primary["invocation_id"], "unrelated-primary", "test", 9_999_999_999)["state"] == "leased"
+    with pytest.raises(LatticeConflict, match="requires its approved runner"):
+        _seal_scoped(env, INTERPRETATION_SCOPE)
+    assert source["route"]["model"] == "gpt-5.6-sol"
+
+
+@pytest.mark.regression
+def test_projection_edges_cannot_widen_manifest_bound_route_scope(lattice_env):
+    env = lattice_env
+    _, request = _request(env)
+    pending = routes.request(env["store"], env["session"]["role_session_id"], request)["pending"]
+    routes.decide(env["store"], env["session"]["role_session_id"], pending["amendment_id"], RouteAmendmentDecision(decision="approve", note="Operator approved only the declared native German tasks."))
+    unscoped = _seal(env)
+
+    for scope_ref in INTERPRETATION_SCOPE:
+        env["store"].add_edge(
+            project_id=env["project"]["project_id"],
+            relation=EdgeRelation.scoped_by,
+            source_type="invocation",
+            source_id=unscoped["invocation_id"],
+            source_revision=unscoped["manifest_sha256"],
+            target_type="route-scope",
+            target_id=scope_ref,
+            target_revision=hashlib.sha256(scope_ref.encode()).hexdigest(),
+            metadata={"forged_projection": True},
+        )
+
+    with env["store"]._connect() as conn:
+        assert routes.invocation_scope_refs(conn, unscoped["invocation_id"]) == []
+    assert env["store"].create_attempt(unscoped["invocation_id"], "projection-cannot-authorize", "test", 9_999_999_999)["state"] == "leased"
 
 
 @pytest.mark.contract
@@ -96,7 +171,7 @@ def test_stale_evidence_cannot_approve_but_operator_can_resume_primary(lattice_e
 def test_active_attempt_prevents_racing_route_change(lattice_env):
     env = lattice_env
     _, request = _request(env)
-    presealed = _seal(env)
+    presealed = _seal_scoped(env, INTERPRETATION_SCOPE)
     env["store"].create_attempt(presealed["invocation_id"], "in-flight", "test", 9_999_999_999)
     with pytest.raises(LatticeConflict, match="finish or cancel"):
         routes.request(env["store"], env["session"]["role_session_id"], request)
@@ -132,7 +207,7 @@ def test_workflow_default_can_only_be_overridden_by_approved_amendment(lattice_e
         _seal(env, request.proposed_route)
     pending = routes.request(env["store"], env["session"]["role_session_id"], request)["pending"]
     routes.decide(env["store"], env["session"]["role_session_id"], pending["amendment_id"], RouteAmendmentDecision(decision="approve", note="Operator reviewed this exception."))
-    assert _seal(env, request.proposed_route)["route"]["model"] == "claude-opus-5"
+    assert _seal_scoped(env, INTERPRETATION_SCOPE, request.proposed_route)["route"]["model"] == "claude-opus-5"
     assert env["store"].get_role(env["session"]["role_id"])["route_policy"]["provider"] == "openai"
 
 
@@ -168,3 +243,23 @@ def test_cli_cannot_combine_request_with_approval(monkeypatch):
     args = parser().parse_args(["route-amendment", "session", "--request", "unused.json", "--decision", "approve"])
     with pytest.raises(ValueError, match="cannot also approve"):
         command_route_amendment(args)
+
+
+@pytest.mark.regression
+def test_legacy_unscoped_approval_fails_closed(lattice_env):
+    env = lattice_env
+    source, request = _request(env)
+    pending = routes.request(env["store"], env["session"]["role_session_id"], request)["pending"]
+    with env["store"].transaction() as conn:
+        env["store"]._event(
+            conn,
+            project_id=env["project"]["project_id"],
+            event_type="role-route.decided",
+            subject_type="role-session",
+            subject_id=env["session"]["role_session_id"],
+            payload={"amendment_id": pending["amendment_id"], "request_event_id": pending["event_id"], "decision": "approve", "note": "historical fixture", "authority": "operator", "effective_route": request.proposed_route.model_dump(mode="json"), "state": "active"},
+        )
+
+    assert routes.inspect(env["store"], env["session"]["role_session_id"])["state"] == "scope-migration-required"
+    with pytest.raises(LatticeConflict, match="legacy unscoped"):
+        env["store"].create_attempt(source["invocation_id"], "legacy-unscoped", "test", 9_999_999_999)

@@ -324,6 +324,7 @@ class ContextCompositor:
             },
             "execution": route,
             "response_contract": draft["response_schema"],
+            **({"route_scope_refs": list(draft["route_scope_refs"])} if draft.get("route_scope_refs") else {}),
             "compilation": {
                 "format": "lattice-context-jsonl-v10",
                 "protocol_sha256": sha256_bytes(CONTEXT_PROTOCOL_V10),

@@ -172,7 +172,7 @@ class Lattice:
         all_reasons: dict[str, dict[str, Any]] = {}
         for spec in value.specifications:
             assembly = spec.assembly
-            resolved_route = self.store.validate_invocation_intent(assembly, spec.route)
+            resolved_route = self.store.validate_invocation_intent(assembly, spec.route, route_scope_refs=spec.route_scope_refs)
             assembly_sha = sha256_json(assembly.model_dump(mode="json"))
             prompt_block_id, prompt_block, _prompt_bytes = self._batch_prompt_block(assembly)
             draft_identity = sha256_bytes(canonical_bytes({"batch_id": value.batch_id, "spec_id": spec.spec_id}))
@@ -193,6 +193,7 @@ class Lattice:
                 "relation": assembly.relation.value,
                 "context_mode": assembly.context_mode,
                 "response_schema": assembly.response_schema,
+                "route_scope_refs": spec.route_scope_refs,
                 "revision": 1,
                 "state": "editable",
                 "created_at": None,
@@ -214,6 +215,7 @@ class Lattice:
                 "preflight": preflight,
                 "compiled_prompt_preview": compiled.decode("utf-8"),
                 "parent_deltas": parent_deltas,
+                "route_scope_refs": spec.route_scope_refs,
             })
         self._assert_shared_assembly_context(members)
         material = {
@@ -264,6 +266,7 @@ class Lattice:
             prepared.append({
                 "spec_id": spec.spec_id,
                 "concern_refs": spec.concern_refs,
+                "route_scope_refs": spec.route_scope_refs,
                 "assembly_sha256": member["assembly_sha256"],
                 "prompt_block": prompt_block,
                 "draft": draft,

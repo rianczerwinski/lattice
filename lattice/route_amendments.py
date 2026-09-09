@@ -26,6 +26,8 @@ def state(conn: sqlite3.Connection, session_id: str) -> dict[str, Any]:
     history = []
     current_route = None
     pending = None
+    current_scope_sets: list[list[str]] = []
+    scope_state_valid = True
     for row in conn.execute(
         """SELECT event_id,event_type,payload_json,occurred_at FROM events
            WHERE subject_type='role-session' AND subject_id=?
@@ -37,22 +39,50 @@ def state(conn: sqlite3.Connection, session_id: str) -> dict[str, Any]:
         if row["event_type"] == "role-route.requested":
             pending = item
             current_route = item["previous_route"]
+            current_scope_sets = item.get("previous_scope_sets", current_scope_sets)
         else:
             current_route = item["effective_route"]
+            scope_state_valid = "effective_scope_sets" in item
+            current_scope_sets = item.get("effective_scope_sets", [])
             pending = None
-    return {"role_session_id": session_id, "state": "awaiting-operator" if pending else "active", "current_route": current_route, "pending": pending, "history": history}
+    route_state = "awaiting-operator" if pending else "active" if scope_state_valid else "scope-migration-required"
+    return {"role_session_id": session_id, "state": route_state, "current_route": current_route, "current_scope_sets": current_scope_sets, "pending": pending, "history": history}
 
 
-def assert_route(conn: sqlite3.Connection, session_id: str, route: dict[str, Any]) -> dict[str, Any] | None:
+def assert_route(conn: sqlite3.Connection, session_id: str, route: dict[str, Any], route_scope_refs: list[str] | tuple[str, ...] = ()) -> dict[str, Any] | None:
     from .store import LatticeConflict
 
     view = state(conn, session_id)
+    if view["state"] == "scope-migration-required":
+        raise LatticeConflict("legacy unscoped route amendment requires an explicit scoped replacement before dispatch")
     if view["pending"] is not None:
         raise LatticeConflict(f"role session awaits operator route decision: {view['pending']['amendment_id']}")
     approved = view["current_route"]
-    if approved is not None and runner(approved) != runner(route):
-        raise LatticeConflict("runner change requires a recorded route amendment")
-    return approved
+    exact_scope = list(route_scope_refs)
+    scope_matches = exact_scope in view["current_scope_sets"]
+    if approved is not None and scope_matches:
+        if runner(approved) != runner(route):
+            raise LatticeConflict("the active scoped route amendment requires its approved runner")
+        return approved
+    if approved is not None and view["current_scope_sets"] and runner(approved) == runner(route):
+        raise LatticeConflict("the amended runner is outside its approved route scope")
+    return None
+
+
+def invocation_scope_refs(conn: sqlite3.Connection, invocation_id: str) -> list[str]:
+    from .canonical import canonical_bytes, sha256_bytes
+    from .store import LatticeConflict
+
+    row = conn.execute("SELECT manifest_json,manifest_sha256 FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+    if row is None:
+        raise LatticeConflict("route scope invocation does not exist")
+    manifest = json.loads(row["manifest_json"])
+    if manifest.get("manifest_sha256") != row["manifest_sha256"] or sha256_bytes(canonical_bytes({key: value for key, value in manifest.items() if key != "manifest_sha256"})) != row["manifest_sha256"]:
+        raise LatticeConflict("route scope invocation manifest bytes are corrupt")
+    scope_refs = manifest.get("route_scope_refs", [])
+    if not isinstance(scope_refs, list) or len(scope_refs) > 16 or scope_refs != sorted(set(scope_refs)) or any(not isinstance(item, str) or not item or len(item) > 500 or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in scope_refs):
+        raise LatticeConflict("route scope invocation manifest is malformed")
+    return scope_refs
 
 
 def inspect(store: LatticeStore, session_id: str) -> dict[str, Any]:
@@ -97,6 +127,8 @@ def request(store: LatticeStore, session_id: str, value: RouteAmendmentRequest) 
             raise LatticeConflict("route amendment source must belong to this role session")
         if source["state"] not in {"succeeded", "failed", "interrupted"}:
             raise LatticeConflict("route amendment requires a terminal source invocation")
+        if invocation_scope_refs(conn, value.source_invocation_id) not in value.route_scope_sets:
+            raise LatticeConflict("route amendment scope must include the exact failed invocation scope")
         _idle(conn, session_id)
         view = state(conn, session_id)
         if view["pending"]:
@@ -115,6 +147,7 @@ def request(store: LatticeStore, session_id: str, value: RouteAmendmentRequest) 
             "amendment_id": opaque_id("route-amendment"), "request": value.model_dump(mode="json"),
             "source_manifest_sha256": source["manifest_sha256"], "previous_route": previous, "proposed_route": proposed,
             "evidence": evidence, "activation_policy": "operator-approval", "state": "awaiting-operator",
+            "previous_scope_sets": view["current_scope_sets"],
         })
         return state(conn, session_id)
 
@@ -138,8 +171,10 @@ def decide(store: LatticeStore, session_id: str, amendment_id: str, value: Route
                 if _evidence(conn, evidence["block_id"], session["project_id"]) != evidence:
                     raise LatticeConflict("route amendment evidence changed; approval refused")
         effective = pending["proposed_route"] if value.decision == "approve" else pending["previous_route"]
+        effective_scope_sets = pending["request"]["route_scope_sets"] if value.decision == "approve" else pending.get("previous_scope_sets", [])
         store._event(conn, project_id=session["project_id"], event_type="role-route.decided", subject_type="role-session", subject_id=session_id, payload={
             "amendment_id": amendment_id, "request_event_id": pending["event_id"], **value.model_dump(mode="json"),
             "authority": "operator", "effective_route": effective, "state": "active",
+            "effective_scope_sets": effective_scope_sets,
         })
         return state(conn, session_id)

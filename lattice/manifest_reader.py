@@ -226,6 +226,11 @@ def verify_and_reconstruct(
         }
         if compilation_format in {f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"}:
             preflight_keys.add("actor_binding")
+        if "route_scope_refs" in manifest:
+            route_scope_refs = manifest["route_scope_refs"]
+            if not isinstance(route_scope_refs, list) or len(route_scope_refs) > 16 or route_scope_refs != sorted(set(route_scope_refs)) or any(not isinstance(item, str) or not item or len(item) > 500 or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in route_scope_refs):
+                raise ManifestVerificationError("manifest route scope identities are malformed")
+            preflight_keys.add("route_scope_refs")
         preflight_contract = f"{title}ContextPreflight/8.0" if compilation_format == f"{slug}-context-jsonl-v10" else (f"{title}ContextPreflight/7.0" if compilation_format == f"{slug}-context-jsonl-v9" else (f"{title}ContextPreflight/6.0" if compilation_format == f"{slug}-context-jsonl-v8" else (f"{title}ContextPreflight/5.0" if compilation_format == f"{slug}-context-jsonl-v7" else (f"{title}ContextPreflight/4.0" if compilation_format == f"{slug}-context-jsonl-v6" else (f"{title}ContextPreflight/3.0" if compilation_format == f"{slug}-context-jsonl-v5" else (f"{title}ContextPreflight/2.0" if compilation_format == f"{slug}-context-jsonl-v4" else f"{title}ContextPreflight/1.0"))))))
         preflight_material = {"contract_version": preflight_contract, **{key: manifest[key] for key in preflight_keys}}
         if manifest.get("preflight_sha256") != sha256_json(preflight_material):
