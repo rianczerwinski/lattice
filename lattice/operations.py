@@ -23,7 +23,7 @@ from .contracts import (
     ProviderRoute,
     TagRequest,
 )
-from .manifest_reader import verify_and_reconstruct
+from .manifest_reader import verify_and_reconstruct, verify_preview_rendering
 from .store import LatticeConflict, LatticeStore
 from .workflow_template_reader import verify_workflow_template
 
@@ -155,15 +155,16 @@ class Lattice:
 
     @staticmethod
     def _assert_shared_assembly_context(members: list[dict[str, Any]]) -> None:
-        """One route-neutral assembly must compile to one exact semantic byte stream."""
+        """Equal assemblies select equal context, independently of presentation."""
 
         compiled_by_assembly: dict[str, str] = {}
         for member in members:
             assembly_sha = member["assembly_sha256"]
-            compiled_sha = member.get("compiled_prompt_sha256") or member["preflight"]["compilation"]["compiled_prompt_sha256"]
+            context = member.get("manifest") or member["preflight"]
+            compiled_sha = sha256_json({key: context[key] for key in ("actor_binding", "context_mode", "ancestry", "segments", "omitted", "source_bindings", "response_contract")})
             existing = compiled_by_assembly.setdefault(assembly_sha, compiled_sha)
             if existing != compiled_sha:
-                raise LatticeConflict("one shared context assembly compiled to different semantic bytes")
+                raise LatticeConflict("one shared context assembly selected different semantic context")
 
     def preview_invocation_batch(self, value: InvocationBatchPreviewV1) -> dict[str, Any]:
         """Compile a batch without persisting drafts, invocations, or events."""
@@ -200,6 +201,8 @@ class Lattice:
                 "updated_at": None,
             }
             preflight, compiled = self.compositor.compile(draft, preview=True, virtual_blocks={prompt_block_id: prompt_block})
+            contents = {item["block_id"]: _prompt_bytes if item["block_id"] == prompt_block_id else self.store.blobs.get(item["sha256"]) for item in preflight["segments"]}
+            verify_preview_rendering(preflight, compiled, contents)
             parents = [self.store.get_invocation(parent_id) for parent_id in assembly.parent_invocation_ids]
             reasons = self._confirmation_reasons(preflight, parents)
             for reason in reasons:

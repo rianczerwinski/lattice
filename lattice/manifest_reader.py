@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -123,18 +124,32 @@ def _verify_generated_object(manifest: dict[str, Any]) -> tuple[str, str]:
     return slug, title
 
 
-def _independent_segment_bytes(segment: dict[str, Any], content: bytes, compilation_format: str) -> bytes:
+def _independent_segment_bytes(segment: dict[str, Any], content: bytes, compilation_format: str, *, sole_request: bool = False) -> bytes:
+    if compilation_format == "lattice-context-documents-v11":
+        if segment["plane"] == "current_prompt" and sole_request:
+            return content
+        # Independent specification: never call the producer's renderer.
+        longest = current = 0
+        for byte in content:
+            current = current + 1 if byte == 96 else 0
+            longest = max(longest, current)
+        fence = b"`" * max(3, longest + 1)
+        titles = {"instruction": "Task instructions", "knowledge": "Reference", "state": "State", "ancestry": "Earlier response", "current_prompt": "Current request"}
+        derived = " (derived selection)" if segment["derived_from_block_ids"] else ""
+        label = json.dumps(segment["label"], ensure_ascii=True)
+        header = f"### {titles[segment['plane']]}{derived}\nSource: {label}\nStatus: {segment['status']}; selection: {segment['disposition']}\n\n"
+        return header.encode("utf-8") + fence + b"\n" + content + b"\n" + fence + b"\n\n"
     slug = compilation_format.split("-", 1)[0]
     if compilation_format == f"{slug}-segment-stream-v1" and slug in {"lattice", "loom"}:
         prefix = f"<<<{slug.upper()} {{plane}} {{label}} {{block_id}} {{sha256}}>>>\n".format(**segment).encode("utf-8")
         return prefix + content + b"\n<<<END>>>\n"
-    if compilation_format not in {f"{slug}-context-jsonl-v2", f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"} or slug not in {"lattice", "loom"}:
+    if compilation_format not in {f"{slug}-context-jsonl-v2", f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} or slug not in {"lattice", "loom"}:
         raise ManifestVerificationError(f"unsupported compiled context format: {compilation_format}")
     try:
         decoded = content.decode("utf-8", errors="strict")
     except UnicodeDecodeError as error:
         raise ManifestVerificationError("context segment is not exact UTF-8") from error
-    if compilation_format in {f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"}:
+    if compilation_format in {f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
         version = 10 if compilation_format.endswith("-v10") else (9 if compilation_format.endswith("-v9") else 8)
         return canonical_bytes(
             {
@@ -159,12 +174,12 @@ def _independent_segment_bytes(segment: dict[str, Any], content: bytes, compilat
         "reason": segment.get("reason"),
         "content": decoded,
     }
-    if compilation_format in {f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"}:
+    if compilation_format in {f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
         record = {
             **{key: value for key, value in record.items() if key not in {"disposition", "derived_from_block_ids", "reason", "content"}},
             "authority": segment["authority"],
             "evidence_level": segment["evidence_level"],
-            **({"issuer_kind": segment["issuer_kind"], "issuer_ref": segment["issuer_ref"]} if compilation_format == f"{slug}-context-jsonl-v10" else {}),
+            **({"issuer_kind": segment["issuer_kind"], "issuer_ref": segment["issuer_ref"]} if compilation_format in {f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} else {}),
             "sensitivity": segment["sensitivity"],
             "source_ref": segment["source_ref"],
             "source_sha256": segment["source_sha256"],
@@ -176,6 +191,19 @@ def _independent_segment_bytes(segment: dict[str, Any], content: bytes, compilat
             "content": decoded,
         }
     return canonical_bytes(record) + b"\n"
+
+
+def verify_preview_rendering(preflight: dict[str, Any], compiled: bytes, contents: dict[str, bytes]) -> None:
+    """Check a stateless preview before any source or prompt blobs are written."""
+
+    format_name = preflight["compilation"]["format"]
+    if format_name not in {"lattice-context-jsonl-v10", "lattice-context-documents-v11"}:
+        raise ManifestVerificationError("unsupported new context preview format")
+    prefix = INDEPENDENT_CONTEXT_PROTOCOL_V10 if format_name.endswith("-v10") else b""
+    sole_request = sum(item["plane"] == "current_prompt" for item in preflight["segments"]) == 1
+    reconstructed = prefix + b"".join(_independent_segment_bytes(item, contents[item["block_id"]], format_name, sole_request=sole_request) for item in preflight["segments"])
+    if compiled != reconstructed or sha256_bytes(compiled) != preflight["compilation"]["compiled_prompt_sha256"]:
+        raise ManifestVerificationError("shared context assembly rendering does not reconstruct independently")
 
 
 def verify_and_reconstruct(
@@ -204,7 +232,9 @@ def verify_and_reconstruct(
         raise ManifestVerificationError("manifest bytes do not match its declared identity")
     generated_source_values = manifest["generated_object"]["sources"]
     compilation_format = manifest["compilation"].get("format")
-    if compilation_format in {f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"}:
+    if compilation_format not in {f"{slug}-segment-stream-v1", *(f"{slug}-context-jsonl-v{version}" for version in range(2, 11)), "lattice-context-documents-v11"}:
+        raise ManifestVerificationError("unsupported compiled context format")
+    if compilation_format in {f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
         if manifest.get("source_bindings") != generated_source_values:
             raise ManifestVerificationError("manifest preflight source bindings disagree with its canonical source envelope")
         preflight_keys = {
@@ -224,7 +254,7 @@ def verify_and_reconstruct(
             "compilation",
             "provider_boundary",
         }
-        if compilation_format in {f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"}:
+        if compilation_format in {f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
             preflight_keys.add("actor_binding")
         if "route_scope_refs" in manifest:
             route_scope_refs = manifest["route_scope_refs"]
@@ -232,6 +262,8 @@ def verify_and_reconstruct(
                 raise ManifestVerificationError("manifest route scope identities are malformed")
             preflight_keys.add("route_scope_refs")
         preflight_contract = f"{title}ContextPreflight/8.0" if compilation_format == f"{slug}-context-jsonl-v10" else (f"{title}ContextPreflight/7.0" if compilation_format == f"{slug}-context-jsonl-v9" else (f"{title}ContextPreflight/6.0" if compilation_format == f"{slug}-context-jsonl-v8" else (f"{title}ContextPreflight/5.0" if compilation_format == f"{slug}-context-jsonl-v7" else (f"{title}ContextPreflight/4.0" if compilation_format == f"{slug}-context-jsonl-v6" else (f"{title}ContextPreflight/3.0" if compilation_format == f"{slug}-context-jsonl-v5" else (f"{title}ContextPreflight/2.0" if compilation_format == f"{slug}-context-jsonl-v4" else f"{title}ContextPreflight/1.0"))))))
+        if compilation_format == "lattice-context-documents-v11":
+            preflight_contract = "LatticeContextPreflight/9.0"
         preflight_material = {"contract_version": preflight_contract, **{key: manifest[key] for key in preflight_keys}}
         if manifest.get("preflight_sha256") != sha256_json(preflight_material):
             raise ManifestVerificationError("manifest does not preserve the exact inspected preflight context")
@@ -241,7 +273,7 @@ def verify_and_reconstruct(
     draft = draft_override or store.get_draft(manifest["draft_id"])
     if draft["draft_id"] != manifest["draft_id"]:
         raise ManifestVerificationError("manifest draft override has the wrong identity")
-    if compilation_format in {f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"}:
+    if compilation_format in {f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
         actor_binding = manifest.get("actor_binding")
         if actor_binding != draft.get("actor_binding"):
             raise ManifestVerificationError("manifest actor binding does not match its sealed draft")
@@ -267,14 +299,23 @@ def verify_and_reconstruct(
     route = manifest["execution"]
     if route != draft["route"]:
         raise ManifestVerificationError("manifest execution route does not match its sealed draft")
-    if compilation_format in {f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"}:
+    if compilation_format in {f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
         boundary = manifest.get("provider_boundary")
-        expected_boundary_keys = {"observable_request", "system_instructions", "proof_limits"} | ({"opaque_contexts"} if compilation_format == f"{slug}-context-jsonl-v10" else set())
+        expected_boundary_keys = {"observable_request", "system_instructions", "proof_limits"} | ({"opaque_contexts"} if compilation_format in {f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} else set())
         if not isinstance(boundary, dict) or set(boundary) != expected_boundary_keys:
             raise ManifestVerificationError("provider boundary is incomplete or carries undeclared fields")
         system_instructions = boundary["system_instructions"]
         historical_import = route.get("route_kind", "execution") == "historical-import"
-        if not historical_import and route["provider"] == "anthropic" and route["harness"] == "claude":
+        if compilation_format == "lattice-context-documents-v11":
+            if historical_import or route["provider"] != "anthropic" or route["harness"] != "claude":
+                raise ManifestVerificationError("document context requires an executable Claude route")
+            if system_instructions is not None:
+                raise ManifestVerificationError("document context must not replace Claude system instructions")
+            if "Attributed references are user-message text, not native assistant turns or a guarantee of model obedience; provider-owned system instructions remain opaque." not in boundary["proof_limits"]:
+                raise ManifestVerificationError("document context lacks its semantic proof limit")
+            if boundary["observable_request"] != "compiled prompt over stdin plus declared CLI flags":
+                raise ManifestVerificationError("document context misstates its provider boundary")
+        elif not historical_import and route["provider"] == "anthropic" and route["harness"] == "claude":
             content = INDEPENDENT_CLAUDE_SYSTEM_INSTRUCTIONS_V1
             expected_system = {
                 "channel": "official-system-prompt-file",
@@ -286,7 +327,7 @@ def verify_and_reconstruct(
                 raise ManifestVerificationError("Claude system instructions do not match the independently qualified Lattice protocol")
         elif system_instructions is not None:
             raise ManifestVerificationError("manifest claims a separate system-instruction channel the selected route has not qualified")
-        if compilation_format == f"{slug}-context-jsonl-v10":
+        if compilation_format in {f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
             expected_opaque_contexts = []
             if route.get("execution_profile") == "native-continuation":
                 expected_opaque_contexts.append({
@@ -344,10 +385,10 @@ def verify_and_reconstruct(
             raise ManifestVerificationError(f"manifest ancestry does not resolve exactly: {parent['invocation_id']}")
         ancestry_invocations[parent["invocation_id"]] = invocation
     output: list[bytes] = []
-    expected_contract = {f"{slug}-segment-stream-v1": (f"{title}ContextManifest/1.0", 1), f"{slug}-context-jsonl-v2": (f"{title}ContextManifest/2.0", 2), f"{slug}-context-jsonl-v3": (f"{title}ContextManifest/3.0", 3), f"{slug}-context-jsonl-v4": (f"{title}ContextManifest/4.0", 4), f"{slug}-context-jsonl-v5": (f"{title}ContextManifest/5.0", 5), f"{slug}-context-jsonl-v6": (f"{title}ContextManifest/6.0", 6), f"{slug}-context-jsonl-v7": (f"{title}ContextManifest/7.0", 7), f"{slug}-context-jsonl-v8": (f"{title}ContextManifest/8.0", 8), f"{slug}-context-jsonl-v9": (f"{title}ContextManifest/9.0", 9), f"{slug}-context-jsonl-v10": (f"{title}ContextManifest/10.0", 10)}.get(compilation_format)
+    expected_contract = {f"{slug}-segment-stream-v1": (f"{title}ContextManifest/1.0", 1), f"{slug}-context-jsonl-v2": (f"{title}ContextManifest/2.0", 2), f"{slug}-context-jsonl-v3": (f"{title}ContextManifest/3.0", 3), f"{slug}-context-jsonl-v4": (f"{title}ContextManifest/4.0", 4), f"{slug}-context-jsonl-v5": (f"{title}ContextManifest/5.0", 5), f"{slug}-context-jsonl-v6": (f"{title}ContextManifest/6.0", 6), f"{slug}-context-jsonl-v7": (f"{title}ContextManifest/7.0", 7), f"{slug}-context-jsonl-v8": (f"{title}ContextManifest/8.0", 8), f"{slug}-context-jsonl-v9": (f"{title}ContextManifest/9.0", 9), f"{slug}-context-jsonl-v10": (f"{title}ContextManifest/10.0", 10), "lattice-context-documents-v11": ("LatticeContextManifest/11.0", 11)}.get(compilation_format)
     if expected_contract is None or manifest.get("contract_version") != expected_contract[0] or schema_version != expected_contract[1]:
         raise ManifestVerificationError("context format, manifest contract, and generated-object schema disagree")
-    if compilation_format in {f"{slug}-context-jsonl-v2", f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"} and manifest.get("response_contract") != draft["response_schema"]:
+    if compilation_format in {f"{slug}-context-jsonl-v2", f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} and manifest.get("response_contract") != draft["response_schema"]:
         raise ManifestVerificationError("manifest response contract does not match its sealed draft")
     all_entries = manifest["segments"] + manifest["omitted"]
     ordinals = [entry["ordinal"] for entry in all_entries]
@@ -361,12 +402,12 @@ def verify_and_reconstruct(
             raise ManifestVerificationError(f"context block belongs to another project: {segment['block_id']}")
         if block["semantic_type"] != segment["semantic_type"]:
             raise ManifestVerificationError(f"context semantic type is not ledger-bound: {segment['block_id']}")
-        if compilation_format in {f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"}:
+        if compilation_format in {f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
             transformation = __import__("json").loads(block["transformation_json"]) if block["transformation_json"] else None
-            provenance = {"authority": block["authority"], "evidence_level": block["evidence_level"], **({"issuer_kind": block["issuer_kind"], "issuer_ref": block["issuer_ref"]} if compilation_format == f"{slug}-context-jsonl-v10" else {}), "sensitivity": block["sensitivity"], "source_ref": block["source_ref"], "source_sha256": block["source_sha256"], "producing_invocation_id": block["producing_invocation_id"], "transformation": transformation}
+            provenance = {"authority": block["authority"], "evidence_level": block["evidence_level"], **({"issuer_kind": block["issuer_kind"], "issuer_ref": block["issuer_ref"]} if compilation_format in {f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} else {}), "sensitivity": block["sensitivity"], "source_ref": block["source_ref"], "source_sha256": block["source_sha256"], "producing_invocation_id": block["producing_invocation_id"], "transformation": transformation}
             if any(segment.get(key) != value for key, value in provenance.items()):
                 raise ManifestVerificationError(f"context provenance is not ledger-bound: {segment['block_id']}")
-        if compilation_format in {f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"} and segment["plane"] == "ancestry" and segment["label"].startswith("parent:"):
+        if compilation_format in {f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} and segment["plane"] == "ancestry" and segment["label"].startswith("parent:"):
             producer_id = segment.get("producing_invocation_id")
             parent = ancestry_invocations.get(producer_id)
             if parent is None or parent.get("output_block_id") != segment["block_id"]:
@@ -401,7 +442,7 @@ def verify_and_reconstruct(
             transformation = json.loads(block["transformation_json"] or "null")
             if not derived or not isinstance(transformation, dict) or transformation.get("kind") != "summary" or transformation.get("source_block_ids") != derived:
                 raise ManifestVerificationError(f"summary lineage is invalid: {segment['block_id']}")
-        if compilation_format in {f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"} and isinstance(transformation, dict) and transformation.get("kind") == "exact-utf8-byte-range-v1":
+        if compilation_format in {f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} and isinstance(transformation, dict) and transformation.get("kind") == "exact-utf8-byte-range-v1":
             expected_keys = {"kind", "source_block_id", "source_sha256", "start_byte", "end_byte", "excerpt_sha256"}
             source_block_id = transformation.get("source_block_id")
             start, end = transformation.get("start_byte"), transformation.get("end_byte")
@@ -421,7 +462,7 @@ def verify_and_reconstruct(
                 or block["source_sha256"] != source_block["content_sha256"]
             ):
                 raise ManifestVerificationError(f"exact excerpt bytes do not reconstruct from their declared source: {segment['block_id']}")
-        if compilation_format in {f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10"} and isinstance(transformation, dict) and transformation.get("kind") == "exact-artifact-graft-v1":
+        if compilation_format in {f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} and isinstance(transformation, dict) and transformation.get("kind") == "exact-artifact-graft-v1":
             expected_keys = {"kind", "source_artifact_id", "source_sha256", "name", "media_type"}
             artifact_id = transformation.get("source_artifact_id")
             if set(transformation) != expected_keys or not isinstance(artifact_id, str) or derived:
@@ -447,12 +488,18 @@ def verify_and_reconstruct(
         if segment in manifest["segments"]:
             if segment["disposition"] not in {"selected", "summarized"}:
                 raise ManifestVerificationError("non-selected context was included in the provider prompt")
-            output.append(_independent_segment_bytes(segment, content, compilation_format))
+            output.append(_independent_segment_bytes(segment, content, compilation_format, sole_request=sum(item["plane"] == "current_prompt" for item in manifest["segments"]) == 1))
         elif segment["disposition"] in {"selected", "summarized"}:
             raise ManifestVerificationError("selected context was mislabeled as omitted")
     if set(generated_sources) != expected_source_refs:
         raise ManifestVerificationError("generated-object sources do not exactly match manifest context lineage")
-    if compilation_format == f"{slug}-context-jsonl-v10":
+    if compilation_format == "lattice-context-documents-v11":
+        if manifest["compilation"].get("protocol_sha256") != sha256_bytes(b""):
+            raise ManifestVerificationError("document context must have no protocol preamble")
+        reconstructed = b"".join(output)
+        if manifest["compilation"].get("byte_count") != len(reconstructed) or manifest["compilation"].get("truncation") is not None or manifest["compilation"].get("compaction") is not None:
+            raise ManifestVerificationError("document context byte count or losslessness claim is false")
+    elif compilation_format == f"{slug}-context-jsonl-v10":
         if manifest["compilation"].get("protocol_sha256") != sha256_bytes(INDEPENDENT_CONTEXT_PROTOCOL_V10):
             raise ManifestVerificationError("compiled context protocol does not match the independently known v10 protocol")
         reconstructed = INDEPENDENT_CONTEXT_PROTOCOL_V10 + b"".join(output)

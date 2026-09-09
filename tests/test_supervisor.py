@@ -62,7 +62,7 @@ async def test_concurrency_idempotent_execution_produces_one_attempt(monkeypatch
 
 @pytest.mark.asyncio
 @pytest.mark.oracle
-async def test_supervisor_delivers_the_manifest_bound_claude_system_instructions(monkeypatch, lattice_env, tmp_path) -> None:
+async def test_supervisor_delivers_claude_documents_without_replacing_system_instructions(monkeypatch, lattice_env, tmp_path) -> None:
     route = ProviderRoute(provider="anthropic", model="sonnet", harness="claude", effort="medium")
     draft = lattice_env["store"].create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], role_session_id=lattice_env["session"]["role_session_id"], prompt="Read routed context", route=route))
     invocation = lattice_env["lattice"].seal(draft["draft_id"])
@@ -79,9 +79,11 @@ async def test_supervisor_delivers_the_manifest_bound_claude_system_instructions
     await asyncio.gather(*list(supervisor._tasks.values()))
 
     declared = invocation["manifest"]["provider_boundary"]["system_instructions"]
-    assert declared["channel"] == "official-system-prompt-file"
-    assert observed["system_prompt"] == declared["content"]
-    assert observed["prompt"].startswith("LATTICE-CONVERSATION/10\n")
+    assert declared is None
+    assert observed["system_prompt"] is None
+    assert observed["prompt"].startswith("### Task instructions\n")
+    assert observed["prompt"].endswith("Read routed context")
+    assert "LATTICE-CONVERSATION" not in observed["prompt"]
 
 
 @pytest.mark.asyncio

@@ -55,7 +55,8 @@ def test_stateless_fanout_preview_shares_semantic_context_without_persistence(la
         after = {table: conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in before}
     assert after == before
     assert len({item["assembly_sha256"] for item in preview["members"]}) == 1
-    assert len({item["preflight"]["compilation"]["compiled_prompt_sha256"] for item in preview["members"]}) == 1
+    assert len({item["preflight"]["compilation"]["compiled_prompt_sha256"] for item in preview["members"]}) == 2
+    assert preview["members"][0]["preflight"]["segments"] == preview["members"][1]["preflight"]["segments"]
     assert {item["preflight"]["execution"]["provider"] for item in preview["members"]} == {"openai", "anthropic"}
     assert all("capabilities" in item["preflight"] for item in preview["members"])
 
@@ -74,8 +75,18 @@ def test_negative_control_fanout_rejects_route_specific_semantic_context(monkeyp
 
     monkeypatch.setattr(compositor, "compile", divergent_compile)
 
-    with pytest.raises(LatticeConflict, match="shared context assembly"):
+    with pytest.raises(ManifestVerificationError, match="shared context assembly"):
         lattice_env["lattice"].preview_invocation_batch(_preview_request(lattice_env))
+
+
+@pytest.mark.oracle
+def test_fanout_semantic_guard_rejects_changed_selection_despite_same_assembly(lattice_env) -> None:
+    preview = lattice_env["lattice"].preview_invocation_batch(_preview_request(lattice_env))
+    members = json.loads(json.dumps(preview["members"]))
+    lattice_env["lattice"]._assert_shared_assembly_context(members)
+    members[1]["preflight"]["segments"][0]["label"] = "different selected meaning"
+    with pytest.raises(LatticeConflict, match="different semantic context"):
+        lattice_env["lattice"]._assert_shared_assembly_context(members)
 
 
 @pytest.mark.property

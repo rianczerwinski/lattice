@@ -10,6 +10,8 @@ Snapshots store the consistent SQLite image as a bounded gzip payload and use co
 
 [`build_execution_closure_bundle.py`](build_execution_closure_bundle.py) binds the exact generated-object evidence set into one canonical closure bundle. [`verify_execution_consolidation.py`](verify_execution_consolidation.py) is the independent closure boundary for Lattice 0.3 execution. It reads base SQLite tables, content-addressed blobs, raw runtime receipts, immutable provider profiles, installed package and binary attestations, consumer source trees, historical journal bytes, and exact credential canaries. It refuses `lattice_execution_ready` when the installed runtime manifest is absent or any execution evidence is unresolved.
 
+[`qualify_context.py`](qualify_context.py) qualifies Claude's provider-facing context representation through the installed service. `prepare RUN_ROOT --fixture-dir DIAGNOSTIC_ROOT` freezes the retained packaging diagnostic's original synthetic eligibility prompt/schema, five cases, runner hashes, and installed runtime before any model call. `run RUN_ROOT --case CASE_ID` performs exactly one case in the declared order: `eligibility`, `parent_a`, `parent_b`, `edited_join`, `conflicting_references`. Run with the source environment's Python after a clean install. Every started case is reserved permanently; a failure, timeout, changed input, or missing earlier result stops admission. On interruption, inspect the case's sealed invocation and native journals rather than resubmitting. Requests have no tools or network authority; the 120-second bound cancels only that case. Exact answers, source quotations, and raw provider receipts—not a model's self-assessment—determine the result. Retain the run directory and native journals; no production queue is dispatched.
+
 ```text
 ops/
 ├── README.md                    Operations-boundary map and deployment contract
@@ -17,6 +19,7 @@ ops/
 ├── build_execution_closure_bundle.py Exact immutable evidence-bundle assembler
 ├── install.py                   Verified installer, upgrade switch, state cutover, and launchd publisher
 ├── qualify_browser.py           Installed cockpit journey and ledger reconstruction
+├── qualify_context.py           Bounded Claude context, edited join, and attribution canaries
 ├── qualify_interruption.py      Active-work crash and lease-reconciliation proof
 ├── qualify_release.py           Fixed suites, consumers, and provider-profile canaries
 ├── qualify_restore.py           Launchd restart, backup, separate-root restore, and continuation
