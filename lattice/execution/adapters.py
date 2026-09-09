@@ -290,6 +290,25 @@ def _cli_version(binary: str) -> str:
         return f"unreported: {error}"
 
 
+def _binary_sha256(binary: str) -> str:
+    """Hash one stable provider executable or fail if it changes mid-read."""
+
+    path = Path(binary)
+    before = path.stat()
+    digest = hashlib.sha256()
+    byte_count = 0
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+            byte_count += len(chunk)
+    after = path.stat()
+    before_identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+    after_identity = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+    if before_identity != after_identity or byte_count != after.st_size:
+        raise OSError(f"provider executable changed while hashing: {path}")
+    return digest.hexdigest()
+
+
 def _codex_capability_probe(binary: str) -> tuple[bool, str]:
     """Confirm the installed CLI still exposes every qualified isolation control."""
     try:
@@ -360,6 +379,7 @@ def installed_adapter_status(
     probe_versions: bool = True,
 ) -> list[dict[str, Any]]:
     binaries = [shutil.which(adapter.executable) for adapter in adapters]
+    initial_digests = [_binary_sha256(binary) if binary and Path(binary).is_file() else None for binary in binaries]
     versions: list[str | None] = [None] * len(adapters)
     if probe_versions:
         present = [(index, binary) for index, binary in enumerate(binaries) if binary]
@@ -368,14 +388,8 @@ def installed_adapter_status(
             for index, future in futures.items():
                 versions[index] = future.result()
     result: list[dict[str, Any]] = []
-    for adapter, binary, version in zip(adapters, binaries, versions, strict=True):
-        binary_sha256 = None
-        if binary and Path(binary).is_file():
-            digest = hashlib.sha256()
-            with Path(binary).open("rb") as stream:
-                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                    digest.update(chunk)
-            binary_sha256 = digest.hexdigest()
+    for adapter, binary, initial_digest, version in zip(adapters, binaries, initial_digests, versions, strict=True):
+        binary_sha256 = initial_digest
         operational = None if not probe_versions or not binary else not str(version).startswith("unreported:")
         compatibility: bool | None = None
         compatibility_detail: str | None = None
@@ -392,6 +406,31 @@ def installed_adapter_status(
                 compatibility, compatibility_detail = muse.capability_probe(binary, model=adapter.model_code, effort="high", allow_web=False)
             if compatibility is not None:
                 operational = bool(operational) and compatibility
+            current_binary = shutil.which(adapter.executable)
+            current_digest = _binary_sha256(current_binary) if current_binary and Path(current_binary).is_file() else None
+            if current_binary != binary or current_digest != initial_digest:
+                binary = current_binary
+                if not binary or current_digest is None:
+                    raise OSError(f"{adapter.provider_code} provider executable disappeared during qualification")
+                version = _cli_version(binary)
+                operational = not version.startswith("unreported:")
+                if adapter.provider_code == "openai":
+                    compatibility, compatibility_detail = _codex_capability_probe(binary)
+                elif adapter.provider_code == "anthropic":
+                    compatibility, compatibility_detail = _claude_capability_probe(binary)
+                elif adapter.provider_code == "google":
+                    compatibility, compatibility_detail = antigravity.capability_probe(binary, model=adapter.model_code, effort="high", allow_web=False)
+                elif adapter.provider_code == "xai":
+                    compatibility, compatibility_detail = grok.capability_probe(binary, model=adapter.model_code, effort="high", allow_web=False)
+                elif adapter.provider_code == "meta":
+                    compatibility, compatibility_detail = muse.capability_probe(binary, model=adapter.model_code, effort="high", allow_web=False)
+                if compatibility is not None:
+                    operational = operational and compatibility
+                stable_binary = shutil.which(adapter.executable)
+                stable_digest = _binary_sha256(stable_binary) if stable_binary and Path(stable_binary).is_file() else None
+                if stable_binary != binary or stable_digest != current_digest:
+                    raise OSError(f"{adapter.provider_code} provider executable changed repeatedly during qualification")
+                binary_sha256 = stable_digest
         result.append({**adapter.definition(), "model_code": adapter.model_code, "binary": binary, "binary_sha256": binary_sha256, "installed": bool(binary), "qualified": bool(binary) and adapter.exact_context_qualified, "operational": operational, "version": version, "control_surface_qualified": compatibility, "control_surface_detail": compatibility_detail})
     return result
 

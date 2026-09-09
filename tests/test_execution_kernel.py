@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -375,6 +376,56 @@ def test_contract_operational_probes_run_independently() -> None:
 
     assert [item["version"] for item in statuses] == ["version:claude", "version:codex"]
     assert all(item["operational"] for item in statuses)
+
+
+@pytest.mark.regression
+def test_regression_provider_requalifies_binary_replaced_by_its_probe(monkeypatch, tmp_path: Path) -> None:
+    binary = tmp_path / "agy"
+    binary.write_bytes(b"version one")
+    google = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "google")
+    probes = 0
+
+    def capability_probe(*_args, **_kwargs):
+        nonlocal probes
+        probes += 1
+        if probes == 1:
+            replacement = tmp_path / "agy.new"
+            replacement.write_bytes(b"version two")
+            replacement.replace(binary)
+        return True, "qualified"
+
+    monkeypatch.setattr("lattice.execution.adapters.shutil.which", lambda _name: str(binary))
+    monkeypatch.setattr("lattice.execution.adapters._cli_version", lambda _binary: "1.1.28")
+    monkeypatch.setattr("lattice.execution.adapters.antigravity.capability_probe", capability_probe)
+
+    status = installed_adapter_status((google,), probe_versions=True)[0]
+
+    assert probes == 2
+    assert status["binary_sha256"] == hashlib.sha256(b"version two").hexdigest()
+    assert status["operational"] is True
+
+
+@pytest.mark.oracle
+def test_negative_control_provider_rejects_binary_replaced_by_every_probe(monkeypatch, tmp_path: Path) -> None:
+    binary = tmp_path / "agy"
+    binary.write_bytes(b"version zero")
+    google = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "google")
+    probes = 0
+
+    def capability_probe(*_args, **_kwargs):
+        nonlocal probes
+        probes += 1
+        replacement = tmp_path / f"agy.{probes}"
+        replacement.write_bytes(f"version {probes}".encode())
+        replacement.replace(binary)
+        return True, "qualified"
+
+    monkeypatch.setattr("lattice.execution.adapters.shutil.which", lambda _name: str(binary))
+    monkeypatch.setattr("lattice.execution.adapters._cli_version", lambda _binary: "1.1.28")
+    monkeypatch.setattr("lattice.execution.adapters.antigravity.capability_probe", capability_probe)
+
+    with pytest.raises(OSError, match="changed repeatedly"):
+        installed_adapter_status((google,), probe_versions=True)
 
 
 @pytest.mark.contract
