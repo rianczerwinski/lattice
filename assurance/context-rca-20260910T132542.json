@@ -1,0 +1,130 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "snapshot",
+    "kind": "lattice-context-rca-status",
+    "schema": {
+      "name": "lattice-context-rca-status",
+      "version": 1
+    },
+    "artifact_id": "artifact:454a8258-a98b-417f-b9bb-53c2b85f4e47",
+    "generated_at": "20260910T133345",
+    "producer": {
+      "name": "lattice-context-rca",
+      "version": "1.0.1"
+    },
+    "subject": "lattice:context-rca:20260910T131536",
+    "sources": [
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/plan-v2.json",
+        "revision": null,
+        "sha256": "21ac429eff25544797eb950aefc64de91be2541bc6a964c5770e3561c367ea54"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/01.result.json",
+        "revision": null,
+        "sha256": "ce7b3b82482117866be97c26e77e2630e8c687568b587e7cc43cb49cb7ad0504"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/02.result.json",
+        "revision": null,
+        "sha256": "be78e060fa85f97ac054b30304295020af6abfd4d89227aebfc19b656e9b1795"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/03.result.json",
+        "revision": null,
+        "sha256": "57a8cc4dbc6498bcc676deec2a56465a33243dcfffc150516ad79a01203812d0"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/04.result.json",
+        "revision": null,
+        "sha256": "1119df4a9d4f087ad3c29a7ca0a2eb58e7967ed2e01ccce91cb07676f3ebf601"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/test_rca.py",
+        "revision": null,
+        "sha256": "ff920ab9ee1f9c9e07e8fd3940227f09d715172a22106ae155ce9f98c9f83b81"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/test_plan.py",
+        "revision": null,
+        "sha256": "7a05ffa3a309a9e622f026ec06fb745e943839ead37a034ff54f9b0c25eff02e"
+      }
+    ]
+  },
+  "contract_version": "LatticeContextRCAStatus/1.0",
+  "disposition": "investigation-incomplete; stopped-by-three-refusal-rule",
+  "runtime_tested": "0.3.1-a47e5f2a20a6",
+  "currently_installed_runtime_observed": "0.3.1-577b4689e48d",
+  "cli_version": "2.1.241 (Claude Code)",
+  "cli_sha256": "1495eb7c42d3b4451f5f1cd38b6d498d22a4a38c802bc2be5c1cf1795e64820d",
+  "model": "claude-opus-5",
+  "effort": "high",
+  "results": [
+    {
+      "sequence": 1,
+      "case": "control",
+      "outcome": "accepted_correct",
+      "answer": {
+        "alpha": 17
+      },
+      "seconds": 4.0725717499735765
+    },
+    {
+      "sequence": 2,
+      "case": "original",
+      "outcome": "provider_refusal",
+      "category": "reasoning_extraction",
+      "request_id": "req_011CevJdLzcXFKeUptxGjf85",
+      "seconds": 2.7874316669767722
+    },
+    {
+      "sequence": 3,
+      "case": "no_attribution",
+      "outcome": "provider_refusal",
+      "category": "reasoning_extraction",
+      "request_id": "req_011CevJf6x58JVHYquxkL6WC",
+      "seconds": 2.501578791998327
+    },
+    {
+      "sequence": 4,
+      "case": "no_native_schema",
+      "outcome": "provider_refusal",
+      "category": "reasoning_extraction",
+      "request_id": "req_011CevJiWqqm5nks2FSHFzW5",
+      "seconds": 3.270969334000256
+    }
+  ],
+  "supported_conclusions": [
+    "The exact original prompt, schema, explicit model, effort, and absent custom system prompt reproduced the refusal with the same CLI executable and retained runtime.",
+    "Removing the harness-identification question and its matching required schema field did not eliminate the refusal.",
+    "Removing native CLI schema enforcement did not eliminate the refusal. Independent receipt comparison confirms that only --json-schema and its value were removed from argv; stdin and the admitted environment were identical.",
+    "All four requests preserved fresh-session isolation, disabled tools, empty permissions, and the existing subscription route.",
+    "Nine offline tests passed, including deliberately wrong old values, missing parent data, false provenance, fabricated payloads attached to refusal receipts, stop-gate enforcement, and rejection of snapshot-role preregistration."
+  ],
+  "not_established": [
+    "No individual trigger or internal classifier cause is identified.",
+    "Neither individual removal proves that the removed feature is irrelevant: independent sufficient triggers or interactions remain possible.",
+    "The combined removal case, conversational-framing reductions, conflicting-value contrasts, repeated causal contrasts, and held-out numerical cases have not run.",
+    "No edited-join capability or English production readiness is established."
+  ],
+  "operational_state": {
+    "completed_requests": 4,
+    "active_requests": 0,
+    "planned_request_ceiling": 12,
+    "unused_capacity": 8,
+    "stop_reason": "three consecutive provider refusals",
+    "automatic_restart": false,
+    "next_discriminating_case": "neither (remove attribution demand and native schema enforcement together)",
+    "required_authority": "Explicit owner exception to the three-refusal rule before further provider calls; retain a finite campaign ceiling and all operational-error stops."
+  },
+  "evidence_home": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536",
+  "inspection_command": "'/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-a47e5f2a20a6/.venv/bin/python' /Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/rca_v2.py status",
+  "retention": {
+    "policy": "keep",
+    "purpose": "Reproducibility, refusal support report, and exact continuation authority.",
+    "plan_correction": "Original plan.json had a snapshot-role envelope carrying a commitment, rejected by the local validator after the successful control. plan-v2.json corrects only metadata and source binding; all original committed fields and the completed result are unchanged. Both source runners and both plan generations remain immutable evidence.",
+    "production_changes": "None. No model fallback, installation, corpus dispatch, or safeguard change.",
+    "proof_limit": "Test execution and independent command-receipt checks were observed in the implementation session; this status snapshot is a synthesis, not independent attestation of those checks."
+  }
+}
