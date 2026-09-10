@@ -1,0 +1,183 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "snapshot",
+    "kind": "lattice-context-qualification-status",
+    "schema": {
+      "name": "lattice-context-qualification-status",
+      "version": 1
+    },
+    "artifact_id": "artifact:22c716a8-4f79-4dfa-8271-edc5bb5df0ad",
+    "generated_at": "20260909T182639",
+    "producer": {
+      "name": "lattice-context-evidence-review",
+      "version": "1.0.0"
+    },
+    "subject": "lattice:claude-context-qualification:0.3.1-a47e5f2a20a6",
+    "sources": [
+      {
+        "ref": "/Users/rian/Library/Application Support/Lattice/acceptance/context-20260909T181800/eligibility.result.json",
+        "revision": null,
+        "sha256": "6aa6479d63b5a4c58f8f99709597f72f602c637c7d43d2b08688592ebc26dbd9"
+      },
+      {
+        "ref": "/Users/rian/Library/Application Support/Lattice/acceptance/context-20260909T181800/parent_a.result.json",
+        "revision": null,
+        "sha256": "7a6ea94fc9dfb092e823980a2a5e71244433c80190a74126237fee6e07d2edf9"
+      },
+      {
+        "ref": "/Users/rian/Library/Application Support/Lattice/acceptance/context-20260909T181800/parent_b.result.json",
+        "revision": null,
+        "sha256": "50fbba262e7d35cba6315309b42ed913ed2f120b63ff9f643caefdcfb864efdf"
+      },
+      {
+        "ref": "/Users/rian/Library/Application Support/Lattice/acceptance/context-20260909T181800/edited_join.result.json",
+        "revision": null,
+        "sha256": "c9a1b1647afbfa8d89004f4e1b6763d116095bad040145e10da48cb3795ee1eb"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-packaging-probe/xml_exact_labels/result.json",
+        "revision": null,
+        "sha256": "8bfbd97ce5095fe0b9c7c4e1a5f516c301cfa03747370dbc51cb1a556fd0d901"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-packaging-probe/xml_descriptive_labels/result.json",
+        "revision": null,
+        "sha256": "212b1f0916efbbe392b8e9fb86b1356eb645b079e46d26fc9059173e511ed0d6"
+      },
+      {
+        "ref": "/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-a47e5f2a20a6/runtime.json",
+        "revision": null,
+        "sha256": "a31a045ec701ff1aad0f82ab85568456a8276fe0a47e0df532966c78073ddd2e"
+      }
+    ]
+  },
+  "contract_version": "LatticeContextQualificationStatus/1.0",
+  "disposition": "partial-repair-installed; edited-join-qualification-blocked",
+  "installed_runtime": "0.3.1-a47e5f2a20a6",
+  "installed_source_revision": "a47e5f2a20a6f4e74c8863a26ba159e7877472b2",
+  "qualification_runner_revision": "6120ac068be9f0a85c59659397ae74f5fb9855fd",
+  "observations": [
+    {
+      "case": "eligibility",
+      "is_error": false,
+      "stop_reason": "tool_use",
+      "model_usage": [
+        "claude-haiku-4-5-20251001",
+        "claude-opus-5"
+      ],
+      "raw_structured_output": {
+        "payload": {
+          "family_id": "qef_fixture",
+          "outcome": "retain",
+          "reason": "The anchored catalogue record identifies the work as \"A critical guide to reference works in philosophy and religion,\" so it principally navigates a population of reference works (structural gate) and that population is anchored in philosophy and religion (mission gate).",
+          "identity": {
+            "evidence_id": "32166808f5982f5dd01e669a8bd9aea4e655412da810715fb63024231d018a7e:reg_525ec9909ce999746fc4cecfa0cc6acdf82cba96dc7453204dded41a0bfe3762:0",
+            "quote": "Reference guide"
+          },
+          "structural": {
+            "evidence_id": "32166808f5982f5dd01e669a8bd9aea4e655412da810715fb63024231d018a7e:reg_ed06937884b0930315e975119e8b0fd2dd4f0c8bf16d5ed552c1936e8875c201:0",
+            "quote": "Editor. A critical guide to reference works in philosophy and religion."
+          },
+          "mission": {
+            "evidence_id": "result:10:metadata_excerpt",
+            "quote": "A critical guide to reference works in philosophy and religion."
+          },
+          "rejection": null,
+          "source_requests": [],
+          "new_source_leads": []
+        }
+      },
+      "journal": "/Users/rian/Library/Application Support/Lattice/model-runs/20260909T181813-claude-34a4b7dd"
+    },
+    {
+      "case": "parent_a",
+      "is_error": false,
+      "stop_reason": "tool_use",
+      "model_usage": [
+        "claude-haiku-4-5-20251001",
+        "claude-opus-5"
+      ],
+      "raw_structured_output": {
+        "payload": {
+          "alpha": 17
+        }
+      },
+      "journal": "/Users/rian/Library/Application Support/Lattice/model-runs/20260909T181846-claude-17054eb1"
+    },
+    {
+      "case": "parent_b",
+      "is_error": false,
+      "stop_reason": "tool_use",
+      "model_usage": [
+        "claude-haiku-4-5-20251001",
+        "claude-opus-5"
+      ],
+      "raw_structured_output": {
+        "payload": {
+          "beta": 23
+        }
+      },
+      "journal": "/Users/rian/Library/Application Support/Lattice/model-runs/20260909T181915-claude-9a9daef5"
+    },
+    {
+      "case": "edited_join",
+      "is_error": true,
+      "stop_reason": "refusal",
+      "model_usage": [
+        "claude-opus-5"
+      ],
+      "raw_structured_output": null,
+      "journal": "/Users/rian/Library/Application Support/Lattice/model-runs/20260909T181937-claude-7af3003d",
+      "refusal_category": "reasoning_extraction"
+    },
+    {
+      "case": "xml_exact_labels",
+      "is_error": true,
+      "stop_reason": "refusal",
+      "model_usage": [
+        "claude-opus-5"
+      ],
+      "journal": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-packaging-probe/xml_exact_labels/20260909T182417-claude-5462c62f",
+      "refusal_category": "reasoning_extraction"
+    },
+    {
+      "case": "xml_descriptive_labels",
+      "is_error": true,
+      "stop_reason": "refusal",
+      "model_usage": [
+        "claude-opus-5"
+      ],
+      "journal": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-packaging-probe/xml_descriptive_labels/20260909T182441-claude-fd309c3f",
+      "refusal_category": "reasoning_extraction"
+    }
+  ],
+  "stopped_after_consecutive_join_refusals": 3,
+  "unrun_cases": [
+    "conflicting_references"
+  ],
+  "source_assurance": {
+    "backend_passed": 516,
+    "backend_warnings": 2,
+    "frontend_passed": 52,
+    "typecheck_errors": 0,
+    "typecheck_warnings": 0,
+    "build": "passed",
+    "evidence_limit": "Observed normal-installer output in the implementation session; this snapshot is not an independent attestation of test execution."
+  },
+  "setup_failure": {
+    "run_root": "/Users/rian/Library/Application Support/Lattice/acceptance/context-20260909T181200",
+    "stage": "private draft-preview read",
+    "http_status": 403,
+    "model_calls": 0,
+    "remedy_commit": "ecfc18af134c191fb0aabdee7dc63150c0de33a5",
+    "retention": "Keep failed plan and started state; the historical runner is available at the installed source revision."
+  },
+  "proof_limits": [
+    "The successful standalone cases establish capability on those fixtures, not population reliability or English production readiness.",
+    "All three refused joins used the same task and selected source bodies; one used installed fenced documents, and two used XML with exact or descriptive labels through the pinned installed kernel.",
+    "The provider receipt names reasoning_extraction but does not identify which feature caused the refusal. These observations do not establish that all edited or multi-parent context is unsupported.",
+    "XML probe variants were not installed. Existing manifests were not rewritten; model choice, permissions, and provider safeguards were unchanged.",
+    "English production work was not dispatched. Existing consumer readiness records were not refreshed or reclassified."
+  ]
+}
