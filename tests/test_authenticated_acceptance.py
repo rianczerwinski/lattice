@@ -3,12 +3,29 @@
 from __future__ import annotations
 
 import json
+import io
 from pathlib import Path
 
 import pytest
 
 from ops import authenticated_acceptance
 from ops.authenticated_acceptance import AcceptanceFailure, AcceptanceRun, LatticeAPI, assembly, route, specification
+
+
+@pytest.mark.contract
+def test_acceptance_client_authenticates_private_reads_and_writes(monkeypatch):
+    observed = []
+
+    def protected_endpoint(request, **_kwargs):
+        observed.append(request.get_method())
+        assert request.get_header("Authorization") == "Bearer synthetic-token"
+        return io.BytesIO(b'{"accepted":true}')
+
+    monkeypatch.setattr(authenticated_acceptance.urllib.request, "urlopen", protected_endpoint)
+    api = LatticeAPI("http://127.0.0.1:9010", "synthetic-token")
+    for method in ("GET", "HEAD", "POST"):
+        assert api.request(method, "/api/v1/drafts/synthetic/preview") == {"accepted": True}
+    assert observed == ["GET", "HEAD", "POST"]
 
 
 @pytest.mark.contract

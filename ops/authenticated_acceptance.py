@@ -41,9 +41,8 @@ class LatticeAPI:
 
     def request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
         content = None if payload is None else json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
-        headers = {"Accept": "application/json"}
+        headers = {"Accept": "application/json", "Authorization": f"Bearer {self.token}"}
         if method not in {"GET", "HEAD"}:
-            headers["Authorization"] = f"Bearer {self.token}"
             headers["Content-Type"] = "application/json"
         request = urllib.request.Request(f"{self.base_url}{path}", data=content, headers=headers, method=method)
         try:
