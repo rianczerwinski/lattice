@@ -501,11 +501,12 @@ def test_regression_codex_transport_schema_types_const_only_properties() -> None
     canonical = {
         "type": "object",
         "additionalProperties": False,
-        "required": ["contract_version", "decision", "incorporated_arm_ids"],
+        "required": ["contract_version", "decision", "incorporated_arm_ids", "pending_arm_ids"],
         "properties": {
             "contract_version": {"const": "CoverageDecision/1.0"},
             "decision": {"const": "execute_floor_arm"},
             "incorporated_arm_ids": {"const": []},
+            "pending_arm_ids": {"const": ["arm_a", "arm_b"]},
         },
     }
 
@@ -513,8 +514,21 @@ def test_regression_codex_transport_schema_types_const_only_properties() -> None
 
     assert compiled["properties"]["contract_version"] == {"const": "CoverageDecision/1.0", "type": "string"}
     assert compiled["properties"]["decision"] == {"const": "execute_floor_arm", "type": "string"}
-    assert compiled["properties"]["incorporated_arm_ids"] == {"const": [], "type": "array"}
+    assert compiled["properties"]["incorporated_arm_ids"] == {
+        "items": {"type": "string"},
+        "maxItems": 0,
+        "minItems": 0,
+        "type": "array",
+    }
+    assert compiled["properties"]["pending_arm_ids"] == {
+        "items": {"enum": ["arm_a", "arm_b"], "type": "string"},
+        "maxItems": 2,
+        "minItems": 2,
+        "type": "array",
+    }
     assert canonical["properties"]["contract_version"] == {"const": "CoverageDecision/1.0"}
+    assert canonical["properties"]["incorporated_arm_ids"] == {"const": []}
+    assert canonical["properties"]["pending_arm_ids"] == {"const": ["arm_a", "arm_b"]}
 
 
 @pytest.mark.oracle

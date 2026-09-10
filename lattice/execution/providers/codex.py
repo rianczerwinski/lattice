@@ -48,6 +48,22 @@ def provider_schema(schema: dict[str, Any]) -> dict[str, Any]:
             continue
         if not isinstance(node, dict):
             continue
+        constant = node.get("const")
+        if isinstance(constant, list):
+            node.pop("const")
+            node["type"] = "array"
+            node["minItems"] = len(constant)
+            node["maxItems"] = len(constant)
+            if not constant:
+                node["items"] = {"type": "string"}
+            else:
+                item_types = {_json_type(value) for value in constant}
+                if len(item_types) == 1:
+                    item_type = item_types.pop()
+                    item_schema: dict[str, Any] = {"type": item_type}
+                    if item_type in {"null", "boolean", "integer", "number", "string"}:
+                        item_schema["enum"] = list(dict.fromkeys(constant))
+                    node["items"] = item_schema
         if "type" not in node:
             if "const" in node:
                 node["type"] = _json_type(node["const"])
