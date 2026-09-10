@@ -436,6 +436,14 @@ def command_invocation(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_execute_invocation(args: argparse.Namespace) -> int:
+    _emit(
+        LatticeClient.from_environment().execute_invocation(args.invocation_id, args.idempotency_key),
+        as_json=True,
+    )
+    return 0
+
+
 def command_route_amendment(args: argparse.Namespace) -> int:
     client = LatticeClient.from_environment()
     if args.request:
@@ -617,6 +625,11 @@ def parser() -> argparse.ArgumentParser:
     invocation = subparsers.add_parser("invocation", help="read one invocation and its terminal artifacts")
     invocation.add_argument("invocation_id")
     invocation.set_defaults(handler=command_invocation)
+
+    execute_invocation = subparsers.add_parser("execute-invocation", help="execute or append an attempt to an existing invocation")
+    execute_invocation.add_argument("invocation_id")
+    execute_invocation.add_argument("--idempotency-key", required=True)
+    execute_invocation.set_defaults(handler=command_execute_invocation)
 
     amendment = subparsers.add_parser("route-amendment", help="inspect, request, or explicitly decide a paused runner switch")
     amendment.add_argument("session_id")

@@ -150,6 +150,26 @@ def test_contract_workflow_cli_reads_the_role_session_view_and_exposes_refresh(m
     ]
 
 
+def test_contract_cli_executes_an_existing_invocation_with_an_explicit_idempotency_key(monkeypatch, capsys) -> None:
+    from lattice.cli import parser
+
+    calls: list[tuple[str, str]] = []
+
+    class FakeClient:
+        def execute_invocation(self, invocation_id, idempotency_key):
+            calls.append((invocation_id, idempotency_key))
+            return {"attempt_id": "attempt_retry", "state": "leased"}
+
+    monkeypatch.setattr(LatticeClient, "from_environment", lambda: FakeClient())
+    args = parser().parse_args(
+        ["execute-invocation", "invocation_fixture", "--idempotency-key", "canon-retry:fixture:2"]
+    )
+
+    assert args.handler(args) == 0
+    assert calls == [("invocation_fixture", "canon-retry:fixture:2")]
+    assert '"attempt_id": "attempt_retry"' in capsys.readouterr().out
+
+
 def test_contract_invocation_batch_methods_validate_payloads_and_resources(monkeypatch) -> None:
     calls = []
     preview_request = _batch_preview()
