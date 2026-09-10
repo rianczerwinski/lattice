@@ -50,3 +50,19 @@ def test_started_and_result_records_cannot_be_overwritten(tmp_path):
     with pytest.raises(FileExistsError):
         write_once(target, {"started": False})
     assert json.loads(target.read_bytes()) == {"started": True}
+
+
+@pytest.mark.contract
+def test_runner_source_binding_requires_exact_committed_bytes(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from ops import qualify_context
+
+    script = tmp_path / "ops" / "qualify_context.py"
+    script.parent.mkdir()
+    script.write_bytes(b"committed runner")
+    monkeypatch.setattr(qualify_context, "__file__", str(script))
+    monkeypatch.setattr(qualify_context.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(stdout=b"committed runner"))
+    assert qualify_context.source(script, revision="fixed-revision")["revision"] == "fixed-revision"
+    script.write_bytes(b"uncommitted change")
+    with pytest.raises(RuntimeError, match="must be committed"):
+        qualify_context.source(script, revision="fixed-revision")

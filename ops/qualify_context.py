@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import time
 from pathlib import Path
 
@@ -34,8 +35,15 @@ def write_once(path, value):
         os.fsync(stream.fileno())
 
 
-def source(path):
-    return {"ref": str(path.resolve()), "revision": None, "sha256": sha256_bytes(path.read_bytes())}
+def source(path, *, revision=None):
+    path = path.resolve()
+    raw = path.read_bytes()
+    if revision is not None:
+        repo = Path(__file__).resolve().parents[1]
+        committed = subprocess.run(["git", "show", f"{revision}:{path.relative_to(repo)}"], cwd=repo, check=True, capture_output=True).stdout
+        if committed != raw:
+            raise RuntimeError(f"qualification runner must be committed: {path}")
+    return {"ref": str(path), "revision": revision, "sha256": sha256_bytes(raw)}
 
 
 def output_contract(fields):
@@ -92,7 +100,8 @@ def prepare(args, api):
             {"plane": "state", "label": "current-state", "content": "The marker is Ä-STATE."},
         ]},
     ]
-    sources = [source(Path(__file__)), source(Path(__file__).with_name("authenticated_acceptance.py")), source(runtime_path.resolve()), source(fixture / "original_inline" / "prompt.txt"), source(fixture / "schema.json")]
+    revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[1], check=True, capture_output=True, text=True).stdout.strip()
+    sources = [source(Path(__file__), revision=revision), source(Path(__file__).with_name("authenticated_acceptance.py"), revision=revision), source(runtime_path.resolve()), source(fixture / "original_inline" / "prompt.txt"), source(fixture / "schema.json")]
     project = api.post("/api/v1/projects", {"title": f"Claude context qualification {stamp()}", "purpose": "Bounded synthetic context qualification; no production corpus."})
     envelope = generated_object(kind="lattice-context-qualification-plan", schema_name="lattice-context-qualification-plan", subject=f"lattice:context-qualification:{project['project_id']}", sources=sources, producer_name="lattice-context-qualification", producer_version="1.0.0")
     envelope["commitment"] = {"fields": ["cases", "route", "runtime_id", "timeout_seconds"], "sealed_at": stamp(), "supersedes": None, "change_reason": None}
