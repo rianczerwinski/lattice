@@ -15,6 +15,7 @@ from unittest.mock import patch
 import pytest
 
 from lattice.execution import adapters
+from lattice.execution.providers import codex as codex_provider
 from lattice.execution import (
     DEFAULT_ADAPTERS,
     ProcessCancelled,
@@ -493,6 +494,27 @@ def test_contract_codex_workspace_profile_binds_sandbox_workspace_and_session_pe
     assert "--ephemeral" not in command
     assert "shell_tool" not in command
     assert input_text == "do work"
+
+
+@pytest.mark.regression
+def test_regression_codex_transport_schema_types_const_only_properties() -> None:
+    canonical = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["contract_version", "decision", "incorporated_arm_ids"],
+        "properties": {
+            "contract_version": {"const": "CoverageDecision/1.0"},
+            "decision": {"const": "execute_floor_arm"},
+            "incorporated_arm_ids": {"const": []},
+        },
+    }
+
+    compiled = codex_provider.provider_schema(canonical)
+
+    assert compiled["properties"]["contract_version"] == {"const": "CoverageDecision/1.0", "type": "string"}
+    assert compiled["properties"]["decision"] == {"const": "execute_floor_arm", "type": "string"}
+    assert compiled["properties"]["incorporated_arm_ids"] == {"const": [], "type": "array"}
+    assert canonical["properties"]["contract_version"] == {"const": "CoverageDecision/1.0"}
 
 
 @pytest.mark.oracle

@@ -993,8 +993,9 @@ def invoke_subscription(
     )
     with tempfile.TemporaryDirectory(prefix=f"lattice-model-{adapter.provider_code}-") as temp:
         isolated = Path(temp)
+        transport_schema = codex.provider_schema(schema) if adapter.provider_code == "openai" else schema
         schema_path = isolated / "response.schema.json"
-        schema_path.write_text(json.dumps(schema, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        schema_path.write_text(json.dumps(transport_schema, ensure_ascii=False, sort_keys=True), encoding="utf-8")
         output_path = isolated / "structured-output.json"
         execution_cwd = Path(effective_policy["workspace"]) if effective_policy["workspace"] else isolated
         execution_environment = subscription_environment()
@@ -1067,7 +1068,7 @@ def invoke_subscription(
             tool_policy="isolated-subscription-cli",
             metadata={
                 "adapter": adapter.definition(),
-                "schema": schema,
+                "schema": transport_schema,
                 "binary": binary,
                 "cli_version": _cli_version(binary),
                 "isolation": {
