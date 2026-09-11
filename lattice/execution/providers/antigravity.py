@@ -189,6 +189,9 @@ def prepare(
     _, environment = isolated_home(native_root, allow_web=allow_web)
     workspace = native_root / "workspace"
     workspace.mkdir()
+    schema_path = native_root / "response.schema.json"
+    schema_path.write_text(augmented_schema(schema), encoding="utf-8")
+    os.chmod(schema_path, 0o600)
     command = [
         binary,
         "--model",
@@ -200,14 +203,12 @@ def prepare(
         "plan",
         "--disable-slash-commands",
         "--json-schema",
-        augmented_schema(schema),
+        str(schema_path),
         "--output-format",
         "json",
         "--print-timeout",
         f"{max(1, int(timeout))}s",
         "--log-file",
         str(log_path),
-        "--print",
-        prompt,
     ]
-    return command, None, workspace, environment, {"driver.log": log_path}
+    return command, prompt, workspace, environment, {"driver.log": log_path}

@@ -262,6 +262,47 @@ def test_antigravity_parser_prefers_the_cli_validated_structured_output() -> Non
     assert antigravity.parse_output(json.dumps(outer)) == payload
 
 
+@pytest.mark.contract
+def test_antigravity_keeps_large_prompts_and_schemas_out_of_process_arguments(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        antigravity,
+        "isolated_home",
+        lambda root, allow_web: (root, {"PATH": os.environ.get("PATH", "")}),
+    )
+    prompt = "PRIVATE_PROMPT_MARKER" * 100_000
+    schema = {
+        "type": "object",
+        "required": ["answer"],
+        "properties": {
+            "answer": {
+                "type": "string",
+                "description": "PRIVATE_SCHEMA_MARKER" * 100_000,
+            }
+        },
+    }
+    root = tmp_path / "run"
+    root.mkdir()
+
+    command, input_text, _workspace, _environment, _observed = antigravity.prepare(
+        binary="/fixture/agy",
+        root=root,
+        model="gemini-3.7-flash-high",
+        effort="high",
+        prompt=prompt,
+        schema=schema,
+        allow_web=False,
+        timeout=60,
+        log_path=tmp_path / "driver.log",
+    )
+
+    schema_path = Path(command[command.index("--json-schema") + 1])
+    assert schema_path.read_text(encoding="utf-8") == antigravity.augmented_schema(schema)
+    assert prompt not in command
+    assert "PRIVATE_SCHEMA_MARKER" not in "".join(command)
+    assert input_text == prompt
+    assert "--print" not in command
+
+
 @pytest.mark.oracle
 def test_antigravity_probe_rejects_silent_model_fallback(monkeypatch, tmp_path: Path) -> None:
     binary = tmp_path / "agy"
