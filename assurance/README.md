@@ -10,7 +10,7 @@ Frozen inputs and finding-to-proof obligations for the installed Lattice remedia
 
 ## Active work
 
-[Claude context RCA](context-rca-20260910T132542.json) retains the subsequent controlled investigation: the positive control passed, while the exact original, attribution-free, and native-schema-free joins were refused. The three-refusal stop fired before combined-removal and confirmation cases; no root cause or production readiness is claimed.
+[Claude context RCA](context-rca-20260911T165954.json) records the completed twelve-call diagnostic campaign. In the reduced two-answer task, removing only four `Source:`/`Status:` lines changed refusal to correct extraction; restoring them reproduced refusal, and the pair held with changed numbers. Expected diagnostic refusals no longer trigger consecutive-failure stops, while the campaign ceiling and operational-error controls remain. The individual metadata contributor, full edited-join qualification, and production remedy remain open. [The prior stop snapshot](context-rca-20260910T132542.json) remains immutable evidence.
 
 [Claude context qualification](context-qualification-20260909T182639.json) records a partial installed repair: standalone synthetic tasks pass, but the edited join and two bounded presentation variants receive provider refusals. It binds the retained result snapshots and installed runtime without declaring broader continuation or production readiness.
 

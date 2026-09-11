@@ -1,0 +1,292 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "snapshot",
+    "kind": "lattice-context-rca-status",
+    "schema": {
+      "name": "lattice-context-rca-status",
+      "version": 1
+    },
+    "artifact_id": "artifact:97d235f0-88d0-4014-9cfd-dcf06831ffe5",
+    "generated_at": "20260911T165954",
+    "producer": {
+      "name": "lattice-context-rca",
+      "version": "1.0.0"
+    },
+    "subject": "lattice:context-rca:20260910T131536",
+    "sources": [
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/verification.json",
+        "revision": null,
+        "sha256": "efda5b6bda21dcb5a89d0a1a9600c7bb442472dc5460e647aa1a0df99ba73b14"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/assurance/context-rca-20260910T132542.json",
+        "revision": null,
+        "sha256": "22a86d3d0aae0482ac3187425eb35d2664442b845eddb2aefca69c9dd88e2995"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/plan-v5.json",
+        "revision": null,
+        "sha256": "b412e549289e4ae462aaf3ab0dbd5ccf7e4e68b3a8216fc06888d43c81733866"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/AUTHORIZATION.md",
+        "revision": null,
+        "sha256": "b803b61a0c43adcae1670d4e4052ecf2b3608cfaafd2cd67e1b298f7183d473e"
+      },
+      {
+        "ref": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/publish_status.py",
+        "revision": null,
+        "sha256": "952fc7a50ea51a7f1e68fffb5923dbe194f2b57e8bd8ec49afff614dde2f69e2"
+      }
+    ]
+  },
+  "contract_version": "LatticeContextRCAStatus/1.0",
+  "disposition": "bounded-campaign-complete; reduced-metadata-effect-reproduced; full-root-cause-and-production-qualification-open",
+  "runtime_tested": "0.3.1-a47e5f2a20a6",
+  "cli_version": "2.1.241 (Claude Code)",
+  "cli_sha256": "1495eb7c42d3b4451f5f1cd38b6d498d22a4a38c802bc2be5c1cf1795e64820d",
+  "model": "claude-opus-5",
+  "effort": "high",
+  "results": [
+    {
+      "sequence": 1,
+      "case": "control",
+      "outcome": "accepted_correct",
+      "answer": {
+        "payload": {
+          "alpha": 17
+        }
+      },
+      "seconds": 4.0725717499735765,
+      "native_stop_reason": "tool_use",
+      "request_id": null,
+      "category": null
+    },
+    {
+      "sequence": 2,
+      "case": "original",
+      "outcome": "provider_refusal",
+      "answer": null,
+      "seconds": 2.7874316669767722,
+      "native_stop_reason": "refusal",
+      "request_id": "req_011CevJdLzcXFKeUptxGjf85",
+      "category": "reasoning_extraction"
+    },
+    {
+      "sequence": 3,
+      "case": "no_attribution",
+      "outcome": "provider_refusal",
+      "answer": null,
+      "seconds": 2.501578791998327,
+      "native_stop_reason": "refusal",
+      "request_id": "req_011CevJf6x58JVHYquxkL6WC",
+      "category": "reasoning_extraction"
+    },
+    {
+      "sequence": 4,
+      "case": "no_native_schema",
+      "outcome": "provider_refusal",
+      "answer": null,
+      "seconds": 3.270969334000256,
+      "native_stop_reason": "refusal",
+      "request_id": "req_011CevJiWqqm5nks2FSHFzW5",
+      "category": "reasoning_extraction"
+    },
+    {
+      "sequence": 5,
+      "case": "neither",
+      "outcome": "provider_refusal",
+      "answer": null,
+      "seconds": 2.932114834024105,
+      "native_stop_reason": "refusal",
+      "request_id": "req_011CexTiJ5BzR2QZqsGKt2Vu",
+      "category": "reasoning_extraction"
+    },
+    {
+      "sequence": 6,
+      "case": "plain_join",
+      "outcome": "accepted_correct",
+      "answer": {
+        "payload": {
+          "alpha": 29,
+          "beta": 23
+        }
+      },
+      "seconds": 4.039599459036253,
+      "native_stop_reason": "tool_use",
+      "request_id": null,
+      "category": null
+    },
+    {
+      "sequence": 7,
+      "case": "selected_only",
+      "outcome": "provider_refusal",
+      "answer": null,
+      "seconds": 3.059551792044658,
+      "native_stop_reason": "refusal",
+      "request_id": "req_011CexUPHaWmr7tRheP4QKXG",
+      "category": "reasoning_extraction"
+    },
+    {
+      "sequence": 8,
+      "case": "selected_no_edit",
+      "outcome": "provider_refusal",
+      "answer": null,
+      "seconds": 3.8142753749853,
+      "native_stop_reason": "refusal",
+      "request_id": "req_011CexUR8EkFTAixDpYxTNNt",
+      "category": "reasoning_extraction"
+    },
+    {
+      "sequence": 9,
+      "case": "metadata_free",
+      "outcome": "accepted_correct",
+      "answer": {
+        "payload": {
+          "alpha": 29,
+          "beta": 23
+        }
+      },
+      "seconds": 4.601339416985866,
+      "native_stop_reason": "tool_use",
+      "request_id": null,
+      "category": null
+    },
+    {
+      "sequence": 10,
+      "case": "selected_no_edit",
+      "outcome": "provider_refusal",
+      "answer": null,
+      "seconds": 4.20888620900223,
+      "native_stop_reason": "refusal",
+      "request_id": "req_011CexUboUgyknDYEvSt2JgJ",
+      "category": "reasoning_extraction"
+    },
+    {
+      "sequence": 11,
+      "case": "metadata_free_heldout",
+      "outcome": "accepted_correct",
+      "answer": {
+        "payload": {
+          "alpha": 53,
+          "beta": 67
+        }
+      },
+      "seconds": 5.10659104102524,
+      "native_stop_reason": "tool_use",
+      "request_id": null,
+      "category": null
+    },
+    {
+      "sequence": 12,
+      "case": "selected_no_edit_heldout",
+      "outcome": "provider_refusal",
+      "answer": null,
+      "seconds": 3.4966668330016546,
+      "native_stop_reason": "refusal",
+      "request_id": "req_011CexUgMLxFc5G7W8uCbAZN",
+      "category": "reasoning_extraction"
+    }
+  ],
+  "supported_conclusions": [
+    "Expected diagnostic refusals are exempt from consecutive-failure stops; the twelve-call budget and other operational controls remain enforced. The global rule was committed as 12e48e1378647cc389eecd999be49ffe6b391e15 and loads through all three existing provider adapters.",
+    "Neither attribution-demand removal, native-schema removal, nor their combined removal eliminated the original refusal in the exercised requests.",
+    "The same model and runtime correctly extracted two plain synthetic fields. Removing old questions and then the editing directive did not eliminate refusal in the selected-answer context.",
+    "In the reduced two-answer prompt, removing exactly four Source/Status lines changed refusal to correct extraction. Restoring the exact lines reproduced refusal. Both outcomes repeated with independently specified 53/67 fixtures.",
+    "The metadata contrast preserved payload bytes, Earlier response headings, fenced formatting, final instruction, local/native schema, actual argv, and admitted environment hash. The independent reader verified twelve native terminal receipts and 153 exact source bindings.",
+    "Twenty-four offline checks passed. An in-memory restoration of the obsolete three-refusal gate was rejected at the intended assertion; wrong values, false success labels and confounded payload changes were also rejected."
+  ],
+  "not_established": [
+    "The four-line metadata group is localized, not a minimal token-level trigger: Source labels, Status fields, their values and interactions have not been separated.",
+    "The result is an operational contrast in a reduced prompt, not proof of an internal Anthropic classifier mechanism or population reliability.",
+    "Deleting those lines from the full original conflicting-parent, edited-answer and harness-attribution task has not been tested. Reduced extraction is not full edited-join qualification.",
+    "No provenance-preserving production presentation change, installed-runtime qualification, or English production dispatch was performed."
+  ],
+  "remaining_work": [
+    "Separate Source versus Status and their content to identify the smallest reproducible contributor, including interactions if needed.",
+    "Test the resulting presentation on the full original capability requirements, preserving exact source provenance and explicit edit lineage rather than deleting canonical metadata.",
+    "Repeat full edited/conflicting-parent, source-attribution and held-out cases before installing a production serializer amendment or dispatching English work."
+  ],
+  "operational_state": {
+    "completed": [
+      {
+        "case": "control",
+        "outcome": "accepted_correct",
+        "elapsed_seconds": 4.0725717499735765
+      },
+      {
+        "case": "original",
+        "outcome": "provider_refusal",
+        "elapsed_seconds": 2.7874316669767722
+      },
+      {
+        "case": "no_attribution",
+        "outcome": "provider_refusal",
+        "elapsed_seconds": 2.501578791998327
+      },
+      {
+        "case": "no_native_schema",
+        "outcome": "provider_refusal",
+        "elapsed_seconds": 3.270969334000256
+      },
+      {
+        "case": "neither",
+        "outcome": "provider_refusal",
+        "elapsed_seconds": 2.932114834024105
+      },
+      {
+        "case": "plain_join",
+        "outcome": "accepted_correct",
+        "elapsed_seconds": 4.039599459036253
+      },
+      {
+        "case": "selected_only",
+        "outcome": "provider_refusal",
+        "elapsed_seconds": 3.059551792044658
+      },
+      {
+        "case": "selected_no_edit",
+        "outcome": "provider_refusal",
+        "elapsed_seconds": 3.8142753749853
+      },
+      {
+        "case": "metadata_free",
+        "outcome": "accepted_correct",
+        "elapsed_seconds": 4.601339416985866
+      },
+      {
+        "case": "selected_no_edit",
+        "outcome": "provider_refusal",
+        "elapsed_seconds": 4.20888620900223
+      },
+      {
+        "case": "metadata_free_heldout",
+        "outcome": "accepted_correct",
+        "elapsed_seconds": 5.10659104102524
+      },
+      {
+        "case": "selected_no_edit_heldout",
+        "outcome": "provider_refusal",
+        "elapsed_seconds": 3.4966668330016546
+      }
+    ],
+    "active": [],
+    "remaining_call_capacity": 0,
+    "stopped": "campaign call ceiling reached",
+    "latest_result": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/12.result.json",
+    "completed_requests": 12,
+    "planned_request_ceiling": 12,
+    "automatic_restart": false,
+    "required_authority": "An explicit new bounded campaign is required before further live diagnostic calls; the diagnostic-refusal exemption itself is now standing policy."
+  },
+  "evidence_home": "/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536",
+  "inspection_command": "'/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-a47e5f2a20a6/.venv/bin/python' '/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/rca_v5.py' status",
+  "independent_verification_command": "'/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-a47e5f2a20a6/.venv/bin/python' '/Users/rian/AXISVI/axis/chariots/lattice/dev/context-rca-20260910T131536/verify_receipts.py'",
+  "retention": {
+    "policy": "keep",
+    "purpose": "Exact diagnostic reproduction, future experimental design and support evidence. Prior plans/runners remain immutable code and commitment history; unused frozen cases remain inspectable and are not represented as executed.",
+    "production_changes": "None"
+  }
+}
