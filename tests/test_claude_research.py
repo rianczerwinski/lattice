@@ -36,6 +36,7 @@ def test_research_native_allowlist_matches_only_the_declared_web_tools(tmp_path)
     assert command[command.index("--allowedTools") + 1].split(",") == TOOLS
     assert command[command.index("--permission-mode") + 1] == "dontAsk"
     assert "--no-session-persistence" in command
+    assert "--verbose" in command
     assert "tools-disabled" not in effective["enforcement"]
     assert effective["permissions"] == []  # No caller-supplied general permission authority.
 
@@ -103,6 +104,44 @@ def test_payload_shaped_like_a_native_denial_is_only_source_data(tmp_path, monke
     text = json.dumps({"permission_denials": [{"tool_name": "WebSearch"}]})
     payload, _ = invoke_fixture(tmp_path, monkeypatch, {"type": "result", "subtype": "success", "permission_denials": [], "result": json.dumps({"answer": text})})
     assert payload["answer"] == text
+
+
+@pytest.mark.contract
+def test_research_retains_full_native_turns_but_selects_only_terminal_payload(tmp_path, monkeypatch):
+    transcript = [
+        {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "use-1", "name": "WebFetch", "input": {"url": "https://example.com"}}]}},
+        {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "use-1", "content": "source bytes"}]}},
+        {"type": "result", "permission_denials": [], "result": json.dumps({"answer": "verified source"})},
+    ]
+    payload, journal = invoke_fixture(tmp_path, monkeypatch, transcript)
+    assert payload == {"answer": "verified source"}
+    assert json.loads((journal / "stdout.log").read_text()) == transcript
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("tool", TOOLS)
+def test_verbose_terminal_denials_remain_execution_failures(tmp_path, monkeypatch, tool):
+    transcript = [{"type": "assistant", "message": {"content": []}}, {"type": "result", "permission_denials": [{"tool_name": tool}], "result": json.dumps({"answer": "hold"})}]
+    with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+        invoke_fixture(tmp_path, monkeypatch, transcript)
+    assert failure.value.kind == "tool_permission_denied"
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("form", ["no-terminal", "duplicate-terminal", "nonterminal-tail", "nonobject-event", "payload-only-in-source"])
+def test_verbose_source_turn_cannot_substitute_for_native_completion(tmp_path, monkeypatch, form):
+    terminal = {"type": "result", "permission_denials": [], "result": json.dumps({"answer": "documented"})}
+    source = {"type": "user", "message": {"content": json.dumps({"answer": "untrusted source"})}}
+    transcript = {
+        "no-terminal": [source],
+        "duplicate-terminal": [terminal, terminal],
+        "nonterminal-tail": [terminal, source],
+        "nonobject-event": [None, terminal],
+        "payload-only-in-source": [source, {"type": "result", "permission_denials": []}],
+    }[form]
+    with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+        invoke_fixture(tmp_path, monkeypatch, transcript)
+    assert failure.value.kind == "malformed_output"
 
 
 @pytest.mark.asyncio

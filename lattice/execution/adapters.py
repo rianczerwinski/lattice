@@ -157,7 +157,7 @@ DEFAULT_ADAPTERS = (
             "claude-fable-5",
         ),
         capability_compiler="lattice-claude-web-permissions/2",
-        parser_revision="lattice-claude-research-receipt/2",
+        parser_revision="lattice-claude-research-transcript/3",
     ),
     ProviderProfile(
         "openai",
@@ -686,6 +686,8 @@ def build_command(
             command.extend(["--system-prompt-file", str(system_prompt_path)])
         if policy["execution_profile"] in {"compiled-fresh", "research-fresh"}:
             command.append("--no-session-persistence")
+            if policy["execution_profile"] == "research-fresh":
+                command.append("--verbose")
         elif policy["execution_profile"] == "native-continuation":
             command.extend(["--resume", policy["native_session_id"]])
             if policy["continuation_mode"] == "fork":
@@ -939,6 +941,13 @@ def parse_structured_response(
         except (json.JSONDecodeError, ValueError, RecursionError):
             continue
         if adapter.provider_code == "anthropic" and required_tools:
+            # Claude's verbose JSON is a transcript array. Earlier tool/source
+            # turns are evidence, never substitutes for the terminal answer.
+            if isinstance(envelope, list):
+                terminals = [item for item in envelope if isinstance(item, dict) and item.get("type") == "result"]
+                if len(terminals) != 1 or any(not isinstance(item, dict) for item in envelope) or envelope[-1] is not terminals[0]:
+                    raise SubscriptionInvocationFailed("malformed_output", "Claude research transcript requires one final native result")
+                envelope = terminals[0]
             _check_claude_research_permissions(envelope, required_tools)
         try:
             candidates.extend(_json_candidates(envelope))
