@@ -1,0 +1,10 @@
+{
+  "state": "initialized",
+  "permission_mode": "default",
+  "session_state": "idle",
+  "elapsed_seconds": 0.5071264579892159,
+  "requested_tools": [],
+  "model_prompts": 0,
+  "process_returncode": 0,
+  "process_error": null
+}

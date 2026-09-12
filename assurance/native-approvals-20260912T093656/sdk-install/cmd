@@ -1,0 +1,1 @@
+uv pip install --python dev/native-approvals-sdk/.venv/bin/python --no-binary claude-agent-sdk claude-agent-sdk==0.2.152

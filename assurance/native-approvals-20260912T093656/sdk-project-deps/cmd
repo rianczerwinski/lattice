@@ -1,0 +1,1 @@
+uv pip install --python dev/native-approvals-sdk/.venv/bin/python --editable .

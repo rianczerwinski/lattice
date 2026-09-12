@@ -1,0 +1,13 @@
+Using Python 3.14.4 environment at: dev/native-approvals-sdk/.venv
+Resolved 23 packages in 820ms
+   Building lattice @ file:///Users/rian/AXISVI/axis/chariots/lattice
+      Built lattice @ file:///Users/rian/AXISVI/axis/chariots/lattice
+Prepared 1 package in 83ms
+Installed 7 packages in 20ms
+ + annotated-doc==0.0.5
+ + certifi==2026.7.22
+ + fastapi==0.141.1
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + lattice==0.3.1 (from file:///Users/rian/AXISVI/axis/chariots/lattice)
+ + rfc8785==0.1.4
