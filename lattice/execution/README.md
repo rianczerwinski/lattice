@@ -31,6 +31,14 @@ Process ownership covers the whole same-session process group, not just its lead
 
 This is transport, not an approval policy: a queued response is not a native acknowledgement, and the caller still owns message framing, exact-action authorization, durable decisions, and response interpretation. Current production adapters continue to reject interactive approval policies until the complete route is qualified. Native channel and real-pipe evidence are retained under [`assurance/native-approvals-20260912T093656/`](../../assurance/native-approvals-20260912T093656/README.md).
 
+## Official SDK transport
+
+`GuardedSDKTransport` implements the pinned `claude-agent-sdk==0.2.152` transport interface over the same guarded process runner. The SDK owns control messages and permission responses; this asyncio transport owns strict UTF-8 JSON-line framing, durable input acceptance, and process lifetime. The project installs the SDK's Python source distribution; callers supply an explicit, separately qualified native executable. The SDK is not an alternate tool loop or a permission bypass.
+
+Input has both the cumulative byte cap and a 64-entry FIFO, with one entry reserved for EOF. Writers wait for capacity without blocking shutdown; empty strings consume no entries. Input is appended and synced before enqueue. A successful `write` return means the complete message was accepted into the queue, not delivered natively. `stdin.accepted.log` alone cannot establish that claim: a journal failure can leave a partial tail that was never enqueued. Invalid frames and journal failures stop the process. Ordinary SDK reader cancellation does not: the SDK cancels its reader before the transport sends EOF, so normal disconnect retains a graceful-exit interval.
+
+Callers must close the transport on every path and inspect its `failure` and terminal `result` before claiming successful native completion. A successful SDK initialization or an absence of messages is not a successful process result. The transport is asyncio-specific; other AnyIO backends, slow-storage responsiveness, native action enforcement, and installed interactive routing are not qualified by its local tests.
+
 ## Claude system-instruction channel
 
 Claude exposes its official system-prompt file surface. Exact system instructions are written to a temporary file, journaled and hashed independently from the user-message bytes, and passed only as a file path in process arguments. Other providers reject a separate system channel until their official CLIs expose and pass qualification for an equivalent surface.

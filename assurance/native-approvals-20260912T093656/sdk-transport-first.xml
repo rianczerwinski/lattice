@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="11" time="1.784" timestamp="2026-09-12T16:04:58.145381-06:00" hostname="MacBook-Pro.local"><testcase classname="tests.test_sdk_transport" name="test_transport_roundtrip_preserves_unicode_fifo_and_accepted_bytes" time="0.075" /><testcase classname="tests.test_sdk_transport" name="test_invalid_native_framing_fails_visibly[{&quot;x&quot;:1}]" time="0.063" /><testcase classname="tests.test_sdk_transport" name="test_invalid_native_framing_fails_visibly[[]\n]" time="0.033" /><testcase classname="tests.test_sdk_transport" name="test_invalid_native_framing_fails_visibly[{&quot;x&quot;:1,&quot;x&quot;:2}\n]" time="0.033" /><testcase classname="tests.test_sdk_transport" name="test_invalid_native_framing_fails_visibly[{&quot;x&quot;:&quot;\xff&quot;}\n]" time="0.034" /><testcase classname="tests.test_sdk_transport" name="test_input_cap_rejects_before_acceptance_and_stops_peer" time="0.061" /><testcase classname="tests.test_sdk_transport" name="test_output_cap_and_provider_exit_preserve_failure" time="0.069" /><testcase classname="tests.test_sdk_transport" name="test_lost_input_journal_stops_peer_before_acceptance" time="0.033"><failure message="assert False&#10; +  where False = is_set()&#10; +    where is_set = &lt;threading.Event at 0x116974110: unset&gt;.is_set&#10; +      where &lt;threading.Event at 0x116974110: unset&gt; = &lt;lattice.execution.sdk_transport.GuardedSDKTransport object at 0x116934af0&gt;.cancel">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1058/test_lost_input_journal_stops_0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11691a990&gt;
+
+    @pytest.mark.asyncio
+    @pytest.mark.contract
+    async def test_lost_input_journal_stops_peer_before_acceptance(tmp_path, monkeypatch):
+        native = transport(tmp_path, ECHO)
+        await native.connect()
+        messages = native.read_messages()
+        try:
+            assert await anext(messages) == {"ready": True}
+            original_open = os.open
+    
+            def denied(path, flags, *args, **kwargs):
+                if Path(path) == native.root / "stdin.accepted.log":
+                    raise PermissionError("planted input journal denial")
+                return original_open(path, flags, *args, **kwargs)
+    
+            with monkeypatch.context() as patch:
+                patch.setattr(os, "open", denied)
+                with pytest.raises(PermissionError, match="planted input journal denial"):
+                    await native.write("{}\n")
+&gt;           assert native.cancel.is_set()
+E           assert False
+E            +  where False = is_set()
+E            +    where is_set = &lt;threading.Event at 0x116974110: unset&gt;.is_set
+E            +      where &lt;threading.Event at 0x116974110: unset&gt; = &lt;lattice.execution.sdk_transport.GuardedSDKTransport object at 0x116934af0&gt;.cancel
+
+tests/test_sdk_transport.py:119: AssertionError</failure></testcase><testcase classname="tests.test_sdk_transport" name="test_pre_cancelled_transport_never_starts_peer" time="0.001" /><testcase classname="tests.test_sdk_transport" name="test_official_sdk_sends_exact_single_action_response_without_saved_rules[allow]" time="0.028" /><testcase classname="tests.test_sdk_transport" name="test_official_sdk_sends_exact_single_action_response_without_saved_rules[deny]" time="0.033" /></testsuite></testsuites>

@@ -1,0 +1,10 @@
+{
+  "state": "initialized",
+  "permission_mode": "default",
+  "session_state": "idle",
+  "elapsed_seconds": 0.7099662079708651,
+  "requested_tools": [],
+  "model_prompts": 0,
+  "process_returncode": null,
+  "process_error": "ProcessCancelled: process cancelled: /opt/homebrew/bin/claude"
+}

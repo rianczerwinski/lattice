@@ -1,0 +1,99 @@
+{
+  "finding_schema_version": 1,
+  "kind": "finding",
+  "finding_id": "finding:6572851c-8317-45dd-b678-6e92325fd630",
+  "title": "Input journal open failure omits provider cancellation",
+  "scope": {
+    "object_ref": "module://lattice.execution.sdk-transport",
+    "revision": "8c038625822c469a1c3f6455010dc45e12582428",
+    "locations": [
+      {
+        "ref": "lattice/execution/sdk_transport.py",
+        "line_start": null,
+        "line_end": null,
+        "symbol": "GuardedSDKTransport.write"
+      }
+    ]
+  },
+  "cleared_reason": null,
+  "provenance": {
+    "producer": "codex/root",
+    "review_mode": "audit-plane",
+    "produced_at": "20260912T221732"
+  },
+  "classification": {
+    "atom": "sdk-journal-failure",
+    "significance": {
+      "level": "S2",
+      "impact": "A failed write can leave the native peer running without durable input acceptance until another lifecycle mechanism stops it.",
+      "exposure": "Uncommitted SDK transport candidate; production interactive approval remains disabled. Only planted peers and zero-model initialization exercised this code.",
+      "detectability": "The write raises PermissionError, but the caller cannot infer that provider cancellation was signalled.",
+      "systemic_implication": "A bounded transport lifecycle defect; no evidence of a failure outside this transport seam.",
+      "recovery": "Repair and replay a new bounded observation; retained failed observations remain unchanged.",
+      "rationale": "Material failure of the new transport's resource or lifecycle contract, contained before production use.",
+      "conditional": null
+    },
+    "action": "obvious-fix",
+    "confidence": {
+      "level": "high",
+      "basis": "Source inspection and an intended pre-fix behavioral assertion failure."
+    }
+  },
+  "claim": {
+    "evidence": [
+      {
+        "kind": "runtime",
+        "ref": "assurance/native-approvals-20260912T093656/sdk-transport-first.xml",
+        "observation": "Ten tests passed; the injected journal-open failure test failed its cancellation-event assertion."
+      }
+    ],
+    "failure_mode": "The first candidate opened the input journal outside the exception boundary that signals cancellation.",
+    "downstream_consequence": "A failed write can leave the native peer running without durable input acceptance until another lifecycle mechanism stops it.",
+    "counterevidence": [
+      {
+        "kind": "source",
+        "ref": "lattice/execution/adapters.py#validate_execution_policy",
+        "observation": "The production interactive approval route remains rejected."
+      }
+    ],
+    "proof_limits": [
+      "The Git revision is the candidate base; exact candidate and repaired hashes are retained in sdk-transport-review.md.",
+      "This transport finding does not itself establish native permission enforcement, installed routing, or hostile same-user isolation."
+    ]
+  },
+  "response": {
+    "status": "closed",
+    "containment": [
+      "Production on-request remains disabled."
+    ],
+    "remediation": [
+      {
+        "action_id": "remediation:bba87289-2650-417e-acc5-96b28872f1d0",
+        "description": "Include journal open, write, fsync and close in the cancellation-setting failure boundary.",
+        "state": "performed",
+        "evidence": [
+          {
+            "kind": "source",
+            "ref": "lattice/execution/sdk_transport.py",
+            "observation": "Include journal open, write, fsync and close in the cancellation-setting failure boundary."
+          }
+        ]
+      }
+    ],
+    "verification": {
+      "required": [],
+      "performed": [
+        {
+          "verifier": "english_transport_review",
+          "independence_basis": "Separate read-only review context inspected the repaired source and permanent assertion; parent-executed planted failure and repaired test outcomes are retained separately.",
+          "evidence": {
+            "kind": "test",
+            "ref": "assurance/native-approvals-20260912T093656/sdk-transport-review.md",
+            "observation": "The retained pre-repair failure, repaired focused checks, independent source re-review, and 606-pass full source suite discharge this transport-local defect; native approval enforcement remains outside this finding's closure."
+          },
+          "negative_control": "Planted journal-open PermissionError rejected the original outside-handler open at the missing-cancellation assertion in sdk-transport-first.xml; the same regression passed after repair."
+        }
+      ]
+    }
+  }
+}

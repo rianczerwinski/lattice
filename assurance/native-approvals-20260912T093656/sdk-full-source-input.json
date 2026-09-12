@@ -1,0 +1,25 @@
+{
+  "kind": "local-test-run-input",
+  "retention": "keep",
+  "prepared_at": "20260912T221732",
+  "scope": "Full Lattice source suite with the pinned SDK source dependency and repaired guarded SDK transport",
+  "baseline_revision": "8c038625822c469a1c3f6455010dc45e12582428",
+  "changed_runtime_inputs": {
+    "lattice/execution/sdk_transport.py": "c270ad5a08efa83912358319225d864201ed683431b72c143fbd92e84adc24e1",
+    "tests/test_sdk_transport.py": "b4e03f368a3af71a4fa37f5fde3b036a6db7ddcbab239dbaf066683fd1ae405a",
+    "pyproject.toml": "dd2ef2014f8143a79f94e28a7ab9c9cc91c3e041fd67541f544085947deb8f0c",
+    "uv.lock": "8a837d04089c26e36c572656e428a1c3b8e81de0cb565aaa906945f4251eaf63"
+  },
+  "command": [".venv/bin/python", "-m", "pytest", "-q", "--tb=short", "--junitxml=assurance/native-approvals-20260912T093656/sdk-full-source-tests.xml"],
+  "cwd": "/Users/rian/AXISVI/axis/chariots/lattice",
+  "environment": {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONUNBUFFERED": "1"},
+  "operation": "sdk-full-source-tests",
+  "status_ref": "sdk-full-source-tests/status.json",
+  "output_ref": "sdk-full-source-tests/log",
+  "admission": "Local tests and planted processes only; no model prompt, native tool action, production database, or network route.",
+  "prior_measurement_seconds": 477.31,
+  "unit": "One source-suite invocation with retained incremental output. Interruption requires a new identity; no partial pass is inferred.",
+  "pass_action": "Retain source and dependency compatibility evidence; continue native permission and installed qualification separately.",
+  "fail_action": "Preserve the first failure and repair the implicated source before a successor.",
+  "proof_limit": "Not native action enforcement, same-user credential isolation, installed approval routing, or English semantic qualification."
+}

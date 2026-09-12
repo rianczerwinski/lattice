@@ -1,0 +1,30 @@
+{
+  "source_bindings": {
+    "lattice/execution/sdk_transport.py": "c270ad5a08efa83912358319225d864201ed683431b72c143fbd92e84adc24e1",
+    "tests/test_sdk_transport.py": "b4e03f368a3af71a4fa37f5fde3b036a6db7ddcbab239dbaf066683fd1ae405a",
+    "uv.lock": "8a837d04089c26e36c572656e428a1c3b8e81de0cb565aaa906945f4251eaf63",
+    "assurance/native-approvals-20260912T093656/sdk_queue_mutation.py": "048ffb05b5cbe98ec3600152d88724bd67e4ef2e83af04eda9ad9e5ca340f88e"
+  },
+  "pytest_exit_code": 1,
+  "rejected_at_intended_assertion": true,
+  "reports": [
+    {
+      "nodeid": "tests/test_sdk_transport.py::test_stalled_input_is_bounded_and_shutdown_does_not_wait_for_space[space]",
+      "when": "setup",
+      "outcome": "passed",
+      "detail": null
+    },
+    {
+      "nodeid": "tests/test_sdk_transport.py::test_stalled_input_is_bounded_and_shutdown_does_not_wait_for_space[space]",
+      "when": "call",
+      "outcome": "failed",
+      "detail": "tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1065/test_stalled_input_is_bounded_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1194d5810>\nrelease = 'space'\n\n    @pytest.mark.asyncio\n    @pytest.mark.contract\n    @pytest.mark.parametrize(\"release\", [\"space\", \"eof\", \"cancel\"])\n    async def test_stalled_input_is_bounded_and_shutdown_does_not_wait_for_space(tmp_path, monkeypatch, release):\n        # A controlled consumer preserves the queue/backpressure seam without\n        # depending on OS pipe capacity or the native provider's read scheduling.\n        stopped = threading.Event()\n    \n        def stalled(command, **kwargs):\n            assert stopped.wait(5), \"test did not release the planted consumer\"\n            return subprocess.CompletedProcess(command, 0)\n    \n        monkeypatch.setattr(\"lattice.execution.sdk_transport.run_bounded\", stalled)\n        native = transport(tmp_path, \"\")\n        await native.connect()\n        pending = None\n        try:\n            capacity = native._inputs.maxsize\n>           assert capacity > 1, \"payload entries need a finite bound plus an EOF slot\"\nE           AssertionError: payload entries need a finite bound plus an EOF slot\nE           assert 0 > 1\n\ntests/test_sdk_transport.py:206: AssertionError"
+    },
+    {
+      "nodeid": "tests/test_sdk_transport.py::test_stalled_input_is_bounded_and_shutdown_does_not_wait_for_space[space]",
+      "when": "teardown",
+      "outcome": "passed",
+      "detail": null
+    }
+  ]
+}

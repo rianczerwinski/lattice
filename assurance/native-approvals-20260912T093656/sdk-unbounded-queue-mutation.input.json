@@ -1,0 +1,13 @@
+{
+  "retention": "keep",
+  "mutation": "remove the native input-entry bound",
+  "source_bindings": {
+    "lattice/execution/sdk_transport.py": "c270ad5a08efa83912358319225d864201ed683431b72c143fbd92e84adc24e1",
+    "tests/test_sdk_transport.py": "b4e03f368a3af71a4fa37f5fde3b036a6db7ddcbab239dbaf066683fd1ae405a",
+    "uv.lock": "8a837d04089c26e36c572656e428a1c3b8e81de0cb565aaa906945f4251eaf63",
+    "assurance/native-approvals-20260912T093656/sdk_queue_mutation.py": "048ffb05b5cbe98ec3600152d88724bd67e4ef2e83af04eda9ad9e5ca340f88e"
+  },
+  "selector": "test_stalled_input_is_bounded_and_shutdown_does_not_wait_for_space[space]",
+  "scope": "in-memory transport mutation with a planted consumer; no native CLI or tool execution",
+  "disposable": "pytest-owned planted temporary journal; decisive reports retained"
+}

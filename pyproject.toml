@@ -8,6 +8,7 @@ dynamic = ["version"]
 description = "Local-first conversational lattice harness"
 requires-python = ">=3.13"
 dependencies = [
+    "claude-agent-sdk==0.2.152",
     "fastapi>=0.115,<2.0",
     "httpx>=0.27,<1.0",
     "jsonschema>=4.23,<5.0",
@@ -19,6 +20,11 @@ dependencies = [
 
 [project.scripts]
 lattice = "lattice.cli:main"
+
+[tool.uv]
+# Keep the separately qualified, subscription-authenticated CLI as the runtime.
+# The SDK's platform wheel bundles another CLI; only its Python layer is needed.
+no-binary-package = ["claude-agent-sdk"]
 
 [tool.hatch.version]
 path = "lattice/__about__.py"

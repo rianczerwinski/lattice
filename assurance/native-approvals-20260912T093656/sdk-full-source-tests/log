@@ -1,0 +1,16 @@
+........................................................................ [ 11%]
+........................................................................ [ 23%]
+........................................................................ [ 35%]
+........................................................................ [ 47%]
+........................................................................ [ 59%]
+........................................................................ [ 71%]
+........................................................................ [ 83%]
+........................................................................ [ 95%]
+..............................                                           [100%]
+=============================== warnings summary ===============================
+tests/test_project_search.py::test_search_api_is_operator_bound
+  /Users/rian/AXISVI/axis/chariots/lattice/.venv/lib/python3.14/site-packages/starlette/testclient.py:455: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+606 passed, 1 warning in 531.38s (0:08:51)

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.364" timestamp="2026-09-12T16:11:40.094506-06:00" hostname="MacBook-Pro.local"><testcase classname="tests.test_sdk_transport" name="test_empty_writes_do_not_consume_queue_entries" time="0.032"><failure message="AssertionError: assert [b'', b'', b'...b'', b'', ...] == []&#10;  &#10;  Left contains 100 more items, first extra item: b''&#10;  Use -v to get more diff">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1061/test_empty_writes_do_not_consu0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x111819350&gt;
+
+    @pytest.mark.asyncio
+    @pytest.mark.contract
+    async def test_empty_writes_do_not_consume_queue_entries(tmp_path, monkeypatch):
+        native = transport(tmp_path, ECHO)
+        await native.connect()
+        messages = native.read_messages()
+        try:
+            assert await anext(messages) == {"ready": True}
+            queued = []
+            with monkeypatch.context() as patch:
+                patch.setattr(native._inputs, "put_nowait", queued.append)
+                for _ in range(100):
+                    await native.write("")
+&gt;           assert queued == []
+E           AssertionError: assert [b'', b'', b'...b'', b'', ...] == []
+E             
+E             Left contains 100 more items, first extra item: b''
+E             Use -v to get more diff
+
+tests/test_sdk_transport.py:181: AssertionError</failure></testcase></testsuite></testsuites>

@@ -5,3 +5,5 @@ web/node_modules/
 /dev/*
 !/dev/README.md
 !/dev/decisions/
+# Native initialization returned personal account metadata; retain locally only.
+/assurance/native-approvals-20260912T093656/sdk-guarded-init-20260912T221732/stdout.log
