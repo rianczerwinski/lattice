@@ -1,0 +1,91 @@
+{
+  "finding_schema_version": 1,
+  "kind": "finding",
+  "scope": {
+    "object_ref": "module://lattice.native-approvals",
+    "revision": "ba457d91dc2fea0a24f6143c479ad582d443de94",
+    "locations": [
+      {
+        "ref": "lattice/native_approvals.py",
+        "line_start": null,
+        "line_end": null,
+        "symbol": "state / take_decision; store.heartbeat_attempt"
+      }
+    ]
+  },
+  "cleared_reason": null,
+  "provenance": {
+    "producer": "codex/root; independent discovery by english_transport_review",
+    "review_mode": "audit-plane",
+    "produced_at": "20260912T213900"
+  },
+  "finding_id": "finding:39f48d4e-5c16-4d9b-b7bc-45d961a1c376",
+  "title": "Expired approval authority can be revived",
+  "classification": {
+    "atom": "approval-lifetime",
+    "significance": {
+      "level": "S2",
+      "impact": "A previously expired action can become available for approval or delivery again.",
+      "exposure": "Uncommitted native approval candidate beneath the still-disabled on-request production route. No live grant or provider action was dispatched.",
+      "detectability": "Ordinary happy-path records do not reveal this lifecycle sequence.",
+      "systemic_implication": "Approval lifetime must remain separate from projection freshness and fallible persistence.",
+      "recovery": "Source repair and bounded regressions are possible; no historical provider-side effect was established.",
+      "rationale": "A material failure of the new approval boundary, contained before production enablement.",
+      "conditional": null
+    },
+    "action": "obvious-fix",
+    "confidence": {
+      "level": "high",
+      "basis": "Independent source review and failure-sensitive local reproductions; no native action execution claim."
+    }
+  },
+  "claim": {
+    "evidence": [
+      {
+        "kind": "runtime",
+        "ref": "assurance/native-approvals-20260912T093656/ledger-review-before.xml",
+        "observation": "Both pending and decided requests changed from expired to actionable after a late heartbeat; the regressions reject that change."
+      }
+    ],
+    "failure_mode": "Mutable lease deadlines and wall-clock-derived state can reconstruct a previously expired request as pending or decided.",
+    "downstream_consequence": "A later callback can consume an old grant after its authority was reported expired.",
+    "counterevidence": [
+      {
+        "kind": "source",
+        "ref": "lattice/execution/adapters.py#validate_execution_policy",
+        "observation": "Production on-request routes remain rejected before execution."
+      }
+    ],
+    "proof_limits": [
+      "This finding was discovered in an uncommitted candidate based on the named Git revision; reviewed candidate hashes are preserved in ledger-review.md.",
+      "Local tests do not establish native delivery, execution, same-user credential isolation, or installed-route qualification."
+    ]
+  },
+  "response": {
+    "status": "contained-not-closed",
+    "containment": [
+      "Production on-request remains disabled."
+    ],
+    "remediation": [
+      {
+        "action_id": "remediation:f5f0d31a-f7da-467e-91ca-2327a231b2ea",
+        "description": "Refuse overdue lease renewal and bind each action to a non-renewable, supervisor-scoped monotonic deadline.",
+        "state": "performed",
+        "evidence": [
+          {
+            "kind": "source",
+            "ref": "lattice/native_approvals.py",
+            "observation": "Refuse overdue lease renewal and bind each action to a non-renewable, supervisor-scoped monotonic deadline."
+          }
+        ]
+      }
+    ],
+    "verification": {
+      "required": [
+        "Independently re-examine the repaired lifecycle and test false authority at the intended assertion.",
+        "Complete native callback/cancellation and installed-route qualification before E1 closure."
+      ],
+      "performed": []
+    }
+  }
+}

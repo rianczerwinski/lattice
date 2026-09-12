@@ -22,6 +22,8 @@
   import ContextInspector from './components/ContextInspector.svelte';
   import ProjectRail from './components/ProjectRail.svelte';
   import ResponsePane from './components/ResponsePane.svelte';
+  import NativeApprovals from './components/NativeApprovals.svelte';
+  import type { NativeApproval } from './types';
   import RunSurface from './components/RunSurface.svelte';
   import WorkspaceSurface from './components/WorkspaceSurface.svelte';
   import WorkflowControl from './components/WorkflowControl.svelte';
@@ -33,6 +35,8 @@
   };
 
   let projects: Project[] = [];
+  let approvalBusy: string[] = [];
+  let approvalErrors: Record<string, string> = {};
   let project: Project | null = null;
   let routes: Route[] = [];
   let workflowPacks: WorkflowPack[] = [];
@@ -178,6 +182,7 @@
   $: activeGlobalRuns = globalRuns.filter((run) => ['running', 'waiting', 'stopping'].includes(run.state));
   $: activeProviderActivities = invocationActivity.items.filter((activity) => !activity.terminal || activity.needs_attention);
   $: selectedProviderActivity = activityForInvocation(invocationActivity.items, selected?.invocation_id);
+  $: selectedApprovalRequests = selected?.attempts.flatMap((attempt) => attempt.native_approvals?.requests ?? []) ?? [];
   $: selectedActiveAttemptIds = activityAttemptIds(selectedProviderActivity, selected?.invocation_id);
   $: selectedActivityFailure = activityFailureForInvocation(selectedProviderActivity, selected?.invocation_id);
   $: selectedLiveProgress = selectedActiveAttemptIds.flatMap((attemptId) => activityProgress[attemptId] ?? []).join('\n').slice(-100_000);
@@ -643,6 +648,11 @@
     'attempt.failed',
     'attempt.interrupted',
     'attempt.orphaned',
+    'native-approval.requested',
+    'native-approval.decided',
+    'native-approval.released',
+    'native-approval.withdrawn',
+    'native-approval.closed',
   ];
 
   async function refreshProjectInvocations(projectId: string) {
@@ -703,6 +713,9 @@
           void settleInvocationActivity(projectId, resolved?.member.invocation_id ?? activityAttemptInvocations[event.subject_id] ?? null);
         } else if (['invocation-batch.dispatch-failed', 'invocation-batch.recovery-failed'].includes(event.event_type)) {
           void settleInvocationActivity(projectId, event.subject_id);
+        } else if (event.event_type.startsWith('native-approval.')) {
+          activityProgressState = { ...activityProgressState, [event.subject_id]: event.event_type === 'native-approval.requested' ? 'Waiting for your permission' : 'Permission state updated' };
+          void settleInvocationActivity(projectId, resolved?.member.invocation_id ?? activityAttemptInvocations[event.subject_id] ?? null);
         } else if (['invocation-batch.sealed', 'attempt.leased'].includes(event.event_type)) {
           void refreshProjectProviderSurface(projectId);
         }
@@ -1151,6 +1164,28 @@
       await Promise.all(selectedActiveAttemptIds.map((attemptId) => post(`/api/v1/attempts/${attemptId}/cancel`, {})));
       activityProgressState = Object.fromEntries(Object.entries(activityProgressState).concat(selectedActiveAttemptIds.map((attemptId) => [attemptId, 'Cancellation requested; waiting for the terminal receipt'])));
     } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+  }
+
+  async function decideNativeApproval(request: NativeApproval, decision: 'allow' | 'deny') {
+    if (approvalBusy.includes(request.request_id)) return;
+    const projectId = project?.project_id;
+    approvalBusy = [...approvalBusy, request.request_id];
+    approvalErrors = { ...approvalErrors, [request.request_id]: '' };
+    try {
+      await post(`/api/v1/attempts/${encodeURIComponent(request.binding.attempt_id)}/native-approvals/${encodeURIComponent(request.request_id)}/decision`, { request_sha256: request.request_sha256, decision });
+      if (projectId) await settleInvocationActivity(projectId, request.binding.invocation_id);
+    } catch (cause: unknown) {
+      approvalErrors = { ...approvalErrors, [request.request_id]: cause instanceof Error ? cause.message : String(cause) };
+    } finally {
+      approvalBusy = approvalBusy.filter((id) => id !== request.request_id);
+    }
+  }
+
+  async function cancelApprovalAttempt(attemptId: string) {
+    try {
+      await post(`/api/v1/attempts/${encodeURIComponent(attemptId)}/cancel`, {});
+      if (project) await settleInvocationActivity(project.project_id, selected?.invocation_id ?? null);
+    } catch (cause: unknown) { error = cause instanceof Error ? cause.message : String(cause); }
   }
 
   async function inspect(id: string) {
@@ -1802,6 +1837,8 @@
             onReturnToParent={returnToParentEpisode}
             onGraftExcerpt={graftSelectedExcerpt}
           />
+
+          <NativeApprovals requests={selectedApprovalRequests} workspace={String(selected?.route.workspace ?? '')} busy={approvalBusy} errors={approvalErrors} onDecide={decideNativeApproval} onCancel={cancelApprovalAttempt} onRefresh={inspect} />
 
           <RunSurface
             {runs}

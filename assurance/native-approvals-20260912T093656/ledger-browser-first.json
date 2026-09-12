@@ -1,0 +1,82 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node/24.3.0/bin/node",
+      "/Users/rian/AXISVI/axis/chariots/lattice/web/node_modules/.bin/playwright",
+      "test",
+      "--grep",
+      "native approval browser",
+      "--reporter=line,json",
+      "--output=../assurance/native-approvals-20260912T093656/ledger-browser-first"
+    ],
+    "configFile": "/Users/rian/AXISVI/axis/chariots/lattice/web/playwright.config.ts",
+    "rootDir": "/Users/rian/AXISVI/axis/chariots/lattice/web/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/rian/AXISVI/axis/chariots/lattice/assurance/native-approvals-20260912T093656/ledger-browser-first",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "",
+        "name": "",
+        "testDir": "/Users/rian/AXISVI/axis/chariots/lattice/web/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "line"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run preview",
+      "url": "http://127.0.0.1:4173",
+      "reuseExistingServer": false,
+      "timeout": 30000
+    }
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: Process from config.webServer was not able to start. Exit code: 1",
+      "stack": "Error: Process from config.webServer was not able to start. Exit code: 1"
+    }
+  ],
+  "stats": {
+    "startTime": "2026-09-12T21:32:05.759Z",
+    "duration": 526.6009999999999,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

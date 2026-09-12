@@ -1,0 +1,15 @@
+{
+  "mode": "repeat-release",
+  "mutation": "allow an already released decision to be consumed a second time",
+  "source_bindings": {
+    "lattice/native_approvals.py": "9238c726bad92eb6966c34a470873077f584dfbf01c9f6c2615abda13b6088a0",
+    "tests/test_native_approvals.py": "6be13baddda4b65e6b13ed0e762d62dedbb596a6f6d00c5255794fc3c16647b1",
+    "lattice/store.py": "70d906437a7b32fccf764582567e79e81c4bcc3e16f274c90e43e94b63cbf94a",
+    "lattice/contracts.py": "3f4262262e3fbae64bf7713717677dfe63182d81171b65b402c643d241848fae",
+    "assurance/native-approvals-20260912T093656/ledger_mutation.py": "eaf6fdcef98b6a62e7e768835ef0659db310c2df3cd9ea66449dd6f3dbd02349"
+  },
+  "selector": "test_exact_decision_is_persistent_and_released_once[allow]",
+  "retention": "keep",
+  "scope": "in-memory local ledger fault injection; no provider process or production database",
+  "disposable": "pytest-owned planted temporary data; decisive reports retained"
+}

@@ -30,7 +30,7 @@ function json(route: BrowserRoute, value: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
 }
 
-async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean } = {}) {
+async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean; nativeApproval?: boolean } = {}) {
   let project: Record<string, unknown> | null = null;
   const invocations: InvocationRecord[] = [];
   const episodes: EpisodeRecord[] = [];
@@ -38,6 +38,8 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
   const blockOwner = new Map<string, string>();
   let sequence = 0;
   let secondaryUnavailable = options.secondaryUnavailable ?? false;
+  let nativeDecision: 'allow' | 'deny' | null = null;
+  let nativeDecisionUnavailable = false;
 
   const routes = [
     { provider_code: 'anthropic', model_code: 'claude-sonnet-4-6', official_cli: 'claude', installed: true, qualified: true, operational: true, proof_limits: ['provider-owned system context remains opaque'], qualified_profiles: ['compiled-fresh', 'workspace-agent', 'native-continuation'] },
@@ -76,7 +78,12 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
       compilation: { byte_count: item.response.length, compiled_prompt_sha256: '2'.repeat(64) },
     },
     output_block: { content: item.response },
-    attempts: [{ state: 'succeeded', runtime_receipt: { native_session: null } }],
+    attempts: [{ state: options.nativeApproval ? 'running' : 'succeeded', runtime_receipt: { native_session: null }, ...(options.nativeApproval ? { native_approvals: {
+      attempt_id: 'attempt_native_fixture', invocation_id: item.invocation_id, pending_count: nativeDecision ? 0 : 1, closed_reason: null,
+      requests: [{ request_id: 'approval_native_fixture', request_sha256: 'a'.repeat(64), state: nativeDecision ? 'released-to-adapter' : 'awaiting-operator',
+        binding: { attempt_id: 'attempt_native_fixture', invocation_id: item.invocation_id, manifest_sha256: item.manifest_sha256, action: { tool_use_id: 'tool_native_fixture', tool_name: 'Read', tool_input: { file_path: '/planted/private.txt', offset: 17, limit: 9 }, context: { description: '<img src=x onerror=alert(1)> Read a planted source' } } },
+        decision: nativeDecision ? { decision: nativeDecision, note: '' } : null, release: nativeDecision ? { delivery_claim: 'released-to-adapter' } : null, withdrawal: null }],
+    } } : {}) }],
     artifacts: [],
     edges: [],
   });
@@ -93,6 +100,13 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
     const url = new URL(request.url());
     const path = url.pathname;
     const body = request.postData() ? request.postDataJSON() as Record<string, any> : {};
+
+    if (path === '/api/v1/attempts/attempt_native_fixture/native-approvals/approval_native_fixture/decision') {
+      if (nativeDecisionUnavailable) return json(intercepted, { detail: 'planted decision service outage' }, 503);
+      if (body.request_sha256 !== 'a'.repeat(64) || !['allow', 'deny'].includes(body.decision)) return json(intercepted, { detail: 'wrong action binding' }, 409);
+      nativeDecision = body.decision as 'allow' | 'deny';
+      return json(intercepted, { state: 'decided' });
+    }
 
     if (path === '/api/session') return json(intercepted, { csrf: 'browser-acceptance' });
     if (path === '/api/health') return json(intercepted, { status: 'ok', startup_recovery_failures: [], durable_run_startup_reconciliation: { adopted_attempt_ids: [], orphaned_attempt_ids: [], processes_proven_dead: [] } });
@@ -179,8 +193,36 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
     }
     return json(intercepted, { detail: `unhandled browser fixture route: ${request.method()} ${path}` }, 501);
   });
-  return { setSecondaryUnavailable(value: boolean) { secondaryUnavailable = value; } };
+  return { setSecondaryUnavailable(value: boolean) { secondaryUnavailable = value; }, setNativeDecisionUnavailable(value: boolean) { nativeDecisionUnavailable = value; } };
 }
+
+test('native approval browser: exact action, visible failure, denial, and honest delivery state', async ({ page }) => {
+  const fixture = await installDeterministicLattice(page, { nativeApproval: true });
+  await page.goto('/');
+  await page.getByPlaceholder('New project').fill('Native approval fixture');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.locator('.composer textarea').fill('Exercise the planted permission surface.');
+  await page.getByRole('button', { name: 'Send to anthropic' }).click();
+  const surface = page.getByRole('region', { name: 'Native tool permissions' });
+  await expect(surface).toContainText('Read · Needs your permission');
+  await expect(surface).toContainText('/planted/private.txt');
+  await expect(surface.locator('img')).toHaveCount(0);
+  await surface.getByText('Exact arguments and binding').click();
+  await expect(surface).toContainText('"offset": 17');
+  await expect(surface).toContainText('"limit": 9');
+  await surface.screenshot({ path: test.info().outputPath('native-approval-pending.png') });
+  fixture.setNativeDecisionUnavailable(true);
+  await surface.getByRole('button', { name: 'Allow this action' }).click();
+  await expect(surface.getByRole('alert')).toContainText('planted decision service outage');
+  await expect(surface.getByRole('button', { name: 'Deny this action' })).toBeEnabled();
+  fixture.setNativeDecisionUnavailable(false);
+  const sent = page.waitForRequest((request) => request.url().includes('/native-approvals/') && request.method() === 'POST');
+  await surface.getByRole('button', { name: 'Deny this action' }).click();
+  expect((await sent).postDataJSON()).toEqual({ request_sha256: 'a'.repeat(64), decision: 'deny' });
+  await expect(surface).toContainText('Denied; released to the adapter. This record does not confirm tool execution.');
+  await expect(surface.getByRole('button', { name: 'Allow this action' })).toHaveCount(0);
+  await surface.screenshot({ path: test.info().outputPath('native-approval-denied.png') });
+});
 
 test('browser acceptance: freestyle one-edge lattice stays conversational and source-bound', async ({ page }) => {
   await installDeterministicLattice(page);

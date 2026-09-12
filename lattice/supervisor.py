@@ -22,6 +22,7 @@ from .canonical import canonical_bytes
 from .contracts import AttemptState, ExecuteRequest, OutputContractV2, execution_policy
 from .manifest_reader import verify_and_reconstruct
 from .store import LatticeConflict, LatticeStore
+from . import native_approvals
 
 
 MAX_RUNTIME_CONTROL_BYTES = 1024 * 1024
@@ -101,10 +102,24 @@ class ExecutionSupervisor:
         return attempts + commands + dispatched
 
     async def stop(self) -> None:
-        for cancel in self._cancellations.values():
-            cancel.set()
-        if self._tasks:
-            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        owned = list(self._cancellations.items())
+        errors = []
+        try:
+            for attempt_id, cancel in owned:
+                try:
+                    await self._close_approvals(attempt_id, "supervisor stopping")
+                except Exception as error:
+                    errors.append(error)
+                finally:
+                    cancel.set()
+        finally:
+            # Even interruption of shutdown itself must signal every owned job.
+            for _attempt_id, cancel in owned:
+                cancel.set()
+            if self._tasks:
+                await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        if errors:
+            raise ExceptionGroup("Native approval closure failed during shutdown", errors)
 
     def _adapter(self, route: dict[str, Any]):
         if route.get("route_kind", "execution") != "execution":
@@ -139,14 +154,24 @@ class ExecutionSupervisor:
         self._cancellations.pop(attempt_id, None)
 
     async def cancel(self, attempt_id: str) -> dict[str, Any]:
-        attempt = self.store.get_attempt(attempt_id)
         cancel = self._cancellations.get(attempt_id)
         if cancel is None:
+            attempt = self.store.get_attempt(attempt_id)
             if attempt["state"] in {AttemptState.succeeded.value, AttemptState.failed.value, AttemptState.interrupted.value, AttemptState.orphaned.value}:
                 return attempt
             raise LatticeConflict("attempt is not owned by this Lattice process")
-        cancel.set()
+        try:
+            attempt = self.store.get_attempt(attempt_id)
+            await self._close_approvals(attempt_id, "operator cancelled attempt")
+        finally:
+            cancel.set()
         return attempt
+
+    async def _close_approvals(self, attempt_id: str, reason: str) -> None:
+        attempt = self.store.get_attempt(attempt_id)
+        invocation = self.store.get_invocation(attempt["invocation_id"])
+        if invocation["route"]["approval_policy"] == "on-request":
+            await asyncio.to_thread(native_approvals.close, self.store, attempt_id, owner_boot_id=self.boot_id, reason=reason)
 
     async def _run(self, attempt_id: str, cancel: threading.Event) -> None:
         attempt = self.store.get_attempt(attempt_id)

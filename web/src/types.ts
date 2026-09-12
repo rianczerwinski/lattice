@@ -80,7 +80,18 @@ export type Episode = { slice_id: string; episode_id: string; concern_ref: strin
 export type LiveSlice = { slice_id: string; external_ref: string | null; name: string; scope: string; items: Array<{ object_id: string; object_type: string }>; coverage: { state: 'complete' | 'partial' } };
 export type InvocationNavigation = { contract_version: 'LatticeInvocationNavigation/1.0'; invocation: { invocation_id: string }; episodes: Episode[]; project: { project_id: string; title: string }; slate_topics: Array<{ slice_id: string; external_ref: string; name: string; scope: string }> };
 export type InvocationArtifact = { artifact_id: string; content_sha256: string; generated_json: string; artifact_kind: string };
-export type Invocation = InvocationSummary & { route: Record<string, unknown>; manifest: Manifest; manifest_verification: { valid: boolean }; compiled_prompt: string; output_block?: { content: string }; attempts: Array<Record<string, unknown>>; artifacts: InvocationArtifact[]; edges: Array<Record<string, unknown>> };
+export type NativeApproval = {
+  request_id: string;
+  request_sha256: string;
+  state: 'awaiting-operator' | 'decided' | 'released-to-adapter' | 'withdrawn' | 'expired';
+  binding: { attempt_id: string; invocation_id: string; manifest_sha256: string; action: { tool_use_id: string; tool_name: string; tool_input: Record<string, unknown>; context: Record<string, unknown> } };
+  decision: { decision: 'allow' | 'deny'; note: string } | null;
+  release: { delivery_claim: 'released-to-adapter' } | null;
+  withdrawal: { reason: string } | null;
+  inactive_reason?: string;
+};
+export type NativeApprovalView = { attempt_id: string; invocation_id: string; requests: NativeApproval[]; pending_count: number; closed_reason: string | null };
+export type Invocation = InvocationSummary & { route: Record<string, unknown>; manifest: Manifest; manifest_verification: { valid: boolean }; compiled_prompt: string; output_block?: { content: string }; attempts: Array<Record<string, unknown> & { native_approvals?: NativeApprovalView }>; artifacts: InvocationArtifact[]; edges: Array<Record<string, unknown>> };
 
 export type InvocationActivityAttempt = {
   attempt_id: string;
@@ -93,6 +104,7 @@ export type InvocationActivityAttempt = {
   completed_at?: string | null;
   replay_event_cursor: number;
   latest_event_seq: number;
+  native_approvals?: NativeApprovalView;
 };
 export type InvocationActivityMember = {
   ordinal: number;

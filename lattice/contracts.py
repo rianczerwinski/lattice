@@ -606,6 +606,28 @@ class RouteAmendmentDecision(StrictModel):
     note: str = Field(min_length=1, max_length=4000)
 
 
+class NativeToolActionV1(StrictModel):
+    """Exact native callback data; descriptions and suggestions confer no authority."""
+
+    tool_use_id: str = Field(min_length=1, max_length=256)
+    tool_name: str = Field(min_length=1, max_length=256)
+    tool_input: dict[str, Any]
+    context: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("tool_use_id", "tool_name")
+    @classmethod
+    def native_identity_is_printable(cls, value: str) -> str:
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValueError("native action identities must be printable")
+        return value
+
+
+class NativeApprovalDecisionV1(StrictModel):
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    decision: Literal["allow", "deny"]
+    note: str = Field(default="", max_length=4000)
+
+
 class RolePinCreate(RoleCreate):
     """Create a future role from an exact completed conversational demonstration."""
 

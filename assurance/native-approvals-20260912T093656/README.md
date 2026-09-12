@@ -29,7 +29,7 @@ The same-group cleanup follows Python's [process-group signal interface](https:/
 
 The input FIFO uses Python's [synchronized queue contract](https://docs.python.org/3/library/queue.html), with a bounded wait so process shutdown does not depend on a caller supplying a sentinel. It does not infer completion from `empty()` or supply its own concurrency primitive.
 
-Production native protocol selection, action/attempt binding, durable operator decisions, cockpit controls, denial/cancellation/stale-delivery conformance, installed qualification, and the complete E1 gate remain open. No model prompt has been dispatched by these observations.
+Production SDK integration, native denial/cancellation/stale-delivery conformance, route isolation, installed qualification, and the complete E1 gate remain open. The exact-action ledger/cockpit checkpoint is described below. No model prompt has been dispatched by these observations.
 
 ## Pinned SDK initialization
 
@@ -38,3 +38,27 @@ Production native protocol selection, action/attempt binding, durable operator d
 The isolated development environment uses `claude-agent-sdk==0.2.152` from the published source distribution, SHA-256 `0822bbdf700ccdd1acecf8365345a56bde07833afe7f8bd1bee68cba0e2fcf9a`. Its package versions are retained in `sdk-dependencies.json`; the editable Lattice dependency uses the source bindings in the observation. No bundled CLI, primary application dependency, installed runtime, credential configuration, or global permission setting was changed. The ignored environment is reconstructible from the package versions and retained install commands; its purpose is compatibility diagnosis.
 
 `sdk-install/` and `sdk-project-deps/` preserve successful environment setup. `sdk-setup-failure.log` preserves the first missing-project-dependency failure before any native process or observation home was created. `sdk-init-20260912T102000/` contains the subsequent exact command, executable and process-source hashes, raw input/output, and terminal observation: native initialization succeeded in 0.507 seconds, permission mode was `default`, session state was `idle`, and exit status was zero. It sent **zero model prompts** and requested **zero tools**. This proves only SDK/native initialization for these bindings, not authentication, action approval, sandbox enforcement, or production integration.
+
+## Exact-action ledger and cockpit
+
+The append-only approval events in `lattice/native_approvals.py` reuse Lattice's existing ledger without a schema migration. Protected inspection and decision endpoints bind a one-action allow/deny decision to an exact native callback and supervisor-owned attempt; native callbacks cannot create operator decisions. Cancellation, withdrawal, terminality, and a fixed monotonic lifetime invalidate pending authority. The cockpit shows the action and target, exact arguments and invocation/workspace binding, explicit allow/deny/cancel controls, request failures, and the distinction between a saved decision, adapter release, and actual execution. No native permission rule is saved. These controls remain behind the unqualified production route.
+
+[The independent ledger review](ledger-review.md) preserves reviewed source hashes, successive findings, repairs, inspected boundaries, and proof limits. Both material findings remain contained-not-closed until native and installed obligations are discharged. The following local observations are retained distinctly:
+
+| Evidence | Observation and limit |
+|---|---|
+| `ledger-first-tests.xml` | Nineteen setup failures caused by a missing explicit direct actor in the fixture; no approval behavior was exercised. |
+| `ledger-second-tests.xml`, `ledger-api-tests.xml` | Eighteen passed and one wrong HTTP-status expectation; then the selected API test passed with the actual protected-boundary status, 403. |
+| `ledger-review-before.xml`, `ledger-review-after.xml` | Five intended expiry/cancellation assertion failures; the first repair then passed 24 local cases. |
+| `ledger-affected-tests.xml` | Nonexistent selector; no selected-test coverage. |
+| `ledger-affected-final-tests.xml` | 191 passed before the final monotonic-clock repair; not evidence for the final clock implementation. |
+| `ledger-clock-before.xml`, `ledger-monotonic-tests.xml` | Two intended mutable-clock assertion failures, then 29 passing final-module cases. |
+| `ledger-ignore-binding-final.json`, `ledger-repeat-release.json` | Final-source in-memory false-binding and duplicate-release mutations rejected at their intended assertions. Earlier binding receipts retain their earlier source identities. |
+| `ledger-final-affected-input.json`, `ledger-final-affected-tests/`, `ledger-final-affected-tests.xml` | Final-source affected-suite input binding and incremental log/status: 193 passed, zero failed/skipped, one dependency deprecation warning, 204.63 seconds. This also reruns the unchanged baseline after both in-memory mutations. |
+| `ledger-web-unit-tests.json` | All 52 web unit tests passed; no browser/provider integration claim. |
+| `ledger-browser-first.json` | Outer sandbox denied the local preview listener with EPERM before browser execution. |
+| `ledger-browser-host.json`, `ledger-browser-final.json` | The selected real-browser test passed in both approved host runs, using wholly synthetic API responses. It rejected rendered HTML injection, surfaced an HTTP 503, sent an exact-action denial, and showed an honest adapter-release state. |
+
+The final browser screenshots live under `ledger-browser-final/`. Visual inspection confirmed the exact target and three action controls are above the long argument details; a sticky composer occupies the lower viewport. This is a scoped desktop rendering observation, not a full responsive/accessibility or native-provider qualification. The final Svelte check reported zero errors/warnings and the production build succeeded. The first browser render remains for diagnosis of the control-placement refinement.
+
+Every listed observation has a continuing regression, diagnosis, or source-binding function. Temporary planted databases belong to the test runner and are disposable; retained reports and raw native journals are not. To repeat a mutation, run `ledger_mutation.py` with `ignore-binding` or `repeat-release` and a new output path; it refuses an occupied output and changes only an in-memory module. SDK/native qualification must use a separately bounded observation and may not infer authority from this ledger's green tests.

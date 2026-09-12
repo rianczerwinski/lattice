@@ -1,0 +1,32 @@
+{
+  "mode": "repeat-release",
+  "source_bindings": {
+    "lattice/native_approvals.py": "9238c726bad92eb6966c34a470873077f584dfbf01c9f6c2615abda13b6088a0",
+    "tests/test_native_approvals.py": "6be13baddda4b65e6b13ed0e762d62dedbb596a6f6d00c5255794fc3c16647b1",
+    "lattice/store.py": "70d906437a7b32fccf764582567e79e81c4bcc3e16f274c90e43e94b63cbf94a",
+    "lattice/contracts.py": "3f4262262e3fbae64bf7713717677dfe63182d81171b65b402c643d241848fae",
+    "assurance/native-approvals-20260912T093656/ledger_mutation.py": "eaf6fdcef98b6a62e7e768835ef0659db310c2df3cd9ea66449dd6f3dbd02349"
+  },
+  "pytest_exit_code": 1,
+  "rejected_at_intended_assertion": true,
+  "reports": [
+    {
+      "nodeid": "tests/test_native_approvals.py::test_exact_decision_is_persistent_and_released_once[allow]",
+      "when": "setup",
+      "outcome": "passed",
+      "detail": null
+    },
+    {
+      "nodeid": "tests/test_native_approvals.py::test_exact_decision_is_persistent_and_released_once[allow]",
+      "when": "call",
+      "outcome": "failed",
+      "detail": "approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...a6921771038645', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}\ndecision = 'allow'\n\n    @pytest.mark.contract\n    @pytest.mark.parametrize(\"decision\", [\"allow\", \"deny\"])\n    def test_exact_decision_is_persistent_and_released_once(approval_env, decision):\n        env = approval_env\n        attempt = start(env)\n        item = ask(env, attempt)\n        assert item[\"state\"] == \"awaiting-operator\"\n        assert item[\"decision\"] is None  # Native descriptions/suggestions cannot grant.\n        assert take(env, attempt, item) is None\n        assert ask(env, attempt) == item\n        recorded = decide(env, attempt, item, decision)\n        assert recorded[\"state\"] == \"decided\"\n        assert recorded[\"release\"] is None\n        assert recorded[\"decision\"][\"decision\"] == decision\n        assert recorded[\"decision\"][\"authority\"] == \"operator\"\n        reopened = LatticeStore(env[\"config\"])\n        assert approvals.inspect(reopened, attempt)[\"requests\"] == [recorded]\n        env[\"store\"] = reopened\n        assert decide(env, attempt, item, decision) == recorded\n        released = take(env, attempt, item)\n        assert released[\"state\"] == \"released-to-adapter\"\n        assert released[\"release\"][\"decision_event_id\"] == recorded[\"decision\"][\"event_id\"]\n        assert released[\"release\"][\"decision\"] == decision\n        assert released[\"binding\"] == item[\"binding\"]\n>       with pytest.raises(LatticeConflict, match=\"not available for delivery\"):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE LatticeConflict\n\ntests/test_native_approvals.py:82: Failed"
+    },
+    {
+      "nodeid": "tests/test_native_approvals.py::test_exact_decision_is_persistent_and_released_once[allow]",
+      "when": "teardown",
+      "outcome": "passed",
+      "detail": null
+    }
+  ]
+}

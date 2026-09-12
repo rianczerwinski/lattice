@@ -4,6 +4,7 @@ These components carve the conversational cockpit at functional seams. `App.svel
 
 - `ProjectRail.svelte` renders project selection, project-local provider activity, project creation, and governed-workflow launch controls.
 - `ResponsePane.svelte` renders the selected invocation, its own recoverable provider activity, and response-to-context actions without borrowing another project's progress state.
+- `NativeApprovals.svelte` shows exact-action permission requests, invocation/workspace bindings, one-action allow/deny controls, route cancellation, and saved decision/delivery distinctions without persisting native permission rules.
 - `ConversationHistory.svelte` renders the invocation trail and parent-selection controls.
 - `ComposerPane.svelte` renders route, authority, context-graft, and send controls while emitting orchestration intents to the application shell.
 - `ContextInspector.svelte` renders the exact context, provenance, artifact, module, and reuse surfaces without owning their orchestration.

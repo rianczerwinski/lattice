@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="19" skipped="0" tests="19" time="23.120" timestamp="2026-09-12T04:38:28.305455-06:00" hostname="MacBook-Pro.local"><testcase classname="tests.test_native_approvals" name="test_exact_decision_is_persistent_and_released_once[allow]" time="1.088"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_c...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...d3b683cf78e8af', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+decision = 'allow'
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("decision", ["allow", "deny"])
+    def test_exact_decision_is_persistent_and_released_once(approval_env, decision):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:59: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...d3b683cf78e8af', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_c...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_exact_decision_is_persistent_and_released_once[deny]" time="1.132"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_4...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...8f14785382d1a8', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+decision = 'deny'
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("decision", ["allow", "deny"])
+    def test_exact_decision_is_persistent_and_released_once(approval_env, decision):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:59: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...8f14785382d1a8', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_4...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_action_or_sibling_identity_cannot_reuse_a_grant" time="1.159"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_2...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...db419744128928', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.contract
+    def test_action_or_sibling_identity_cannot_reuse_a_grant(approval_env):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...db419744128928', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_2...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_wrong_supervisor_and_undeclared_tool_are_rejected" time="1.143"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_6...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...471e3214662f50', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.contract
+    def test_wrong_supervisor_and_undeclared_tool_are_rejected(approval_env):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:106: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...471e3214662f50', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_6...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_terminal_attempts_expire_unreleased_decisions[False-succeeded]" time="1.103"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_a...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...1888bbc5476a29', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+terminal = &lt;AttemptState.succeeded: 'succeeded'&gt;, decided = False
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("terminal", list(AttemptState)[2:])
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_terminal_attempts_expire_unreleased_decisions(approval_env, terminal, decided):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...1888bbc5476a29', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_a...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_terminal_attempts_expire_unreleased_decisions[False-failed]" time="1.156"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_2...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...93e64dd09ea928', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+terminal = &lt;AttemptState.failed: 'failed'&gt;, decided = False
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("terminal", list(AttemptState)[2:])
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_terminal_attempts_expire_unreleased_decisions(approval_env, terminal, decided):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...93e64dd09ea928', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_2...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_terminal_attempts_expire_unreleased_decisions[False-interrupted]" time="1.186"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_7...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...73aa1ee8f33034', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+terminal = &lt;AttemptState.interrupted: 'interrupted'&gt;, decided = False
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("terminal", list(AttemptState)[2:])
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_terminal_attempts_expire_unreleased_decisions(approval_env, terminal, decided):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...73aa1ee8f33034', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_7...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_terminal_attempts_expire_unreleased_decisions[False-orphaned]" time="1.153"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_1...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...38289cc3358e78', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+terminal = &lt;AttemptState.orphaned: 'orphaned'&gt;, decided = False
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("terminal", list(AttemptState)[2:])
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_terminal_attempts_expire_unreleased_decisions(approval_env, terminal, decided):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...38289cc3358e78', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_1...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_terminal_attempts_expire_unreleased_decisions[True-succeeded]" time="1.135"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_9...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...85feac9dbfbe0b', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+terminal = &lt;AttemptState.succeeded: 'succeeded'&gt;, decided = True
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("terminal", list(AttemptState)[2:])
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_terminal_attempts_expire_unreleased_decisions(approval_env, terminal, decided):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...85feac9dbfbe0b', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_9...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_terminal_attempts_expire_unreleased_decisions[True-failed]" time="1.205"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_d...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...f16ef43ca9c5fb', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+terminal = &lt;AttemptState.failed: 'failed'&gt;, decided = True
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("terminal", list(AttemptState)[2:])
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_terminal_attempts_expire_unreleased_decisions(approval_env, terminal, decided):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...f16ef43ca9c5fb', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_d...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_terminal_attempts_expire_unreleased_decisions[True-interrupted]" time="1.208"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_9...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...fb692c4bc95997', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+terminal = &lt;AttemptState.interrupted: 'interrupted'&gt;, decided = True
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("terminal", list(AttemptState)[2:])
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_terminal_attempts_expire_unreleased_decisions(approval_env, terminal, decided):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...fb692c4bc95997', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_9...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_terminal_attempts_expire_unreleased_decisions[True-orphaned]" time="1.157"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_3...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...560e730d24f827', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+terminal = &lt;AttemptState.orphaned: 'orphaned'&gt;, decided = True
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("terminal", list(AttemptState)[2:])
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_terminal_attempts_expire_unreleased_decisions(approval_env, terminal, decided):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...560e730d24f827', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_3...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_success_result_and_orphan_recovery_close_pending_requests" time="1.116"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_0...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...e8f94f4b36199f', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.contract
+    def test_success_result_and_orphan_recovery_close_pending_requests(approval_env):
+        env = approval_env
+&gt;       first = start(env)
+                ^^^^^^^^^^
+
+tests/test_native_approvals.py:144: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...e8f94f4b36199f', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_0...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_lease_expiry_cannot_authorize_or_deliver" time="1.127"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_6...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...d8e663102aac9f', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x10438ab10&gt;
+
+    @pytest.mark.contract
+    def test_lease_expiry_cannot_authorize_or_deliver(approval_env, monkeypatch):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:164: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...d8e663102aac9f', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_6...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_withdrawal_is_action_scoped_and_closure_prevents_late_requests" time="1.163"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_d...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...d55a8c4f9daf42', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.contract
+    def test_withdrawal_is_action_scoped_and_closure_prevents_late_requests(approval_env):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:176: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...d55a8c4f9daf42', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_d...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_concurrent_delivery_claims_release_only_once" time="1.116"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_7...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...61df69d675d7c3', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.concurrency
+    def test_concurrent_delivery_claims_release_only_once(approval_env):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...61df69d675d7c3', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_7...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_request_bound_and_decision_shape_do_not_allow_rule_widening" time="1.093"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_0...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...c3a1c9a86d6af4', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.contract
+    def test_request_bound_and_decision_shape_do_not_allow_rule_widening(approval_env):
+        env = approval_env
+&gt;       attempt = start(env)
+                  ^^^^^^^^^^
+
+tests/test_native_approvals.py:213: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...c3a1c9a86d6af4', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_0...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_noninteractive_invocation_and_production_gate_remain_closed" time="1.140"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_4...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...33a251ff9e3729', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.contract
+    def test_noninteractive_invocation_and_production_gate_remain_closed(approval_env):
+        env = approval_env
+&gt;       attempt = start(env, policy=env["route"].model_copy(update={"approval_policy": "never"}))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_native_approvals.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...33a251ff9e3729', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'test-boot'
+policy = ProviderRoute(route_kind='execution', provider='anthropic', model='claude-opus-5', harness='claude', provider_profile_...6/test_noninteractive_invocation0', sandbox='provider-permissions', approval_policy='never', network_policy='disabled')
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_4...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_api_requires_operator_auth_and_returns_exact_decision" time="2.340"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate&#10;  Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_9...work_policy='disabled')}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/value_error">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...343d15dc73aff8', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.contract
+    def test_api_requires_operator_auth_and_returns_exact_decision(approval_env):
+        env = approval_env
+        app = create_app(env["config"])
+        token = ensure_cli_token(env["config"].operator_token)
+        with TestClient(app, headers={"Host": "127.0.0.1:9010"}) as client:
+&gt;           attempt = start(env, owner=app.state.supervisor.boot_id)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_native_approvals.py:240: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...343d15dc73aff8', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+owner = 'boot_58959f8d687e4b319e9bb26c80f12f5c', policy = None
+
+    def start(env, *, owner="test-boot", policy=None):
+&gt;       draft = env["store"].create_draft(DraftCreate(project_id=env["project"]["project_id"], prompt="Read the planted fixture only", route=policy or env["route"]))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for DraftCreate
+E         Value error, drafts require an explicit direct or role-session actor binding [type=value_error, input_value={'project_id': 'project_9...work_policy='disabled')}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+tests/test_native_approvals.py:36: ValidationError</failure></testcase></testsuite></testsuites>

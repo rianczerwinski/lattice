@@ -1,0 +1,32 @@
+{
+  "mode": "ignore-binding",
+  "source_bindings": {
+    "lattice/native_approvals.py": "9238c726bad92eb6966c34a470873077f584dfbf01c9f6c2615abda13b6088a0",
+    "tests/test_native_approvals.py": "6be13baddda4b65e6b13ed0e762d62dedbb596a6f6d00c5255794fc3c16647b1",
+    "lattice/store.py": "70d906437a7b32fccf764582567e79e81c4bcc3e16f274c90e43e94b63cbf94a",
+    "lattice/contracts.py": "3f4262262e3fbae64bf7713717677dfe63182d81171b65b402c643d241848fae",
+    "assurance/native-approvals-20260912T093656/ledger_mutation.py": "eaf6fdcef98b6a62e7e768835ef0659db310c2df3cd9ea66449dd6f3dbd02349"
+  },
+  "pytest_exit_code": 1,
+  "rejected_at_intended_assertion": true,
+  "reports": [
+    {
+      "nodeid": "tests/test_native_approvals.py::test_action_or_sibling_identity_cannot_reuse_a_grant",
+      "when": "setup",
+      "outcome": "passed",
+      "detail": null
+    },
+    {
+      "nodeid": "tests/test_native_approvals.py::test_action_or_sibling_identity_cannot_reuse_a_grant",
+      "when": "call",
+      "outcome": "failed",
+      "detail": "approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...ae9c48fd6975aa', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}\n\n    @pytest.mark.contract\n    def test_action_or_sibling_identity_cannot_reuse_a_grant(approval_env):\n        env = approval_env\n        attempt = start(env)\n        item = ask(env, attempt)\n        decide(env, attempt, item)\n        with pytest.raises(LatticeConflict, match=\"different action\"):\n            ask(env, attempt, path=\"/planted/another.txt\")\n        second = ask(env, attempt, tool_id=\"tool_2\")\n>       with pytest.raises(LatticeConflict, match=\"exact requested action\"):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE LatticeConflict\n\ntests/test_native_approvals.py:97: Failed"
+    },
+    {
+      "nodeid": "tests/test_native_approvals.py::test_action_or_sibling_identity_cannot_reuse_a_grant",
+      "when": "teardown",
+      "outcome": "passed",
+      "detail": null
+    }
+  ]
+}

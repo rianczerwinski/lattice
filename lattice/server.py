@@ -38,6 +38,7 @@ from .contracts import (
     ImportConversationRequest,
     InvocationBatchCreateV1,
     InvocationBatchPreviewV1,
+    NativeApprovalDecisionV1,
     ProjectCreate,
     ProviderRoute,
     RoleCreate,
@@ -67,6 +68,7 @@ from .store import LatticeConflict, LatticeNotFound, LatticeStore
 from .supervisor import ExecutionSupervisor
 from .workflows import WorkflowRegistry
 from . import route_amendments
+from . import native_approvals
 from .workspace_control import WorkspaceControl, WorkspaceControlError
 
 
@@ -841,6 +843,14 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.post("/api/v1/attempts/{attempt_id}/cancel", status_code=202)
     async def cancel(attempt_id: str):
         return await supervisor.cancel(attempt_id)
+
+    @app.get("/api/v1/attempts/{attempt_id}/native-approvals")
+    async def inspect_native_approvals(attempt_id: str):
+        return native_approvals.inspect(store, attempt_id)
+
+    @app.post("/api/v1/attempts/{attempt_id}/native-approvals/{request_id}/decision")
+    async def decide_native_approval(attempt_id: str, request_id: str, value: NativeApprovalDecisionV1):
+        return await asyncio.to_thread(native_approvals.decide, store, attempt_id, request_id, value, owner_boot_id=supervisor.boot_id)
 
     @app.get("/api/v1/invocations/{invocation_id}")
     async def inspect(invocation_id: str):

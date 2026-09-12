@@ -1,0 +1,44 @@
+{
+  "kind": "local-test-run-input",
+  "retention": "keep",
+  "prepared_at": "20260912T214941",
+  "scope": "Final monotonic native approval ledger with affected supervisor/store/API paths",
+  "baseline_revision": "ba457d91dc2fea0a24f6143c479ad582d443de94",
+  "changed_runtime_inputs": {
+    "lattice/native_approvals.py": "9238c726bad92eb6966c34a470873077f584dfbf01c9f6c2615abda13b6088a0",
+    "lattice/contracts.py": "3f4262262e3fbae64bf7713717677dfe63182d81171b65b402c643d241848fae",
+    "lattice/store.py": "70d906437a7b32fccf764582567e79e81c4bcc3e16f274c90e43e94b63cbf94a",
+    "lattice/server.py": "c0167291c1965c1aeb9be710451a34d9c5b967ddd16185fd0c92b8f23365e3dc",
+    "lattice/supervisor.py": "669170d47515f7ab8988ca0ef6cf1ba37c0c8fc3abda9b82d20c026ae86758de",
+    "tests/test_native_approvals.py": "6be13baddda4b65e6b13ed0e762d62dedbb596a6f6d00c5255794fc3c16647b1",
+    "pyproject.toml": "7c1c6a18e85ff771a8c2fdab8357f9b024b37889b9556561e9987ef130b179f9",
+    "uv.lock": "1a04c5e4551b42749137958a2c763973f48967e815ae935cd7ababf4e482423c"
+  },
+  "command": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_native_approvals.py",
+    "tests/test_supervisor.py",
+    "tests/test_invocation_batches.py",
+    "tests/test_kernel.py",
+    "tests/test_reliability.py",
+    "tests/test_conversation_kernel.py",
+    "-q",
+    "--junitxml=assurance/native-approvals-20260912T093656/ledger-final-affected-tests.xml"
+  ],
+  "cwd": "/Users/rian/AXISVI/axis/chariots/lattice",
+  "environment": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "operation": "ledger-final-affected-tests",
+  "status_ref": "ledger-final-affected-tests/status.json",
+  "output_ref": "ledger-final-affected-tests/log",
+  "admission": "Local planted tests only; no model prompt, production database, native tool action, or network route.",
+  "prior_measurement_seconds": 191.31,
+  "unit": "One test-run unit; retained logs and a new identity are required if interrupted. No partial pass is inferred.",
+  "pass_action": "Record local ledger/affected-boundary candidate evidence; native and installed approval qualification remain separate.",
+  "fail_action": "Retain failure and repair implicated source before a successor.",
+  "proof_limit": "Not native provider delivery, same-user credential isolation, installed-runtime qualification, or English semantic qualification."
+}

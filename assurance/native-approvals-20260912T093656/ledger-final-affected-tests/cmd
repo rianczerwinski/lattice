@@ -1,0 +1,1 @@
+.venv/bin/python -m pytest tests/test_native_approvals.py tests/test_supervisor.py tests/test_invocation_batches.py tests/test_kernel.py tests/test_reliability.py tests/test_conversation_kernel.py -q --junitxml=assurance/native-approvals-20260912T093656/ledger-final-affected-tests.xml

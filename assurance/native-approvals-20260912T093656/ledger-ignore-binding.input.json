@@ -1,0 +1,15 @@
+{
+  "mode": "ignore-binding",
+  "mutation": "skip the exact request/action binding check at decision delivery",
+  "source_bindings": {
+    "lattice/native_approvals.py": "5e4059eeefe15f12dafa2f9e7565edc7423452ba6f9fc8a712b6de2d99db9b2b",
+    "tests/test_native_approvals.py": "c938e6bae405d3e5234606ee98047fce7093956fa444b1ca09b7521326978ecd",
+    "lattice/store.py": "70d906437a7b32fccf764582567e79e81c4bcc3e16f274c90e43e94b63cbf94a",
+    "lattice/contracts.py": "3f4262262e3fbae64bf7713717677dfe63182d81171b65b402c643d241848fae",
+    "assurance/native-approvals-20260912T093656/ledger_mutation.py": "eaf6fdcef98b6a62e7e768835ef0659db310c2df3cd9ea66449dd6f3dbd02349"
+  },
+  "selector": "test_action_or_sibling_identity_cannot_reuse_a_grant",
+  "retention": "keep",
+  "scope": "in-memory local ledger fault injection; no provider process or production database",
+  "disposable": "pytest-owned planted temporary data; decisive reports retained"
+}

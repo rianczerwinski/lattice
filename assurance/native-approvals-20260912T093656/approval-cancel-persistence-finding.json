@@ -1,0 +1,91 @@
+{
+  "finding_schema_version": 1,
+  "kind": "finding",
+  "scope": {
+    "object_ref": "module://lattice.native-approvals",
+    "revision": "ba457d91dc2fea0a24f6143c479ad582d443de94",
+    "locations": [
+      {
+        "ref": "lattice/supervisor.py",
+        "line_start": null,
+        "line_end": null,
+        "symbol": "ExecutionSupervisor.cancel / stop"
+      }
+    ]
+  },
+  "cleared_reason": null,
+  "provenance": {
+    "producer": "codex/root; independent discovery by english_transport_review",
+    "review_mode": "audit-plane",
+    "produced_at": "20260912T213900"
+  },
+  "finding_id": "finding:85c166fa-ee9b-4d2c-b183-f8cfd069492a",
+  "title": "Approval persistence failure can prevent process cancellation",
+  "classification": {
+    "atom": "approval-cancellation",
+    "significance": {
+      "level": "S2",
+      "impact": "An owned provider process can remain uncancelled when recording approval closure fails.",
+      "exposure": "Uncommitted native approval candidate beneath the still-disabled on-request production route. No live grant or provider action was dispatched.",
+      "detectability": "Ordinary happy-path records do not reveal this lifecycle sequence.",
+      "systemic_implication": "Approval lifetime must remain separate from projection freshness and fallible persistence.",
+      "recovery": "Source repair and bounded regressions are possible; no historical provider-side effect was established.",
+      "rationale": "A material failure of the new approval boundary, contained before production enablement.",
+      "conditional": null
+    },
+    "action": "obvious-fix",
+    "confidence": {
+      "level": "high",
+      "basis": "Independent source review and failure-sensitive local reproductions; no native action execution claim."
+    }
+  },
+  "claim": {
+    "evidence": [
+      {
+        "kind": "runtime",
+        "ref": "assurance/native-approvals-20260912T093656/ledger-review-before.xml",
+        "observation": "The attempt-read, closure-write, and sibling-shutdown regressions all failed at cancellation-signal assertions before the repair."
+      }
+    ],
+    "failure_mode": "Cancellation signals were set only after fallible attempt reads and approval closure; shutdown abandoned sibling cancellation and joining on the first error.",
+    "downstream_consequence": "The user can receive a cancellation error while provider work continues, including siblings during shutdown.",
+    "counterevidence": [
+      {
+        "kind": "source",
+        "ref": "lattice/execution/adapters.py#validate_execution_policy",
+        "observation": "Production on-request routes remain rejected before execution."
+      }
+    ],
+    "proof_limits": [
+      "This finding was discovered in an uncommitted candidate based on the named Git revision; reviewed candidate hashes are preserved in ledger-review.md.",
+      "Local tests do not establish native delivery, execution, same-user credential isolation, or installed-route qualification."
+    ]
+  },
+  "response": {
+    "status": "contained-not-closed",
+    "containment": [
+      "Production on-request remains disabled."
+    ],
+    "remediation": [
+      {
+        "action_id": "remediation:5e8a735a-2d29-4e54-83ba-b99377b5c34d",
+        "description": "Signal cancellation in finally, continue across shutdown closure failures, join every owned task, then surface all closure errors.",
+        "state": "performed",
+        "evidence": [
+          {
+            "kind": "source",
+            "ref": "lattice/supervisor.py",
+            "observation": "Signal cancellation in finally, continue across shutdown closure failures, join every owned task, then surface all closure errors."
+          }
+        ]
+      }
+    ],
+    "verification": {
+      "required": [
+        "Independently re-examine the repaired lifecycle and test false authority at the intended assertion.",
+        "Complete native callback/cancellation and installed-route qualification before E1 closure."
+      ],
+      "performed": []
+    }
+  }
+}

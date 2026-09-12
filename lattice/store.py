@@ -9,6 +9,7 @@ import shutil
 import sqlite3
 import tempfile
 import threading
+import time
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -24,6 +25,7 @@ from .exact_file import ExactFileCaptureError, capture_exact_file
 from .snapshot import copy_exact_tree, pre_migration_snapshot_if_needed
 from .durability import sync_tree_directories
 from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard
+from . import native_approvals
 from .contracts import (
     AttemptState,
     BlockDisposition,
@@ -3223,6 +3225,8 @@ class LatticeStore:
                                WHERE a.invocation_id=? GROUP BY a.attempt_id ORDER BY a.attempt_number""",
                             (project_id, member["invocation_id"]),
                         )]
+                        for attempt in member["attempts"]:
+                            attempt["native_approvals"] = native_approvals.state(conn, attempt["attempt_id"])
                         if any(attempt["replay_event_cursor"] is None for attempt in member["attempts"]):
                             raise LatticeConflict("persisted provider attempt lacks its leased-event replay cursor")
                         dispatch_failure = conn.execute(
@@ -3260,7 +3264,7 @@ class LatticeStore:
                         "project_id": project_id,
                         "state": state,
                         "terminal": is_terminal,
-                        "needs_attention": any(member["dispatch_failure"] is not None for member in members),
+                        "needs_attention": any(member["dispatch_failure"] is not None for member in members) or any(attempt["native_approvals"]["pending_count"] for attempt in attempts),
                         "created_at": batch_row["created_at"],
                         "completed_at": max((member["completed_at"] for member in members if member["completed_at"]), default=None) if is_terminal else None,
                         "last_event_seq": int(summary["last_event_seq"]),
@@ -3396,8 +3400,11 @@ class LatticeStore:
 
     def get_invocation(self, invocation_id: str) -> dict[str, Any]:
         with self._connect() as conn:
+            conn.execute("BEGIN")
             row = self._row(conn.execute("SELECT * FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
             row["attempts"] = [dict(item) for item in conn.execute("SELECT * FROM attempts WHERE invocation_id=? ORDER BY attempt_number", (invocation_id,))]
+            for attempt in row["attempts"]:
+                attempt["native_approvals"] = native_approvals.state(conn, attempt["attempt_id"])
             row["edges"] = [dict(item) for item in conn.execute("SELECT * FROM edges WHERE source_id=? OR target_id=? ORDER BY created_at", (invocation_id, invocation_id))]
             row["artifacts"] = [dict(item) for item in conn.execute(
                 """SELECT a.* FROM edges e JOIN artifacts a ON a.artifact_id=e.target_id
@@ -3432,6 +3439,7 @@ class LatticeStore:
             attempt = self._row(conn.execute("SELECT a.*,i.project_id,i.manifest_sha256 FROM attempts a JOIN invocations i USING(invocation_id) WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             if attempt["state"] not in {AttemptState.leased.value, AttemptState.running.value}:
                 raise LatticeConflict("terminal attempts are immutable")
+            native_approvals.close_in_transaction(self, conn, attempt_id, reason="attempt completed")
             now = stamp()
             block_id = opaque_id("block")
             conn.execute(
@@ -3731,6 +3739,14 @@ class LatticeStore:
 
     def heartbeat_attempt(self, attempt_id: str, expires_at: int) -> None:
         with self.transaction() as conn:
+            lease = conn.execute("SELECT expires_at FROM leases WHERE attempt_id=? AND state='active'", (attempt_id,)).fetchone()
+            if lease is None:
+                return
+            if lease["expires_at"] <= time.time():
+                # Renewal cannot resurrect an expired capability. Persist closure
+                # as well, so a later clock correction cannot revive its grants.
+                native_approvals.close_in_transaction(self, conn, attempt_id, reason="attempt lease expired")
+                return
             changed = conn.execute("UPDATE attempts SET heartbeat_at=? WHERE attempt_id=? AND state='running'", (stamp(), attempt_id)).rowcount
             if changed:
                 conn.execute("UPDATE leases SET expires_at=? WHERE attempt_id=? AND state='active'", (expires_at, attempt_id))
@@ -3743,6 +3759,7 @@ class LatticeStore:
             attempt = self._row(conn.execute("SELECT a.*,i.project_id FROM attempts a JOIN invocations i USING(invocation_id) WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             if attempt["state"] not in {AttemptState.leased.value, AttemptState.running.value}:
                 raise LatticeConflict("terminal attempts are immutable")
+            native_approvals.close_in_transaction(self, conn, attempt_id, reason=f"attempt {state.value}")
             now = stamp()
             conn.execute("UPDATE attempts SET state=?,journal_path=COALESCE(?,journal_path),output_sha256=?,failure_kind=?,error_text=?,runtime_receipt_json=?,completed_at=? WHERE attempt_id=?", (state.value, journal_path, output_sha256, failure_kind, error_text, canonical_bytes(runtime_receipt).decode() if runtime_receipt else None, now, attempt_id))
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))

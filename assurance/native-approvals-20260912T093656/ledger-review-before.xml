@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="0" tests="5" time="5.766" timestamp="2026-09-12T15:28:09.080078-06:00" hostname="MacBook-Pro.local"><testcase classname="tests.test_native_approvals" name="test_expired_approval_cannot_revive_through_late_heartbeat[False]" time="1.163"><failure message="AssertionError: assert 'awaiting-operator' == 'expired'&#10;  &#10;  - expired&#10;  + awaiting-operator">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...454f3f742a1f07', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x10423c3e0&gt;
+decided = False
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_expired_approval_cannot_revive_through_late_heartbeat(approval_env, monkeypatch, decided):
+        env = approval_env
+        attempt = start(env)
+        item = ask(env, attempt)
+        if decided:
+            decide(env, attempt, item)
+        monkeypatch.setattr(approvals.time, "time", lambda: 9_999_999_999)
+        assert approvals.inspect(env["store"], attempt)["requests"][0]["state"] == "expired"
+        env["store"].heartbeat_attempt(attempt, 10_000_000_999)
+&gt;       assert approvals.inspect(env["store"], attempt)["requests"][0]["state"] == "expired"
+E       AssertionError: assert 'awaiting-operator' == 'expired'
+E         
+E         - expired
+E         + awaiting-operator
+
+tests/test_native_approvals.py:271: AssertionError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_expired_approval_cannot_revive_through_late_heartbeat[True]" time="1.162"><failure message="AssertionError: assert 'decided' == 'expired'&#10;  &#10;  - expired&#10;  + decided">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...d272e96d7bbf33', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x10423c770&gt;
+decided = True
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_expired_approval_cannot_revive_through_late_heartbeat(approval_env, monkeypatch, decided):
+        env = approval_env
+        attempt = start(env)
+        item = ask(env, attempt)
+        if decided:
+            decide(env, attempt, item)
+        monkeypatch.setattr(approvals.time, "time", lambda: 9_999_999_999)
+        assert approvals.inspect(env["store"], attempt)["requests"][0]["state"] == "expired"
+        env["store"].heartbeat_attempt(attempt, 10_000_000_999)
+&gt;       assert approvals.inspect(env["store"], attempt)["requests"][0]["state"] == "expired"
+E       AssertionError: assert 'decided' == 'expired'
+E         
+E         - expired
+E         + decided
+
+tests/test_native_approvals.py:271: AssertionError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_cancel_signals_owned_process_even_when_persistence_fails[closure]" time="1.096"><failure message="assert False&#10; +  where False = is_set()&#10; +    where is_set = &lt;threading.Event at 0x1042cfb10: unset&gt;.is_set">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...0e366eb205b477', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x10405a210&gt;
+failed_boundary = 'closure'
+
+    @pytest.mark.asyncio
+    @pytest.mark.regression
+    @pytest.mark.parametrize("failed_boundary", ["closure", "attempt-read"])
+    async def test_cancel_signals_owned_process_even_when_persistence_fails(approval_env, monkeypatch, failed_boundary):
+        env = approval_env
+        supervisor = ExecutionSupervisor(env["store"])
+        attempt = start(env, owner=supervisor.boot_id)
+        signal = threading.Event()
+        supervisor._cancellations[attempt] = signal
+    
+        def fail(*_args, **_kwargs):
+            raise OSError("planted control-store failure")
+    
+        if failed_boundary == "closure":
+            monkeypatch.setattr(approvals, "close", fail)
+        else:
+            monkeypatch.setattr(env["store"], "get_attempt", fail)
+        with pytest.raises(OSError, match="planted control-store failure"):
+            await supervisor.cancel(attempt)
+&gt;       assert signal.is_set()
+E       assert False
+E        +  where False = is_set()
+E        +    where is_set = &lt;threading.Event at 0x1042cfb10: unset&gt;.is_set
+
+tests/test_native_approvals.py:295: AssertionError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_cancel_signals_owned_process_even_when_persistence_fails[attempt-read]" time="1.088"><failure message="assert False&#10; +  where False = is_set()&#10; +    where is_set = &lt;threading.Event at 0x10423e060: unset&gt;.is_set">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...d168762be66085', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x1041fd480&gt;
+failed_boundary = 'attempt-read'
+
+    @pytest.mark.asyncio
+    @pytest.mark.regression
+    @pytest.mark.parametrize("failed_boundary", ["closure", "attempt-read"])
+    async def test_cancel_signals_owned_process_even_when_persistence_fails(approval_env, monkeypatch, failed_boundary):
+        env = approval_env
+        supervisor = ExecutionSupervisor(env["store"])
+        attempt = start(env, owner=supervisor.boot_id)
+        signal = threading.Event()
+        supervisor._cancellations[attempt] = signal
+    
+        def fail(*_args, **_kwargs):
+            raise OSError("planted control-store failure")
+    
+        if failed_boundary == "closure":
+            monkeypatch.setattr(approvals, "close", fail)
+        else:
+            monkeypatch.setattr(env["store"], "get_attempt", fail)
+        with pytest.raises(OSError, match="planted control-store failure"):
+            await supervisor.cancel(attempt)
+&gt;       assert signal.is_set()
+E       assert False
+E        +  where False = is_set()
+E        +    where is_set = &lt;threading.Event at 0x10423e060: unset&gt;.is_set
+
+tests/test_native_approvals.py:295: AssertionError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_shutdown_signals_and_joins_all_owned_tasks_after_closure_failure" time="1.187"><failure message="assert False&#10; +  where False = all(&lt;generator object test_shutdown_signals_and_joins_all_owned_tasks_after_closure_failure.&lt;locals&gt;.&lt;genexpr&gt; at 0x1043812f0&gt;)">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...3ad52c68a4f2cd', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x10420a450&gt;
+
+    @pytest.mark.asyncio
+    @pytest.mark.regression
+    async def test_shutdown_signals_and_joins_all_owned_tasks_after_closure_failure(approval_env, monkeypatch):
+        env = approval_env
+        supervisor = ExecutionSupervisor(env["store"])
+        attempts = [start(env, owner=supervisor.boot_id), start(env, owner=supervisor.boot_id)]
+        finished = []
+        release_fixture = asyncio.Event()
+    
+        async def worker(attempt):
+            while not supervisor._cancellations[attempt].is_set() and not release_fixture.is_set():
+                await asyncio.sleep(0.001)
+            finished.append(attempt)
+    
+        for attempt in attempts:
+            supervisor._cancellations[attempt] = threading.Event()
+            supervisor._tasks[attempt] = asyncio.create_task(worker(attempt))
+        def fail(*_args, **_kwargs):
+            raise OSError("planted closure failure")
+        monkeypatch.setattr(approvals, "close", fail)
+        try:
+            with pytest.raises((OSError, ExceptionGroup)) as raised:
+                await supervisor.stop()
+            assert "planted closure failure" in str(raised.value) or any("planted closure failure" in str(item) for item in getattr(raised.value, "exceptions", []))
+&gt;           assert all(signal.is_set() for signal in supervisor._cancellations.values())
+E           assert False
+E            +  where False = all(&lt;generator object test_shutdown_signals_and_joins_all_owned_tasks_after_closure_failure.&lt;locals&gt;.&lt;genexpr&gt; at 0x1043812f0&gt;)
+
+tests/test_native_approvals.py:322: AssertionError</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="2.566" timestamp="2026-09-12T15:40:18.870199-06:00" hostname="MacBook-Pro.local"><testcase classname="tests.test_native_approvals" name="test_approval_lifetime_uses_monotonic_time_not_clock_corrections[False]" time="1.218"><failure message="AssertionError: assert 'expired' == 'awaiting-operator'&#10;  &#10;  - awaiting-operator&#10;  + expired">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...c56f9708fd9394', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x1089783e0&gt;
+decided = False
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_approval_lifetime_uses_monotonic_time_not_clock_corrections(approval_env, monkeypatch, decided):
+        env = approval_env
+        wall_clock = time.time()
+        monkeypatch.setattr(approvals, "monotonic", lambda: 100.0, raising=False)
+        attempt = start(env)
+        item = ask(env, attempt)
+        if decided:
+            decide(env, attempt, item)
+        monkeypatch.setattr(approvals.time, "time", lambda: 9_999_999_999)
+        # A wall-clock correction alone neither expires nor renews this capability.
+&gt;       assert approvals.inspect(env["store"], attempt)["requests"][0]["state"] == ("decided" if decided else "awaiting-operator")
+E       AssertionError: assert 'expired' == 'awaiting-operator'
+E         
+E         - awaiting-operator
+E         + expired
+
+tests/test_native_approvals.py:411: AssertionError</failure></testcase><testcase classname="tests.test_native_approvals" name="test_approval_lifetime_uses_monotonic_time_not_clock_corrections[True]" time="1.274"><failure message="AssertionError: assert 'expired' == 'decided'&#10;  &#10;  - decided&#10;  + expired">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...13595c3de905c4', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x108978640&gt;
+decided = True
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("decided", [False, True])
+    def test_approval_lifetime_uses_monotonic_time_not_clock_corrections(approval_env, monkeypatch, decided):
+        env = approval_env
+        wall_clock = time.time()
+        monkeypatch.setattr(approvals, "monotonic", lambda: 100.0, raising=False)
+        attempt = start(env)
+        item = ask(env, attempt)
+        if decided:
+            decide(env, attempt, item)
+        monkeypatch.setattr(approvals.time, "time", lambda: 9_999_999_999)
+        # A wall-clock correction alone neither expires nor renews this capability.
+&gt;       assert approvals.inspect(env["store"], attempt)["requests"][0]["state"] == ("decided" if decided else "awaiting-operator")
+E       AssertionError: assert 'expired' == 'decided'
+E         
+E         - decided
+E         + expired
+
+tests/test_native_approvals.py:411: AssertionError</failure></testcase></testsuite></testsuites>
