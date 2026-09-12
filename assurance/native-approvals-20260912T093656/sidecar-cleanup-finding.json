@@ -1,0 +1,103 @@
+{
+  "finding_schema_version": 1,
+  "kind": "finding",
+  "scope": {
+    "object_ref": "module://lattice.execution.process",
+    "revision": "bbd9849be4b6074ad274da7ffb7a85a1978bcf4d",
+    "locations": [
+      {
+        "ref": "lattice/execution/process.py",
+        "line_start": null,
+        "line_end": null,
+        "symbol": "run_bounded / terminate_process_group"
+      }
+    ]
+  },
+  "cleared_reason": null,
+  "provenance": {
+    "producer": "codex/root; independent discovery by english_transport_review",
+    "review_mode": "audit-plane",
+    "produced_at": "20260912T101000"
+  },
+  "finding_id": "finding:68a9c078-73e4-4322-8359-31fac1451705",
+  "title": "Sidecar observation errors can bypass provider and watchdog cleanup",
+  "classification": {
+    "atom": "failure-cleanup",
+    "significance": {
+      "level": "S2",
+      "impact": "An I/O or projection error can leave an active provider and its watchdog behind.",
+      "exposure": "run_bounded executions observing provider sidecars, including providers that close stdout/stderr before continuing work.",
+      "detectability": "The caller receives an observation exception, but that exception did not establish termination.",
+      "systemic_implication": "Process ownership must wrap all fallible observation, thread setup, and teardown paths; an observer must not be able to skip the owner finalizer.",
+      "recovery": "The local process boundary is repairable. A returned cancellation cannot roll back already performed actions; no historical provider-side effect was established by these fixtures.",
+      "rationale": "A shared lifecycle invariant fails under specific descendant or observation conditions. The observed scope warrants a transport-wide repair and regressions, not a claim of arbitrary process containment.",
+      "conditional": null
+    },
+    "action": "obvious-fix",
+    "confidence": {
+      "level": "high",
+      "basis": "Independent source inspection followed by real-process pre-fix reproduction at the intended liveness assertions."
+    }
+  },
+  "claim": {
+    "evidence": [
+      {
+        "kind": "runtime",
+        "ref": "assurance/native-approvals-20260912T093656/ownership-before.xml",
+        "observation": "Both a directory-read failure and a planted sidecar-projection failure occurred after the provider closed its output pipes; the provider or watchdog was still running when the caller received the error."
+      },
+      {
+        "kind": "runtime",
+        "ref": "assurance/native-approvals-20260912T093656/ownership-transport-tests.xml",
+        "observation": "139 affected tests passed after the ownership/idempotence repair; these are source tests, not installed native permission qualification."
+      }
+    ],
+    "failure_mode": "The loop catches only KeyboardInterrupt; its finally repeats a fallible sidecar refresh before stopping the watchdog, with no unconditional group cleanup.",
+    "downstream_consequence": "Failed source/progress observation can be reported while provider work continues and recovery has no reliable stopped boundary.",
+    "counterevidence": [
+      {
+        "kind": "source",
+        "ref": "tests/test_execution_kernel.py#test_direct_child_exit_with_live_descendant_never_returns_false_success",
+        "observation": "The existing retained-output-pipe and parent-death checks exercise different paths and passed; they did not reject these five reproduced failures."
+      }
+    ],
+    "proof_limits": [
+      "Same-group, same-user local processes only; detached sessions and hostile privilege changes are not contained by a process group.",
+      "No native provider action, installed-runtime qualification, or recovery/cancellation acknowledgement has been proven."
+    ]
+  },
+  "response": {
+    "status": "contained-not-closed",
+    "containment": [
+      "Use an outer process-ownership context; stop the group before draining after observation errors and do not repeat the failed sidecar read.",
+      "Interactive approval execution remains disabled."
+    ],
+    "remediation": [
+      {
+        "action_id": "remediation:b9e0efe0-4b1e-40b2-9413-b6098d60bedb",
+        "description": "Use an outer process-ownership context; stop the group before draining after observation errors and do not repeat the failed sidecar read.",
+        "state": "performed",
+        "evidence": [
+          {
+            "kind": "source",
+            "ref": "lattice/execution/process.py",
+            "observation": "Source SHA256 8bf945ef44c0a9503815f073b535ec2851b7d6cbc09822d47124bcbaeb730f82."
+          }
+        ]
+      },
+      {
+        "action_id": "remediation:f7749e40-07ea-451d-9828-db42d60ead32",
+        "description": "Independently review the repaired lifecycle and exercise its installed approval/recovery consumers before claiming E1 closure.",
+        "state": "required",
+        "evidence": []
+      }
+    ],
+    "verification": {
+      "required": [
+        "Preserve all five pre-fix assertion rejections as permanent real-process regressions.",
+        "An independent reviewer must assess the repaired source and outstanding lifecycle conditions."
+      ],
+      "performed": []
+    }
+  }
+}

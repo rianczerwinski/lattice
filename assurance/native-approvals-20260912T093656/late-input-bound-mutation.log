@@ -1,0 +1,11 @@
+{
+  "mutation": "check the cumulative input bound only after delivering the prohibited frame",
+  "result": "rejected-at-intended-assertion",
+  "assertion": "assert stdin_writes[0] == [b\"first\\n\"]",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/rian/AXISVI/axis/chariots/lattice/assurance/native-approvals-20260912T093656/duplex_mutation.py\", line 51, in <module>\n    check(*args)\n    ~~~~~^^^^^^^\n  File \"/Users/rian/AXISVI/axis/chariots/lattice/tests/test_process_duplex.py\", line 108, in test_streaming_input_budget_rejects_frame_before_delivery\n    assert stdin_writes[0] == [b\"first\\n\"]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+  "source_sha256": "8bf945ef44c0a9503815f073b535ec2851b7d6cbc09822d47124bcbaeb730f82",
+  "mutant_sha256": "4881e71bdfd48c86b6859a37081d6c63a490efb3350216af35554baa36212458",
+  "test_sha256": "9e45532be19b559f5467f81ea83e92652099de8264e3e47be3ee992b80097e3a",
+  "selector": "test_streaming_input_budget_rejects_frame_before_delivery",
+  "isolated_copy": "in-memory; only planted pipe fixtures used temporary storage"
+}

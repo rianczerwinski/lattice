@@ -1,0 +1,11 @@
+{
+  "mutation": "close stdin after the first queued message",
+  "result": "rejected-at-intended-assertion",
+  "assertion": "assert result.stdout == \"request\\nréponse\\n\"",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/rian/AXISVI/axis/chariots/lattice/assurance/native-approvals-20260912T093656/duplex_mutation.py\", line 51, in <module>\n    check(*args)\n    ~~~~~^^^^^^^\n  File \"/Users/rian/AXISVI/axis/chariots/lattice/tests/test_process_duplex.py\", line 62, in test_reply_after_observed_request_preserves_exact_bytes_and_eof\n    assert result.stdout == \"request\\nréponse\\n\"\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+  "source_sha256": "8bf945ef44c0a9503815f073b535ec2851b7d6cbc09822d47124bcbaeb730f82",
+  "mutant_sha256": "302a4176f32c1afee79bfb901f3d245c0ff0cf3a1dc75ef64cf823ae6c5d9945",
+  "test_sha256": "d1b245fbb9ac934b4393116438ee992c591e0a73ba4094a8cf45a0407038f347",
+  "selector": "test_reply_after_observed_request_preserves_exact_bytes_and_eof",
+  "isolated_copy": "in-memory; only planted pipe fixtures used temporary storage"
+}

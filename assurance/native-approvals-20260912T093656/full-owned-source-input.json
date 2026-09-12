@@ -1,0 +1,36 @@
+{
+  "kind": "local-test-run-input",
+  "retention": "keep",
+  "started_at": "20260912T101100",
+  "scope": "Lattice full source suite after process ownership and bidirectional-input changes",
+  "baseline_revision": "bbd9849be4b6074ad274da7ffb7a85a1978bcf4d",
+  "changed_runtime_inputs": {
+    "lattice/execution/process.py": "8bf945ef44c0a9503815f073b535ec2851b7d6cbc09822d47124bcbaeb730f82",
+    "tests/test_process_duplex.py": "d1b245fbb9ac934b4393116438ee992c591e0a73ba4094a8cf45a0407038f347",
+    "tests/test_process_ownership.py": "be90c937517990c1e177a77cadf60f315faf97e7a6af51efc720cd812a2d7077",
+    "pyproject.toml": "7c1c6a18e85ff771a8c2fdab8357f9b024b37889b9556561e9987ef130b179f9",
+    "uv.lock": "1a04c5e4551b42749137958a2c763973f48967e815ae935cd7ababf4e482423c"
+  },
+  "command": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "--tb=short",
+    "--junitxml=assurance/native-approvals-20260912T093656/full-owned-source-tests.xml"
+  ],
+  "cwd": "/Users/rian/AXISVI/axis/chariots/lattice",
+  "environment": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "operation": "full-owned-source-tests",
+  "status_ref": "full-owned-source-tests/status.json",
+  "output_ref": "full-owned-source-tests/log",
+  "admission": "Local tests only; no model prompt, native tool action, or network route is authorized by this test invocation.",
+  "prior_measurement_seconds": 488.93,
+  "unit": "One deterministic source-suite invocation; interruption retains live log and requires a new invocation identity, not a fabricated partial pass.",
+  "pass_action": "Retain the source-suite observation; continue native/installed qualification separately.",
+  "fail_action": "Preserve first failure; repair the implicated source or report an environment limitation before a successor run.",
+  "proof_limit": "A green source suite is not native approval, authentication, installed recovery, or English corpus qualification."
+}

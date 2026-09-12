@@ -1,0 +1,47 @@
+{
+  "recorded_at_utc": "20260912T093751",
+  "source_revision": "bbd9849be4b6074ad274da7ffb7a85a1978bcf4d",
+  "script_sha256": "a6dcbf5f51ea72b692c620ae09afecae4aa973a94c4d92be30fc8c421969ae80",
+  "binary": "/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+  "binary_sha256": "1495eb7c42d3b4451f5f1cd38b6d498d22a4a38c802bc2be5c1cf1795e64820d",
+  "command": [
+    "/opt/homebrew/bin/claude",
+    "--print",
+    "--model",
+    "claude-opus-5",
+    "--input-format",
+    "stream-json",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--permission-prompt-tool",
+    "stdio",
+    "--permission-mode",
+    "default",
+    "--safe-mode",
+    "--setting-sources",
+    "",
+    "--strict-mcp-config",
+    "--mcp-config",
+    "{\"mcpServers\":{}}",
+    "--disable-slash-commands",
+    "--tools",
+    "",
+    "--allowedTools",
+    "",
+    "--no-chrome",
+    "--no-session-persistence"
+  ],
+  "request": {
+    "type": "control_request",
+    "request_id": "lattice-init-20260912T093656",
+    "request": {
+      "subtype": "initialize",
+      "hooks": null
+    }
+  },
+  "timeout_seconds": 30,
+  "max_output_bytes": 1048576,
+  "model_prompts": 0,
+  "retention": "keep"
+}

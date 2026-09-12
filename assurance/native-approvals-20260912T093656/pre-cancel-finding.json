@@ -1,0 +1,47 @@
+{
+  "finding_schema_version": 1,
+  "finding_id": "finding:e1bc8e6d-e64c-4bcd-b2f2-3e7a69b7542c",
+  "kind": "finding",
+  "title": "Pre-existing cancellation did not prevent process launch",
+  "scope": {
+    "object_ref": "lattice.execution.process.run_bounded",
+    "revision": "bbd9849be4b6074ad274da7ffb7a85a1978bcf4d",
+    "locations": [{"ref": "lattice/execution/process.py", "line_start": null, "line_end": null, "symbol": "run_bounded"}]
+  },
+  "classification": {
+    "atom": "cancellation-before-side-effect",
+    "significance": {
+      "level": "S1",
+      "impact": "A provider process can begin despite cancellation already being set before the runner is entered.",
+      "exposure": "Every caller of the shared process runner that supplies an already-set cancellation event; provider startup can precede the later polling check.",
+      "detectability": "The caller may receive a later cancellation result even though the process was launched; the result alone does not expose that ordering.",
+      "systemic_implication": "The pre-launch cancellation control was missing from the shared provider-neutral boundary. Approval-wait, supervisor dispatch, teardown, and sibling input modes require distinct ordering checks rather than assuming cancellation reverses prior activity.",
+      "recovery": "A pre-spawn check prevents this condition prospectively. Actions that already began require native result inspection; cancellation cannot undo them.",
+      "rationale": "A missing cancellation ordering control in a shared side-effect boundary has broader reach than the immediate duplex feature. Local containment does not establish end-to-end cancellation integrity.",
+      "conditional": null
+    },
+    "action": "obvious-fix",
+    "confidence": {"level": "high", "basis": "The pre-fix boundary test reached a forbidden Popen call with cancellation set before run_bounded entry; the source places its original cancellation check after spawn."}
+  },
+  "claim": {
+    "evidence": [{"kind": "runtime", "ref": "assurance/native-approvals-20260912T093656/pre-cancel-before.xml", "observation": "The selected test failed at the planted process-spawn assertion, not during collection or fixture setup."}],
+    "failure_mode": "The first cancellation check occurred inside the process-polling loop after subprocess creation.",
+    "downstream_consequence": "An already-cancelled task could still start provider work or an authorized side effect before the runner terminates it.",
+    "counterevidence": [{"kind": "source", "ref": "lattice/execution/process.py#run_bounded", "observation": "The existing active-process loop did observe cancellation and terminate the owned process group; the demonstrated gap is before launch, not absence of every cancellation control."}],
+    "proof_limits": ["No live provider side effect was induced; the deterministic launch-boundary test establishes the missing ordering control.", "The new pre-entry check is not an atomic cancellation-versus-spawn lock, native tool-action rollback, or full supervisor/approval-state proof."]
+  },
+  "response": {
+    "status": "contained-not-closed",
+    "containment": ["A pre-existing cancellation event now raises ProcessCancelled before subprocess creation."],
+    "remediation": [
+      {"action_id": "remediation:790af9c5-62f1-4b81-b78d-0c40e63515e2", "description": "Check cancellation before process creation and retain a permanent no-spawn regression.", "state": "performed", "evidence": [{"kind": "source", "ref": "lattice/execution/process.py#run_bounded", "observation": "The cancellation check now precedes Popen; test_already_cancelled_request_never_reaches_spawn rejects reaching that boundary."}]},
+      {"action_id": "remediation:6c8027a3-33c6-4d2a-a555-2d57a0dd7ab2", "description": "Qualify supervisor dispatch, native approval waiting/delivery, cancellation races, and installed recovery without treating queued input as acknowledged native execution.", "state": "required", "evidence": []}
+    ],
+    "verification": {
+      "required": ["The pre-entry no-spawn assertion must reject the original missing check.", "Systemically challenge cancellation before dispatch, while awaiting native approval, concurrently with decision delivery, and during provider teardown; inspect exact native actions rather than only final state labels."],
+      "performed": []
+    }
+  },
+  "cleared_reason": null,
+  "provenance": {"producer": "english-completion-review", "review_mode": "audit-plane", "produced_at": "20260912T095243"}
+}

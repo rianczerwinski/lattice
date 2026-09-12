@@ -10,6 +10,8 @@ Frozen inputs and finding-to-proof obligations for the installed Lattice remedia
 
 ## Active work
 
+[Native approvals](native-approvals-20260912T093656/README.md) retains the installed Claude initialization check, bounded bidirectional transport proof, and pre-cancelled-spawn regression. The native operator approval route remains unqualified; transport readiness does not enable it.
+
 [Claude context RCA](context-rca-20260911T165954.json) records the completed twelve-call diagnostic campaign. In the reduced two-answer task, removing only four `Source:`/`Status:` lines changed refusal to correct extraction; restoring them reproduced refusal, and the pair held with changed numbers. Expected diagnostic refusals no longer trigger consecutive-failure stops, while the campaign ceiling and operational-error controls remain. The individual metadata contributor, full edited-join qualification, and production remedy remain open. [The prior stop snapshot](context-rca-20260910T132542.json) remains immutable evidence.
 
 [Claude context qualification](context-qualification-20260909T182639.json) records a partial installed repair: standalone synthetic tasks pass, but the edited join and two bounded presentation variants receive provider refusals. It binds the retained result snapshots and installed runtime without declaring broader continuation or production readiness.

@@ -23,6 +23,14 @@ Neither mode reconstructs hidden model cognition. Both preserve externally manif
 
 Provider adapters admit at most 64 MiB of input and 64 MiB of combined provider output and observed sidecar bytes by default. The output budget is reserved before bytes reach journals, checkpoints, live callbacks, or in-memory capture. An overrun terminates the process and becomes a typed `output_limit` failure.
 
+Process ownership covers the whole same-session process group, not just its leader or standard pipes. Normal completion, cancellation, deadlines, and observation/setup failures all end that ownership before retiring the parent-death watchdog. Cleanup escalates to the group even when its leader has exited, and runs once after a successful stop. Sidecar read/projection failures remain visible while the provider is stopped; they cannot skip cleanup. This is not a sandbox for detached processes or a rollback of actions already performed.
+
+## Bidirectional process input
+
+`run_bounded` accepts either one `input_text` value or a thread-safe `input_messages` FIFO of byte messages, never both. An empty FIFO keeps stdin open; `None` closes it. This permits a provider to request input after receiving the task. The same guardian, raw output journals, output cap, deadline, and cancellation controls apply. Input has a 64 MiB cumulative byte cap by default, checked before each queued message is delivered. A request already cancelled at entry never launches a process.
+
+This is transport, not an approval policy: a queued response is not a native acknowledgement, and the caller still owns message framing, exact-action authorization, durable decisions, and response interpretation. Current production adapters continue to reject interactive approval policies until the complete route is qualified. Native channel and real-pipe evidence are retained under [`assurance/native-approvals-20260912T093656/`](../../assurance/native-approvals-20260912T093656/README.md).
+
 ## Claude system-instruction channel
 
 Claude exposes its official system-prompt file surface. Exact system instructions are written to a temporary file, journaled and hashed independently from the user-message bytes, and passed only as a file path in process arguments. Other providers reject a separate system channel until their official CLIs expose and pass qualification for an equivalent surface.

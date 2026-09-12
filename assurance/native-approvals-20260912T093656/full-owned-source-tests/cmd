@@ -1,0 +1,1 @@
+.venv/bin/python -m pytest -q --tb=short --junitxml=assurance/native-approvals-20260912T093656/full-owned-source-tests.xml

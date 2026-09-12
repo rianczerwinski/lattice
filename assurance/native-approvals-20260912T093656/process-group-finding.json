@@ -1,0 +1,103 @@
+{
+  "finding_schema_version": 1,
+  "kind": "finding",
+  "scope": {
+    "object_ref": "module://lattice.execution.process",
+    "revision": "bbd9849be4b6074ad274da7ffb7a85a1978bcf4d",
+    "locations": [
+      {
+        "ref": "lattice/execution/process.py",
+        "line_start": null,
+        "line_end": null,
+        "symbol": "run_bounded / terminate_process_group"
+      }
+    ]
+  },
+  "cleared_reason": null,
+  "provenance": {
+    "producer": "codex/root; independent discovery by english_transport_review",
+    "review_mode": "audit-plane",
+    "produced_at": "20260912T101000"
+  },
+  "finding_id": "finding:529102ed-f43d-4de1-80c5-4ab8b01294b9",
+  "title": "Redirected descendants can continue after the owned run ends",
+  "classification": {
+    "atom": "process-ownership",
+    "significance": {
+      "level": "S2",
+      "impact": "Work in the provider's process group can continue after cancellation, timeout, or normal leader exit.",
+      "exposure": "Every run_bounded consumer whose provider leaves same-group descendants that redirect all standard streams; TERM-resistant children expose the termination path.",
+      "detectability": "The leader's exit and closed pipes appear complete while the descendant remains active.",
+      "systemic_implication": "The shared process boundary must release the entire owned group independently of direct-child wait and pipe-drain state.",
+      "recovery": "The local process boundary is repairable. A returned cancellation cannot roll back already performed actions; no historical provider-side effect was established by these fixtures.",
+      "rationale": "A shared lifecycle invariant fails under specific descendant or observation conditions. The observed scope warrants a transport-wide repair and regressions, not a claim of arbitrary process containment.",
+      "conditional": null
+    },
+    "action": "obvious-fix",
+    "confidence": {
+      "level": "high",
+      "basis": "Independent source inspection followed by real-process pre-fix reproduction at the intended liveness assertions."
+    }
+  },
+  "claim": {
+    "evidence": [
+      {
+        "kind": "runtime",
+        "ref": "assurance/native-approvals-20260912T093656/ownership-before.xml",
+        "observation": "All cancel, timeout, and leader_exit regressions reached a ready TERM-resistant descendant; after run_bounded returned, a test trigger caused the surviving descendant to write a marker."
+      },
+      {
+        "kind": "runtime",
+        "ref": "assurance/native-approvals-20260912T093656/ownership-transport-tests.xml",
+        "observation": "139 affected tests passed after the ownership/idempotence repair; these are source tests, not installed native permission qualification."
+      }
+    ],
+    "failure_mode": "Termination escalates only when the direct leader times out; normal leader exit with redirected descendants never reaches pipe-triggered cleanup.",
+    "downstream_consequence": "Callers may report the run ended while owned work still performs local or provider actions.",
+    "counterevidence": [
+      {
+        "kind": "source",
+        "ref": "tests/test_execution_kernel.py#test_direct_child_exit_with_live_descendant_never_returns_false_success",
+        "observation": "The existing retained-output-pipe and parent-death checks exercise different paths and passed; they did not reject these five reproduced failures."
+      }
+    ],
+    "proof_limits": [
+      "Same-group, same-user local processes only; detached sessions and hostile privilege changes are not contained by a process group.",
+      "No native provider action, installed-runtime qualification, or recovery/cancellation acknowledgement has been proven."
+    ]
+  },
+  "response": {
+    "status": "contained-not-closed",
+    "containment": [
+      "Move ownership outside observation/setup, unconditionally escalate the group, and make stop idempotent so completed cleanup is not signaled twice.",
+      "Interactive approval execution remains disabled."
+    ],
+    "remediation": [
+      {
+        "action_id": "remediation:2177fc9b-1cfa-40f7-a112-b8e6869e38bc",
+        "description": "Move ownership outside observation/setup, unconditionally escalate the group, and make stop idempotent so completed cleanup is not signaled twice.",
+        "state": "performed",
+        "evidence": [
+          {
+            "kind": "source",
+            "ref": "lattice/execution/process.py",
+            "observation": "Source SHA256 8bf945ef44c0a9503815f073b535ec2851b7d6cbc09822d47124bcbaeb730f82."
+          }
+        ]
+      },
+      {
+        "action_id": "remediation:621fea25-f57a-456d-8b0c-c019ca00fd2f",
+        "description": "Independently review the repaired lifecycle and exercise its installed approval/recovery consumers before claiming E1 closure.",
+        "state": "required",
+        "evidence": []
+      }
+    ],
+    "verification": {
+      "required": [
+        "Preserve all five pre-fix assertion rejections as permanent real-process regressions.",
+        "An independent reviewer must assess the repaired source and outstanding lifecycle conditions."
+      ],
+      "performed": []
+    }
+  }
+}

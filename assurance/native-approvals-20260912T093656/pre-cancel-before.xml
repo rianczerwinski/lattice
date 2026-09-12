@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.029" timestamp="2026-09-12T03:45:43.966928-06:00" hostname="MacBook-Pro.local"><testcase classname="tests.test_process_duplex" name="test_already_cancelled_request_never_reaches_spawn" time="0.000"><failure message="AssertionError: already-cancelled execution reached process spawn">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x1058ac640&gt;
+
+    @pytest.mark.contract
+    def test_already_cancelled_request_never_reaches_spawn(monkeypatch):
+        cancel = threading.Event()
+        cancel.set()
+    
+        def forbidden_spawn(*args, **kwargs):
+            raise AssertionError("already-cancelled execution reached process spawn")
+    
+        monkeypatch.setattr(subprocess, "Popen", forbidden_spawn)
+        with pytest.raises(ProcessCancelled):
+&gt;           run_bounded([sys.executable, "-c", "raise SystemExit(0)"], timeout=5, input_messages=queue.Queue(), cancel_event=cancel)
+
+tests/test_process_duplex.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+lattice/execution/process.py:139: in run_bounded
+    proc: subprocess.Popen[bytes] = subprocess.Popen(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (['/Users/rian/AXISVI/axis/chariots/lattice/.venv/bin/python', '-c', 'raise SystemExit(0)'],)
+kwargs = {'stdin': -1, 'stdout': -1, 'stderr': -1, 'cwd': None, ...}
+
+    def forbidden_spawn(*args, **kwargs):
+&gt;       raise AssertionError("already-cancelled execution reached process spawn")
+E       AssertionError: already-cancelled execution reached process spawn
+
+tests/test_process_duplex.py:115: AssertionError</failure></testcase></testsuite></testsuites>
