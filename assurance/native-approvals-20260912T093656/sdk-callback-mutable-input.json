@@ -1,0 +1,31 @@
+{
+  "source_bindings": {
+    "lattice/execution/native_approval.py": "1ab84ce2405d7e75cd1bc38d38a9ebc1782e4032eb0879928dd934466848660c",
+    "tests/test_native_approval_sdk.py": "ec95d1379e880a55c556f971a10edb53f17b45aa2e0abf0c8753de3c1eb9ea96",
+    "lattice/native_approvals.py": "9238c726bad92eb6966c34a470873077f584dfbf01c9f6c2615abda13b6088a0",
+    "uv.lock": "8a837d04089c26e36c572656e428a1c3b8e81de0cb565aaa906945f4251eaf63",
+    "assurance/native-approvals-20260912T093656/sdk_callback_mutation.py": "54666e777b263c8823c328f56136f5d867009c7ccfff87dc1e44df986eb33323"
+  },
+  "pytest_exit_code": 1,
+  "rejected_at_intended_assertion": true,
+  "reports": [
+    {
+      "nodeid": "tests/test_native_approval_sdk.py::test_callback_waits_for_operator_then_returns_exact_persisted_action[allow]",
+      "when": "setup",
+      "outcome": "passed",
+      "detail": null
+    },
+    {
+      "nodeid": "tests/test_native_approval_sdk.py::test_callback_waits_for_operator_then_returns_exact_persisted_action[allow]",
+      "when": "call",
+      "outcome": "failed",
+      "detail": "approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...8a45f7ab5459e0', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}\nchoice = 'allow'\n\n    @pytest.mark.asyncio\n    @pytest.mark.contract\n    @pytest.mark.parametrize(\"choice\", [\"allow\", \"deny\"])\n    async def test_callback_waits_for_operator_then_returns_exact_persisted_action(approval_env, choice):\n        env = approval_env\n        attempt = start(env)\n        native = callback(env, attempt)\n        inputs = {\"file_path\": \"/planted/source.txt\", \"nested\": {\"offset\": 17}}\n        context = ToolPermissionContext(tool_use_id=\"tool_1\", title=\"Read the planted source\", suggestions=[PermissionUpdate(type=\"setMode\", mode=\"bypassPermissions\")])\n        task = asyncio.create_task(native(\"Read\", inputs, context))\n        try:\n            item = await pending(env, attempt)\n            assert not task.done()\n            assert item[\"decision\"] is None\n            assert item[\"binding\"][\"action\"][\"context\"][\"title\"] == \"Read the planted source\"\n            inputs[\"nested\"][\"offset\"] = 99\n            decide(env, attempt, item, choice)\n            response = await asyncio.wait_for(task, 2)\n            if choice == \"allow\":\n                assert isinstance(response, PermissionResultAllow)\n>               assert response.updated_input == {\"file_path\": \"/planted/source.txt\", \"nested\": {\"offset\": 17}}\nE               AssertionError: assert {'file_path':...'offset': 99}} == {'file_path':...'offset': 17}}\nE                 \nE                 Omitting 1 identical items, use -vv to show\nE                 Differing items:\nE                 {'nested': {'offset': 99}} != {'nested': {'offset': 17}}\nE                 Use -v to get more diff\n\ntests/test_native_approval_sdk.py:51: AssertionError"
+    },
+    {
+      "nodeid": "tests/test_native_approval_sdk.py::test_callback_waits_for_operator_then_returns_exact_persisted_action[allow]",
+      "when": "teardown",
+      "outcome": "passed",
+      "detail": null
+    }
+  ]
+}

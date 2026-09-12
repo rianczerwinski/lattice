@@ -39,6 +39,10 @@ Input has both the cumulative byte cap and a 64-entry FIFO, with one entry reser
 
 Callers must close the transport on every path and inspect its `failure` and terminal `result` before claiming successful native completion. A successful SDK initialization or an absence of messages is not a successful process result. The transport is asyncio-specific; other AnyIO backends, slow-storage responsiveness, native action enforcement, and installed interactive routing are not qualified by its local tests.
 
+`NativeApprovalCallback` connects the SDK's `can_use_tool` interface to the existing exact-action operator ledger. Run it on the provider worker's asyncio loop, separate from the HTTP loop, and share its cancellation event with the transport. It requests an action, waits through read snapshots, and consumes only a recorded one-use operator decision. Allow responses use persisted arguments, not mutable caller input; native suggestions cannot save rules. A cancelled native callback withdraws only its unreleased action. Cancellation observed after a committed release suppresses the response without restoring replayable authority.
+
+The adapter must finish SDK callback finalizers and call `raise_if_failed()` before reporting success: the SDK can encode a callback exception as a control response and otherwise continue. Callback errors are accumulated independently and signal process cancellation. Synchronous ledger work inherits database/storage delays; the 100 ms polling interval is not a cancellation-latency bound. The callback is an internal integration component, not an enabled production approval route.
+
 ## Claude system-instruction channel
 
 Claude exposes its official system-prompt file surface. Exact system instructions are written to a temporary file, journaled and hashed independently from the user-message bytes, and passed only as a file path in process arguments. Other providers reject a separate system channel until their official CLIs expose and pass qualification for an equivalent surface.

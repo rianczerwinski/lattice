@@ -1,0 +1,31 @@
+{
+  "source_bindings": {
+    "lattice/execution/native_approval.py": "1ab84ce2405d7e75cd1bc38d38a9ebc1782e4032eb0879928dd934466848660c",
+    "tests/test_native_approval_sdk.py": "ec95d1379e880a55c556f971a10edb53f17b45aa2e0abf0c8753de3c1eb9ea96",
+    "lattice/native_approvals.py": "9238c726bad92eb6966c34a470873077f584dfbf01c9f6c2615abda13b6088a0",
+    "uv.lock": "8a837d04089c26e36c572656e428a1c3b8e81de0cb565aaa906945f4251eaf63",
+    "assurance/native-approvals-20260912T093656/sdk_callback_mutation.py": "54666e777b263c8823c328f56136f5d867009c7ccfff87dc1e44df986eb33323"
+  },
+  "pytest_exit_code": 1,
+  "rejected_at_intended_assertion": true,
+  "reports": [
+    {
+      "nodeid": "tests/test_native_approval_sdk.py::test_persistence_failure_cannot_be_hidden_by_sdk_continuation[request]",
+      "when": "setup",
+      "outcome": "passed",
+      "detail": null
+    },
+    {
+      "nodeid": "tests/test_native_approval_sdk.py::test_persistence_failure_cannot_be_hidden_by_sdk_continuation[request]",
+      "when": "call",
+      "outcome": "failed",
+      "detail": "approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...82a31ce5096c3d', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106cbd6e0>\noperation = 'request'\n\n    @pytest.mark.asyncio\n    @pytest.mark.contract\n    @pytest.mark.parametrize(\"operation\", [\"request\", \"inspect\", \"take_decision\", \"withdraw\"])\n    async def test_persistence_failure_cannot_be_hidden_by_sdk_continuation(approval_env, monkeypatch, operation):\n        env = approval_env\n        attempt = start(env)\n        native = callback(env, attempt)\n    \n        def denied(*args, **kwargs):\n            raise OSError(f\"planted {operation} failure\")\n    \n        if operation == \"request\":\n            monkeypatch.setattr(ledger, operation, denied)\n        task = asyncio.create_task(native(\"Read\", {\"file_path\": \"/planted/source\"}, ToolPermissionContext(tool_use_id=\"tool_1\")))\n        try:\n            if operation != \"request\":\n                item = await pending(env, attempt)\n                decide(env, attempt, item)\n                monkeypatch.setattr(ledger, operation, denied)\n                if operation == \"withdraw\":\n                    task.cancel()\n            with pytest.raises(OSError, match=f\"planted {operation} failure\"):\n                await asyncio.wait_for(task, 2)\n>           assert native.cancel.is_set()\nE           assert False\nE            +  where False = is_set()\nE            +    where is_set = <threading.Event at 0x106b02990: unset>.is_set\nE            +      where <threading.Event at 0x106b02990: unset> = <lattice.execution.native_approval.NativeApprovalCallback object at 0x106db81a0>.cancel\n\ntests/test_native_approval_sdk.py:170: AssertionError"
+    },
+    {
+      "nodeid": "tests/test_native_approval_sdk.py::test_persistence_failure_cannot_be_hidden_by_sdk_continuation[request]",
+      "when": "teardown",
+      "outcome": "passed",
+      "detail": null
+    }
+  ]
+}

@@ -64,3 +64,7 @@ The append-only approval events in `lattice/native_approvals.py` reuse Lattice's
 The final browser screenshots live under `ledger-browser-final/`. Visual inspection confirmed the exact target and three action controls are above the long argument details; a sticky composer occupies the lower viewport. This is a scoped desktop rendering observation, not a full responsive/accessibility or native-provider qualification. The final Svelte check reported zero errors/warnings and the production build succeeded. The first browser render remains for diagnosis of the control-placement refinement.
 
 Every listed observation has a continuing regression, diagnosis, or source-binding function. Temporary planted databases belong to the test runner and are disposable; retained reports and raw native journals are not. To repeat a mutation, run `ledger_mutation.py` with `ignore-binding` or `repeat-release` and a new output path; it refuses an occupied output and changes only an in-memory module. SDK/native qualification must use a separately bounded observation and may not infer authority from this ledger's green tests.
+
+## SDK callback integration
+
+[The SDK callback record](sdk-callback-review.md) binds the exact-action ledger to the pinned SDK callback and synthetic native control channel. It retains the observed cancellation-during-I/O defect, its independent re-review, permanent failure-sensitive checks, and false mutations. No production adapter or policy admission is enabled by these local results.

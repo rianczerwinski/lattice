@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="2.839" timestamp="2026-09-12T16:38:23.134486-06:00" hostname="MacBook-Pro.local"><testcase classname="tests.test_native_approval_sdk" name="test_cancel_during_ledger_io_does_not_return_an_allow[inspect]" time="1.283"><failure message="Failed: DID NOT RAISE CancelledError">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...f25efff38473ec', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x10572d5b0&gt;
+boundary = 'inspect'
+
+    @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.parametrize("boundary", ["inspect", "take_decision"])
+    async def test_cancel_during_ledger_io_does_not_return_an_allow(approval_env, monkeypatch, boundary):
+        env = approval_env
+        attempt = start(env)
+        native = callback(env, attempt)
+        task = asyncio.create_task(native("Read", {"file_path": "/planted/source"}, ToolPermissionContext(tool_use_id="tool_1")))
+        try:
+            item = await pending(env, attempt)
+            decide(env, attempt, item)
+            original = getattr(ledger, boundary)
+    
+            def cancel_after(*args, **kwargs):
+                result = original(*args, **kwargs)
+                native.cancel.set()
+                return result
+    
+            monkeypatch.setattr(ledger, boundary, cancel_after)
+&gt;           with pytest.raises(asyncio.CancelledError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE CancelledError
+
+tests/test_native_approval_sdk.py:227: Failed</failure></testcase><testcase classname="tests.test_native_approval_sdk" name="test_cancel_during_ledger_io_does_not_return_an_allow[take_decision]" time="1.208"><failure message="Failed: DID NOT RAISE CancelledError">approval_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...b0a7950f9966f4', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x1056a6450&gt;
+boundary = 'take_decision'
+
+    @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.parametrize("boundary", ["inspect", "take_decision"])
+    async def test_cancel_during_ledger_io_does_not_return_an_allow(approval_env, monkeypatch, boundary):
+        env = approval_env
+        attempt = start(env)
+        native = callback(env, attempt)
+        task = asyncio.create_task(native("Read", {"file_path": "/planted/source"}, ToolPermissionContext(tool_use_id="tool_1")))
+        try:
+            item = await pending(env, attempt)
+            decide(env, attempt, item)
+            original = getattr(ledger, boundary)
+    
+            def cancel_after(*args, **kwargs):
+                result = original(*args, **kwargs)
+                native.cancel.set()
+                return result
+    
+            monkeypatch.setattr(ledger, boundary, cancel_after)
+&gt;           with pytest.raises(asyncio.CancelledError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE CancelledError
+
+tests/test_native_approval_sdk.py:227: Failed</failure></testcase></testsuite></testsuites>

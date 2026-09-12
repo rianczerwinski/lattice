@@ -1,0 +1,14 @@
+{
+  "retention": "keep",
+  "mode": "mutable-input",
+  "source_bindings": {
+    "lattice/execution/native_approval.py": "1ab84ce2405d7e75cd1bc38d38a9ebc1782e4032eb0879928dd934466848660c",
+    "tests/test_native_approval_sdk.py": "ec95d1379e880a55c556f971a10edb53f17b45aa2e0abf0c8753de3c1eb9ea96",
+    "lattice/native_approvals.py": "9238c726bad92eb6966c34a470873077f584dfbf01c9f6c2615abda13b6088a0",
+    "uv.lock": "8a837d04089c26e36c572656e428a1c3b8e81de0cb565aaa906945f4251eaf63",
+    "assurance/native-approvals-20260912T093656/sdk_callback_mutation.py": "54666e777b263c8823c328f56136f5d867009c7ccfff87dc1e44df986eb33323"
+  },
+  "selector": "test_callback_waits_for_operator_then_returns_exact_persisted_action[allow]",
+  "scope": "in-memory callback fault and planted local ledger; no SDK/native provider or production database",
+  "disposable": "pytest-owned planted database; decisive reports retained"
+}
