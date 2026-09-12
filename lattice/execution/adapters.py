@@ -36,6 +36,7 @@ FAILURE_KINDS = {
     "semantic_failure",
     "operator_interruption",
     "harness_failure",
+    "tool_permission_denied",
     "output_limit",
 }
 
@@ -155,6 +156,8 @@ DEFAULT_ADAPTERS = (
             "claude-haiku-4-5",
             "claude-fable-5",
         ),
+        capability_compiler="lattice-claude-web-permissions/2",
+        parser_revision="lattice-claude-research-receipt/2",
     ),
     ProviderProfile(
         "openai",
@@ -571,7 +574,7 @@ def validate_execution_policy(
         enforcement = list(adapter.isolation)
     elif execution_profile == "research-fresh":
         enforcement = [
-            *adapter.isolation,
+            *(item for item in adapter.isolation if adapter.provider_code != "anthropic" or item != "tools-disabled"),
             "fresh-provider-session",
             "declared-web-only-tool-surface",
             "provider-managed-network",
@@ -645,6 +648,9 @@ def build_command(
         "sandbox": "read-only",
     }
     if adapter.provider_code == "anthropic":
+        # --tools exposes tools; --allowedTools grants their use under dontAsk.
+        # The fixed research profile already binds this exact web-only authority.
+        native_permissions = policy["tools"] if policy["execution_profile"] == "research-fresh" else policy["permissions"]
         system_prompt_path = None
         if system_prompt is not None:
             system_prompt_path = isolated / "system-prompt.txt"
@@ -671,14 +677,14 @@ def build_command(
                 "--tools",
                 ",".join(policy["tools"]),
                 "--allowedTools",
-                ",".join(policy["permissions"]),
+                ",".join(native_permissions),
                 "--permission-mode",
                 "dontAsk",
                 "--no-chrome",
             ]
         if system_prompt_path is not None:
             command.extend(["--system-prompt-file", str(system_prompt_path)])
-        if policy["execution_profile"] == "compiled-fresh":
+        if policy["execution_profile"] in {"compiled-fresh", "research-fresh"}:
             command.append("--no-session-persistence")
         elif policy["execution_profile"] == "native-continuation":
             command.extend(["--resume", policy["native_session_id"]])
@@ -887,12 +893,25 @@ def _json_candidates(value: Any) -> list[dict[str, Any]]:
     return found
 
 
+def _check_claude_research_permissions(envelope: Any, required_tools: tuple[str, ...]) -> None:
+    """Read native terminal metadata, never similarly named model payload fields."""
+    if not isinstance(envelope, dict) or envelope.get("type") != "result":
+        raise SubscriptionInvocationFailed("malformed_output", "Claude research returned no native terminal result")
+    denials = envelope.get("permission_denials", [])
+    if not isinstance(denials, list) or any(not isinstance(item, dict) or not isinstance(item.get("tool_name"), str) for item in denials):
+        raise SubscriptionInvocationFailed("malformed_output", "Claude returned malformed native permission_denials")
+    denied = sorted({item["tool_name"] for item in denials} & set(required_tools))
+    if denied:
+        raise SubscriptionInvocationFailed("tool_permission_denied", f"Claude denied declared research tools: {', '.join(denied)}; research is blocked, not source evidence unavailable")
+
+
 def parse_structured_response(
     adapter: SubscriptionAdapter,
     stdout: str,
     output_path: Path,
     schema: dict[str, Any] | None = None,
     max_output_bytes: int = MAX_MODEL_OUTPUT_BYTES,
+    required_tools: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     if isinstance(max_output_bytes, bool) or not isinstance(max_output_bytes, int) or max_output_bytes < 1:
         raise ValueError("max_output_bytes must be a positive integer")
@@ -916,8 +935,14 @@ def parse_structured_response(
     candidates: list[dict[str, Any]] = []
     for text in texts:
         try:
-            candidates.extend(_json_candidates(_strict_json_loads(text)))
+            envelope = _strict_json_loads(text)
         except (json.JSONDecodeError, ValueError, RecursionError):
+            continue
+        if adapter.provider_code == "anthropic" and required_tools:
+            _check_claude_research_permissions(envelope, required_tools)
+        try:
+            candidates.extend(_json_candidates(envelope))
+        except (ValueError, RecursionError):
             continue
     if not candidates:
         raise SubscriptionInvocationFailed("malformed_output", "provider returned no JSON object")
@@ -1146,7 +1171,8 @@ def invoke_subscription(
                 if validation_error is not None:
                     raise SubscriptionInvocationFailed("malformed_output", f"structured response failed its Draft 2020-12 contract: {validation_error.message[:500]}")
             else:
-                payload = parse_structured_response(adapter, result.stdout, output_path, schema)
+                required_tools = tuple(effective_policy["tools"]) if effective_policy["execution_profile"] == "research-fresh" else ()
+                payload = parse_structured_response(adapter, result.stdout, output_path, schema, required_tools=required_tools)
         except (SubscriptionInvocationFailed, antigravity.AntigravityBoundaryError, grok.GrokBoundaryError, muse.MuseBoundaryError) as error:
             if not isinstance(error, SubscriptionInvocationFailed):
                 error = SubscriptionInvocationFailed("malformed_output", str(error))

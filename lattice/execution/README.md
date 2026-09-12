@@ -27,6 +27,12 @@ Provider adapters admit at most 64 MiB of input and 64 MiB of combined provider 
 
 Claude exposes its official system-prompt file surface. Exact system instructions are written to a temporary file, journaled and hashed independently from the user-message bytes, and passed only as a file path in process arguments. Other providers reject a separate system channel until their official CLIs expose and pass qualification for an equivalent surface.
 
+## Claude research permissions
+
+The fixed `research-fresh` profile binds exactly `WebSearch` and `WebFetch`; callers cannot add general permission strings, workspace access, or write authority. The adapter compiles those declared tools into both Claude's availability list and its native permission allowlist under `dontAsk`, with session persistence disabled. Availability is not authorization: the official [CLI contract](https://code.claude.com/docs/en/cli-reference) distinguishes `--tools` from `--allowedTools`.
+
+A native terminal receipt denying either declared web tool becomes `tool_permission_denied`, even if Claude also returns valid domain JSON. The original response remains in the native journal, but it cannot be published as a successful review or ordinary source-evidence hold. Denials of undeclared tools remain protective boundary behavior; similarly named fields inside model payloads are only data. The permanent checks in [`test_claude_research.py`](../../tests/test_claude_research.py) cover command compilation, terminal/journal propagation, public execution state, and idempotent replay. Installed live tool use remains a separate qualification obligation.
+
 ## Muse response-contract channel
 
 Muse Code exposes prompt-file input and machine-readable JSONL events but no native response-schema flag. Its adapter preserves the original Lattice context as `prompt.txt`, deterministically appends the Draft 2020-12 schema contract in `provider-prompt.txt`, binds both files in `request.json`, and passes only the temporary provider-prompt path to Muse. The final object is accepted only from the single completed terminal event and is then validated by Lattice against the original schema.
