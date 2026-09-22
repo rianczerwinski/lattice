@@ -34,7 +34,7 @@ tests/            truth-typed kernel, API, supervisor, workflow, and mutation ch
 web/              response-first Svelte cockpit and production build
 workflow_packs/   bundled definitions owned by Lattice itself; project packs load from explicit external roots
 assurance/        frozen remediation baseline and permanent finding-to-proof ledger
-decisions/        durable architecture decisions and their verification boundaries
+dev/decisions/    durable architecture decisions and their verification boundaries
 ops/              verified runtime installation, launchd supervision, upgrades, backups, and recovery
 ```
 

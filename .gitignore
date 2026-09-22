@@ -2,8 +2,14 @@
 .venv/
 **/__pycache__/
 web/node_modules/
+# Native initialization returned personal account metadata; retain locally only.
+/assurance/native-approvals-20260912T093656/sdk-guarded-init-20260912T221732/stdout.log
 /dev/*
 !/dev/README.md
 !/dev/decisions/
-# Native initialization returned personal account metadata; retain locally only.
-/assurance/native-approvals-20260912T093656/sdk-guarded-init-20260912T221732/stdout.log
+!/dev/decisions/**
+!/dev/state/
+!/dev/state/**
+!/dev/SURFACE.json
+!/dev/SURFACE.md
+!/dev/surface.validation.json
