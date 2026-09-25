@@ -68,3 +68,7 @@ Every listed observation has a continuing regression, diagnosis, or source-bindi
 ## SDK callback integration
 
 [The SDK callback record](sdk-callback-review.md) binds the exact-action ledger to the pinned SDK callback and synthetic native control channel. It retains the observed cancellation-during-I/O defect, its independent re-review, permanent failure-sensitive checks, and false mutations. No production adapter or policy admission is enabled by these local results.
+
+## Gated production runner
+
+The [SDK runner source binding](sdk-runner-full-source-input.json) and [retained suite result](sdk-runner-full-source.xml) document an earlier gated-source checkpoint. The current source connects supervisor-owned callbacks to the SDK runner and preserves terminal, finalization, and cancellation failures, while the production admission gate remains closed. Those historical receipts do not bind later adapter bytes; current source tests and opt-in native probes remain distinct from installed approval and recovery qualification.

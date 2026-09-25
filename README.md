@@ -265,6 +265,8 @@ Automation may execute several already-authorized edges, but it must remain poss
 
 Each edge also chooses one of three explicit harness profiles. `compiled-fresh` is the correctness baseline: exact compiled context, no tools, no workspace, and no persistent provider session. `workspace-agent` starts a recorded Claude or Codex session with the workspace, tools, sandbox, permissions, approval policy, and network boundary visible in the composer. `native-continuation` resumes or forks one explicitly selected provider-backed parent only after Lattice resolves its observed session receipt and proves that provider, model, workspace, and authority are unchanged. Portable graph ancestry remains available regardless of native-session eligibility.
 
+Interactive `on-request` execution remains gated pending native and installed qualification. Its source implementation connects exact-action cockpit decisions to the official Claude SDK through Lattice's guarded process runner, with one-use grants, joined response handlers, and independently retained failure causes. [Native approval evidence](assurance/native-approvals-20260912T093656/README.md) distinguishes source checks, synthetic control peers, native initialization, and the remaining action/isolation qualification. An exposed policy field or a green source suite cannot enable an unqualified route.
+
 ## The canonical blackboard and role views
 
 The lattice must not coordinate agents through one ever-growing communal Markdown document. It also must not create one editable “truth” document per agent. Both shapes produce drift, duplication, and accidental authority.
