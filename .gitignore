@@ -4,6 +4,9 @@
 web/node_modules/
 # Native initialization returned personal account metadata; retain locally only.
 /assurance/native-approvals-20260912T093656/sdk-guarded-init-20260912T221732/stdout.log
+# Live native probes retain account-bearing initialization and process journals locally.
+/assurance/native-approvals-20260912T093656/live-probe-*/
+/assurance/native-approvals-20260912T093943.DGacsd/
 /dev/*
 !/dev/README.md
 !/dev/decisions/
