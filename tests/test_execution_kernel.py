@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import subprocess
@@ -192,14 +193,36 @@ def test_adversarial_timeout_keeps_partial_work_for_portable_resume(tmp_path: Pa
 
 @pytest.mark.regression
 def test_direct_child_exit_with_live_descendant_never_returns_false_success(tmp_path: Path) -> None:
+    started_marker = tmp_path / "descendant-started"
+    # Five seconds exceeds the three-second assertion window. The handshake
+    # proves that a live descendant actually inherited the output pipe.
+    parent_script = """
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+marker = Path(sys.argv[1])
+subprocess.Popen([
+    sys.executable, "-c",
+    "from pathlib import Path; import sys,time; Path(sys.argv[1]).write_text('started'); time.sleep(5)",
+    str(marker),
+])
+deadline = time.monotonic() + 1
+while not marker.exists() and time.monotonic() < deadline:
+    time.sleep(0.01)
+"""
     command = [
         sys.executable,
         "-c",
-        "import subprocess,sys; subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)']); sys.exit(0)",
+        parent_script,
+        str(started_marker),
     ]
     started = time.monotonic()
-    with pytest.raises(OSError, match="descendant retained its output pipe"):
+    with pytest.raises(OSError) as observed:
         run_bounded(command, timeout=0.2)
+    assert started_marker.read_text() == "started"
+    assert "descendant retained its output pipe" in str(observed.value) or observed.value.errno == errno.EPERM
     assert time.monotonic() - started < 3
 
 
