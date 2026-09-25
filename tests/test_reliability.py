@@ -313,6 +313,23 @@ def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tm
 
 
 @pytest.mark.regression
+def test_installer_refuses_publication_after_release_revision_changes(monkeypatch, tmp_path) -> None:
+    calls = []
+    monkeypatch.setattr(deployment, "verify_source", lambda: "verified-revision")
+    monkeypatch.setattr(deployment, "git_revision", lambda _root: "changed-revision")
+    monkeypatch.setattr(deployment, "migrate_legacy_data", lambda _root: None)
+    monkeypatch.setattr(deployment, "backup_before_upgrade", lambda: tmp_path / "backup")
+    monkeypatch.setattr(deployment, "install_runtime", lambda _revision: tmp_path / "candidate")
+    monkeypatch.setattr(deployment, "verify_candidate_backup", lambda _target, _snapshot: None)
+    monkeypatch.setattr(deployment, "publish_runtime", lambda _target: calls.append("published"))
+    monkeypatch.setattr("sys.argv", ["install.py"])
+
+    with pytest.raises(RuntimeError, match="revision changed before runtime publication"):
+        deployment.main()
+    assert calls == []
+
+
+@pytest.mark.regression
 def test_installer_binds_candidate_check_to_installed_backup_result(monkeypatch, tmp_path) -> None:
     data_root = tmp_path / "data"
     snapshot = data_root / "backups" / "exact-snapshot"
@@ -884,6 +901,41 @@ def test_installer_verification_includes_static_cockpit_diagnostics(monkeypatch)
     deployment.verify_source()
 
     assert (["npm", "run", "check"], deployment.SOURCE_ROOT / "web", None, False) in calls
+
+
+@pytest.mark.contract
+def test_installer_ignores_unrelated_dirty_files_but_rejects_release_input_drift(tmp_path) -> None:
+    root = tmp_path / "checkout"
+    root.mkdir()
+    (root / "lattice").mkdir()
+    (root / "lattice" / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (root / "README.md").write_text("original\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "README.md", "lattice/module.py"], check=True)
+    subprocess.run(["git", "-C", str(root), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "baseline"], check=True)
+    revision = deployment.git_revision(root)
+
+    (root / "README.md").write_text("unrelated edit\n", encoding="utf-8")
+    (root / "assurance").mkdir()
+    (root / "assurance" / "local.log").write_text("retained evidence\n", encoding="utf-8")
+    assert deployment.git_revision(root) == revision
+
+    (root / "lattice" / "module.py").write_text("VALUE = 2\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="dirty release inputs"):
+        deployment.git_revision(root)
+    (root / "lattice" / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (root / "lattice" / "new.py").write_text("VALUE = 3\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="dirty release inputs"):
+        deployment.git_revision(root)
+
+
+@pytest.mark.regression
+def test_installer_rejects_revision_change_during_verification(monkeypatch) -> None:
+    revisions = iter(("source-before", "source-after"))
+    monkeypatch.setattr(deployment, "git_revision", lambda _root: next(revisions))
+    monkeypatch.setattr(deployment, "run", lambda arguments, **kwargs: subprocess.CompletedProcess(arguments, 0, stdout=b""))
+    with pytest.raises(RuntimeError, match="revision changed during verification"):
+        deployment.verify_source()
 
 
 @pytest.mark.contract

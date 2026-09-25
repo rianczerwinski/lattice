@@ -37,6 +37,10 @@ SERVICE_LABEL = "com.axisvi.lattice"
 BACKUP_LABEL = "com.axisvi.lattice.backup"
 LAUNCHD_TRANSITION_TIMEOUT_SECONDS = 30
 VERSION_PATTERN = re.compile(rb'^__version__ = "([0-9]+\.[0-9]+\.[0-9]+)"$', re.MULTILINE)
+RELEASE_INPUTS = (
+    "lattice", "workflow_packs", "web", "ops", "tests",
+    "pyproject.toml", "uv.lock", ".gitignore", ".gitleaksignore",
+)
 
 
 @dataclass(frozen=True)
@@ -124,12 +128,12 @@ def runtime_sync_arguments() -> list[str]:
 
 
 def git_revision(root: Path, *, pathspec: str | None = None) -> str:
-    status_command = ["git", "status", "--porcelain=v1"]
-    if pathspec is not None:
-        status_command.extend(["--", pathspec])
+    # Installation consumes these paths, not assurance journals, Surface
+    # history, or unrelated documentation in the same checkout.
+    status_command = ["git", "status", "--porcelain=v1", "--untracked-files=all", "--", *(RELEASE_INPUTS if pathspec is None else (pathspec,))]
     status = run(status_command, cwd=root, capture=True).stdout.decode().strip()
     if status:
-        raise RuntimeError(f"refusing to install a non-immutable dirty source tree at {root}:\n{status}")
+        raise RuntimeError(f"refusing to install dirty release inputs at {root}:\n{status}")
     return run(["git", "rev-parse", "HEAD"], cwd=root, capture=True).stdout.decode().strip()
 
 
@@ -278,13 +282,15 @@ def runtime_path() -> str:
     return value
 
 
-def verify_source() -> None:
+def verify_source() -> str:
+    revision = git_revision(SOURCE_ROOT)
     run([str(source_python()), "-m", "pytest", "-q"])
     run(["npm", "run", "check"], cwd=SOURCE_ROOT / "web")
     run(["npm", "run", "build"], cwd=SOURCE_ROOT / "web")
     run(["npm", "test", "--", "--run"], cwd=SOURCE_ROOT / "web")
-    if run(["git", "status", "--porcelain=v1"], capture=True).stdout.decode().strip():
-        raise RuntimeError("verification changed the source tree; commit the exact built artifact before installation")
+    if git_revision(SOURCE_ROOT) != revision:
+        raise RuntimeError("source revision changed during verification; restart from one immutable release input set")
+    return revision
 
 
 def import_source_modules() -> None:
@@ -873,13 +879,13 @@ def main() -> None:
     parser.add_argument("--legacy-data-root", type=Path, default=DEFAULT_LEGACY_ROOT)
     parser.add_argument("--skip-tests", action="store_true", help="reserved for recovery; normal upgrades must run assurance")
     args = parser.parse_args()
-    if not args.skip_tests:
-        verify_source()
-    lattice_revision = git_revision(SOURCE_ROOT)
+    lattice_revision = git_revision(SOURCE_ROOT) if args.skip_tests else verify_source()
     migrate_legacy_data(args.legacy_data_root.expanduser().resolve())
     snapshot = backup_before_upgrade()
     target = install_runtime(lattice_revision)
     verify_candidate_backup(target, snapshot)
+    if git_revision(SOURCE_ROOT) != lattice_revision:
+        raise RuntimeError("source revision changed before runtime publication")
     publish_runtime(target)
     print(f"Installed Lattice runtime {target.name}")
     print(f"CLI: {SHIM}")
