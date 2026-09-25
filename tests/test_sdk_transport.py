@@ -233,7 +233,9 @@ async def test_stalled_input_is_bounded_and_shutdown_does_not_wait_for_space(tmp
                 assert [native._inputs.get_nowait() for _ in range(capacity)] == [b"1\n"] * (capacity - 1) + [None]
             else:
                 native.cancel.set()
-            with pytest.raises(RuntimeError, match="not accepting"):
+            error_type = ProcessCancelled if release == "cancel" else RuntimeError
+            detail = "process cancelled" if release == "cancel" else "not accepting"
+            with pytest.raises(error_type, match=detail):
                 await asyncio.wait_for(pending, 1)
             assert (native.root / "stdin.accepted.log").read_bytes() == before
     finally:

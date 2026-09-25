@@ -23,6 +23,7 @@ from .contracts import AttemptState, ExecuteRequest, OutputContractV2, execution
 from .manifest_reader import verify_and_reconstruct
 from .store import LatticeConflict, LatticeStore
 from . import native_approvals
+from .execution.native_approval import NativeApprovalCallback
 
 
 MAX_RUNTIME_CONTROL_BYTES = 1024 * 1024
@@ -214,6 +215,7 @@ class ExecutionSupervisor:
                 timeout=float(self.store.config.lease_seconds),
                 cancel_event=cancel,
                 on_chunk=on_chunk,
+                **({"native_approval_callback": NativeApprovalCallback(self.store, attempt_id, owner_boot_id=self.boot_id, cancel_event=cancel)} if invocation["route"]["approval_policy"] == "on-request" else {}),
                 **execution_policy(invocation["route"]),
             )
             if output_contract.mode == "conversation":

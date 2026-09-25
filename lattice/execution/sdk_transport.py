@@ -20,7 +20,7 @@ from claude_agent_sdk import Transport
 
 from ..canonical import strict_json_loads
 from .journal import write_all, write_new_file
-from .process import MAX_MODEL_OUTPUT_BYTES, MAX_PROCESS_INPUT_BYTES, ProcessInputLimit, run_bounded
+from .process import MAX_MODEL_OUTPUT_BYTES, MAX_PROCESS_INPUT_BYTES, ProcessCancelled, ProcessInputLimit, run_bounded
 
 
 class GuardedSDKTransport(Transport):
@@ -52,6 +52,14 @@ class GuardedSDKTransport(Transport):
         self._accepted_bytes = 0
         self.result: subprocess.CompletedProcess[str] | None = None
         self.failure: BaseException | None = None
+        self.boundary_failure: BaseException | None = None
+
+    def _fail_boundary(self, error: BaseException) -> None:
+        # A detached SDK control handler may fail after its permission callback
+        # returns. Preserve the cause before cancellation hides it downstream.
+        if self.boundary_failure is None:
+            self.boundary_failure = error
+        self.cancel.set()
 
     async def connect(self) -> None:
         if self._task is not None:
@@ -84,9 +92,12 @@ class GuardedSDKTransport(Transport):
         self._task = asyncio.create_task(asyncio.to_thread(run))
 
     async def write(self, data: str) -> None:
-        if not self.is_ready():
-            raise RuntimeError("native transport is not accepting input")
-        raw = data.encode("utf-8", errors="strict")
+        self._require_ready()
+        try:
+            raw = data.encode("utf-8", errors="strict")
+        except UnicodeError as error:
+            self._fail_boundary(error)
+            raise
         if not raw:
             return
         async with self._write_lock:
@@ -94,11 +105,11 @@ class GuardedSDKTransport(Transport):
                 # Only this locked coroutine adds payloads; the process thread
                 # only removes them. Recheck liveness after yielding for space.
                 await asyncio.sleep(0.01)
-            if not self.is_ready():
-                raise RuntimeError("native transport is not accepting input")
+            self._require_ready()
             if self._accepted_bytes + len(raw) > self.max_input_bytes:
-                self.cancel.set()
-                raise ProcessInputLimit("SDK input exceeds the admitted cumulative byte limit")
+                error = ProcessInputLimit("SDK input exceeds the admitted cumulative byte limit")
+                self._fail_boundary(error)
+                raise error
             # No await between durable acceptance and enqueue: journal order
             # equals FIFO order, including callbacks waiting under backpressure.
             try:
@@ -108,8 +119,8 @@ class GuardedSDKTransport(Transport):
                     os.fsync(descriptor)
                 finally:
                     os.close(descriptor)
-            except BaseException:
-                self.cancel.set()
+            except BaseException as error:
+                self._fail_boundary(error)
                 raise
             self._accepted_bytes += len(raw)
             self._inputs.put_nowait(raw)
@@ -134,11 +145,14 @@ class GuardedSDKTransport(Transport):
                     if not isinstance(value, dict):
                         raise ValueError("native stream message must be an object")
                     yield value
-        except Exception:
+        except Exception as error:
             # The SDK cancels its reader before closing stdin. Reader-task
             # cancellation/GeneratorExit are not operator cancellation; actual
             # framing or process failures still stop the owned process.
-            self.cancel.set()
+            if error is not self.failure:
+                self._fail_boundary(error)
+            else:
+                self.cancel.set()
             raise
 
     async def close(self) -> None:
@@ -160,6 +174,14 @@ class GuardedSDKTransport(Transport):
 
     def is_ready(self) -> bool:
         return self._task is not None and not self._task.done() and not self._input_closed and not self.cancel.is_set()
+
+    def _require_ready(self) -> None:
+        if not self.is_ready():
+            if self.cancel.is_set():
+                # The process result owns observed stdout/stderr. This is a
+                # refused input admission, not another process invocation.
+                raise ProcessCancelled(self.command, "", "")
+            raise RuntimeError("native transport is not accepting input")
 
     async def end_input(self) -> None:
         if not self._input_closed:

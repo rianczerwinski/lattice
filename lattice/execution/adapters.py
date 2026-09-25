@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
@@ -22,7 +22,11 @@ from jsonschema.exceptions import SchemaError
 from .checkpoint import bind_request
 from .journal import create_run_journal, finish_run_journal
 from .process import MAX_MODEL_OUTPUT_BYTES, ProcessCancelled, ProcessOutputLimit, run_bounded
+from .sdk_runner import NativeSDKFailure, run_native_approval
 from .providers import antigravity, claude, codex, grok, muse
+
+if TYPE_CHECKING:
+    from .native_approval import NativeApprovalCallback
 
 
 FAILURE_KINDS = {
@@ -669,6 +673,7 @@ def build_command(
     if adapter.provider_code == "anthropic":
         # --tools exposes tools; --allowedTools grants their use under dontAsk.
         # The fixed research profile already binds this exact web-only authority.
+        interactive = policy.get("approval_policy", "never") == "on-request"
         native_permissions = policy["tools"] if policy["execution_profile"] == "research-fresh" else policy["permissions"]
         system_prompt_path = None
         if system_prompt is not None:
@@ -683,7 +688,7 @@ def build_command(
                 "--effort",
                 effort,
                 "--output-format",
-                "json",
+                "stream-json" if interactive else "json",
                 "--json-schema",
                 schema_path.read_text(encoding="utf-8"),
                 "--safe-mode",
@@ -698,14 +703,16 @@ def build_command(
                 "--allowedTools",
                 ",".join(native_permissions),
                 "--permission-mode",
-                "dontAsk",
+                "default" if interactive else "dontAsk",
                 "--no-chrome",
             ]
+        if interactive:
+            command.extend(["--input-format", "stream-json", "--permission-prompt-tool", "stdio", "--verbose"])
         if system_prompt_path is not None:
             command.extend(["--system-prompt-file", str(system_prompt_path)])
         if policy["execution_profile"] in {"compiled-fresh", "research-fresh"}:
             command.append("--no-session-persistence")
-            if policy["execution_profile"] == "research-fresh":
+            if policy["execution_profile"] == "research-fresh" and not interactive:
                 command.append("--verbose")
         elif policy["execution_profile"] == "native-continuation":
             command.extend(["--resume", policy["native_session_id"]])
@@ -1003,6 +1010,40 @@ def parse_structured_response(
     raise SubscriptionInvocationFailed("malformed_output", f"structured response failed its Draft 2020-12 contract: {detail}")
 
 
+def parse_claude_sdk_response(stdout: str, schema: dict[str, Any], *, required_tools: tuple[str, ...] = ()) -> dict[str, Any]:
+    """Select only the single final native result, never a nested source object."""
+    try:
+        messages = [_strict_json_loads(line) for line in stdout.split("\n") if line.strip()]
+        if any(not isinstance(message, dict) for message in messages):
+            raise ValueError("nonobject native message")
+        results = [message for message in messages if message.get("type") == "result"]
+        if len(results) != 1:
+            raise ValueError("expected exactly one final native result")
+        terminal = results[0]
+        # The native stream can finish with a passive session-state marker.
+        # SDK Query handles this explicitly; it is not a second model turn.
+        trailing = messages[messages.index(terminal) + 1:]
+        if any(message.get("type") != "system" or message.get("subtype") != "session_state_changed" for message in trailing):
+            raise ValueError("native conversation continued after its result")
+        if terminal.get("is_error") is not False or terminal.get("subtype") != "success":
+            kind = classify_provider_failure(0, json.dumps(terminal.get("errors", [])), str(terminal.get("result", "")))
+            raise SubscriptionInvocationFailed(kind, "Claude native result was not successful")
+        if terminal.get("terminal_reason") not in {None, "completed"} or terminal.get("origin") not in (None, {"kind": "human"}):
+            raise ValueError("native result was interrupted or belonged to an injected turn")
+        _check_claude_research_permissions(terminal, required_tools)
+        payload = terminal.get("structured_output")
+        if payload is None:
+            payload = _strict_json_loads(terminal["result"])
+        if not isinstance(payload, dict):
+            raise ValueError("native terminal payload was not an object")
+        failure = next(_schema_validator(schema).iter_errors(payload), None)
+        if failure is not None:
+            raise ValueError(f"structured response failed its Draft 2020-12 contract: {failure.message[:500]}")
+        return payload
+    except (KeyError, TypeError, ValueError, RecursionError) as error:
+        raise SubscriptionInvocationFailed("malformed_output", f"Invalid Claude native terminal: {error}") from error
+
+
 def invoke_subscription(
     adapter: SubscriptionAdapter,
     *,
@@ -1025,6 +1066,7 @@ def invoke_subscription(
     sandbox: str = "read-only",
     approval_policy: str = "never",
     network_policy: str = "disabled",
+    native_approval_callback: NativeApprovalCallback | None = None,
 ) -> tuple[dict[str, Any], Path]:
     total_input_bytes = len(prompt.encode("utf-8")) + (len(system_prompt.encode("utf-8")) if system_prompt is not None else 0)
     if total_input_bytes > MAX_MODEL_INPUT_BYTES:
@@ -1045,6 +1087,11 @@ def invoke_subscription(
         approval_policy=approval_policy,
         network_policy=network_policy,
     )
+    interactive = effective_policy["approval_policy"] == "on-request"
+    if interactive and (adapter.provider_code != "anthropic" or native_approval_callback is None or native_approval_callback.cancel is not cancel_event):
+        raise SubscriptionRouteUnavailable("native approval execution requires its owned Claude callback and cancellation event")
+    if not interactive and native_approval_callback is not None:
+        raise SubscriptionRouteUnavailable("a noninteractive route cannot receive an approval callback")
     if effort not in adapter.supported_efforts:
         raise SubscriptionRouteUnavailable(f"{adapter.provider_code} profile does not admit effort {effort!r}")
     binary = shutil.which(adapter.executable)
@@ -1149,7 +1196,12 @@ def invoke_subscription(
             },
         )
         try:
-            result = run_bounded(
+            result = run_native_approval(
+                command, prompt=input_text, timeout=timeout,
+                cwd=execution_cwd, env=execution_environment,
+                journal_root=journal.root, cancel_event=cancel_event,
+                approval=native_approval_callback, on_chunk=on_chunk,
+            ) if interactive else run_bounded(
                 command,
                 timeout=timeout,
                 input_text=input_text,
@@ -1181,6 +1233,9 @@ def invoke_subscription(
             raise SubscriptionInvocationFailed(
                 "output_limit", f"{adapter.provider_code} exceeded the model output limit", journal=journal.root
             ) from error
+        except NativeSDKFailure as error:
+            finish_run_journal(journal, "failed", failure_kind="harness_failure", error=str(error))
+            raise SubscriptionInvocationFailed("harness_failure", str(error), journal=journal.root) from error
         except OSError as error:
             finish_run_journal(journal, "failed", failure_kind="harness_failure")
             raise SubscriptionInvocationFailed(
@@ -1212,6 +1267,9 @@ def invoke_subscription(
                 validation_error = next(_schema_validator(schema).iter_errors(payload), None)
                 if validation_error is not None:
                     raise SubscriptionInvocationFailed("malformed_output", f"structured response failed its Draft 2020-12 contract: {validation_error.message[:500]}")
+            elif interactive:
+                required_tools = tuple(effective_policy["tools"]) if effective_policy["execution_profile"] == "research-fresh" else ()
+                payload = parse_claude_sdk_response(result.stdout, schema, required_tools=required_tools)
             else:
                 required_tools = tuple(effective_policy["tools"]) if effective_policy["execution_profile"] == "research-fresh" else ()
                 payload = parse_structured_response(adapter, result.stdout, output_path, schema, required_tools=required_tools)
