@@ -399,20 +399,51 @@ def migrate_legacy_data(legacy_root: Path) -> None:
         shutil.rmtree(migration_wrapper)
 
 
-def backup_before_upgrade() -> None:
+def backup_before_upgrade() -> Path | None:
+    def source_backup(reason: str) -> Path | None:
+        import_source_modules()
+        from lattice.diagnostics import assess_backup, assess_data_root
+        from lattice.snapshot import create_snapshot
+
+        if not (DEFAULT_DATA_ROOT / "lattice.sqlite3").is_file():
+            return None
+        report = assess_data_root(DEFAULT_DATA_ROOT)
+        snapshot = create_snapshot(DEFAULT_DATA_ROOT, reason=reason, source_revision=report["state_digest"], schema_version=report["schema_version"], state_digest=report["state_digest"])
+        assess_backup(snapshot)
+        return snapshot
+
     current_cli = CURRENT_LINK / ".venv" / "bin" / "lattice"
     if current_cli.is_file():
-        run([str(current_cli), "backup", "--reason", "pre-runtime-upgrade"])
-        return
-    import_source_modules()
-    from lattice.diagnostics import assess_backup, assess_data_root
-    from lattice.snapshot import create_snapshot
+        try:
+            result = run([str(current_cli), "backup", "--reason", "pre-runtime-upgrade", "--json"], capture=True)
+        except RuntimeError as error:
+            # Backup/3 embeds every retained file in one JSON tree. An older
+            # writer may hit its structural-node limit before this upgrade.
+            detail = str(error)
+            if "canonical JSON exceeds" not in detail or "structural nodes" not in detail:
+                raise
+            return source_backup("pre-runtime-upgrade")
+        response = json.loads(result.stdout)
+        if not isinstance(response, dict) or not isinstance(response.get("snapshot"), str):
+            raise RuntimeError("installed backup command did not return a snapshot path")
+        snapshot = Path(response["snapshot"]).resolve(strict=True)
+        if snapshot.parent != (DEFAULT_DATA_ROOT / "backups").resolve():
+            raise RuntimeError("installed backup command returned a snapshot outside the canonical backup root")
+        return snapshot
+    return source_backup("pre-first-installed-runtime")
 
-    if not (DEFAULT_DATA_ROOT / "lattice.sqlite3").is_file():
+
+def verify_candidate_backup(target: Path, snapshot: Path | None) -> None:
+    """Reject a runtime that cannot verify the backup needed for its rollback."""
+
+    if snapshot is None:
         return
-    report = assess_data_root(DEFAULT_DATA_ROOT)
-    snapshot = create_snapshot(DEFAULT_DATA_ROOT, reason="pre-first-installed-runtime", source_revision=report["state_digest"], schema_version=report["schema_version"], state_digest=report["state_digest"])
-    assess_backup(snapshot)
+    run([
+        str(target / ".venv" / "bin" / "python"),
+        "-c",
+        "import sys; from pathlib import Path; from lattice.diagnostics import assess_backup; assess_backup(Path(sys.argv[1]))",
+        str(snapshot),
+    ], cwd=target, capture=True)
 
 
 def probe_runtime(target: Path) -> dict[str, str]:
@@ -846,8 +877,9 @@ def main() -> None:
         verify_source()
     lattice_revision = git_revision(SOURCE_ROOT)
     migrate_legacy_data(args.legacy_data_root.expanduser().resolve())
-    backup_before_upgrade()
+    snapshot = backup_before_upgrade()
     target = install_runtime(lattice_revision)
+    verify_candidate_backup(target, snapshot)
     publish_runtime(target)
     print(f"Installed Lattice runtime {target.name}")
     print(f"CLI: {SHIM}")

@@ -25,6 +25,7 @@ from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard
 
 
 SNAPSHOT_MANIFEST = "snapshot.json"
+SNAPSHOT_INVENTORY = "inventory.jsonl"
 SNAPSHOT_DATABASE = "lattice.sqlite3"
 COMPRESSED_SNAPSHOT_DATABASE = "lattice.sqlite3.gz"
 SNAPSHOT_CONTENT_ROOTS = ("acceptance", "blobs", "model-runs", DURABLE_RUNS_DIRECTORY)
@@ -106,7 +107,8 @@ def copy_exact_tree(source: Path, destination: Path) -> None:
 
 
 def _snapshot_files(root: Path) -> list[Path]:
-    return sorted(path for path in root.rglob("*") if path.is_file() and path.name != SNAPSHOT_MANIFEST)
+    metadata = {SNAPSHOT_MANIFEST, SNAPSHOT_INVENTORY}
+    return sorted(path for path in root.rglob("*") if path.is_file() and path.relative_to(root).as_posix() not in metadata)
 
 
 def _inventory(root: Path) -> list[dict[str, Any]]:
@@ -116,6 +118,71 @@ def _inventory(root: Path) -> list[dict[str, Any]]:
             raise OSError(f"snapshot contains a symlink: {path}")
         digest, byte_count = _sha256_file(path)
         items.append({"path": path.relative_to(root).as_posix(), "sha256": digest, "byte_count": byte_count, "mode": stat.S_IMODE(path.stat().st_mode)})
+    return items
+
+
+def _write_inventory(root: Path, items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Keep large file inventories canonical without one oversized JSON tree."""
+
+    path = root / SNAPSHOT_INVENTORY
+    digest = hashlib.sha256()
+    byte_count = 0
+    with path.open("xb") as handle:
+        os.chmod(path, 0o600)
+        for item in items:
+            row = canonical_bytes(item) + b"\n"
+            handle.write(row)
+            digest.update(row)
+            byte_count += len(row)
+        handle.flush()
+        _sync_file(handle.fileno())
+    return {"path": SNAPSHOT_INVENTORY, "encoding": "canonical-jsonl-v1", "sha256": digest.hexdigest(), "byte_count": byte_count, "item_count": len(items)}
+
+
+def _read_inventory(snapshot_root: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    value = manifest.get("inventory")
+    if manifest.get("contract_version") != "LatticeBackup/4.0":
+        if not isinstance(value, list) or not value:
+            raise OSError("Lattice snapshot inventory is missing")
+        return value
+    required = {"path", "encoding", "sha256", "byte_count", "item_count"}
+    if (
+        not isinstance(value, dict)
+        or set(value) != required
+        or value.get("path") != SNAPSHOT_INVENTORY
+        or value.get("encoding") != "canonical-jsonl-v1"
+        or not isinstance(value.get("sha256"), str)
+        or len(value["sha256"]) != 64
+        or not isinstance(value.get("byte_count"), int)
+        or value["byte_count"] <= 0
+        or not isinstance(value.get("item_count"), int)
+        or value["item_count"] <= 0
+    ):
+        raise OSError("Lattice snapshot inventory descriptor is malformed")
+    path = snapshot_root / SNAPSHOT_INVENTORY
+    try:
+        resolved = path.resolve(strict=True)
+    except FileNotFoundError as error:
+        raise OSError("Lattice snapshot inventory stream is missing") from error
+    if snapshot_root not in resolved.parents or path.is_symlink() or not path.is_file():
+        raise OSError("Lattice snapshot inventory stream escaped its root")
+    digest, byte_count = _sha256_file(path)
+    if digest != value["sha256"] or byte_count != value["byte_count"]:
+        raise OSError("Lattice snapshot inventory stream disagrees with its descriptor")
+    items = []
+    with path.open("rb") as handle:
+        for raw in handle:
+            if not raw.endswith(b"\n"):
+                raise OSError("Lattice snapshot inventory stream has an unterminated row")
+            try:
+                item = strict_json_loads(raw[:-1])
+            except ValueError as error:
+                raise OSError("Lattice snapshot inventory stream contains invalid canonical JSON") from error
+            if canonical_bytes(item) + b"\n" != raw:
+                raise OSError("Lattice snapshot inventory stream contains a noncanonical row")
+            items.append(item)
+    if len(items) != value["item_count"]:
+        raise OSError("Lattice snapshot inventory stream item count differs")
     return items
 
 
@@ -219,7 +286,7 @@ def _decompress_database(source: Path, destination: Path, descriptor: dict[str, 
 def materialized_snapshot_database(snapshot_root: Path, manifest: dict[str, Any]) -> Iterator[Path]:
     """Yield a readable SQLite file for legacy and compressed snapshots."""
 
-    if manifest.get("contract_version") != "LatticeBackup/3.0":
+    if manifest.get("contract_version") not in {"LatticeBackup/3.0", "LatticeBackup/4.0"}:
         yield snapshot_root / SNAPSHOT_DATABASE
         return
     descriptor = manifest.get("database")
@@ -291,25 +358,26 @@ def create_snapshot(
             )
             (staging / SNAPSHOT_DATABASE).unlink()
         inventory = _inventory(staging)
+        inventory_descriptor = _write_inventory(staging, inventory)
         manifest = {
             "generated_object": generated_object(
                 kind="lattice-backup",
                 schema_name="lattice-backup",
-                schema_version=3,
+                schema_version=4,
                 subject="lattice:canonical-runtime-state",
                 sources=[{"ref": f"lattice:data-root:{data_root}", "revision": source_revision, "sha256": None}],
                 role="snapshot",
                 artifact_id=artifact_id,
                 generated_at=created_at,
             ),
-            "contract_version": "LatticeBackup/3.0",
+            "contract_version": "LatticeBackup/4.0",
             "reason": reason,
             "source_data_root": str(data_root),
             "schema_version": schema_version,
             "state_digest": state_digest,
             "active_work": active_work,
             "database": database_descriptor,
-            "inventory": inventory,
+            "inventory": inventory_descriptor,
         }
         raw = canonical_bytes(manifest)
         manifest_path = staging / SNAPSHOT_MANIFEST
@@ -335,31 +403,29 @@ def verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
     raw = manifest_path.read_bytes()
     manifest = strict_json_loads(raw)
     contract_version = manifest.get("contract_version") if isinstance(manifest, dict) else None
-    if not isinstance(manifest, dict) or canonical_bytes(manifest) != raw or contract_version not in {"LatticeBackup/1.0", "LatticeBackup/2.0", "LatticeBackup/3.0"}:
+    if not isinstance(manifest, dict) or canonical_bytes(manifest) != raw or contract_version not in {"LatticeBackup/1.0", "LatticeBackup/2.0", "LatticeBackup/3.0", "LatticeBackup/4.0"}:
         raise OSError("Lattice snapshot manifest is not exact canonical supported LatticeBackup JSON")
     envelope = manifest.get("generated_object")
-    if contract_version in {"LatticeBackup/2.0", "LatticeBackup/3.0"}:
+    if contract_version in {"LatticeBackup/2.0", "LatticeBackup/3.0", "LatticeBackup/4.0"}:
         try:
             validate_generated_object_envelope(envelope)
         except ValueError as error:
             raise OSError("Lattice snapshot generated-object envelope is invalid") from error
-        expected_schema = {"name": "lattice-backup", "version": 3 if contract_version == "LatticeBackup/3.0" else 2}
+        expected_schema = {"name": "lattice-backup", "version": {"LatticeBackup/2.0": 2, "LatticeBackup/3.0": 3, "LatticeBackup/4.0": 4}[contract_version]}
     else:
         required_envelope = {"contract_version", "role", "kind", "schema", "artifact_id", "generated_at", "producer", "subject", "sources"}
         if not isinstance(envelope, dict) or set(envelope) != required_envelope:
             raise OSError("legacy Lattice snapshot generated-object envelope is invalid")
         expected_schema = {"name": "lattice-backup", "version": 1}
     producer = envelope.get("producer")
-    valid_producer = isinstance(producer, dict) and producer.get("name") == "lattice" and (contract_version in {"LatticeBackup/2.0", "LatticeBackup/3.0"} or producer == {"name": "lattice", "version": "0.1.0"})
+    valid_producer = isinstance(producer, dict) and producer.get("name") == "lattice" and (contract_version in {"LatticeBackup/2.0", "LatticeBackup/3.0", "LatticeBackup/4.0"} or producer == {"name": "lattice", "version": "0.1.0"})
     if envelope.get("role") != "snapshot" or envelope.get("kind") != "lattice-backup" or envelope.get("schema") != expected_schema or not valid_producer or envelope.get("subject") != "lattice:canonical-runtime-state":
         raise OSError("Lattice snapshot generated-object envelope is invalid")
     sources = envelope.get("sources")
-    expected_source_keys = {"ref", "revision", "sha256"} if contract_version in {"LatticeBackup/2.0", "LatticeBackup/3.0"} else {"ref", "revision"}
+    expected_source_keys = {"ref", "revision", "sha256"} if contract_version in {"LatticeBackup/2.0", "LatticeBackup/3.0", "LatticeBackup/4.0"} else {"ref", "revision"}
     if not isinstance(sources, list) or len(sources) != 1 or not isinstance(sources[0], dict) or set(sources[0]) != expected_source_keys or sources[0].get("sha256") is not None or not isinstance(sources[0].get("revision"), str) or not sources[0]["revision"]:
         raise OSError("Lattice snapshot generated-object source is malformed")
-    inventory = manifest.get("inventory")
-    if not isinstance(inventory, list) or not inventory:
-        raise OSError("Lattice snapshot inventory is missing")
+    inventory = _read_inventory(snapshot_root, manifest)
     declared: dict[str, dict[str, Any]] = {}
     for item in inventory:
         if not isinstance(item, dict) or set(item) != {"path", "sha256", "byte_count", "mode"} or not isinstance(item["path"], str) or item["path"] in declared:
@@ -378,7 +444,7 @@ def verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
     actual = {path.relative_to(snapshot_root).as_posix() for path in _snapshot_files(snapshot_root)}
     if actual != set(declared):
         raise OSError(f"Lattice snapshot carries undeclared or missing files: declared={sorted(declared)}, actual={sorted(actual)}")
-    expected_database_path = COMPRESSED_SNAPSHOT_DATABASE if contract_version == "LatticeBackup/3.0" else SNAPSHOT_DATABASE
+    expected_database_path = COMPRESSED_SNAPSHOT_DATABASE if contract_version in {"LatticeBackup/3.0", "LatticeBackup/4.0"} else SNAPSHOT_DATABASE
     if expected_database_path not in declared:
         raise OSError("snapshot database payload is missing")
     with materialized_snapshot_database(snapshot_root, manifest) as database:
@@ -389,7 +455,7 @@ def verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
                 raise OSError(f"Lattice snapshot SQLite integrity check failed: {result}")
         finally:
             connection.close()
-    return manifest
+    return {**manifest, "inventory": inventory}
 
 
 def restore_snapshot(snapshot_root: Path, destination: Path) -> dict[str, Any]:
@@ -404,7 +470,7 @@ def restore_snapshot(snapshot_root: Path, destination: Path) -> dict[str, Any]:
     staging = Path(tempfile.mkdtemp(prefix=f".{destination.name}.restore-", dir=destination.parent))
     os.chmod(staging, 0o700)
     try:
-        compressed = manifest.get("contract_version") == "LatticeBackup/3.0"
+        compressed = manifest.get("contract_version") in {"LatticeBackup/3.0", "LatticeBackup/4.0"}
         for item in manifest["inventory"]:
             if compressed and item["path"] == COMPRESSED_SNAPSHOT_DATABASE:
                 continue

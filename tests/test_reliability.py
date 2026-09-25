@@ -236,7 +236,7 @@ def test_oracle_snapshot_restore_reproduces_exact_lattice_state(lattice_env, tmp
     assert restored["state_digest"] == source["state_digest"]
     assert manifest["generated_object"]["role"] == "snapshot"
     assert manifest["generated_object"]["sources"] == [{"ref": f"lattice:data-root:{lattice_env['config'].data_root.resolve()}", "revision": source["state_digest"], "sha256": None}]
-    assert manifest["contract_version"] == "LatticeBackup/3.0"
+    assert manifest["contract_version"] == "LatticeBackup/4.0"
     assert {item["path"] for item in manifest["inventory"]} >= {"lattice.sqlite3.gz"}
     assert manifest["database"]["byte_count"] == destination.joinpath("lattice.sqlite3").stat().st_size
 
@@ -255,7 +255,113 @@ def test_snapshot_uses_clone_seam_for_immutable_content(monkeypatch, lattice_env
     snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="clone-seam", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
 
     assert cloned
-    assert verify_snapshot(snapshot)["contract_version"] == "LatticeBackup/3.0"
+    assert verify_snapshot(snapshot)["contract_version"] == "LatticeBackup/4.0"
+
+
+@pytest.mark.regression
+def test_snapshot_inventory_stream_scales_past_the_canonical_tree_node_limit(tmp_path) -> None:
+    items = [
+        {"path": f"blobs/{index:05d}", "sha256": f"{index:064x}", "byte_count": index + 1, "mode": 0o600}
+        for index in range(24_000)
+    ]
+    with pytest.raises(ValueError, match="structural nodes"):
+        canonical_bytes({"inventory": items})
+
+    descriptor = snapshot_runtime._write_inventory(tmp_path, items)
+    assert snapshot_runtime._read_inventory(tmp_path, {"contract_version": "LatticeBackup/4.0", "inventory": descriptor}) == items
+    (tmp_path / snapshot_runtime.SNAPSHOT_INVENTORY).write_bytes((tmp_path / snapshot_runtime.SNAPSHOT_INVENTORY).read_bytes() + b" ")
+    with pytest.raises(OSError, match="descriptor"):
+        snapshot_runtime._read_inventory(tmp_path, {"contract_version": "LatticeBackup/4.0", "inventory": descriptor})
+
+
+@pytest.mark.regression
+def test_candidate_must_verify_the_exact_prepublication_backup(monkeypatch, tmp_path) -> None:
+    target = tmp_path / "candidate"
+    snapshot = tmp_path / "backup"
+    target.mkdir()
+    snapshot.mkdir()
+    observed = []
+
+    def reject_legacy_reader(arguments, **kwargs):
+        observed.append((arguments, kwargs))
+        raise RuntimeError("LatticeBackup/4.0 is unsupported")
+
+    monkeypatch.setattr(deployment, "run", reject_legacy_reader)
+    with pytest.raises(RuntimeError, match="unsupported"):
+        deployment.verify_candidate_backup(target, snapshot)
+    assert observed[0][0][0] == str(target / ".venv" / "bin" / "python")
+    assert observed[0][0][-1] == str(snapshot)
+
+
+@pytest.mark.regression
+def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tmp_path) -> None:
+    snapshot = tmp_path / "backup"
+    target = tmp_path / "candidate"
+    calls = []
+    monkeypatch.setattr(deployment, "verify_source", lambda: calls.append("source"))
+    monkeypatch.setattr(deployment, "git_revision", lambda _root: "revision")
+    monkeypatch.setattr(deployment, "migrate_legacy_data", lambda _root: calls.append("migration"))
+    monkeypatch.setattr(deployment, "backup_before_upgrade", lambda: snapshot)
+    monkeypatch.setattr(deployment, "install_runtime", lambda _revision: target)
+    monkeypatch.setattr(deployment, "verify_candidate_backup", lambda _target, _snapshot: (_ for _ in ()).throw(RuntimeError("incompatible backup")))
+    monkeypatch.setattr(deployment, "publish_runtime", lambda _target: calls.append("published"))
+    monkeypatch.setattr("sys.argv", ["install.py"])
+
+    with pytest.raises(RuntimeError, match="incompatible backup"):
+        deployment.main()
+    assert calls == ["source", "migration"]
+
+
+@pytest.mark.regression
+def test_installer_binds_candidate_check_to_installed_backup_result(monkeypatch, tmp_path) -> None:
+    data_root = tmp_path / "data"
+    snapshot = data_root / "backups" / "exact-snapshot"
+    snapshot.mkdir(parents=True)
+    current = tmp_path / "runtime" / "current" / ".venv" / "bin" / "lattice"
+    current.parent.mkdir(parents=True)
+    current.write_text("fixture", encoding="utf-8")
+    observed = []
+
+    def backup(arguments, **kwargs):
+        observed.append((arguments, kwargs))
+        return subprocess.CompletedProcess(arguments, 0, stdout=json.dumps({"snapshot": str(snapshot)}).encode())
+
+    monkeypatch.setattr(deployment, "CURRENT_LINK", tmp_path / "runtime" / "current")
+    monkeypatch.setattr(deployment, "DEFAULT_DATA_ROOT", data_root)
+    monkeypatch.setattr(deployment, "run", backup)
+
+    assert deployment.backup_before_upgrade() == snapshot
+    assert observed[0][0][-1] == "--json"
+
+    monkeypatch.setattr(deployment, "run", lambda arguments, **kwargs: subprocess.CompletedProcess(arguments, 0, stdout=json.dumps({"snapshot": str(tmp_path)}).encode()))
+    with pytest.raises(RuntimeError, match="outside the canonical backup root"):
+        deployment.backup_before_upgrade()
+
+
+@pytest.mark.regression
+def test_installer_uses_scalable_source_writer_only_for_known_legacy_overflow(monkeypatch, tmp_path) -> None:
+    data_root = tmp_path / "data"
+    data_root.mkdir()
+    (data_root / "lattice.sqlite3").write_bytes(b"fixture")
+    current = tmp_path / "runtime" / "current" / ".venv" / "bin" / "lattice"
+    current.parent.mkdir(parents=True)
+    current.write_text("fixture", encoding="utf-8")
+    observed = {}
+    monkeypatch.setattr(deployment, "CURRENT_LINK", tmp_path / "runtime" / "current")
+    monkeypatch.setattr(deployment, "DEFAULT_DATA_ROOT", data_root)
+    monkeypatch.setattr(deployment, "import_source_modules", lambda: None)
+    monkeypatch.setattr(deployment, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("canonical JSON exceeds 100000 structural nodes")))
+    monkeypatch.setattr("lattice.diagnostics.assess_data_root", lambda _root: {"state_digest": "state", "schema_version": 15})
+    monkeypatch.setattr("lattice.diagnostics.assess_backup", lambda path: observed.setdefault("verified", path))
+    monkeypatch.setattr("lattice.snapshot.create_snapshot", lambda *args, **kwargs: observed.setdefault("created", (args, kwargs)) and tmp_path / "backup")
+
+    assert deployment.backup_before_upgrade() == tmp_path / "backup"
+    assert observed["created"][1]["reason"] == "pre-runtime-upgrade"
+    assert observed["verified"] == tmp_path / "backup"
+
+    monkeypatch.setattr(deployment, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("backup state is corrupt")))
+    with pytest.raises(RuntimeError, match="state is corrupt"):
+        deployment.backup_before_upgrade()
 
 
 @pytest.mark.regression
@@ -385,7 +491,7 @@ def test_negative_control_restore_rejects_missing_blob_even_when_database_is_rea
     completed_invocation(lattice_env, "blob prompt", "blob response")
     source = assess_data_root(lattice_env["config"].data_root)
     snapshot = create_snapshot(lattice_env["config"].data_root, backup_root=tmp_path / "backups", reason="missing-blob-negative-control", source_revision=source["state_digest"], schema_version=source["schema_version"], state_digest=source["state_digest"])
-    manifest = json.loads((snapshot / "snapshot.json").read_bytes())
+    manifest = verify_snapshot(snapshot)
     blob = next(snapshot / item["path"] for item in manifest["inventory"] if item["path"].startswith("blobs/"))
     blob.unlink()
 

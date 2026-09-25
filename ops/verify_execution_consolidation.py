@@ -1035,9 +1035,28 @@ def _verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
     manifest_path = snapshot_root / "snapshot.json"
     value, _raw = exact_json(manifest_path, label="restore snapshot manifest")
     verify_generated_object(value, role="snapshot", label="restore snapshot manifest")
-    if value.get("contract_version") not in {"LatticeBackup/2.0", "LatticeBackup/3.0"} or not isinstance(value.get("state_digest"), str) or value.get("active_work") != {"attempts": 0, "runs": 0, "commands": 0, "imports": 0, "leases": 0}:
+    version = value.get("contract_version")
+    if version not in {"LatticeBackup/2.0", "LatticeBackup/3.0", "LatticeBackup/4.0"} or not isinstance(value.get("state_digest"), str) or value.get("active_work") != {"attempts": 0, "runs": 0, "commands": 0, "imports": 0, "leases": 0}:
         raise ConsolidationVerificationError("restore snapshot is not an idle exact supported LatticeBackup generation")
     inventory = value.get("inventory")
+    if version == "LatticeBackup/4.0":
+        descriptor = inventory
+        if not isinstance(descriptor, dict) or set(descriptor) != {"path", "encoding", "sha256", "byte_count", "item_count"} or descriptor.get("path") != "inventory.jsonl" or descriptor.get("encoding") != "canonical-jsonl-v1" or not isinstance(descriptor.get("sha256"), str) or HEX64.fullmatch(descriptor["sha256"]) is None or type(descriptor.get("byte_count")) is not int or descriptor["byte_count"] <= 0 or type(descriptor.get("item_count")) is not int or descriptor["item_count"] <= 0:
+            raise ConsolidationVerificationError("restore snapshot inventory descriptor is malformed")
+        stream = snapshot_root / "inventory.jsonl"
+        if stream.is_symlink() or not stream.is_file() or not stream.resolve(strict=True).is_relative_to(snapshot_root) or stream.stat().st_size != descriptor["byte_count"] or sha256_file(stream) != descriptor["sha256"]:
+            raise ConsolidationVerificationError("restore snapshot inventory stream disagrees with its descriptor")
+        inventory = []
+        with stream.open("rb") as handle:
+            for raw in handle:
+                if not raw.endswith(b"\n"):
+                    raise ConsolidationVerificationError("restore snapshot inventory stream has an unterminated row")
+                item = parse_json(raw[:-1], label="restore snapshot inventory row")
+                if not isinstance(item, dict) or canonical_bytes(item) + b"\n" != raw:
+                    raise ConsolidationVerificationError("restore snapshot inventory stream has a noncanonical row")
+                inventory.append(item)
+        if len(inventory) != descriptor["item_count"]:
+            raise ConsolidationVerificationError("restore snapshot inventory stream item count differs")
     if not isinstance(inventory, list) or not inventory:
         raise ConsolidationVerificationError("restore snapshot inventory is empty")
     declared: set[str] = set()
@@ -1052,14 +1071,15 @@ def _verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
         if not resolved.is_relative_to(snapshot_root) or path.is_symlink() or not path.is_file() or sha256_file(path) != item["sha256"] or path.stat().st_size != item["byte_count"] or path.stat().st_mode & 0o7777 != item["mode"]:
             raise ConsolidationVerificationError(f"restore snapshot file disagrees with inventory: {item['path']}")
         declared.add(str(item["path"]))
-    actual = {path.relative_to(snapshot_root).as_posix() for path in snapshot_root.rglob("*") if path.is_file() and not path.is_symlink() and path.name != "snapshot.json"}
-    expected_database = "lattice.sqlite3.gz" if value["contract_version"] == "LatticeBackup/3.0" else "lattice.sqlite3"
+    metadata = {"snapshot.json", "inventory.jsonl"} if version == "LatticeBackup/4.0" else {"snapshot.json"}
+    actual = {path.relative_to(snapshot_root).as_posix() for path in snapshot_root.rglob("*") if path.is_file() and not path.is_symlink() and path.relative_to(snapshot_root).as_posix() not in metadata}
+    expected_database = "lattice.sqlite3.gz" if version in {"LatticeBackup/3.0", "LatticeBackup/4.0"} else "lattice.sqlite3"
     if actual != declared or expected_database not in declared:
         raise ConsolidationVerificationError("restore snapshot has undeclared or missing files")
     with _snapshot_database(snapshot_root, value) as database:
         if _database_state_digest(database) != value["state_digest"]:
             raise ConsolidationVerificationError("restore snapshot state digest disagrees with its database")
-    return value
+    return {**value, "inventory": inventory}
 
 
 def _verify_snapshot_prefix(snapshot_database: Path, restored_database: Path) -> None:
@@ -1101,7 +1121,7 @@ def verify_restore_receipt(value: dict[str, Any], *, historical_roots: dict[str,
         raise ConsolidationVerificationError("restored post-continuation state digest is not independently reproducible")
     with _snapshot_database(snapshot_root, snapshot) as snapshot_database:
         _verify_snapshot_prefix(snapshot_database, restored_root / "lattice.sqlite3")
-    database_payload = "lattice.sqlite3.gz" if snapshot["contract_version"] == "LatticeBackup/3.0" else "lattice.sqlite3"
+    database_payload = "lattice.sqlite3.gz" if snapshot["contract_version"] in {"LatticeBackup/3.0", "LatticeBackup/4.0"} else "lattice.sqlite3"
     for item in snapshot["inventory"]:
         if item["path"] == database_payload:
             continue

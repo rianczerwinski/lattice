@@ -11,6 +11,8 @@ import pytest
 
 from lattice.canonical import canonical_bytes, generated_object, sha256_bytes
 from lattice.contracts import AttemptState, ExecutionSubmissionV1, OutputContractV2, ProviderRoute
+from lattice.diagnostics import assess_data_root
+from lattice.snapshot import create_snapshot
 
 
 VERIFIER_PATH = Path(__file__).parents[1] / "ops" / "verify_execution_consolidation.py"
@@ -19,6 +21,22 @@ SPEC = importlib.util.spec_from_file_location("verify_execution_consolidation", 
 assert SPEC and SPEC.loader
 verifier = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(verifier)
+
+
+@pytest.mark.regression
+def test_independent_verifier_accepts_v4_backup_and_rejects_inventory_mutation(lattice_env, tmp_path) -> None:
+    data_root = lattice_env["config"].data_root
+    report = assess_data_root(data_root)
+    snapshot = create_snapshot(data_root, backup_root=tmp_path / "backups", reason="verifier-v4", source_revision=report["state_digest"], schema_version=report["schema_version"], state_digest=report["state_digest"])
+
+    checked = verifier._verify_snapshot(snapshot)
+    assert checked["contract_version"] == "LatticeBackup/4.0"
+    assert checked["inventory"]
+
+    inventory = snapshot / "inventory.jsonl"
+    inventory.write_bytes(inventory.read_bytes() + b" ")
+    with pytest.raises(verifier.ConsolidationVerificationError, match="inventory stream disagrees"):
+        verifier._verify_snapshot(snapshot)
 
 
 @pytest.mark.contract
