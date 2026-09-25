@@ -79,14 +79,14 @@ def test_native_error_cannot_be_hidden_by_valid_domain_json(message, kind):
 def test_command_uses_native_prompt_channel_without_widening_tools(tmp_path):
     schema = tmp_path / "schema.json"
     schema.write_text(json.dumps(SCHEMA))
-    policy = adapters.validate_execution_policy(profile(), execution_profile="workspace-agent", tools=["Read"], workspace=tmp_path, sandbox="provider-permissions")
-    command, prompt, observed = adapters.build_command(profile(), binary="/planted/claude", isolated=tmp_path, schema_path=schema, output_path=tmp_path / "out", effort="high", prompt="exact α", effective_policy={**policy, "approval_policy": "on-request"})
-    for option, value in [("--tools", "Read"), ("--allowedTools", ""), ("--permission-mode", "default"), ("--permission-prompt-tool", "stdio"), ("--input-format", "stream-json"), ("--output-format", "stream-json"), ("--setting-sources", "")]:
+    policy = adapters.validate_execution_policy(profile(), execution_profile="workspace-agent", tools=["Bash"], workspace=tmp_path, sandbox="provider-permissions", approval_policy="on-request", network_policy="provider_managed")
+    command, prompt, observed = adapters.build_command(profile(), binary="/planted/claude", isolated=tmp_path, schema_path=schema, output_path=tmp_path / "out", effort="high", prompt="exact α", effective_policy=policy)
+    for option, value in [("--tools", "Bash"), ("--allowedTools", ""), ("--permission-mode", "default"), ("--permission-prompt-tool", "stdio"), ("--input-format", "stream-json"), ("--output-format", "stream-json"), ("--setting-sources", "")]:
         assert command[command.index(option) + 1] == value
     assert command.count("--verbose") == 1
     assert "--safe-mode" in command and "--no-chrome" in command
     assert prompt == "exact α" and observed == {}
-    with pytest.raises(adapters.SubscriptionRouteUnavailable, match="not yet qualified"):
+    with pytest.raises(adapters.SubscriptionRouteUnavailable, match="Claude workspace"):
         adapters.validate_execution_policy(profile(), approval_policy="on-request")
 
 

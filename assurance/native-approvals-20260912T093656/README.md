@@ -71,4 +71,4 @@ Every listed observation has a continuing regression, diagnosis, or source-bindi
 
 ## Gated production runner
 
-The [SDK runner source binding](sdk-runner-full-source-input.json) and [retained suite result](sdk-runner-full-source.xml) document an earlier gated-source checkpoint. The current source connects supervisor-owned callbacks to the SDK runner and preserves terminal, finalization, and cancellation failures, while the production admission gate remains closed. Those historical receipts do not bind later adapter bytes; current source tests and opt-in native probes remain distinct from installed approval and recovery qualification.
+The [SDK runner source binding](sdk-runner-full-source-input.json) and [retained suite result](sdk-runner-full-source.xml) document an earlier gated-source checkpoint. The current source connects supervisor-owned callbacks to the SDK runner and preserves terminal, finalization, and cancellation failures. Production admission is restricted to Claude workspace Bash without pre-granted rules; those historical receipts do not bind later adapter bytes or prove installed approval and recovery behavior.

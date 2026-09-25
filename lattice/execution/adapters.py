@@ -512,8 +512,8 @@ def validate_execution_policy(
         raise SubscriptionRouteUnavailable(f"unsupported sandbox policy {sandbox}")
     if approval_policy not in APPROVAL_POLICIES:
         raise SubscriptionRouteUnavailable(f"unsupported approval policy {approval_policy}")
-    if approval_policy != "never":
-        raise SubscriptionRouteUnavailable("interactive approval routing is not yet qualified")
+    if approval_policy == "on-request" and (adapter.provider_code != "anthropic" or execution_profile != "workspace-agent"):
+        raise SubscriptionRouteUnavailable("native approval is admitted only for Claude workspace execution")
     if network_policy not in {"disabled", "provider_managed", "declared_allowlist"}:
         raise SubscriptionRouteUnavailable(f"unsupported network policy {network_policy}")
 
@@ -521,6 +521,8 @@ def validate_execution_policy(
     normalized_permissions = list(permissions)
     if len(normalized_tools) != len(set(normalized_tools)) or len(normalized_permissions) != len(set(normalized_permissions)):
         raise SubscriptionRouteUnavailable("tools and permissions must be unique")
+    if approval_policy == "on-request" and (normalized_tools != ["Bash"] or normalized_permissions):
+        raise SubscriptionRouteUnavailable("native approval requires the exact Bash tool without pre-granted permissions")
 
     resolved_workspace: str | None = None
     if workspace is not None:

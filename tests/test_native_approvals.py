@@ -224,14 +224,27 @@ def test_request_bound_and_decision_shape_do_not_allow_rule_widening(approval_en
 
 
 @pytest.mark.contract
-def test_noninteractive_invocation_and_production_gate_remain_closed(approval_env):
+def test_noninteractive_invocation_cannot_request_native_approval(approval_env):
     env = approval_env
     attempt = start(env, policy=env["route"].model_copy(update={"approval_policy": "never"}))
     with pytest.raises(LatticeConflict, match="no native interactive"):
         ask(env, attempt)
+
+
+@pytest.mark.contract
+def test_production_native_approval_admits_only_ungranted_claude_bash(approval_env, tmp_path):
     adapter = next(profile for profile in DEFAULT_ADAPTERS if profile.provider_code == "anthropic")
-    with pytest.raises(SubscriptionRouteUnavailable, match="not yet qualified"):
-        validate_execution_policy(adapter, approval_policy="on-request")
+    policy = dict(execution_profile="workspace-agent", tools=["Bash"], workspace=tmp_path,
+                  sandbox="provider-permissions", approval_policy="on-request", network_policy="provider_managed")
+    admitted = validate_execution_policy(adapter, **policy)
+    assert admitted["approval_policy"] == "on-request"
+    assert admitted["tools"] == ["Bash"] and admitted["permissions"] == []
+    with pytest.raises(SubscriptionRouteUnavailable, match="pre-granted"):
+        validate_execution_policy(adapter, **{**policy, "permissions": ["Bash"]})
+    with pytest.raises(SubscriptionRouteUnavailable, match="exact Bash"):
+        validate_execution_policy(adapter, **{**policy, "tools": ["Read"]})
+    with pytest.raises(SubscriptionRouteUnavailable, match="Claude workspace"):
+        validate_execution_policy(adapter, **{**policy, "execution_profile": "native-continuation", "continuation_mode": "resume", "native_session_id": "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a"})
 
 
 @pytest.mark.contract
