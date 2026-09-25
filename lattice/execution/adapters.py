@@ -772,7 +772,21 @@ def build_command(
 
 
 def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
-    text = f"{stdout}\n{stderr}".casefold()
+    # Claude's JSON result also contains bookkeeping such as
+    # subagent_stats.refused. Only its terminal diagnostic may classify a
+    # provider refusal; otherwise a transport error can become a false policy
+    # refusal and strand an otherwise recoverable invocation.
+    diagnostic_stdout = stdout
+    try:
+        terminal = json.loads(stdout)
+        if isinstance(terminal, dict) and terminal.get("type") == "result":
+            diagnostic_stdout = "\n".join(
+                str(terminal.get(field) or "")
+                for field in ("result", "errors", "terminal_reason")
+            )
+    except (TypeError, ValueError):
+        pass
+    text = f"{diagnostic_stdout}\n{stderr}".casefold()
     if any(
         marker in text
         for marker in (
@@ -809,7 +823,7 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
         return "rate_limit"
     # A socket rejecting the connection is operational, not a refusal of the
     # prompt. Claude can report this in a terminal JSON result with exit code 0.
-    if any(marker in text for marker in ("connection refused", "connectionrefused", "econnrefused")):
+    if any(marker in text for marker in ("connection refused", "connectionrefused", "econnrefused", "went to sleep mid-response")):
         return "outage"
     if "policy" in text or "refus" in text or "not allowed" in text:
         return "policy_refusal"

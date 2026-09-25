@@ -885,6 +885,24 @@ def test_contract_genuine_provider_policy_refusal_remains_semantic() -> None:
 
 
 @pytest.mark.regression
+def test_claude_result_bookkeeping_cannot_turn_sleep_interruption_into_policy_refusal() -> None:
+    terminal = {
+        "type": "result",
+        "is_error": True,
+        "terminal_reason": "api_error",
+        "result": "API Error: Your computer went to sleep mid-response. The response above may be incomplete.",
+        "subagent_stats": {"refused": {"depth_limit": 0, "concurrency_limit": 0}},
+    }
+    assert classify_provider_failure(1, json.dumps(terminal), "") == "outage"
+
+
+@pytest.mark.contract
+def test_claude_result_policy_diagnostic_remains_a_policy_refusal() -> None:
+    terminal = {"type": "result", "is_error": True, "result": "Request refused under the safety policy"}
+    assert classify_provider_failure(1, json.dumps(terminal), "") == "policy_refusal"
+
+
+@pytest.mark.regression
 def test_regression_exhausted_consumer_balance_is_not_a_provider_outage() -> None:
     stderr = 'API error (status 402 Payment Required): Grok Build usage balance exhausted'
 
