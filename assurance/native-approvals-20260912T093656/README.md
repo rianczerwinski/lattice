@@ -1,6 +1,10 @@
 # Native approval conformance
 
-Bounded native-interface observations for Canon's English completion plan, E1. This directory preserves raw local protocol evidence; it does not certify interactive approvals or enable an execution route.
+Bounded native-interface observations for Canon's English completion plan, E1. The historical source and preflight records below remain distinct from the later installed-service observations. No single record certifies the full Lattice release.
+
+## Current installed boundary
+
+The installed service reports healthy at runtime `0.3.1-d23b29fa7031`, with overall release closure still `unqualified`. Production `on-request` admission is restricted to Claude `workspace-agent` with exactly the Bash tool and no pre-granted permission rules. The ignored local `live-probe-installed-20260925T150302/` run retains exact planted-command allow, deny, cancel, client-reconnect, duplicate-decision, and stale-decision observations against that installed runtime. The planted allow copied only its expected local bytes; deny and cancel left their targets absent. The separate ignored `live-probe-web-20260925T182941/` run observed the installed web-only research route reaching one public `WebFetch` without an approval ceremony. These are bounded installed journeys, not arbitrary-tool, service-restart, cross-site reliability, or release-closure claims. The raw operation IDs and provider journals are local to those ignored run homes; they are not part of this tracked source tree.
 
 `control_preflight.py` sends exactly one SDK-shaped `initialize` control request to the installed, unmodified Claude CLI with empty tool and permission lists, safe mode, empty settings sources, strict empty MCP configuration, and session persistence disabled. It sends no user message or model task. The operation is bounded to 30 seconds and 1 MiB of combined output. Its input, executable digest, code revision, command, raw stdout/stderr, and terminal observation are retained before any later conclusion. A successful initialization is only protocol compatibility evidence, not proof that approval, denial, cancellation, or persistence works.
 
@@ -29,7 +33,7 @@ The same-group cleanup follows Python's [process-group signal interface](https:/
 
 The input FIFO uses Python's [synchronized queue contract](https://docs.python.org/3/library/queue.html), with a bounded wait so process shutdown does not depend on a caller supplying a sentinel. It does not infer completion from `empty()` or supply its own concurrency primitive.
 
-Production SDK integration, native denial/cancellation/stale-delivery conformance, route isolation, installed qualification, and the complete E1 gate remain open. The exact-action ledger/cockpit checkpoint is described below. No model prompt has been dispatched by these observations.
+At this historical checkpoint, production SDK integration, native denial/cancellation/stale-delivery conformance, route isolation, installed qualification, and the complete E1 gate remained open. The exact-action ledger/cockpit checkpoint is described below. These source and no-model preflight observations had dispatched no model prompt; later installed journeys are distinguished above.
 
 ## Pinned SDK initialization
 
@@ -39,11 +43,11 @@ The initial isolated development environment used `claude-agent-sdk==0.2.152` fr
 
 `sdk-install/` and `sdk-project-deps/` preserve successful environment setup. `sdk-setup-failure.log` preserves the first missing-project-dependency failure before any native process or observation home was created. `sdk-init-20260912T102000/` contains the subsequent exact command, executable and process-source hashes, raw input/output, and terminal observation: native initialization succeeded in 0.507 seconds, permission mode was `default`, session state was `idle`, and exit status was zero. It sent **zero model prompts** and requested **zero tools**. This proves only SDK/native initialization for these bindings, not authentication, action approval, sandbox enforcement, or production integration.
 
-The source application subsequently added the same pinned SDK dependency. [The guarded SDK transport record](sdk-transport-review.md) preserves setup, the independently examined transport defects, repairs, source bindings, and native observations. The initialization helper uses that implementation rather than a second diagnostic copy. The current production approval gate remains closed.
+The source application subsequently added the same pinned SDK dependency. [The guarded SDK transport record](sdk-transport-review.md) preserves setup, the independently examined transport defects, repairs, source bindings, and native observations. The initialization helper uses that implementation rather than a second diagnostic copy. The production approval gate was closed at this checkpoint; its later narrow admission and installed observations are stated above.
 
 ## Exact-action ledger and cockpit
 
-The append-only approval events in `lattice/native_approvals.py` reuse Lattice's existing ledger without a schema migration. Protected inspection and decision endpoints bind a one-action allow/deny decision to an exact native callback and supervisor-owned attempt; native callbacks cannot create operator decisions. Cancellation, withdrawal, terminality, and a fixed monotonic lifetime invalidate pending authority. The cockpit shows the action and target, exact arguments and invocation/workspace binding, explicit allow/deny/cancel controls, request failures, and the distinction between a saved decision, adapter release, and actual execution. No native permission rule is saved. These controls remain behind the unqualified production route.
+The append-only approval events in `lattice/native_approvals.py` reuse Lattice's existing ledger without a schema migration. Protected inspection and decision endpoints bind a one-action allow/deny decision to an exact native callback and supervisor-owned attempt; native callbacks cannot create operator decisions. Cancellation, withdrawal, terminality, and a fixed monotonic lifetime invalidate pending authority. The cockpit shows the action and target, exact arguments and invocation/workspace binding, explicit allow/deny/cancel controls, request failures, and the distinction between a saved decision, adapter release, and actual execution. No native permission rule is saved. The controls are exposed only for the narrow admitted route stated above; the overall release remains unqualified.
 
 [The independent ledger review](ledger-review.md) preserves reviewed source hashes, successive findings, repairs, inspected boundaries, and proof limits. Both material findings remain contained-not-closed until native and installed obligations are discharged. The following local observations are retained distinctly:
 
@@ -67,8 +71,8 @@ Every listed observation has a continuing regression, diagnosis, or source-bindi
 
 ## SDK callback integration
 
-[The SDK callback record](sdk-callback-review.md) binds the exact-action ledger to the pinned SDK callback and synthetic native control channel. It retains the observed cancellation-during-I/O defect, its independent re-review, permanent failure-sensitive checks, and false mutations. No production adapter or policy admission is enabled by these local results.
+[The SDK callback record](sdk-callback-review.md) binds the exact-action ledger to the pinned SDK callback and synthetic native control channel. It retains the observed cancellation-during-I/O defect, its independent re-review, permanent failure-sensitive checks, and false mutations. Those local results alone did not enable production admission; the later admission and installed observations are stated above.
 
 ## Gated production runner
 
-The [SDK runner source binding](sdk-runner-full-source-input.json) and [retained suite result](sdk-runner-full-source.xml) document an earlier gated-source checkpoint. The current source connects supervisor-owned callbacks to the SDK runner and preserves terminal, finalization, and cancellation failures. Production admission is restricted to Claude workspace Bash without pre-granted rules; those historical receipts do not bind later adapter bytes or prove installed approval and recovery behavior.
+The local-only `sdk-runner-full-source-input.json` source binding and `sdk-runner-full-source.xml` suite result document an earlier gated-source checkpoint; neither is part of this tracked source tree. The current source connects supervisor-owned callbacks to the SDK runner and preserves terminal, finalization, and cancellation failures. Production admission is restricted to Claude workspace Bash without pre-granted rules; those historical receipts do not bind later adapter bytes or prove installed approval and recovery behavior. The installed observations above supply a separate bounded claim.
