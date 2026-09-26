@@ -780,7 +780,7 @@ def build_command(
     )
 
 
-def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
+def _provider_failure_text(stdout: str, stderr: str) -> str:
     # Claude's JSON result also contains bookkeeping such as
     # subagent_stats.refused. Only its terminal diagnostic may classify a
     # provider refusal; otherwise a transport error can become a false policy
@@ -795,7 +795,24 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
             )
     except (TypeError, ValueError):
         pass
-    text = f"{diagnostic_stdout}\n{stderr}".casefold()
+    return f"{diagnostic_stdout}\n{stderr}".casefold()
+
+
+def provider_failure_diagnostic_code(stdout: str, stderr: str) -> str | None:
+    """Expose only a bounded transport cause, never untrusted provider prose."""
+
+    text = _provider_failure_text(stdout, stderr)
+    if "enotfound" in text or "eai_again" in text:
+        return "dns_resolution_failed"
+    if "connection refused" in text or "connectionrefused" in text or "econnrefused" in text:
+        return "connection_refused"
+    if "went to sleep mid-response" in text:
+        return "host_sleep_interruption"
+    return None
+
+
+def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
+    text = _provider_failure_text(stdout, stderr)
     if any(
         marker in text
         for marker in (
@@ -1247,10 +1264,15 @@ def invoke_subscription(
             ) from error
         if result.returncode != 0:
             kind = classify_provider_failure(result.returncode, result.stdout, result.stderr)
-            finish_run_journal(journal, "failed", failure_kind=kind, returncode=result.returncode)
+            diagnostic = provider_failure_diagnostic_code(result.stdout, result.stderr) if kind == "outage" else None
+            finish_run_journal(
+                journal, "failed", failure_kind=kind, returncode=result.returncode,
+                **({"diagnostic_code": diagnostic} if diagnostic else {}),
+            )
             raise SubscriptionInvocationFailed(
                 kind,
-                f"{adapter.provider_code} CLI exited {result.returncode}",
+                f"{adapter.provider_code} CLI exited {result.returncode}"
+                + (f" ({diagnostic})" if diagnostic else ""),
                 journal=journal.root,
             )
         try:

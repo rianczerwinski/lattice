@@ -919,6 +919,54 @@ def test_claude_result_bookkeeping_cannot_turn_sleep_interruption_into_policy_re
     assert classify_provider_failure(1, json.dumps(terminal), "") == "outage"
 
 
+@pytest.mark.regression
+def test_dns_outage_has_bounded_diagnostic_in_failure_and_journal(tmp_path: Path) -> None:
+    adapter = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "anthropic")
+    native = json.dumps({
+        "type": "result",
+        "is_error": True,
+        "terminal_reason": "api_error",
+        "result": "API Error: Can't reach the API server (ENOTFOUND); private marker from provider output",
+        "subagent_stats": {"refused": {"depth_limit": 0}},
+    })
+
+    def fake_run(_command, **kwargs):
+        kwargs["stdout_journal"].write_text(native, encoding="utf-8")
+        return SimpleNamespace(returncode=1, stdout=native, stderr="")
+
+    with patch("lattice.execution.adapters.shutil.which", return_value="/fixture/claude"), patch(
+        "lattice.execution.adapters._cli_version", return_value="Claude Code fixture"
+    ), patch("lattice.execution.adapters.run_bounded", side_effect=fake_run):
+        with pytest.raises(SubscriptionInvocationFailed) as raised:
+            invoke_subscription(
+                adapter,
+                prompt="bounded task",
+                schema={"type": "object"},
+                runs_dir=tmp_path / "runs",
+                subject="dns-diagnostic",
+            )
+
+    failure = raised.value
+    terminal = json.loads((failure.journal / "terminal.json").read_text(encoding="utf-8"))
+    assert failure.kind == "outage"
+    assert str(failure) == "anthropic CLI exited 1 (dns_resolution_failed)"
+    assert terminal["diagnostic_code"] == "dns_resolution_failed"
+    assert "private marker" not in str(failure)
+    assert "private marker" not in json.dumps(terminal)
+
+
+@pytest.mark.regression
+def test_provider_failure_diagnostic_ignores_claude_bookkeeping() -> None:
+    terminal = {
+        "type": "result",
+        "is_error": True,
+        "result": "Request refused under the safety policy",
+        "subagent_stats": {"errors": "ENOTFOUND", "refused": {"depth_limit": 0}},
+    }
+    assert adapters.provider_failure_diagnostic_code(json.dumps(terminal), "") is None
+    assert classify_provider_failure(1, json.dumps(terminal), "") == "policy_refusal"
+
+
 @pytest.mark.contract
 def test_claude_result_policy_diagnostic_remains_a_policy_refusal() -> None:
     terminal = {"type": "result", "is_error": True, "result": "Request refused under the safety policy"}
