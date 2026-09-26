@@ -798,10 +798,23 @@ def _provider_failure_text(stdout: str, stderr: str) -> str:
     return f"{diagnostic_stdout}\n{stderr}".casefold()
 
 
+def _provider_api_error_status(stdout: str) -> int | None:
+    try:
+        terminal = json.loads(stdout)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(terminal, dict) or terminal.get("type") != "result" or terminal.get("is_error") is not True:
+        return None
+    status = terminal.get("api_error_status")
+    return status if type(status) is int else None
+
+
 def provider_failure_diagnostic_code(stdout: str, stderr: str) -> str | None:
-    """Expose only a bounded transport cause, never untrusted provider prose."""
+    """Expose only a bounded provider cause, never untrusted provider prose."""
 
     text = _provider_failure_text(stdout, stderr)
+    if "monthly spend limit" in text:
+        return "monthly_spend_limit"
     if "enotfound" in text or "eai_again" in text:
         return "dns_resolution_failed"
     if "connection refused" in text or "connectionrefused" in text or "econnrefused" in text:
@@ -843,9 +856,9 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
         )
     ):
         return "authentication"
-    if any(marker in text for marker in ("usage balance exhausted", "payment required", "insufficient balance", "insufficient credits")):
+    if any(marker in text for marker in ("usage balance exhausted", "payment required", "insufficient balance", "insufficient credits", "monthly spend limit")):
         return "subscription_exhausted"
-    if "rate limit" in text or "too many requests" in text or "quota" in text:
+    if "rate limit" in text or "too many requests" in text or "quota" in text or _provider_api_error_status(stdout) == 429:
         return "rate_limit"
     # A socket rejecting the connection is operational, not a refusal of the
     # prompt. Claude can report this in a terminal JSON result with exit code 0.
@@ -1264,7 +1277,7 @@ def invoke_subscription(
             ) from error
         if result.returncode != 0:
             kind = classify_provider_failure(result.returncode, result.stdout, result.stderr)
-            diagnostic = provider_failure_diagnostic_code(result.stdout, result.stderr) if kind == "outage" else None
+            diagnostic = provider_failure_diagnostic_code(result.stdout, result.stderr) if kind in {"outage", "subscription_exhausted", "rate_limit"} else None
             finish_run_journal(
                 journal, "failed", failure_kind=kind, returncode=result.returncode,
                 **({"diagnostic_code": diagnostic} if diagnostic else {}),

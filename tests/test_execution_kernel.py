@@ -981,6 +981,60 @@ def test_regression_exhausted_consumer_balance_is_not_a_provider_outage() -> Non
 
 
 @pytest.mark.regression
+def test_claude_spend_limit_is_not_a_network_outage_or_policy_refusal() -> None:
+    terminal = {
+        "type": "result", "is_error": True, "terminal_reason": "api_error",
+        "api_error_status": 429,
+        "result": "You've hit your monthly spend limit; your session limit resets later",
+        "subagent_stats": {"refused": {"concurrency_limit": 0}},
+    }
+
+    assert classify_provider_failure(1, json.dumps(terminal), "") == "subscription_exhausted"
+    assert adapters.provider_failure_diagnostic_code(json.dumps(terminal), "") == "monthly_spend_limit"
+
+
+@pytest.mark.regression
+def test_claude_unlabeled_http_429_remains_a_rate_limit() -> None:
+    terminal = {"type": "result", "is_error": True, "terminal_reason": "api_error", "api_error_status": 429, "result": "Request failed"}
+
+    assert classify_provider_failure(1, json.dumps(terminal), "") == "rate_limit"
+
+
+@pytest.mark.regression
+def test_claude_spend_limit_has_bounded_diagnostic_in_failure_and_journal(tmp_path: Path) -> None:
+    adapter = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "anthropic")
+    native = json.dumps({
+        "type": "result", "is_error": True, "terminal_reason": "api_error",
+        "api_error_status": 429,
+        "result": "You've hit your monthly spend limit; private account detail; your session limit resets later",
+    })
+
+    def fake_run(_command, **kwargs):
+        kwargs["stdout_journal"].write_text(native, encoding="utf-8")
+        return SimpleNamespace(returncode=1, stdout=native, stderr="")
+
+    with patch("lattice.execution.adapters.shutil.which", return_value="/fixture/claude"), patch(
+        "lattice.execution.adapters._cli_version", return_value="Claude Code fixture"
+    ), patch("lattice.execution.adapters.run_bounded", side_effect=fake_run):
+        with pytest.raises(SubscriptionInvocationFailed) as raised:
+            invoke_subscription(
+                adapter,
+                prompt="bounded task",
+                schema={"type": "object"},
+                runs_dir=tmp_path / "runs",
+                subject="spend-limit-diagnostic",
+            )
+
+    failure = raised.value
+    terminal = json.loads((failure.journal / "terminal.json").read_text(encoding="utf-8"))
+    assert failure.kind == "subscription_exhausted"
+    assert str(failure) == "anthropic CLI exited 1 (monthly_spend_limit)"
+    assert terminal["diagnostic_code"] == "monthly_spend_limit"
+    assert "private account detail" not in str(failure)
+    assert "private account detail" not in json.dumps(terminal)
+
+
+@pytest.mark.regression
 def test_regression_local_policy_failure_is_not_a_provider_refusal() -> None:
     assert classify_provider_failure(1, "", "Invalid policy rule: mcpName is required; Operation not permitted") == "harness_failure"
 
