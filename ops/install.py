@@ -95,7 +95,7 @@ def installed_runtime_version(target: Path) -> str:
     manifest = json.loads(raw)
     if canonical_runtime_manifest(manifest, target / ".venv" / "bin" / "python") != raw or manifest.get("contract_version") != "LatticeInstalledRuntime/4.0" or manifest.get("runtime_id") != target.name:
         raise RuntimeError(f"installed runtime manifest is not exact for {target}")
-    match = re.fullmatch(r"([0-9]+\.[0-9]+\.[0-9]+)-[0-9a-f]{12}", target.name)
+    match = re.fullmatch(r"([0-9]+\.[0-9]+\.[0-9]+)-[0-9a-f]{12}(?:-[0-9a-f]{12})?", target.name)
     if match is None:
         raise RuntimeError(f"installed runtime identity has no stable package version: {target}")
     expected = match.group(1)
@@ -472,6 +472,16 @@ def provider_runtime_attestations(*, probe_versions: bool) -> list[dict]:
     return sorted(installed_adapter_status(probe_versions=probe_versions), key=lambda item: item["provider_code"])
 
 
+def runtime_identity(lattice_revision: str, provider_attestations: list[dict]) -> str:
+    """Key immutable installations by source and the qualified external CLI state."""
+
+    from lattice.canonical import canonical_bytes
+
+    _validate_provider_attestations(provider_attestations)
+    provider_digest = hashlib.sha256(canonical_bytes(provider_attestations)).hexdigest()[:12]
+    return f"{release_version()}-{lattice_revision[:12]}-{provider_digest}"
+
+
 def _validate_provider_attestations(value: object) -> list[dict]:
     from lattice.runtime_attestation import validate_provider_attestations
 
@@ -539,7 +549,10 @@ def _validate_runtime_manifest(manifest: object, *, target: Path, runtime_id: st
         validate_tree_set(manifest.get("source_trees"))
     except ValueError as error:
         raise RuntimeError("runtime manifest source-tree attestation is malformed") from error
-    _validate_provider_attestations(manifest.get("provider_attestations"))
+    attestations = _validate_provider_attestations(manifest.get("provider_attestations"))
+    if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]{12}-[0-9a-f]{12}", runtime_id):
+        if runtime_id != runtime_identity(lattice_revision, attestations):
+            raise RuntimeError("runtime identity disagrees with its provider attestations")
     return manifest
 
 
@@ -598,7 +611,8 @@ def verify_runtime_target(target: Path, *, runtime_id: str, lattice_revision: st
 
 
 def install_runtime(lattice_revision: str) -> Path:
-    runtime_id = f"{release_version()}-{lattice_revision[:12]}"
+    attestations = provider_runtime_attestations(probe_versions=True)
+    runtime_id = runtime_identity(lattice_revision, attestations)
     target = VERSIONS_ROOT / runtime_id
     marker = target / ".pending"
     if target.exists():
@@ -620,7 +634,7 @@ def install_runtime(lattice_revision: str) -> Path:
             raise RuntimeError("freshly installed application bytes disagree with the immutable source trees")
         run([str(target / ".venv" / "bin" / "lattice"), "--help"])
         frozen = run(["uv", "pip", "freeze", "--python", str(target / ".venv" / "bin" / "python")], capture=True).stdout.decode().splitlines()
-        manifest = build_runtime_manifest(target=target, runtime_id=runtime_id, lattice_revision=lattice_revision, packages=frozen, module_locations=locations, source_trees=source_trees, provider_attestations=provider_runtime_attestations(probe_versions=True))
+        manifest = build_runtime_manifest(target=target, runtime_id=runtime_id, lattice_revision=lattice_revision, packages=frozen, module_locations=locations, source_trees=source_trees, provider_attestations=attestations)
         write_atomic(target / "runtime.json", canonical_runtime_manifest(manifest, target / ".venv" / "bin" / "python"), mode=0o600)
         sync_tree(target)
         marker.unlink()

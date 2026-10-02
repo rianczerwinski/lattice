@@ -960,6 +960,42 @@ def test_installed_runtime_version_matches_identity_and_executing_package(monkey
 
 
 @pytest.mark.regression
+def test_runtime_identity_changes_with_provider_binary_without_changing_source(monkeypatch) -> None:
+    monkeypatch.setattr(deployment, "release_version", lambda: "0.3.1")
+    revision = "a" * 40
+    first = deployment.provider_runtime_attestations(probe_versions=False)
+    changed = deployment.provider_runtime_attestations(probe_versions=False)
+    selected = next(item for item in changed if item["provider_code"] == "google")
+    selected["binary_sha256"] = "f" * 64
+
+    initial_id = deployment.runtime_identity(revision, first)
+    changed_id = deployment.runtime_identity(revision, changed)
+
+    assert initial_id == deployment.runtime_identity(revision, first)
+    assert initial_id != changed_id
+    assert initial_id.startswith("0.3.1-aaaaaaaaaaaa-")
+    assert changed_id.startswith("0.3.1-aaaaaaaaaaaa-")
+
+
+@pytest.mark.regression
+def test_negative_control_runtime_manifest_rejects_provider_identity_mismatch(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(deployment, "release_version", lambda: "0.3.1")
+    revision = "a" * 40
+    attestations = deployment.provider_runtime_attestations(probe_versions=False)
+    runtime_id = deployment.runtime_identity(revision, attestations)
+    target = tmp_path / runtime_id
+    python = target / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.symlink_to(Path(__import__("sys").executable))
+    manifest = deployment.build_runtime_manifest(target=target, runtime_id=runtime_id, lattice_revision=revision, packages=[], module_locations={"lattice": "/runtime/lattice"}, source_trees={"lattice": [{"path": "cli.py", "sha256": "c" * 64, "byte_count": 1}]}, provider_attestations=attestations)
+    deployment._validate_runtime_manifest(manifest, target=target, runtime_id=runtime_id, lattice_revision=revision)
+    next(item for item in attestations if item["provider_code"] == "google")["binary_sha256"] = "f" * 64
+
+    with pytest.raises(RuntimeError, match="identity disagrees with its provider attestations"):
+        deployment._validate_runtime_manifest(manifest, target=target, runtime_id=runtime_id, lattice_revision=revision)
+
+
+@pytest.mark.regression
 def test_negative_control_installed_runtime_version_rejects_package_drift(monkeypatch, tmp_path) -> None:
     target = tmp_path / "0.3.1-aaaaaaaaaaaa"
     target.mkdir()
