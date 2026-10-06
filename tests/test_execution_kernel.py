@@ -237,14 +237,21 @@ def test_parent_death_watchdog_kills_provider_process_group(tmp_path: Path) -> N
         str(started),
         str(survived),
     ], cwd=Path(__file__).parents[1])
-    deadline = time.monotonic() + 3
-    while not started.exists() and time.monotonic() < deadline:
-        time.sleep(0.02)
-    assert started.exists()
-    runner.kill()
-    runner.wait(timeout=2)
-    time.sleep(1.2)
-    assert not survived.exists()
+    try:
+        # The full installer suite can delay interpreter startup substantially;
+        # the provider's marker, not a short wall-clock budget, is the gate.
+        deadline = time.monotonic() + 15
+        while not started.exists() and runner.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert started.exists(), f"provider did not start; runner exit={runner.poll()}"
+        runner.kill()
+        runner.wait(timeout=2)
+        time.sleep(1.2)
+        assert not survived.exists()
+    finally:
+        if runner.poll() is None:
+            runner.kill()
+            runner.wait(timeout=2)
 
 
 @pytest.mark.regression
