@@ -893,6 +893,18 @@ def test_regression_rate_limit_is_operational_not_semantic_failure() -> None:
 
 
 @pytest.mark.regression
+def test_claude_exhausted_structured_output_is_not_an_outage() -> None:
+    terminal = {
+        "type": "result",
+        "is_error": True,
+        "terminal_reason": "structured_output_retry_exhausted",
+        "subtype": "error_max_structured_output_retries",
+        "errors": ["Failed to provide valid structured output after 5 attempts"],
+    }
+    assert classify_provider_failure(1, json.dumps(terminal), "") == "malformed_output"
+
+
+@pytest.mark.regression
 @pytest.mark.parametrize("message", [
     "API Error: Connection refused — a firewall or proxy may be blocking it (ConnectionRefused)",
     "connect ECONNREFUSED 127.0.0.1:443",

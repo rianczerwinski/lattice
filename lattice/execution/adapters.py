@@ -858,6 +858,8 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
         return "authentication"
     if any(marker in text for marker in ("usage balance exhausted", "payment required", "insufficient balance", "insufficient credits", "monthly spend limit")):
         return "subscription_exhausted"
+    if "structured_output_retry_exhausted" in text or "failed to provide valid structured output after" in text:
+        return "malformed_output"
     if "rate limit" in text or "too many requests" in text or "quota" in text or _provider_api_error_status(stdout) == 429:
         return "rate_limit"
     # A socket rejecting the connection is operational, not a refusal of the
