@@ -1,0 +1,41 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "snapshot",
+    "kind": "conversation-recovery-baseline",
+    "schema": {
+      "name": "lattice-conversation-recovery-baseline",
+      "version": 1
+    },
+    "artifact_id": "artifact:ef6dcc79-8448-4511-9e57-964dd0439be6",
+    "generated_at": "20261010T032948",
+    "producer": {
+      "name": "lattice",
+      "version": "0.3.1"
+    },
+    "subject": "lattice:recoverable-conversations",
+    "sources": [
+      {
+        "ref": "git:workframe",
+        "revision": "035c9acafd3f15232fe498c708dfd98520df77a4",
+        "sha256": null
+      }
+    ]
+  },
+  "source_revision": "035c9acafd3f15232fe498c708dfd98520df77a4",
+  "schema_before": 15,
+  "claude_version": "2.1.241 (Claude Code)",
+  "runtime_path": "/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-e59c5900a714-cae8ef045f5e",
+  "packets": {
+    "A": "pending",
+    "B": "pending",
+    "C": "pending",
+    "D": "pending",
+    "E": "pending",
+    "F": "pending"
+  },
+  "proof_limits": [
+    "No authenticated recovery qualification performed.",
+    "Inherited native-approval evidence and historical Surface addition are outside this change."
+  ]
+}

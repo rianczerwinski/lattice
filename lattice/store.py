@@ -26,6 +26,7 @@ from .snapshot import copy_exact_tree, pre_migration_snapshot_if_needed
 from .durability import sync_tree_directories
 from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard
 from . import native_approvals
+from .conversation_schema import DDL as CONVERSATION_DDL, TABLES as CONVERSATION_TABLES
 from .contracts import (
     AttemptState,
     BlockDisposition,
@@ -65,7 +66,7 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
 
@@ -647,13 +648,15 @@ CREATE INDEX IF NOT EXISTS run_artifacts_run_class ON run_artifacts(run_id,artif
 """
 
 
+DDL += CONVERSATION_DDL
+
 CHANGE_TABLES = (
     "projects", "context_blocks", "block_status", "roles", "role_sessions", "drafts", "invocations", "edges",
     "invocation_batches", "invocation_batch_members", "attempts", "leases", "native_session_leases", "slices", "artifacts", "workflow_commands", "workflow_instances", "workflow_transitions",
     "workflow_triggers", "role_context_defaults", "project_context_defaults", "conversation_imports", "conversation_import_turns",
     "provider_profiles", "provider_qualifications", "external_projects", "external_operations", "historical_execution_imports",
     "runs", "run_attempts", "run_units", "run_artifacts",
-)
+) + CONVERSATION_TABLES
 
 
 class LatticeConflict(RuntimeError):
@@ -829,6 +832,7 @@ class LatticeStore:
                 # the bound inside the same IMMEDIATE transaction as the start.
                 conn.execute("DROP INDEX IF EXISTS one_running_run_unit")
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(15,?)", (stamp(),))
+            conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(16,?)", (stamp(),))
             self._register_provider_profiles(conn)
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
@@ -3460,6 +3464,8 @@ class LatticeStore:
             conn.execute("UPDATE leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             conn.execute("UPDATE native_session_leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             conn.execute("UPDATE invocations SET state='succeeded',output_block_id=?,terminal_kind='succeeded',completed_at=? WHERE invocation_id=?", (block_id, now, attempt["invocation_id"]))
+            from .conversations import finish_in_transaction
+            finish_in_transaction(self, conn, attempt["invocation_id"], response_id=block_id)
             self._terminalize_external_operation(conn, invocation_id=attempt["invocation_id"], project_id=attempt["project_id"], terminal_kind="succeeded", now=now)
             completed_triggers = conn.execute("UPDATE workflow_triggers SET state='completed',error_text=NULL,completed_at=? WHERE result_ref=? AND state IN ('planned','execution_failed')", (now, attempt["invocation_id"])).rowcount
             self._event(conn, project_id=attempt["project_id"], event_type="attempt.succeeded", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": attempt["invocation_id"], "output_block_id": block_id, "artifact_ids": [item[1] for item in prepared_artifacts]})
@@ -3687,6 +3693,9 @@ class LatticeStore:
                     raise LatticeConflict("idempotency key belongs to another invocation")
                 return dict(prior)
             invocation = self._row(conn.execute("SELECT project_id,state,route_json,role_session_id FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
+            conversation_round = conn.execute("SELECT r.state,e.ordinal,(SELECT MAX(latest.ordinal) FROM conversation_executions latest WHERE latest.round_id=r.round_id) AS latest FROM conversation_rounds r JOIN conversation_executions e USING(round_id) WHERE e.invocation_id=?", (invocation_id,)).fetchone()
+            if conversation_round is not None and (conversation_round["state"] != "active" or conversation_round["ordinal"] != conversation_round["latest"]):
+                raise LatticeConflict("use conversation continuation for an unfinished conversation round")
             if invocation["state"] not in {InvocationState.sealed.value, InvocationState.failed.value, InvocationState.interrupted.value}:
                 raise LatticeConflict(f"invocation cannot execute from {invocation['state']}")
             active = conn.execute("SELECT 1 FROM leases WHERE invocation_id=? AND state='active'", (invocation_id,)).fetchone()
@@ -3766,6 +3775,8 @@ class LatticeStore:
             conn.execute("UPDATE native_session_leases SET state='released',released_at=? WHERE attempt_id=? AND state='active'", (now, attempt_id))
             invocation_state = InvocationState.succeeded if state == AttemptState.succeeded else InvocationState.interrupted if state in {AttemptState.interrupted, AttemptState.orphaned} else InvocationState.failed
             conn.execute("UPDATE invocations SET state=?,output_block_id=COALESCE(?,output_block_id),terminal_kind=?,completed_at=? WHERE invocation_id=?", (invocation_state.value, output_block_id, failure_kind or state.value, now, attempt["invocation_id"]))
+            from .conversations import finish_in_transaction
+            finish_in_transaction(self, conn, attempt["invocation_id"], response_id=output_block_id if state == AttemptState.succeeded else None)
             self._terminalize_external_operation(conn, invocation_id=attempt["invocation_id"], project_id=attempt["project_id"], terminal_kind=failure_kind or state.value, now=now)
             failed_triggers = conn.execute("UPDATE workflow_triggers SET state='execution_failed',error_text=?,completed_at=NULL WHERE result_ref=? AND state='planned'", (error_text or failure_kind or state.value, attempt["invocation_id"])).rowcount
             self._event(conn, project_id=attempt["project_id"], event_type=f"attempt.{state.value}", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": attempt["invocation_id"], "output_block_id": output_block_id, "failure_kind": failure_kind})

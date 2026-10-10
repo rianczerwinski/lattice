@@ -10,6 +10,8 @@ Frozen inputs and finding-to-proof obligations for the installed Lattice remedia
 
 ## Active work
 
+[Recoverable conversations](recoverable-conversations/README.md) owns the A–F implementation checkpoints and independent acceptance obligations for first-class model-operated child conversations. Its status distinguishes source implementation from installed recovery qualification and the Fable 5.1 pilot.
+
 [Native approvals](native-approvals-20260912T093656/README.md) retains installed Claude/SDK initialization, guarded bidirectional transport and process-ownership evidence, and the independently reviewed exact-action ledger/cockpit checkpoint. The native operator approval route remains unqualified; local ledger or transport evidence does not enable it.
 
 [Claude context RCA](context-rca-20260911T165954.json) records the completed twelve-call diagnostic campaign. In the reduced two-answer task, removing only four `Source:`/`Status:` lines changed refusal to correct extraction; restoring them reproduced refusal, and the pair held with changed numbers. Expected diagnostic refusals no longer trigger consecutive-failure stops, while the campaign ceiling and operational-error controls remain. The individual metadata contributor, full edited-join qualification, and production remedy remain open. [The prior stop snapshot](context-rca-20260910T132542.json) remains immutable evidence.
