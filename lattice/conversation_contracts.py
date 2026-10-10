@@ -32,10 +32,18 @@ class ConversationSteer(ConversationMutation):
     interrupt: bool = False
 
 
+class EffectDisposition(StrictModel):
+    attempt_id: str
+    tool_id: str | None
+    disposition: Literal['confirmed_applied', 'confirmed_not_applied', 'do_not_repeat']
+    evidence: str = Field(min_length=1, max_length=8000)
+
+
 class ConversationContinue(ConversationMutation):
     expected_preview_sha256: str = Field(pattern=r'^[0-9a-f]{64}$')
     policy: Literal['auto', 'native', 'portable'] | None = None
     include_steering: bool = True
+    effect_dispositions: list[EffectDisposition] = Field(default_factory=list, max_length=1000)
 
 
 class ConversationAdopt(ConversationMutation):

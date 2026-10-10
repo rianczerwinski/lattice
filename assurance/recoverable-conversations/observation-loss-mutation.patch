@@ -1,0 +1,11 @@
+--- original/observations.py
++++ mutant/observations.py
+@@ -92,7 +92,7 @@
+             else:
+                 if start != size:
+                     raise LatticeConflict('observation admission cannot skip bytes')
+-                self.store._event(conn, project_id=attempt['project_id'], event_type='attempt.chunk', subject_type='attempt', subject_id=attempt_id, payload={
++                (lambda *args, **kwargs: None)(conn, project_id=attempt['project_id'], event_type='attempt.chunk', subject_type='attempt', subject_id=attempt_id, payload={
+                     'invocation_id':attempt['invocation_id'], 'channel':channel,'offset':start,'sha256':digest,'content_ref':f'lattice:blob/{digest}', 'byte_count':len(chunk), 'preview':chunk.decode('utf-8', errors='replace')[:1000]})
+         self.reindex(attempt_id, channel)
+ 

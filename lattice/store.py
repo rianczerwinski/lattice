@@ -1323,10 +1323,12 @@ class LatticeStore:
             if native_parent_id not in parent_invocation_ids:
                 raise LatticeConflict("native continuation parent must be explicitly selected as invocation ancestry")
             native_parent = self.get_invocation(native_parent_id)
-            if native_parent["state"] != InvocationState.succeeded.value:
-                raise LatticeConflict("native continuation parent must have a successful terminal result")
+            from .native_recovery import eligibility
+            recovered_boundary = eligibility(self, native_parent)
+            if native_parent["state"] != InvocationState.succeeded.value and not recovered_boundary['eligible']:
+                raise LatticeConflict("native continuation parent requires a successful result or qualified recovery boundary")
             successful_attempts = [attempt for attempt in native_parent["attempts"] if attempt["state"] == AttemptState.succeeded.value and attempt.get("runtime_receipt")]
-            receipt = successful_attempts[-1]["runtime_receipt"] if successful_attempts else None
+            receipt = successful_attempts[-1]["runtime_receipt"] if successful_attempts else native_parent['attempts'][-1].get('runtime_receipt') if recovered_boundary['eligible'] else None
             native_session = receipt.get("native_session") if isinstance(receipt, dict) else None
             observed_session_id = native_session.get("id") if isinstance(native_session, dict) else None
             if not isinstance(observed_session_id, str):
@@ -1337,8 +1339,8 @@ class LatticeStore:
             normalized["native_session_id"] = observed_session_id
             with self._connect() as conn:
                 session_state = self._native_session_state(conn, normalized["provider"], observed_session_id)
-            if session_state is not None and session_state["state"] != AttemptState.succeeded.value:
-                raise LatticeConflict("provider-native session is tainted by a non-successful attempt; use portable ancestry")
+            if session_state is not None and session_state["state"] != AttemptState.succeeded.value and not recovered_boundary['eligible']:
+                raise LatticeConflict("provider-native session is tainted without a qualified recovery boundary; use portable ancestry")
             if session_state is not None and session_state["invocation_id"] != native_parent_id:
                 raise LatticeConflict("native continuation parent is no longer the provider session head; use portable ancestry or select the latest native invocation")
         try:
@@ -1377,7 +1379,7 @@ class LatticeStore:
         ).fetchone()
         return {"invocation_id": str(row["invocation_id"]), "state": str(row["state"])} if row else None
 
-    def validate_invocation_intent(self, assembly: Any, route: Any, *, route_scope_refs: list[str] | tuple[str, ...] = ()) -> dict[str, Any]:
+    def validate_invocation_intent(self, assembly: Any, route: Any, *, route_scope_refs: list[str] | tuple[str, ...] = (), virtual_blocks: dict | None = None) -> dict[str, Any]:
         """Validate a stateless preflight without creating any ledger objects."""
 
         project = self.get_project(assembly.project_id)
@@ -1393,11 +1395,13 @@ class LatticeStore:
             if parent["project_id"] != assembly.project_id:
                 raise LatticeConflict("parent invocation does not belong to project")
             if not parent.get("output_block_id"):
-                raise LatticeConflict(f"parent {parent_id} has no terminal output to consume")
+                from .native_recovery import eligibility
+                if normalized_route.get('native_parent_invocation_id') != parent_id or not eligibility(self,parent)['eligible']:
+                    raise LatticeConflict(f"parent {parent_id} has no terminal output to consume")
         for selection in assembly.selections:
             if assembly.context_mode == "explicit" and selection.plane == "current_prompt":
                 continue
-            block = self.get_block(selection.block_id, include_content=False)
+            block = (virtual_blocks or {}).get(selection.block_id) or self.get_block(selection.block_id, include_content=False)
             if block["project_id"] != assembly.project_id:
                 raise LatticeConflict("context block belongs to another project")
         return normalized_route
@@ -3301,6 +3305,8 @@ class LatticeStore:
         create_request_sha256: str,
         receipt: dict[str, Any],
         prepared: list[dict[str, Any]],
+        context_blocks: list[ContextBlockCreate] | None = None,
+        conversation_binding: dict | None = None,
     ) -> dict[str, Any]:
         """Seal every batch member and its shared receipt in one transaction."""
 
@@ -3315,6 +3321,11 @@ class LatticeStore:
             else:
                 if conn.execute("SELECT 1 FROM invocation_batches WHERE batch_id=?", (batch_id,)).fetchone() is not None:
                     raise LatticeConflict("batch identity was already used")
+                from .operations import Lattice
+                for value in context_blocks or []:
+                    block = Lattice.prepared_context(value)
+                    if conn.execute("SELECT 1 FROM context_blocks WHERE block_id=?", (block["block_id"],)).fetchone() is None:
+                        self._insert_context_block(conn, value, block_id=block["block_id"], content=value.content.encode("utf-8"), digest=block["content_sha256"], now=now, issuer_kind="system", issuer_ref="conversation-recovery")
                 prompt_blocks: dict[str, dict[str, Any]] = {}
                 for item in prepared:
                     prompt_blocks[item["prompt_block"]["block_id"]] = item["prompt_block"]
@@ -3339,8 +3350,12 @@ class LatticeStore:
                             raise LatticeConflict("batch context changed before atomic sealing")
                     for parent in manifest["ancestry"]:
                         current_parent = conn.execute("SELECT project_id,manifest_sha256,output_block_id FROM invocations WHERE invocation_id=?", (parent["invocation_id"],)).fetchone()
-                        if current_parent is None or current_parent["project_id"] != draft["project_id"] or current_parent["manifest_sha256"] != parent["manifest_sha256"] or current_parent["output_block_id"] is None:
+                        if current_parent is None or current_parent["project_id"] != draft["project_id"] or current_parent["manifest_sha256"] != parent["manifest_sha256"] :
                             raise LatticeConflict("batch ancestry changed before atomic sealing")
+                        if current_parent["output_block_id"] is None:
+                            from .native_recovery import eligibility
+                            if draft['route'].get('native_parent_invocation_id') != parent['invocation_id'] or not eligibility(self,self.get_invocation(parent['invocation_id']))['eligible']:
+                                raise LatticeConflict("batch ancestry lacks a qualified native recovery boundary")
                     conn.execute(
                         """INSERT INTO drafts(draft_id,project_id,actor_kind,role_session_id,prompt_block_id,route_json,selections_json,parents_json,relation,context_mode,response_schema_json,revision,state,invocation_id,created_at,updated_at)
                            VALUES(?,?,?,?,?,?,?,?,?,?,?,1,'sealed',?,?,?)""",
@@ -3375,6 +3390,11 @@ class LatticeStore:
                         "INSERT INTO invocation_batch_members(batch_id,ordinal,spec_id,assembly_sha256,invocation_id) VALUES(?,?,?,?,?)",
                         (batch_id, ordinal, item["spec_id"], item["assembly_sha256"], item["manifest"]["invocation_id"]),
                     )
+                if conversation_binding is not None:
+                    if len(prepared) != 1:
+                        raise LatticeConflict("a conversation execution binds exactly one invocation")
+                    from .conversations import bind_in_transaction
+                    bind_in_transaction(self, conn, invocation_id=prepared[0]["manifest"]["invocation_id"], **conversation_binding)
                 self._event(conn, project_id=receipt["project_id"], event_type="invocation-batch.sealed", subject_type="invocation-batch", subject_id=batch_id, payload={"receipt_sha256": receipt["receipt_sha256"], "invocation_ids": receipt["invocation_ids"]})
                 existing_id = batch_id
         return self.get_invocation_batch(existing_id)
@@ -3713,8 +3733,13 @@ class LatticeStore:
             if native_session_id is not None:
                 expected_head = route.get("native_parent_invocation_id")
                 session_state = self._native_session_state(conn, route["provider"], native_session_id)
-                if session_state is not None and session_state["state"] != AttemptState.succeeded.value:
-                    raise LatticeConflict("provider-native session is tainted by a non-successful attempt; execute with portable ancestry")
+                from .native_recovery import eligibility
+                parent = self.get_invocation(expected_head)
+                if session_state is not None and session_state["state"] != AttemptState.succeeded.value and conversation_round is None:
+                    raise LatticeConflict("interrupted native recovery requires a conversation with inspected effect dispositions")
+                if conversation_round is not None or (session_state is not None and session_state["state"] != AttemptState.succeeded.value):
+                    if not eligibility(self,parent)['eligible']:
+                        raise LatticeConflict("provider-native session lacks a qualified unchanged recovery boundary; execute with portable ancestry")
                 if session_state is not None and session_state["invocation_id"] != expected_head:
                     raise LatticeConflict("provider-native session advanced after this invocation was sealed; execute with portable ancestry or reseal from its latest head")
                 native_owner = conn.execute(

@@ -110,6 +110,9 @@ def _referenced_blobs(connection: sqlite3.Connection, blobs: Path) -> set[str]:
         ("run_attempts", "executor_binding_json"),
         ("run_units", "declaration_json"),
         ("events", "payload_json"),
+        ("conversation_rounds", "request_json"),
+        ("conversation_executions", "recovery_json"),
+        ("conversation_checkpoints", "content_json"),
     ):
         if table not in present_tables:
             continue

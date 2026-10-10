@@ -27,6 +27,7 @@ def replay(conn, scope: str, key: str, request: dict) -> dict | None:
 
 
 def receipt(conn, scope: str, key: str, request: dict, result: dict) -> dict:
+    result = {**result, 'event_cursor':conn.execute('SELECT COALESCE(MAX(seq),0) FROM events').fetchone()[0]}
     conn.execute('INSERT INTO conversation_mutations VALUES(?,?,?,?,?)',
                  (scope, key, sha256_bytes(canonical_bytes(request)), encode(result), stamp()))
     return result
@@ -78,6 +79,8 @@ class ConversationStore:
             if value.anchor_type:
                 anchor = {'type': value.anchor_type, 'id': value.anchor_id,
                           'revision': self.store._object_revision(conn, value.project_id, value.anchor_type, value.anchor_id)}
+            if value.parent_conversation_id and anchor is None:
+                anchor = {'type':'conversation','id':value.parent_conversation_id,'revision':parent['revision']}
             identity = opaque_id('conversation')
             conn.execute('INSERT INTO conversations VALUES(?,?,?,?,?,?,1,?,?,?)',
                          (identity, value.project_id, value.title, value.owning_task_ref, value.parent_conversation_id,
@@ -100,16 +103,37 @@ class ConversationStore:
                 r['executions'] = [dict(e) for e in conn.execute('SELECT * FROM conversation_executions WHERE round_id=? ORDER BY ordinal', (r['round_id'],))]
                 for e in r['executions']:
                     e['recovery'] = json.loads(e.pop('recovery_json'))
+                    e['attempts'] = [dict(a) for a in conn.execute('SELECT attempt_id,state,failure_kind,error_text FROM attempts WHERE invocation_id=? ORDER BY attempt_number',(e['invocation_id'],))]
                 if r['accepted_response_id']:
                     block = conn.execute('SELECT content_sha256 FROM context_blocks WHERE block_id=?', (r['accepted_response_id'],)).fetchone()
                     r['response_sha256'] = block[0]
+                    r['response'] = self.store.blobs.get(block[0]).decode('utf-8')
             live = pending(conn, conversation_id)
             value['pending_round_id'] = live['round_id'] if live else None
+            value['pending'] = {key:live[key] for key in ('round_id','ordinal','state')} if live else None
+            if live:
+                value['pending']['attempt_ids'] = [r[0] for r in conn.execute('SELECT a.attempt_id FROM attempts a JOIN conversation_executions e USING(invocation_id) WHERE e.round_id=?', (live['round_id'],))]
             value['steering'] = [dict(r) for r in conn.execute("SELECT * FROM conversation_steering WHERE conversation_id=? AND state='queued' ORDER BY ordinal", (conversation_id,))]
             last = conn.execute('SELECT c.* FROM conversation_checkpoints c JOIN conversation_rounds r USING(round_id) WHERE r.conversation_id=? ORDER BY r.ordinal DESC LIMIT 1', (conversation_id,)).fetchone()
             value['checkpoint'] = dict(last) if last else None
+            if value['checkpoint']:
+                value['checkpoint']['content'] = json.loads(value['checkpoint'].pop('content_json'))
             value['event_cursor'] = conn.execute('SELECT COALESCE(MAX(seq),0) FROM events').fetchone()[0]
             return value
+
+    def observations(self, conversation_id: str, *, after: int = 0, limit: int = 100) -> dict:
+        if after < 0 or not 1 <= limit <= 500:
+            raise LatticeConflict('invalid observation pagination')
+        with self.store._connect() as conn:
+            current(self.store,conn,conversation_id)
+            events = [dict(row) for row in conn.execute("""SELECT e.seq,e.event_type,e.subject_id,e.payload_json FROM events e
+                WHERE e.seq>? AND (e.subject_id=? OR e.subject_id IN (
+                    SELECT a.attempt_id FROM attempts a JOIN conversation_executions x USING(invocation_id)
+                    JOIN conversation_rounds r USING(round_id) WHERE r.conversation_id=?))
+                ORDER BY e.seq LIMIT ?""", (after,conversation_id,conversation_id,limit+1))]
+        for event in events:
+            event['payload']=json.loads(event.pop('payload_json'))
+        return {'items':events[:limit],'has_more':len(events)>limit,'cursor':events[min(len(events),limit)-1]['seq'] if events else after}
 
     def list(self, project_id: str, owning_task_ref: str | None = None, *, after: str = '', limit: int = 100) -> list[dict]:
         if not 1 <= limit <= 500:
@@ -147,30 +171,27 @@ class ConversationStore:
             identity = opaque_id('steering')
             ordinal = conn.execute('SELECT COALESCE(MAX(ordinal),0)+1 FROM conversation_steering WHERE conversation_id=?', (conversation_id,)).fetchone()[0]
             conn.execute("INSERT INTO conversation_steering VALUES(?,?,?,?,?,'queued',NULL,?)", (identity, conversation_id, target['round_id'], ordinal, value.content, stamp()))
+            attempt_id = interrupt_target(self.store, conn, target) if value.interrupt else None
             bump(self.store, conn, conversation, 'steering-queued', {'steering_id':identity,'round_id':target['round_id'],'interrupt':value.interrupt})
-            return receipt(conn, conversation_id, value.idempotency_key, request, {'conversation_id':conversation_id,'round_id':target['round_id'],'steering_id':identity,'revision':conversation['revision']+1,'state':'queued'})
+            return receipt(conn, conversation_id, value.idempotency_key, request, {'conversation_id':conversation_id,'round_id':target['round_id'],'steering_id':identity,'revision':conversation['revision']+1,'state':'queued','attempt_id':attempt_id})
 
     def bind_execution(self, round_id: str, invocation_id: str, recovery: dict) -> dict:
         with self.store.transaction() as conn:
-            r = self.store._row(conn.execute('SELECT * FROM conversation_rounds WHERE round_id=?', (round_id,)).fetchone(), round_id)
-            conversation = current(self.store, conn, r['conversation_id'])
-            previous = conn.execute('SELECT * FROM conversation_executions WHERE invocation_id=?', (invocation_id,)).fetchone()
-            if previous:
-                if previous['round_id'] != round_id or previous['recovery_json'] != encode(recovery):
-                    raise LatticeConflict('invocation already bound to a different round or recovery')
-                return dict(previous)
-            if r['state'] != 'queued':
-                raise LatticeConflict('round must be admitted before binding an execution')
-            inv = self.store._row(conn.execute('SELECT project_id,state FROM invocations WHERE invocation_id=?', (invocation_id,)).fetchone(), invocation_id)
-            if inv['project_id'] != conversation['project_id'] or inv['state'] != 'sealed':
-                raise LatticeConflict('conversation execution requires a sealed project-local invocation')
-            identity = opaque_id('conversation_execution')
-            ordinal = conn.execute('SELECT COALESCE(MAX(ordinal),0)+1 FROM conversation_executions WHERE round_id=?', (round_id,)).fetchone()[0]
-            conn.execute('INSERT INTO conversation_executions VALUES(?,?,?,?,?,?)', (identity, round_id, ordinal, invocation_id, encode(recovery), stamp()))
-            conn.execute("UPDATE conversation_rounds SET state='active' WHERE round_id=?", (round_id,))
-            conn.execute("UPDATE conversation_steering SET state='dispatched' WHERE resulting_round_id=? AND state='queued'", (round_id,))
-            bump(self.store, conn, conversation, 'execution-bound', {'round_id':round_id,'invocation_id':invocation_id})
-            return {'execution_id':identity,'round_id':round_id,'invocation_id':invocation_id}
+            return bind_in_transaction(self.store, conn, round_id=round_id, invocation_id=invocation_id, recovery=recovery)
+
+    def interrupt(self, conversation_id: str, value: ConversationMutation) -> dict:
+        request = {'action':'interrupt', **value.model_dump(mode='json')}
+        with self.store.transaction() as conn:
+            old = replay(conn,conversation_id,value.idempotency_key,request)
+            if old is not None:
+                return old
+            conversation=current(self.store,conn,conversation_id,value.expected_revision)
+            r=pending(conn,conversation_id)
+            if r is None:
+                raise LatticeConflict('no unfinished request to interrupt')
+            target=interrupt_target(self.store,conn,r)
+            bump(self.store,conn,conversation,'interrupt-requested',{'round_id':r['round_id'],'attempt_id':target})
+            return receipt(conn,conversation_id,value.idempotency_key,request,{'conversation_id':conversation_id,'round_id':r['round_id'],'attempt_id':target,'revision':conversation['revision']+1})
 
     def withdraw(self, conversation_id: str, value: ConversationMutation) -> dict:
         request = {'action': 'withdraw', **value.model_dump(mode='json')}
@@ -215,6 +236,54 @@ class ConversationStore:
             return receipt(conn, conversation_id, value.idempotency_key, request, {'conversation_id':conversation_id,'round_ids':round_ids,'revision':conversation['revision']})
 
 
+def interrupt_target(store,conn,r):
+    if r['state']=='needs_attention':
+        return None
+    execution=conn.execute('SELECT invocation_id FROM conversation_executions WHERE round_id=? ORDER BY ordinal DESC LIMIT 1',(r['round_id'],)).fetchone()
+    attempt=conn.execute("SELECT attempt_id FROM attempts WHERE invocation_id=? AND state IN ('leased','running') ORDER BY rowid DESC LIMIT 1",(execution['invocation_id'],)).fetchone() if execution else None
+    if attempt:
+        return attempt['attempt_id']
+    # Admission can be interrupted before any provider process exists. The state
+    # change prevents startup dispatch from spending the request after the stop.
+    conn.execute("UPDATE conversation_rounds SET state='needs_attention' WHERE round_id=?",(r['round_id'],))
+    if execution:
+        conn.execute("UPDATE invocations SET state='interrupted',terminal_kind='operator_interruption',completed_at=? WHERE invocation_id=? AND state='sealed'",(stamp(),execution['invocation_id']))
+    return None
+
+
+def bind_in_transaction(store, conn, *, round_id: str, invocation_id: str, recovery: dict, expected_revision: int | None = None, mutation: dict | None = None):
+    r = store._row(conn.execute('SELECT * FROM conversation_rounds WHERE round_id=?', (round_id,)).fetchone(), round_id)
+    conversation = current(store, conn, r['conversation_id'])
+    previous = conn.execute('SELECT * FROM conversation_executions WHERE invocation_id=?', (invocation_id,)).fetchone()
+    if previous:
+        if previous['round_id'] != round_id or previous['recovery_json'] != encode(recovery):
+            raise LatticeConflict('invocation already bound to a different round or recovery')
+        return dict(previous)
+    if expected_revision is not None and conversation['revision'] != expected_revision:
+        raise LatticeConflict('conversation revision changed before execution admission')
+    allowed = ('queued', 'needs_attention') if recovery.get('continuing') else ('queued',)
+    if r['state'] not in allowed:
+        raise LatticeConflict('round must be admitted before binding an execution')
+    inv = store._row(conn.execute('SELECT project_id,state FROM invocations WHERE invocation_id=?', (invocation_id,)).fetchone(), invocation_id)
+    if inv['project_id'] != conversation['project_id'] or inv['state'] != 'sealed':
+        raise LatticeConflict('conversation execution requires a sealed project-local invocation')
+    identity = opaque_id('conversation_execution')
+    ordinal = conn.execute('SELECT COALESCE(MAX(ordinal),0)+1 FROM conversation_executions WHERE round_id=?', (round_id,)).fetchone()[0]
+    conn.execute('INSERT INTO conversation_executions VALUES(?,?,?,?,?,?)', (identity, round_id, ordinal, invocation_id, encode(recovery), stamp()))
+    conn.execute("UPDATE conversation_rounds SET state='active' WHERE round_id=?", (round_id,))
+    conn.execute("UPDATE conversation_steering SET state='dispatched' WHERE resulting_round_id=? AND state='queued'", (round_id,))
+    for instruction in recovery.get('steering', []):
+        changed = conn.execute("UPDATE conversation_steering SET state='dispatched',resulting_round_id=? WHERE steering_id=? AND conversation_id=? AND state='queued' AND resulting_round_id IS NULL", (round_id,instruction['steering_id'],r['conversation_id'])).rowcount
+        if changed != 1:
+            raise LatticeConflict('selected steering changed before execution admission')
+    bump(store, conn, conversation, 'execution-bound', {'round_id':round_id,'invocation_id':invocation_id})
+    result = {'execution_id':identity,'conversation_id':r['conversation_id'],'round_id':round_id,'invocation_id':invocation_id,'revision':conversation['revision']+1,'event_cursor':conn.execute('SELECT COALESCE(MAX(seq),0) FROM events').fetchone()[0]}
+    if mutation is not None:
+        receipt(conn, r['conversation_id'], mutation['idempotency_key'], mutation, result)
+    return result
+
+
+
 def finish_in_transaction(store, conn, invocation_id: str, *, response_id: str | None):
     """Called inside invocation terminalization, never as a later best-effort save."""
     r = conn.execute('SELECT r.* FROM conversation_rounds r JOIN conversation_executions e USING(round_id) WHERE e.invocation_id=?', (invocation_id,)).fetchone()
@@ -231,7 +300,8 @@ def finish_in_transaction(store, conn, invocation_id: str, *, response_id: str |
     response = conn.execute('SELECT content_sha256 FROM context_blocks WHERE block_id=?', (response_id,)).fetchone()
     previous = conn.execute('SELECT c.checkpoint_id,c.content_sha256 FROM conversation_checkpoints c JOIN conversation_rounds r USING(round_id) WHERE r.conversation_id=? ORDER BY r.ordinal DESC LIMIT 1', (r['conversation_id'],)).fetchone()
     artifacts = [dict(a) for a in conn.execute("SELECT artifact_id,content_sha256 FROM artifacts WHERE json_extract(generated_json,'$.producing_invocation_id')=? ORDER BY artifact_id", (invocation_id,))]
-    content = {'conversation_id':r['conversation_id'],'round_id':r['round_id'],'ordinal':r['ordinal'],'request_sha256':r['request_sha256'],'invocation_id':invocation_id,'manifest_sha256':inv['manifest_sha256'],'route':json.loads(inv['route_json']),'response_id':response_id,'response_sha256':response[0],'artifacts':artifacts,'previous':dict(previous) if previous else None,'event_cursor':conn.execute('SELECT COALESCE(MAX(seq),0) FROM events').fetchone()[0]}
+    attempt = conn.execute('SELECT attempt_id,runtime_receipt_json FROM attempts WHERE invocation_id=? ORDER BY rowid DESC LIMIT 1', (invocation_id,)).fetchone()
+    content = {'conversation_id':r['conversation_id'],'round_id':r['round_id'],'ordinal':r['ordinal'],'request_sha256':r['request_sha256'],'invocation_id':invocation_id,'manifest_sha256':inv['manifest_sha256'],'route':json.loads(inv['route_json']),'response_id':response_id,'response_sha256':response[0],'artifacts':artifacts,'attempt_id':attempt['attempt_id'] if attempt else None,'provider_receipt':json.loads(attempt['runtime_receipt_json'] or 'null') if attempt else None,'previous':dict(previous) if previous else None,'event_cursor':conn.execute('SELECT COALESCE(MAX(seq),0) FROM events').fetchone()[0]}
     identity = opaque_id('checkpoint')
     conn.execute('INSERT INTO conversation_checkpoints VALUES(?,?,?,?,?)', (identity,r['round_id'],encode(content),sha256_bytes(canonical_bytes(content)),stamp()))
     conn.execute("UPDATE conversation_rounds SET state='completed',accepted_response_id=?,checkpoint_id=? WHERE round_id=?", (response_id,identity,r['round_id']))

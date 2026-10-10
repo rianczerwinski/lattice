@@ -80,6 +80,9 @@ class ExecutionSupervisor:
         self.boot_id = f"boot_{uuid.uuid4().hex}"
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._cancellations: dict[str, threading.Event] = {}
+        self._conversation_dispatch_tasks: set[asyncio.Task] = set()
+        self._conversation_dispatch_lock = asyncio.Lock()
+        self._stopping = False
         self.startup_recovery_failures: list[dict[str, str]] = []
 
     async def start(self) -> int:
@@ -98,26 +101,60 @@ class ExecutionSupervisor:
             except Exception as error:
                 failure = {"batch_id": member["batch_id"], "spec_id": member["spec_id"], "invocation_id": member["invocation_id"], "error": f"{type(error).__name__}: {error}"}
                 self.startup_recovery_failures.append(failure)
+                from .conversation_service import ConversationService
+                ConversationService(self.store).dispatch_failed(member['invocation_id'],error)
                 try:
                     await asyncio.to_thread(self.store.record_event, project_id=member["project_id"], event_type="invocation-batch.recovery-failed", subject_type="invocation", subject_id=member["invocation_id"], payload=failure)
                 except Exception as receipt_error:
                     failure["receipt_error"] = f"{type(receipt_error).__name__}: {receipt_error}"
+        await self._dispatch_queued_conversations()
         return attempts + commands + dispatched
+
+    def kick_conversations(self) -> None:
+        if self._stopping:
+            return
+        task = asyncio.create_task(self._dispatch_queued_conversations(), name='lattice-conversation-admission')
+        self._conversation_dispatch_tasks.add(task)
+        task.add_done_callback(self._conversation_dispatch_tasks.discard)
+
+    async def _dispatch_queued_conversations(self) -> None:
+        from .conversation_service import ConversationService
+        from .conversations import current, bump
+        async with self._conversation_dispatch_lock:
+            with self.store._connect() as conn:
+                queued = [dict(row) for row in conn.execute("SELECT conversation_id,round_id FROM conversation_rounds WHERE state='queued' ORDER BY created_at,ordinal")]
+            for row in queued:
+                if self._stopping:
+                    return
+                try:
+                    await ConversationService(self.store,self).dispatch(row['conversation_id'])
+                except Exception as error:
+                    with self.store.transaction() as conn:
+                        changed = conn.execute("UPDATE conversation_rounds SET state='needs_attention' WHERE round_id=? AND state='queued'",(row['round_id'],)).rowcount
+                        if changed:
+                            conversation=current(self.store,conn,row['conversation_id'])
+                            bump(self.store,conn,conversation,'dispatch-blocked',{'round_id':row['round_id'],'detail':f'{type(error).__name__}: {error}'})
+                        else:
+                            conversation=current(self.store,conn,row['conversation_id'])
+                            self.store._event(conn,project_id=conversation['project_id'],event_type='conversation.dispatch-failed',subject_type='conversation',subject_id=row['conversation_id'],payload={'round_id':row['round_id'],'detail':f'{type(error).__name__}: {error}'})
 
     def _reconcile_observations(self) -> None:
         with self.store._connect() as conn:
             rows = [dict(row) for row in conn.execute("SELECT e.subject_id,e.payload_json FROM events e JOIN attempts a ON a.attempt_id=e.subject_id WHERE e.event_type='attempt.journal' AND a.state IN ('leased','running')")]
         for row in rows:
             payload = json.loads(row["payload_json"])
-            root = Path(payload["path"])
-            if not root.is_relative_to(self.store.config.runs):
-                raise LatticeConflict("attempt journal lies outside its admitted runtime root")
+            root = self.store.config.runs / Path(payload['path']).name
+            # Preserve the historical absolute reference; snapshots retain the
+            # same journal identity under the restored runtime root.
             request = self.store.blobs.get(payload["request_ref"].removeprefix("lattice:blob/"))
             if (root / "request.json").read_bytes() != request:
                 raise LatticeConflict("attempt journal request binding changed")
             ObservationStore(self.store).reconcile_journal(row["subject_id"], root)
 
     async def stop(self) -> None:
+        self._stopping = True
+        if self._conversation_dispatch_tasks:
+            await asyncio.gather(*list(self._conversation_dispatch_tasks),return_exceptions=True)
         owned = list(self._cancellations.items())
         errors = []
         try:
@@ -168,6 +205,7 @@ class ExecutionSupervisor:
     def _complete_task(self, attempt_id: str) -> None:
         self._tasks.pop(attempt_id, None)
         self._cancellations.pop(attempt_id, None)
+        self.kick_conversations()
 
     async def cancel(self, attempt_id: str) -> dict[str, Any]:
         cancel = self._cancellations.get(attempt_id)
@@ -195,11 +233,17 @@ class ExecutionSupervisor:
         project_id = invocation["project_id"]
         journal: Path | None = None
 
+        def bound_runtime_receipt(path: Path) -> dict[str, Any]:
+            receipt = _runtime_receipt(path, self.store.blobs)
+            from .native_recovery import capture_boundary
+            receipt['conversation_native_boundary'] = capture_boundary(self.store, invocation, receipt)
+            return receipt
+
         def recover_runtime_receipt(path: Path | None) -> dict[str, Any] | None:
             if path is None or not (path / "request.json").is_file():
                 return None
             try:
-                return _runtime_receipt(path, self.store.blobs)
+                return bound_runtime_receipt(path)
             except BaseException as receipt_error:
                 return {"kind": "lattice-runtime-receipt-failure", "error": f"{type(receipt_error).__name__}: {receipt_error}"}
 
@@ -262,7 +306,7 @@ class ExecutionSupervisor:
                     raise SubscriptionInvocationFailed("malformed_output", f"provider response lacked contracted {output_contract.mode} content", journal=journal)
                 extension = "md" if output_contract.mode == "markdown" else "txt"
                 artifacts = [{"name": f"result.{extension}", "media_type": output_contract.media_type or "text/plain", "content": response}]
-            self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal), runtime_receipt=_runtime_receipt(journal, self.store.blobs))
+            self.store.finish_successful_attempt(attempt_id, response=response, artifacts=artifacts, journal_path=str(journal), runtime_receipt=bound_runtime_receipt(journal))
         except SubscriptionInvocationFailed as error:
             terminal = AttemptState.interrupted if error.kind == "operator_interruption" else AttemptState.failed
             receipt = recover_runtime_receipt(error.journal)

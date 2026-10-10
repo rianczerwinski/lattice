@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="4.312" timestamp="2026-10-10T04:24:53.780535-06:00" hostname="Mac.lan"><testcase classname="tests.test_conversation_crash_boundaries" name="test_process_death_preserves_atomic_boundaries[after_commit-observe]" time="4.204"><failure message="assert 0 == 1&#10; +  where 0 = len([])&#10; +  and   1 = int(True)">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...fbbe23e9474241', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+operation = 'observe', boundary = 'after_commit'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('operation', ['send','seal','complete','observe'])
+    @pytest.mark.parametrize('boundary', ['before_commit','after_commit'])
+    def test_process_death_preserves_atomic_boundaries(lattice_env, operation, boundary):
+        env = lattice_env
+        conversations, identity = create(env)
+        attempt_id = None
+        if operation != 'send':
+            admit(env, conversations, identity, 1)
+        if operation in ('complete','observe'):
+            attempt_id = attempt(env, ConversationService(env['store']).seal(identity))['attempt_id']
+        process = multiprocessing.get_context('spawn').Process(target=killed_unit, args=(env['config'],identity,operation,boundary,attempt_id))
+        process.start()
+        process.join(20)
+        if process.is_alive():
+            process.kill()
+            process.join()
+            pytest.fail('boundary worker did not reach its named persistence boundary')
+        assert process.exitcode == -signal.SIGKILL
+        committed = boundary == 'after_commit'
+        # Read base tables and blobs, without asking the implementation to calculate
+        # the expected history or interpret whether its transaction succeeded.
+        with env['store']._connect() as conn:
+            if operation == 'send':
+                rows = conn.execute('SELECT request_json FROM conversation_rounds').fetchall()
+                assert len(rows) == int(committed)
+                if committed:
+                    assert json.loads(rows[0][0])['prompt'] == 'durable pending request'
+            elif operation == 'seal':
+                for table in ('invocations','invocation_batches','conversation_executions'):
+                    assert conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] == int(committed)
+                assert conn.execute('SELECT state FROM conversation_rounds').fetchone()[0] == ('active' if committed else 'queued')
+            elif operation == 'complete':
+                row = conn.execute('SELECT state,accepted_response_id,checkpoint_id FROM conversation_rounds').fetchone()
+                assert row[0] == ('completed' if committed else 'active')
+                assert bool(row[1]) == bool(row[2]) == committed
+                assert conn.execute('SELECT COUNT(*) FROM conversation_checkpoints').fetchone()[0] == int(committed)
+                if committed:
+                    digest = conn.execute('SELECT content_sha256 FROM context_blocks WHERE block_id=?',(row[1],)).fetchone()[0]
+                    assert env['store'].blobs.get(digest) == b'accepted before lost acknowledgement'
+            else:
+                rows = conn.execute("SELECT payload_json FROM events WHERE event_type='attempt.chunk'").fetchall()
+&gt;               assert len(rows) == int(committed)
+E               assert 0 == 1
+E                +  where 0 = len([])
+E                +  and   1 = int(True)
+
+../../tests/test_conversation_crash_boundaries.py:89: AssertionError</failure></testcase></testsuite></testsuites>

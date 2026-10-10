@@ -78,6 +78,16 @@ CREATE TRIGGER IF NOT EXISTS conversation_mutation_immutable BEFORE UPDATE ON co
 BEGIN SELECT RAISE(ABORT,'conversation mutation receipts are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS conversation_mutation_retained BEFORE DELETE ON conversation_mutations
 BEGIN SELECT RAISE(ABORT,'conversation mutation receipts are retained'); END;
+CREATE TRIGGER IF NOT EXISTS conversation_execution_immutable BEFORE UPDATE ON conversation_executions
+BEGIN SELECT RAISE(ABORT,'conversation executions are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS conversation_execution_retained BEFORE DELETE ON conversation_executions
+BEGIN SELECT RAISE(ABORT,'conversation executions are retained'); END;
+CREATE TRIGGER IF NOT EXISTS conversation_completion_bound BEFORE UPDATE ON conversation_rounds
+WHEN NEW.state='completed' AND (NEW.accepted_response_id IS NULL OR NEW.checkpoint_id IS NULL
+ OR NOT EXISTS (SELECT 1 FROM conversation_checkpoints c WHERE c.checkpoint_id=NEW.checkpoint_id AND c.round_id=NEW.round_id
+   AND json_extract(c.content_json,'$.response_id')=NEW.accepted_response_id
+   AND json_extract(c.content_json,'$.request_sha256')=NEW.request_sha256))
+BEGIN SELECT RAISE(ABORT,'conversation completion requires its matching checkpoint and response'); END;
 CREATE TRIGGER IF NOT EXISTS conversation_request_immutable BEFORE UPDATE ON conversation_rounds
 WHEN NEW.round_id<>OLD.round_id OR NEW.conversation_id<>OLD.conversation_id OR NEW.ordinal<>OLD.ordinal
  OR NEW.request_json<>OLD.request_json OR NEW.request_sha256<>OLD.request_sha256 OR NEW.admission_revision<>OLD.admission_revision

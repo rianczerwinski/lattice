@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="35" time="78.132" timestamp="2026-10-10T03:52:22.347491-06:00" hostname="Mac.lan"><testcase classname="tests.test_conversation_recovery" name="test_preview_is_read_only_and_sealing_binds_history_atomically" time="2.142" /><testcase classname="tests.test_conversation_recovery" name="test_recovery_keeps_full_exposed_stream_and_rejects_stale_preview" time="5.610" /><testcase classname="tests.test_conversation_recovery" name="test_unknown_mutating_effect_blocks_both_modes" time="1.798" /><testcase classname="tests.test_conversation_recovery" name="test_seal_rolls_back_batch_if_round_changed" time="1.581" /><testcase classname="tests.test_conversation_recovery" name="test_twenty_rounds_replace_operator_without_redispatching_completed_work" time="7.901" /><testcase classname="tests.test_invocation_batches" name="test_stateless_fanout_preview_shares_semantic_context_without_persistence" time="1.578" /><testcase classname="tests.test_invocation_batches" name="test_negative_control_fanout_rejects_route_specific_semantic_context" time="1.696" /><testcase classname="tests.test_invocation_batches" name="test_fanout_semantic_guard_rejects_changed_selection_despite_same_assembly" time="1.975" /><testcase classname="tests.test_invocation_batches" name="test_atomic_batch_sealing_and_duplicate_submission_are_idempotent" time="1.665" /><testcase classname="tests.test_invocation_batches" name="test_invocation_activity_keeps_active_work_visible_beyond_the_recent_limit" time="2.138" /><testcase classname="tests.test_invocation_batches" name="test_invocation_activity_distinguishes_unresolved_dispatch_from_a_real_retry" time="1.826" /><testcase classname="tests.test_invocation_batches" name="test_invocation_activity_replay_cursor_reconstructs_the_complete_attempt_journal" time="1.863" /><testcase classname="tests.test_invocation_batches" name="test_stale_preview_creates_no_partial_batch_objects" time="1.579" /><testcase classname="tests.test_invocation_batches" name="test_preview_is_the_exact_context_that_seals_when_defaults_change" time="1.559"><failure message="TypeError: test_preview_is_the_exact_context_that_seals_when_defaults_change.&lt;locals&gt;.mutate_after_preview() got an unexpected keyword argument 'context_blocks'">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...cc468a872399c3', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11dbb8950&gt;
+
+    @pytest.mark.concurrency
+    def test_preview_is_the_exact_context_that_seals_when_defaults_change(lattice_env, monkeypatch) -&gt; None:
+        request = _preview_request(lattice_env)
+        preview = lattice_env["lattice"].preview_invocation_batch(request)
+        late = lattice_env["store"].create_context_block(ContextBlockCreate(
+            project_id=lattice_env["project"]["project_id"], semantic_type="evidence", content="MUST NOT ENTER THE REVIEWED PREFLIGHT"
+        ))
+        original = lattice_env["lattice"].preview_invocation_batch
+    
+        def mutate_after_preview(value):
+            result = original(value)
+            lattice_env["store"].set_project_context_default(lattice_env["project"]["project_id"], late["block_id"], module_id="late.default", mode="project_default")
+            return result
+    
+        monkeypatch.setattr(lattice_env["lattice"], "preview_invocation_batch", mutate_after_preview)
+&gt;       receipt = lattice_env["lattice"].create_invocation_batch(InvocationBatchCreateV1(
+            **request.model_dump(mode="json"), idempotency_key="batch-preview-exact-under-default-race",
+            expected_preview_sha256=preview["preview_sha256"], confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
+        ))
+
+tests/test_invocation_batches.py:301: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;lattice.operations.Lattice object at 0x11ddb4870&gt;
+value = InvocationBatchCreateV1(batch_id='batch_b1756687bd6447ed975b8bb7816941ca', specifications=[InvocationSpecV1(spec_id='c...xpected_preview_sha256='820e1994ee53901f45d16f39838fc4b8e03d67e3cea31cc9fedd8afd9ab029ab', confirmed_reason_sha256s=[])
+context_blocks = None, conversation_binding = None
+
+    def create_invocation_batch(self, value: InvocationBatchCreateV1, *, context_blocks: list[ContextBlockCreate] | None = None, conversation_binding: dict | None = None) -&gt; dict[str, Any]:
+        request_material = value.model_dump(mode="json")
+        if context_blocks or conversation_binding:
+            request_material["bound_context"] = [item.model_dump(mode="json") for item in context_blocks or []]
+            request_material["conversation_binding"] = conversation_binding
+        create_request_sha = sha256_json({key: item for key, item in request_material.items() if key != "idempotency_key"})
+        existing = self.store.get_invocation_batch_by_idempotency(value.idempotency_key)
+        if existing is not None:
+            if existing["create_request_sha256"] != create_request_sha:
+                raise LatticeConflict("batch idempotency key was already used for different bytes")
+            return existing
+        preview_input = InvocationBatchPreviewV1(batch_id=value.batch_id, specifications=value.specifications)
+&gt;       preview = self.preview_invocation_batch(preview_input, context_blocks=context_blocks)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: test_preview_is_the_exact_context_that_seals_when_defaults_change.&lt;locals&gt;.mutate_after_preview() got an unexpected keyword argument 'context_blocks'
+
+lattice/operations.py:259: TypeError</failure></testcase><testcase classname="tests.test_invocation_batches" name="test_nonterminal_crossfeed_source_is_rejected_before_preview" time="1.695" /><testcase classname="tests.test_invocation_batches" name="test_exact_utf8_excerpt_is_independently_bound_and_source_remains_unchanged" time="1.919" /><testcase classname="tests.test_invocation_batches" name="test_excerpt_rejects_contradictory_caller_lineage" time="1.502" /><testcase classname="tests.test_invocation_batches" name="test_independent_reader_rejects_forged_excerpt_receipts[offset]" time="1.557" /><testcase classname="tests.test_invocation_batches" name="test_independent_reader_rejects_forged_excerpt_receipts[source-hash]" time="1.660" /><testcase classname="tests.test_invocation_batches" name="test_excerpt_rejects_split_utf8_and_cross_project_sources" time="1.500" /><testcase classname="tests.test_invocation_batches" name="test_project_default_is_direct_context_and_muting_is_draft_local" time="2.106" /><testcase classname="tests.test_invocation_batches" name="test_only_knowledge_plane_obeys_operator_selection_order" time="1.686" /><testcase classname="tests.test_invocation_batches" name="test_episodes_are_overlapping_live_slices_and_returned_work_is_new_history" time="1.982" /><testcase classname="tests.test_invocation_batches" name="test_artifact_episode_members_remain_live_references_without_binary_text_coercion" time="1.701" /><testcase classname="tests.test_invocation_batches" name="test_invocation_and_response_block_share_one_live_slate_slice_without_copying" time="2.063" /><testcase classname="tests.test_invocation_batches" name="test_invocation_navigation_resolves_overlapping_episodes_project_and_live_slate_topics" time="1.709" /><testcase classname="tests.test_invocation_batches" name="test_invocation_navigation_does_not_absorb_unrelated_project_topics" time="2.500" /><testcase classname="tests.test_recoverable_conversations" name="test_completed_rounds_survive_failed_eleventh_and_new_operator" time="5.118" /><testcase classname="tests.test_recoverable_conversations" name="test_idempotent_replay_precedes_revision_check_and_conflicting_heads_fail" time="1.554" /><testcase classname="tests.test_recoverable_conversations" name="test_success_response_and_checkpoint_rollback_together" time="1.684" /><testcase classname="tests.test_recoverable_conversations" name="test_steering_is_queued_and_survives_failure" time="3.132" /><testcase classname="tests.test_recoverable_conversations" name="test_success_combines_steering_without_changing_prior_request" time="1.911" /><testcase classname="tests.test_recoverable_conversations" name="test_completed_round_and_checkpoint_reject_rewrite" time="1.787" /><testcase classname="tests.test_recoverable_conversations" name="test_adoption_references_original_history_and_cannot_grant_native_state" time="1.717" /><testcase classname="tests.test_recoverable_conversations" name="test_schema15_additive_migration_preserves_existing_rows" time="2.636" /></testsuite></testsuites>

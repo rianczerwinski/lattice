@@ -12,6 +12,7 @@ from .compositor import ContextCompositor
 from .contracts import (
     ActorBindingV1,
     ContextSelection,
+    ContextBlockCreate,
     ContextAssemblyV1,
     DirectActorBinding,
     DraftCreate,
@@ -166,14 +167,26 @@ class Lattice:
             if existing != compiled_sha:
                 raise LatticeConflict("one shared context assembly selected different semantic context")
 
-    def preview_invocation_batch(self, value: InvocationBatchPreviewV1) -> dict[str, Any]:
+    @staticmethod
+    def prepared_context(value: ContextBlockCreate) -> dict[str, Any]:
+        """Content-bound virtual block; committed only with its consuming invocation."""
+        material = value.model_dump(mode="json")
+        digest = sha256_bytes(value.content.encode("utf-8"))
+        return {**material, "block_id":"block_"+sha256_json(material)[:32],
+                "content_sha256":digest,"byte_count":len(value.content.encode("utf-8")),
+                "initial_status":value.status.value,"status_revision":1,
+                "issuer_kind":"system","issuer_ref":"conversation-recovery", "created_at":None,
+                "transformation_json":canonical_bytes(value.transformation).decode() if value.transformation else None}
+
+    def preview_invocation_batch(self, value: InvocationBatchPreviewV1, *, context_blocks: list[ContextBlockCreate] | None = None) -> dict[str, Any]:
         """Compile a batch without persisting drafts, invocations, or events."""
 
+        supplemental = {block["block_id"]:block for block in (self.prepared_context(item) for item in context_blocks or [])}
         members: list[dict[str, Any]] = []
         all_reasons: dict[str, dict[str, Any]] = {}
         for spec in value.specifications:
             assembly = spec.assembly
-            resolved_route = self.store.validate_invocation_intent(assembly, spec.route, route_scope_refs=spec.route_scope_refs)
+            resolved_route = self.store.validate_invocation_intent(assembly, spec.route, route_scope_refs=spec.route_scope_refs, virtual_blocks=supplemental)
             assembly_sha = sha256_json(assembly.model_dump(mode="json"))
             prompt_block_id, prompt_block, _prompt_bytes = self._batch_prompt_block(assembly)
             draft_identity = sha256_bytes(canonical_bytes({"batch_id": value.batch_id, "spec_id": spec.spec_id}))
@@ -200,8 +213,8 @@ class Lattice:
                 "created_at": None,
                 "updated_at": None,
             }
-            preflight, compiled = self.compositor.compile(draft, preview=True, virtual_blocks={prompt_block_id: prompt_block})
-            contents = {item["block_id"]: _prompt_bytes if item["block_id"] == prompt_block_id else self.store.blobs.get(item["sha256"]) for item in preflight["segments"]}
+            preflight, compiled = self.compositor.compile(draft, preview=True, virtual_blocks={**supplemental, prompt_block_id: prompt_block})
+            contents = {item["block_id"]: _prompt_bytes if item["block_id"] == prompt_block_id else supplemental[item["block_id"]]["content"].encode("utf-8") if item["block_id"] in supplemental else self.store.blobs.get(item["sha256"]) for item in preflight["segments"]}
             verify_preview_rendering(preflight, compiled, contents)
             parents = [self.store.get_invocation(parent_id) for parent_id in assembly.parent_invocation_ids]
             reasons = self._confirmation_reasons(preflight, parents)
@@ -231,8 +244,11 @@ class Lattice:
         }
         return {**material, "preview_sha256": sha256_json(material)}
 
-    def create_invocation_batch(self, value: InvocationBatchCreateV1) -> dict[str, Any]:
+    def create_invocation_batch(self, value: InvocationBatchCreateV1, *, context_blocks: list[ContextBlockCreate] | None = None, conversation_binding: dict | None = None) -> dict[str, Any]:
         request_material = value.model_dump(mode="json")
+        if context_blocks or conversation_binding:
+            request_material["bound_context"] = [item.model_dump(mode="json") for item in context_blocks or []]
+            request_material["conversation_binding"] = conversation_binding
         create_request_sha = sha256_json({key: item for key, item in request_material.items() if key != "idempotency_key"})
         existing = self.store.get_invocation_batch_by_idempotency(value.idempotency_key)
         if existing is not None:
@@ -240,7 +256,7 @@ class Lattice:
                 raise LatticeConflict("batch idempotency key was already used for different bytes")
             return existing
         preview_input = InvocationBatchPreviewV1(batch_id=value.batch_id, specifications=value.specifications)
-        preview = self.preview_invocation_batch(preview_input)
+        preview = self.preview_invocation_batch(preview_input, **({"context_blocks":context_blocks} if context_blocks else {}))
         if preview["preview_sha256"] != value.expected_preview_sha256:
             raise LatticeConflict("batch preview changed; nothing was created")
         required = {item["reason_sha256"] for item in preview["confirmation_reasons"]}
@@ -250,6 +266,9 @@ class Lattice:
 
         now = stamp()
         prepared: list[dict[str, Any]] = []
+        supplemental = {block["block_id"]:block for block in (self.prepared_context(item) for item in context_blocks or [])}
+        for block in supplemental.values():
+            self.store.blobs.put(block["content"].encode("utf-8"))
         for spec, member in zip(value.specifications, preview["members"], strict=True):
             assembly = spec.assembly
             prompt_block_id, prompt_block, prompt_bytes = self._batch_prompt_block(assembly)
@@ -262,7 +281,7 @@ class Lattice:
                 self.store,
                 manifest,
                 draft_override=draft,
-                block_overrides={prompt_block_id: prompt_block},
+                block_overrides={**supplemental, prompt_block_id: prompt_block},
             )
             if reconstructed != compiled:
                 raise LatticeConflict("independent manifest reader disagrees with batch compositor")
@@ -307,6 +326,8 @@ class Lattice:
             create_request_sha256=create_request_sha,
             receipt=receipt,
             prepared=prepared,
+            context_blocks=context_blocks,
+            conversation_binding=conversation_binding,
         )
 
     @staticmethod

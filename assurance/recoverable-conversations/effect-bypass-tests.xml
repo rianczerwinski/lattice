@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="7.308" timestamp="2026-10-10T04:20:00.983125-06:00" hostname="Mac.lan"><testcase classname="tests.test_conversation_recovery" name="test_missing_observation_index_cannot_hide_uncertain_effect" time="3.881" /><testcase classname="tests.test_native_conversation_recovery" name="test_low_level_native_dispatch_cannot_bypass_conversation_effect_review" time="3.287"><failure message="lattice.store.LatticeConflict: parent invocation_29e77ad3c4f64a2707cab197eadb7bad has no consumable output">native = ({'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian..., {'type': 'user', 'sessionId': '11111111-1111-4111-8111-111111111111', 'uuid': 'head-one', 'isSidechain': False, ...})
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x107be5e00&gt;
+
+    @pytest.mark.regression
+    def test_low_level_native_dispatch_cannot_bypass_conversation_effect_review(native,monkeypatch):
+        from lattice.contracts import DraftCreate, DirectActorBinding
+        from lattice.store import LatticeConflict
+        env,service,identity,parent,path,row=native
+        monkeypatch.setattr('lattice.native_recovery.qualification',lambda *args:{'fixture':'independent synthetic gate'})
+        original=env['store'].get_invocation(parent)
+        route=ProviderRoute.model_validate({**original['route'],'execution_profile':'native-continuation','session_policy':'visible_native_continuation','continuation_mode':'resume','native_parent_invocation_id':parent,'native_session_id':row['sessionId']})
+        draft=env['store'].create_draft(DraftCreate(project_id=env['project']['project_id'],actor_binding=DirectActorBinding(),prompt='unsafe low-level retry',route=route,parent_invocation_ids=[parent]))
+&gt;       sealed=env['lattice'].seal(draft['draft_id'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_native_conversation_recovery.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+lattice/operations.py:413: in seal
+    manifest, compiled_prompt = self.compositor.compile(draft)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/compositor.py:119: in compile
+    implicit = self._implicit_selections(draft)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;lattice.compositor.ContextCompositor object at 0x107c74a50&gt;
+draft = {'draft_id': 'draft_2fd91a8058784367960b1c225e6b07a7', 'project_id': 'project_12b13d3210e748aebf359979278029b6', 'actor_kind': 'direct', 'role_session_id': None, ...}
+
+    def _implicit_selections(self, draft: dict[str, Any]) -&gt; list[ContextSelection]:
+        selections: list[ContextSelection] = []
+        actor_binding = draft["actor_binding"]
+        role_default_block_ids: set[str] = set()
+        if actor_binding["kind"] == "role-session":
+            session = self.store.get_role_session(actor_binding["role_session_id"])
+            role = self.store.get_role(session["role_id"])
+            selections.append(ContextSelection(block_id=role["instructions_block_id"], disposition=BlockDisposition.selected, plane="instruction", label=f"role:{role['name']}"))
+            for default in self.store.list_role_context_defaults(role["role_id"]):
+                role_default_block_ids.add(default["block_id"])
+                selections.append(ContextSelection(block_id=default["block_id"], disposition=BlockDisposition.selected, plane="state", label=f"module:{default['module_id']}"))
+        for default in self.store.list_project_context_defaults(draft["project_id"]):
+            if default["block_id"] not in role_default_block_ids:
+                selections.append(ContextSelection(block_id=default["block_id"], disposition=BlockDisposition.selected, plane="state", label=f"module:{default['module_id']}"))
+        for parent_id in draft["parents"]:
+            parent = self.store.get_invocation(parent_id)
+            if not parent.get("output_block_id"):
+&gt;               raise LatticeConflict(f"parent {parent_id} has no consumable output")
+E               lattice.store.LatticeConflict: parent invocation_29e77ad3c4f64a2707cab197eadb7bad has no consumable output
+
+lattice/compositor.py:65: LatticeConflict</failure></testcase></testsuite></testsuites>
