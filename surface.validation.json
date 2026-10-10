@@ -7,16 +7,16 @@
       "name": "surface-validation",
       "version": 2
     },
-    "artifact_id": "artifact:5eb3034d-eea4-405e-b5a6-113653c66355",
-    "generated_at": "20260920T193257",
+    "artifact_id": "artifact:4372fd44-f6a3-4dc1-8c09-26de2973342a",
+    "generated_at": "20261010T023059",
     "producer": {
       "name": "surface-validator",
       "version": "2.1.0"
     },
-    "subject": "artifact:de409e10-50d6-5eaf-973f-e0e044b4dc42",
+    "subject": "artifact:1d37e455-8e7a-4a4d-92ca-1a34f5321fd9",
     "binding": {
-      "artifact_id": "artifact:de409e10-50d6-5eaf-973f-e0e044b4dc42",
-      "sha256": "ee6f12ae29c4efa34e45d84ce2c061164bc03d3b0532c7bff01681f5c1c169ca"
+      "artifact_id": "artifact:1d37e455-8e7a-4a4d-92ca-1a34f5321fd9",
+      "sha256": "d9613d9299057d28675d71cb66715220723558379575d40850356b1b95cfe997"
     },
     "validator": {
       "name": "surface-validator",
@@ -27,14 +27,14 @@
   "receipt_schema_version": 2,
   "validator_version": "2.1.0",
   "surface_schema_version": 2,
-  "surface_id": "surface:de409e10-50d6-5eaf-973f-e0e044b4dc42",
+  "surface_id": "surface:1d37e455-8e7a-4a4d-92ca-1a34f5321fd9",
   "artifact_path": "/Users/rian/AXISVI/axis/chariots/lattice/SURFACE.json",
-  "artifact_sha256": "ee6f12ae29c4efa34e45d84ce2c061164bc03d3b0532c7bff01681f5c1c169ca",
-  "source_revision": "28974dac742eb01b1b1e5ec34432d6de86d2a70c",
+  "artifact_sha256": "d9613d9299057d28675d71cb66715220723558379575d40850356b1b95cfe997",
+  "source_revision": "df1796e79e7c9d91b69645e286c990494e14c2e0",
   "external_census_matched": true,
   "evidence_census_accounted": true,
   "valid": true,
-  "parent_surface_id": "surface:0c099a42-ad63-4258-8d6c-b3e9d5d1e922",
-  "parent_artifact_path": "/private/tmp/lattice-parent-SURFACE.json",
-  "parent_artifact_sha256": "478cd06957c39e5bf0b7c0e0aee102e1c6fe1ad0b4be29e1487cafaa7f5c0c03"
+  "parent_surface_id": "surface:de409e10-50d6-5eaf-973f-e0e044b4dc42",
+  "parent_artifact_path": "/Users/rian/AXISVI/axis/chariots/lattice/surface-history/20260920T193257.json",
+  "parent_artifact_sha256": "ee6f12ae29c4efa34e45d84ce2c061164bc03d3b0532c7bff01681f5c1c169ca"
 }
