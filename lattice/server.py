@@ -349,6 +349,8 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     app.state.store = store
     app.state.lattice = lattice
     app.state.supervisor = supervisor
+    from .conversation_api import conversation_router
+    app.include_router(conversation_router(store, supervisor))
     app.state.run_supervisor = run_supervisor
     app.state.workflows = workflows
     app.add_middleware(OperatorBoundaryMiddleware, cli_token=cli_token, sessions=sessions, port=config.port, public_url=config.public_url, frame_origins=config.frame_origins)

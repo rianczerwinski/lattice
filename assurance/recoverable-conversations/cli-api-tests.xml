@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="3.096" timestamp="2026-10-10T04:26:38.680073-06:00" hostname="Mac.lan"><testcase classname="tests.test_conversation_api" name="test_cli_and_python_client_use_the_authoritative_conversation_api" time="3.057" /></testsuite></testsuites>

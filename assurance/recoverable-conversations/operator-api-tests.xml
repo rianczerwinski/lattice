@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="7.930" timestamp="2026-10-10T04:05:06.397790-06:00" hostname="Mac.lan"><testcase classname="tests.test_conversation_api" name="test_conversation_api_requires_authentication" time="3.390"><failure message="AssertionError: assert 403 == 401&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code&#10; +    where &lt;Response [403 Forbidden]&gt; = get('/api/v1/conversations', params={'project_id': 'project_b0b9c740911647869454651c494cc912'})&#10; +      where get = &lt;starlette.testclient.TestClient object at 0x10bd38590&gt;.get">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...54651c494cc912', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.contract
+    def test_conversation_api_requires_authentication(lattice_env):
+        app=create_app(lattice_env['config'])
+        with TestClient(app,base_url='http://127.0.0.1:9010') as client:
+&gt;           assert client.get('/api/v1/conversations',params={'project_id':lattice_env['project']['project_id']}).status_code==401
+E           AssertionError: assert 403 == 401
+E            +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code
+E            +    where &lt;Response [403 Forbidden]&gt; = get('/api/v1/conversations', params={'project_id': 'project_b0b9c740911647869454651c494cc912'})
+E            +      where get = &lt;starlette.testclient.TestClient object at 0x10bd38590&gt;.get
+
+tests/test_conversation_api.py:16: AssertionError</failure></testcase><testcase classname="tests.test_conversation_api" name="test_replacement_operator_discovers_interrupts_and_continues" time="4.398" /></testsuite></testsuites>

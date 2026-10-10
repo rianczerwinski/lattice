@@ -35,6 +35,43 @@ class LatticeClient:
         host = f"127.0.0.1:{service.port}" if service is not None else urllib.parse.urlsplit(base_url).netloc
         return cls(base_url.rstrip("/"), ensure_cli_token(config.operator_token), host)
 
+    def conversation_create(self, request) -> dict:
+        payload=request.model_dump(mode="json") if hasattr(request,"model_dump") else request
+        return self._request("POST","/api/v1/conversations",payload)
+
+    def conversation_list(self, project_id: str, *, owning_task_ref: str | None = None, after: str = "", limit: int = 100):
+        query={"project_id":project_id,"after":after,"limit":limit}
+        if owning_task_ref is not None:
+            query["owning_task_ref"]=owning_task_ref
+        return self._request("GET","/api/v1/conversations?"+urllib.parse.urlencode(query))
+
+    def conversation_show(self, conversation_id: str, *, after: int = 0, limit: int = 100):
+        return self._request("GET",f"/api/v1/conversations/{urllib.parse.quote(conversation_id,safe='')}?"+urllib.parse.urlencode({"after":after,"limit":limit}))
+
+    def conversation_mutate(self, conversation_id: str, action: str, request):
+        if action not in {"send","steer","interrupt","continue","withdraw","adopt","recovery-preview"}:
+            raise ValueError("unknown conversation operation")
+        payload=request.model_dump(mode="json") if hasattr(request,"model_dump") else request
+        return self._request("POST",f"/api/v1/conversations/{urllib.parse.quote(conversation_id,safe='')}/{action}",payload)
+
+    def conversation_preview(self, conversation_id: str, **options):
+        return self.conversation_mutate(conversation_id,"recovery-preview",options)
+
+    def conversation_send(self, conversation_id: str, request):
+        return self.conversation_mutate(conversation_id,"send",request)
+
+    def conversation_steer(self, conversation_id: str, request):
+        return self.conversation_mutate(conversation_id,"steer",request)
+
+    def conversation_interrupt(self, conversation_id: str, request):
+        return self.conversation_mutate(conversation_id,"interrupt",request)
+
+    def conversation_continue(self, conversation_id: str, request):
+        return self.conversation_mutate(conversation_id,"continue",request)
+
+    def conversation_observations(self, conversation_id: str, *, after: int = 0, limit: int = 100):
+        return self._request("GET",f"/api/v1/conversations/{urllib.parse.quote(conversation_id,safe='')}/observations?"+urllib.parse.urlencode({"after":after,"limit":limit}))
+
     def _request(self, method: str, path: str, payload: dict[str, Any] | None = None, *, timeout: float = 35.0) -> Any:
         data = canonical_bytes(payload) if payload is not None else None
         request = urllib.request.Request(
