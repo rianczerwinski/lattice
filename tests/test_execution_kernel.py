@@ -621,7 +621,7 @@ def test_oracle_workspace_journal_records_effective_not_baseline_isolation(tmp_p
         kwargs["observed_files"]["structured-output"].write_text('{"response":"done","artifacts":[]}', encoding="utf-8")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-    with patch("lattice.execution.adapters.shutil.which", return_value="/fixture/codex"), patch(
+    with patch("lattice.execution.adapters._binary_sha256", return_value="f" * 64), patch("lattice.execution.adapters.shutil.which", return_value="/fixture/codex"), patch(
         "lattice.execution.adapters._cli_version", return_value="codex-cli fixture"
     ), patch("lattice.execution.adapters.run_bounded", side_effect=fake_run):
         _payload, journal = invoke_subscription(
@@ -953,7 +953,7 @@ def test_dns_outage_has_bounded_diagnostic_in_failure_and_journal(tmp_path: Path
         kwargs["stdout_journal"].write_text(native, encoding="utf-8")
         return SimpleNamespace(returncode=1, stdout=native, stderr="")
 
-    with patch("lattice.execution.adapters.shutil.which", return_value="/fixture/claude"), patch(
+    with patch("lattice.execution.adapters._binary_sha256", return_value="f" * 64), patch("lattice.execution.adapters.shutil.which", return_value="/fixture/claude"), patch(
         "lattice.execution.adapters._cli_version", return_value="Claude Code fixture"
     ), patch("lattice.execution.adapters.run_bounded", side_effect=fake_run):
         with pytest.raises(SubscriptionInvocationFailed) as raised:
@@ -1032,7 +1032,7 @@ def test_claude_spend_limit_has_bounded_diagnostic_in_failure_and_journal(tmp_pa
         kwargs["stdout_journal"].write_text(native, encoding="utf-8")
         return SimpleNamespace(returncode=1, stdout=native, stderr="")
 
-    with patch("lattice.execution.adapters.shutil.which", return_value="/fixture/claude"), patch(
+    with patch("lattice.execution.adapters._binary_sha256", return_value="f" * 64), patch("lattice.execution.adapters.shutil.which", return_value="/fixture/claude"), patch(
         "lattice.execution.adapters._cli_version", return_value="Claude Code fixture"
     ), patch("lattice.execution.adapters.run_bounded", side_effect=fake_run):
         with pytest.raises(SubscriptionInvocationFailed) as raised:
@@ -1203,7 +1203,7 @@ def test_oracle_meta_dispatch_parses_muse_jsonl_and_journals_the_provider_prompt
         root = kwargs["root"]
         return ["/fixture/muse"], None, root, {}, {}, provider_prompt
 
-    with patch("lattice.execution.adapters.shutil.which", return_value="/fixture/muse"), patch(
+    with patch("lattice.execution.adapters._binary_sha256", return_value="f" * 64), patch("lattice.execution.adapters.shutil.which", return_value="/fixture/muse"), patch(
         "lattice.execution.adapters._cli_version", return_value="Muse Code fixture"
     ), patch("lattice.execution.adapters.muse.capability_probe", return_value=(True, "qualified")), patch(
         "lattice.execution.adapters.muse.prepare", side_effect=fake_prepare

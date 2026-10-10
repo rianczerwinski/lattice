@@ -12,7 +12,7 @@ import shutil
 from pathlib import Path
 
 from .canonical import canonical_bytes, sha256_bytes, sha256_json, strict_json_loads
-from .runtime_attestation import _digest
+from .runtime_attestation import _digest, tree_inventory
 
 
 AUTHORITY_KEYS = ('provider','model','harness','effort','tools','permissions','workspace','sandbox','approval_policy','network_policy')
@@ -92,7 +92,19 @@ def qualification(store, route, binary_sha256, boundary):
                 and value.get('authenticated') is True
                 and value.get('negative_controls_passed') is True
                 and value.get('boundaries',{}).get(boundary) is True
+                and value.get('runtime_tree_sha256')==sha256_json(tree_inventory(Path(__file__).parent))
                 and value.get('evidence_refs')):
+            from .native_recovery_proof import verify_native_case
+            try:
+                proof_ref=value['evidence_refs'][boundary]
+                if not isinstance(proof_ref,str) or re.fullmatch(r'lattice:blob/[0-9a-f]{64}',proof_ref) is None:
+                    continue
+                proof_raw=store.blobs.get(proof_ref.rsplit('/',1)[1])
+                if sha256_bytes(proof_raw)!=proof_ref.rsplit('/',1)[1]:
+                    continue
+                verify_native_case(store,strict_json_loads(proof_raw),route,binary_sha256,boundary)
+            except (OSError,ValueError,KeyError,TypeError):
+                continue
             return value
     return None
 

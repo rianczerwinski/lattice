@@ -84,3 +84,16 @@ def test_low_level_native_dispatch_cannot_bypass_conversation_effect_review(nati
     sealed=env['lattice'].seal(draft['draft_id'])
     with pytest.raises(LatticeConflict,match='inspected effect dispositions'):
         attempt(env,sealed)
+
+
+@pytest.mark.regression
+def test_declared_passing_qualification_without_raw_evidence_is_ineligible(native):
+    from lattice.canonical import sha256_json
+    from lattice.runtime_attestation import _digest,tree_inventory
+    import lattice.native_recovery as implementation
+    env,service,identity,parent,path,row=native
+    inv=env['store'].get_invocation(parent)
+    evidence=inv['attempts'][-1]['runtime_receipt']['conversation_native_boundary']
+    receipt={'contract_version':'ConversationRecoveryQualification/1.0','route_sha256':implementation.route_identity(inv['route']),'native_verifier_sha256':_digest(Path(implementation.__file__))[0],'runtime_tree_sha256':sha256_json(tree_inventory(Path(implementation.__file__).parent)),'authenticated':True,'negative_controls_passed':True,'boundaries':{'completed':True,'interrupted':True},'evidence_refs':{'interrupted':'lattice:blob/'+'f'*64}}
+    env['store'].record_provider_qualification(inv['route']['provider_profile_id'],evidence['binary_sha256'],receipt,state='passed')
+    assert eligibility(env['store'],env['store'].get_invocation(parent))['eligible'] is False

@@ -113,11 +113,15 @@ def _referenced_blobs(connection: sqlite3.Connection, blobs: Path) -> set[str]:
         ("conversation_rounds", "request_json"),
         ("conversation_executions", "recovery_json"),
         ("conversation_checkpoints", "content_json"),
+        ("provider_qualifications", "receipt_json"),
     ):
         if table not in present_tables:
             continue
         for row in connection.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL'):
-            _collect_blob_refs(json.loads(row[0]), refs)
+            value = json.loads(row[0])
+            _collect_blob_refs(value, refs)
+            if table == "provider_qualifications" and value.get("contract_version") == "ConversationRecoveryQualification/1.0":
+                _collect_blob_refs(value.get("evidence_refs", {}), structured)
     for row in connection.execute("SELECT result_ref FROM workflow_triggers WHERE result_ref LIKE 'lattice:blob/%' OR result_ref LIKE 'loom:blob/%'"):
         _collect_blob_refs(row[0], refs)
     if "run_artifacts" in present_tables:

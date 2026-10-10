@@ -62,6 +62,7 @@ def fixture_cli(monkeypatch, envelope):
 
     monkeypatch.setattr(adapters.shutil, "which", lambda _: "/fixture/claude")
     monkeypatch.setattr(adapters, "_cli_version", lambda _: "fixture")
+    monkeypatch.setattr(adapters, "_binary_sha256", lambda _: "f" * 64)
     monkeypatch.setattr(adapters, "run_bounded", run)
 
 

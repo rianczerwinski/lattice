@@ -1,0 +1,655 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="18" skipped="0" tests="63" time="30.590" timestamp="2026-10-10T04:31:55.718553-06:00" hostname="Mac.lan"><testcase classname="tests.test_native_recovery_proof" name="test_raw_interrupted_native_evidence_is_accepted" time="0.001" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[wrong_model]" time="0.001" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[changed_authority]" time="0.000" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[wrong_binary]" time="0.001" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[no_interruption]" time="0.001" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[wrong_session]" time="0.001" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[missing_recall]" time="0.001" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[leaked_canary]" time="0.001" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[false_success]" time="0.001" /><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[missing_bytes]" time="0.000" /><testcase classname="tests.test_claude_research" name="test_research_native_allowlist_matches_only_the_declared_web_tools" time="0.003" /><testcase classname="tests.test_claude_research" name="test_research_rejects_broader_or_incomplete_authority[extra0]" time="0.001" /><testcase classname="tests.test_claude_research" name="test_research_rejects_broader_or_incomplete_authority[extra1]" time="0.000" /><testcase classname="tests.test_claude_research" name="test_research_rejects_broader_or_incomplete_authority[extra2]" time="0.001" /><testcase classname="tests.test_claude_research" name="test_native_denial_cannot_become_a_successful_review[WebSearch]" time="0.010"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_native_denial_cannot_beco0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11c7e8770&gt;
+tool = 'WebSearch'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("tool", TOOLS)
+    def test_native_denial_cannot_become_a_successful_review(tmp_path, monkeypatch, tool):
+        envelope = {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [{"tool_name": tool, "tool_use_id": "fixture-use", "tool_input": {}}], "result": json.dumps({"answer": "hold"})}
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, envelope)
+
+tests/test_claude_research.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_native_denial_cannot_become_a_successful_review[WebFetch]" time="0.005"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_native_denial_cannot_beco1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11c7eafd0&gt;
+tool = 'WebFetch'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("tool", TOOLS)
+    def test_native_denial_cannot_become_a_successful_review(tmp_path, monkeypatch, tool):
+        envelope = {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [{"tool_name": tool, "tool_use_id": "fixture-use", "tool_input": {}}], "result": json.dumps({"answer": "hold"})}
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, envelope)
+
+tests/test_claude_research.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_no_declared_tool_denial_accepts_a_valid_review[denials0]" time="0.004"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_no_declared_tool_denial_a0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d0dfbf0&gt;
+denials = []
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("denials", [[], [{"tool_name": "Bash", "tool_use_id": "unavailable-tool", "tool_input": {}}]])
+    def test_no_declared_tool_denial_accepts_a_valid_review(tmp_path, monkeypatch, denials):
+&gt;       payload, journal = invoke_fixture(tmp_path, monkeypatch, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": denials, "result": json.dumps({"answer": "documented"})})
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_claude_research.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_no_declared_tool_denial_accepts_a_valid_review[denials1]" time="0.004"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_no_declared_tool_denial_a1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d454160&gt;
+denials = [{'tool_name': 'Bash', 'tool_use_id': 'unavailable-tool', 'tool_input': {}}]
+
+    @pytest.mark.contract
+    @pytest.mark.parametrize("denials", [[], [{"tool_name": "Bash", "tool_use_id": "unavailable-tool", "tool_input": {}}]])
+    def test_no_declared_tool_denial_accepts_a_valid_review(tmp_path, monkeypatch, denials):
+&gt;       payload, journal = invoke_fixture(tmp_path, monkeypatch, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": denials, "result": json.dumps({"answer": "documented"})})
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_claude_research.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_malformed_native_denial_receipt_cannot_claim_success[None]" time="0.003"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_malformed_native_denial_r0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d454490&gt;
+denials = None
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("denials", [None, "WebSearch", [{}], [{"tool_name": []}]])
+    def test_malformed_native_denial_receipt_cannot_claim_success(tmp_path, monkeypatch, denials):
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": denials, "result": json.dumps({"answer": "hold"})})
+
+tests/test_claude_research.py:102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_malformed_native_denial_receipt_cannot_claim_success[WebSearch]" time="0.003"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_malformed_native_denial_r1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d440250&gt;
+denials = 'WebSearch'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("denials", [None, "WebSearch", [{}], [{"tool_name": []}]])
+    def test_malformed_native_denial_receipt_cannot_claim_success(tmp_path, monkeypatch, denials):
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": denials, "result": json.dumps({"answer": "hold"})})
+
+tests/test_claude_research.py:102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_malformed_native_denial_receipt_cannot_claim_success[denials2]" time="0.002"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_malformed_native_denial_r2')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d440a50&gt;
+denials = [{}]
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("denials", [None, "WebSearch", [{}], [{"tool_name": []}]])
+    def test_malformed_native_denial_receipt_cannot_claim_success(tmp_path, monkeypatch, denials):
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": denials, "result": json.dumps({"answer": "hold"})})
+
+tests/test_claude_research.py:102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_malformed_native_denial_receipt_cannot_claim_success[denials3]" time="0.002"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_malformed_native_denial_r3')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d453890&gt;
+denials = [{'tool_name': []}]
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("denials", [None, "WebSearch", [{}], [{"tool_name": []}]])
+    def test_malformed_native_denial_receipt_cannot_claim_success(tmp_path, monkeypatch, denials):
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": denials, "result": json.dumps({"answer": "hold"})})
+
+tests/test_claude_research.py:102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_payload_shaped_like_a_native_denial_is_only_source_data" time="0.002"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_payload_shaped_like_a_nat0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d460d70&gt;
+
+    @pytest.mark.regression
+    def test_payload_shaped_like_a_native_denial_is_only_source_data(tmp_path, monkeypatch):
+        text = json.dumps({"permission_denials": [{"tool_name": "WebSearch"}]})
+&gt;       payload, _ = invoke_fixture(tmp_path, monkeypatch, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [], "result": json.dumps({"answer": text})})
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_claude_research.py:109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_research_retains_full_native_turns_but_selects_only_terminal_payload" time="0.003"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_research_retains_full_nat0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d056c10&gt;
+
+    @pytest.mark.contract
+    def test_research_retains_full_native_turns_but_selects_only_terminal_payload(tmp_path, monkeypatch):
+        transcript = [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "use-1", "name": "WebFetch", "input": {"url": "https://example.com"}}]}},
+            {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "use-1", "content": "source bytes"}]}},
+            {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [], "result": json.dumps({"answer": "verified source"})},
+        ]
+&gt;       payload, journal = invoke_fixture(tmp_path, monkeypatch, transcript)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_claude_research.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_verbose_terminal_denials_remain_execution_failures[WebSearch]" time="0.002"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_verbose_terminal_denials_0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d056eb0&gt;
+tool = 'WebSearch'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("tool", TOOLS)
+    def test_verbose_terminal_denials_remain_execution_failures(tmp_path, monkeypatch, tool):
+        transcript = [{"type": "assistant", "message": {"content": []}}, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [{"tool_name": tool}], "result": json.dumps({"answer": "hold"})}]
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, transcript)
+
+tests/test_claude_research.py:130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_verbose_terminal_denials_remain_execution_failures[WebFetch]" time="0.002"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_verbose_terminal_denials_1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d43b5f0&gt;
+tool = 'WebFetch'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("tool", TOOLS)
+    def test_verbose_terminal_denials_remain_execution_failures(tmp_path, monkeypatch, tool):
+        transcript = [{"type": "assistant", "message": {"content": []}}, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [{"tool_name": tool}], "result": json.dumps({"answer": "hold"})}]
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, transcript)
+
+tests/test_claude_research.py:130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_verbose_source_turn_cannot_substitute_for_native_completion[no-terminal]" time="0.002"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_verbose_source_turn_canno0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d47d6d0&gt;
+form = 'no-terminal'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("form", ["no-terminal", "duplicate-terminal", "nonterminal-tail", "nonobject-event", "payload-only-in-source"])
+    def test_verbose_source_turn_cannot_substitute_for_native_completion(tmp_path, monkeypatch, form):
+        terminal = {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [], "result": json.dumps({"answer": "documented"})}
+        source = {"type": "user", "message": {"content": json.dumps({"answer": "untrusted source"})}}
+        transcript = {
+            "no-terminal": [source],
+            "duplicate-terminal": [terminal, terminal],
+            "nonterminal-tail": [terminal, source],
+            "nonobject-event": [None, terminal],
+            "payload-only-in-source": [source, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": []}],
+        }[form]
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, transcript)
+
+tests/test_claude_research.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_verbose_source_turn_cannot_substitute_for_native_completion[duplicate-terminal]" time="0.002"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_verbose_source_turn_canno1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d47dfd0&gt;
+form = 'duplicate-terminal'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("form", ["no-terminal", "duplicate-terminal", "nonterminal-tail", "nonobject-event", "payload-only-in-source"])
+    def test_verbose_source_turn_cannot_substitute_for_native_completion(tmp_path, monkeypatch, form):
+        terminal = {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [], "result": json.dumps({"answer": "documented"})}
+        source = {"type": "user", "message": {"content": json.dumps({"answer": "untrusted source"})}}
+        transcript = {
+            "no-terminal": [source],
+            "duplicate-terminal": [terminal, terminal],
+            "nonterminal-tail": [terminal, source],
+            "nonobject-event": [None, terminal],
+            "payload-only-in-source": [source, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": []}],
+        }[form]
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, transcript)
+
+tests/test_claude_research.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_verbose_source_turn_cannot_substitute_for_native_completion[nonterminal-tail]" time="0.004"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_verbose_source_turn_canno2')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11c4194f0&gt;
+form = 'nonterminal-tail'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("form", ["no-terminal", "duplicate-terminal", "nonterminal-tail", "nonobject-event", "payload-only-in-source"])
+    def test_verbose_source_turn_cannot_substitute_for_native_completion(tmp_path, monkeypatch, form):
+        terminal = {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [], "result": json.dumps({"answer": "documented"})}
+        source = {"type": "user", "message": {"content": json.dumps({"answer": "untrusted source"})}}
+        transcript = {
+            "no-terminal": [source],
+            "duplicate-terminal": [terminal, terminal],
+            "nonterminal-tail": [terminal, source],
+            "nonobject-event": [None, terminal],
+            "payload-only-in-source": [source, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": []}],
+        }[form]
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, transcript)
+
+tests/test_claude_research.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_verbose_source_turn_cannot_substitute_for_native_completion[nonobject-event]" time="0.003"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_verbose_source_turn_canno3')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d0b6150&gt;
+form = 'nonobject-event'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("form", ["no-terminal", "duplicate-terminal", "nonterminal-tail", "nonobject-event", "payload-only-in-source"])
+    def test_verbose_source_turn_cannot_substitute_for_native_completion(tmp_path, monkeypatch, form):
+        terminal = {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [], "result": json.dumps({"answer": "documented"})}
+        source = {"type": "user", "message": {"content": json.dumps({"answer": "untrusted source"})}}
+        transcript = {
+            "no-terminal": [source],
+            "duplicate-terminal": [terminal, terminal],
+            "nonterminal-tail": [terminal, source],
+            "nonobject-event": [None, terminal],
+            "payload-only-in-source": [source, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": []}],
+        }[form]
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, transcript)
+
+tests/test_claude_research.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_verbose_source_turn_cannot_substitute_for_native_completion[payload-only-in-source]" time="0.004"><failure message="FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1190/test_verbose_source_turn_canno4')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d001130&gt;
+form = 'payload-only-in-source'
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("form", ["no-terminal", "duplicate-terminal", "nonterminal-tail", "nonobject-event", "payload-only-in-source"])
+    def test_verbose_source_turn_cannot_substitute_for_native_completion(tmp_path, monkeypatch, form):
+        terminal = {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [], "result": json.dumps({"answer": "documented"})}
+        source = {"type": "user", "message": {"content": json.dumps({"answer": "untrusted source"})}}
+        transcript = {
+            "no-terminal": [source],
+            "duplicate-terminal": [terminal, terminal],
+            "nonterminal-tail": [terminal, source],
+            "nonobject-event": [None, terminal],
+            "payload-only-in-source": [source, {"type": "result", "subtype": "success", "is_error": False, "permission_denials": []}],
+        }[form]
+        with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+&gt;           invoke_fixture(tmp_path, monkeypatch, transcript)
+
+tests/test_claude_research.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_claude_research.py:70: in invoke_fixture
+    return adapters.invoke_subscription(profile(), prompt="Research the source.", schema=SCHEMA, runs_dir=tmp_path / "runs", subject="research-permissions", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1221: in invoke_subscription
+    "binary_sha256": _binary_sha256(binary),
+                     ^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:323: in _binary_sha256
+    before = path.stat()
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/fixture/claude'), follow_symlinks = True
+
+    def stat(self, *, follow_symlinks=True):
+        """
+        Return the result of the stat() system call on this path, like
+        os.stat() does.
+        """
+&gt;       return os.stat(self, follow_symlinks=follow_symlinks)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/fixture/claude'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:654: FileNotFoundError</failure></testcase><testcase classname="tests.test_claude_research" name="test_public_execution_retains_denial_without_publishing_a_domain_result" time="1.653"><failure message="AssertionError: assert 'harness_failure' == 'tool_permission_denied'&#10;  &#10;  - tool_permission_denied&#10;  + harness_failure">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...46cec3048f66ff', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11d003390&gt;
+
+    @pytest.mark.asyncio
+    @pytest.mark.regression
+    async def test_public_execution_retains_denial_without_publishing_a_domain_result(lattice_env, monkeypatch):
+        envelope = {"type": "result", "subtype": "success", "is_error": False, "permission_denials": [{"tool_name": "WebSearch"}], "result": json.dumps({"payload": {"answer": "hold"}})}
+        fixture_cli(monkeypatch, envelope)
+        request = ExecutionSubmissionV1(external_project_key="fixture.research", operation_key="permission-denied", actor="fixture", prompt="Research the source.", route=ProviderRoute(provider="anthropic", model="opus", harness="claude", execution_profile="research-fresh", tools=TOOLS, network_policy="provider_managed"), output_contract=OutputContractV2(mode="json", json_schema=SCHEMA), idempotency_key="fixture-research-permission-denied")
+        supervisor = ExecutionSupervisor(lattice_env["store"])
+        await supervisor.start()
+        try:
+            invocation = lattice_env["lattice"].seal_execution_submission(request)
+            await supervisor.execute(invocation["invocation_id"], ExecuteRequest(idempotency_key="fixture-execute-research-denied"))
+            await asyncio.gather(*list(supervisor._tasks.values()))
+            public = lattice_env["store"].external_execution_result("fixture.research", "permission-denied")["invocation"]
+            assert public["state"] == "failed"
+            assert public["output_block_id"] is None
+            assert len(public["attempts"]) == 1
+&gt;           assert public["attempts"][0]["failure_kind"] == "tool_permission_denied"
+E           AssertionError: assert 'harness_failure' == 'tool_permission_denied'
+E             
+E             - tool_permission_denied
+E             + harness_failure
+
+tests/test_claude_research.py:167: AssertionError</failure></testcase><testcase classname="tests.test_sdk_runner" name="test_terminal_parser_accepts_only_direct_contracted_payload" time="0.001" /><testcase classname="tests.test_sdk_runner" name="test_valid_native_framing_survives_unicode_and_post_turn_status[unicode-lines]" time="0.001" /><testcase classname="tests.test_sdk_runner" name="test_valid_native_framing_survives_unicode_and_post_turn_status[idle-tail]" time="0.001" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[none]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[duplicate]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[tail]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[array]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[nested]" time="0.001" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[no-payload]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[interrupted]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[injected]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[duplicate-key]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_invalid_terminal_cannot_publish_domain_output[nonfinite]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_native_error_cannot_be_hidden_by_valid_domain_json[Authentication required-authentication]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_native_error_cannot_be_hidden_by_valid_domain_json[Request refused under safety policy-policy_refusal]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_native_error_cannot_be_hidden_by_valid_domain_json[Connection refused-outage]" time="0.000" /><testcase classname="tests.test_sdk_runner" name="test_command_uses_native_prompt_channel_without_widening_tools" time="0.001" /><testcase classname="tests.test_sdk_runner" name="test_adapter_waits_for_exact_operator_choice_and_journals_native_result[allow]" time="1.756" /><testcase classname="tests.test_sdk_runner" name="test_adapter_waits_for_exact_operator_choice_and_journals_native_result[deny]" time="1.797" /><testcase classname="tests.test_sdk_runner" name="test_final_result_cannot_hide_a_withdrawal_failure" time="1.763" /><testcase classname="tests.test_sdk_runner" name="test_process_failure_keeps_its_cause[cancel]" time="1.712" /><testcase classname="tests.test_sdk_runner" name="test_process_failure_keeps_its_cause[timeout]" time="2.120" /><testcase classname="tests.test_sdk_runner" name="test_process_failure_keeps_its_cause[nonzero]" time="1.847" /><testcase classname="tests.test_sdk_runner" name="test_permission_response_write_failure_is_not_operator_cancellation[journal]" time="1.965" /><testcase classname="tests.test_sdk_runner" name="test_permission_response_write_failure_is_not_operator_cancellation[input-limit]" time="1.898" /><testcase classname="tests.test_sdk_runner" name="test_cancellation_at_response_admission_stays_operator_interruption[cancelled]" time="2.236" /><testcase classname="tests.test_sdk_runner" name="test_cancellation_at_response_admission_stays_operator_interruption[clean-exit]" time="1.936" /><testcase classname="tests.test_sdk_runner" name="test_callback_ownership_is_required_before_creating_a_run[missing-callback]" time="1.971" /><testcase classname="tests.test_sdk_runner" name="test_callback_ownership_is_required_before_creating_a_run[wrong-cancel]" time="1.913" /><testcase classname="tests.test_sdk_runner" name="test_callback_ownership_is_required_before_creating_a_run[noninteractive]" time="2.669" /><testcase classname="tests.test_sdk_runner" name="test_supervisor_passes_its_exact_attempt_owner_on_worker_thread" time="2.594" /></testsuite></testsuites>

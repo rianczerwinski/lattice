@@ -1218,6 +1218,7 @@ def invoke_subscription(
                 "adapter": adapter.definition(),
                 "schema": transport_schema,
                 "binary": binary,
+                "binary_sha256": _binary_sha256(binary),
                 "cli_version": _cli_version(binary),
                 "isolation": {
                     "working_directory": "explicit-workspace" if effective_policy["workspace"] else "fresh-temporary",
