@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
-AXISVI_ROOT = SOURCE_ROOT.parents[2]
+AXISVI_ROOT = Path(os.environ.get("AXISVI_ROOT", str(SOURCE_ROOT.parents[2]))).expanduser().resolve()
 DEFAULT_DATA_ROOT = Path.home() / "Library" / "Application Support" / "Lattice"
 DEFAULT_LEGACY_ROOT = AXISVI_ROOT / "axis" / "psyche" / "recollection" / "lattice" / "data"
 RUNTIME_ROOT = DEFAULT_DATA_ROOT / "runtime"
