@@ -239,9 +239,15 @@ def _backup_database(source: Path, destination: Path) -> None:
         _sync_file(handle.fileno())
 
 
-def _compress_database(source: Path, destination: Path) -> dict[str, Any]:
+def _compress_database(source: Path, destination: Path, *, reuse_root: Path | None = None) -> dict[str, Any]:
     """Compress a consistent SQLite copy while retaining its logical identity."""
 
+    if reuse_root is not None:
+        from .snapshot_reuse import reuse_database
+
+        descriptor = reuse_database(source, destination, reuse_root, copy_file=_copy_regular, source_identity=_sha256_file)
+        if descriptor is not None:
+            return descriptor
     digest = hashlib.sha256()
     byte_count = 0
     with source.open("rb") as input_handle, destination.open("xb") as raw_output:
@@ -355,6 +361,7 @@ def create_snapshot(
             database_descriptor = _compress_database(
                 staging / SNAPSHOT_DATABASE,
                 staging / COMPRESSED_SNAPSHOT_DATABASE,
+                reuse_root=backup_root,
             )
             (staging / SNAPSHOT_DATABASE).unlink()
         inventory = _inventory(staging)
