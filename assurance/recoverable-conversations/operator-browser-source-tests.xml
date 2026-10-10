@@ -1,0 +1,18 @@
+<testsuites id="" name="" tests="7" failures="0" skipped="0" errors="0" time="14.546369">
+<testsuite name="conversation.spec.ts" timestamp="2026-10-10T10:38:44.435Z" hostname="" tests="7" failures="0" skipped="0" time="11.35" errors="0">
+<testcase name="native approval browser: exact action, visible failure, denial, and honest delivery state" classname="conversation.spec.ts" time="2.529">
+</testcase>
+<testcase name="browser acceptance: freestyle one-edge lattice stays conversational and source-bound" classname="conversation.spec.ts" time="2.579">
+</testcase>
+<testcase name="browser regression: secondary surface outages do not erase the conversation" classname="conversation.spec.ts" time="0.807">
+</testcase>
+<testcase name="browser regression: the latest project choice wins overlapping loads" classname="conversation.spec.ts" time="1.466">
+</testcase>
+<testcase name="durable child: saved draft and reading position survive reload, then interruption continues" classname="conversation.spec.ts" time="1.751">
+</testcase>
+<testcase name="durable child: lost acknowledgement survives reload without duplicating the request" classname="conversation.spec.ts" time="1.05">
+</testcase>
+<testcase name="durable child: uncertain action requires an explicit disposition before continuing" classname="conversation.spec.ts" time="1.168">
+</testcase>
+</testsuite>
+</testsuites>

@@ -30,12 +30,15 @@ function json(route: BrowserRoute, value: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
 }
 
-async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean; nativeApproval?: boolean } = {}) {
+async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean; nativeApproval?: boolean; lostChildAcknowledgement?: boolean; uncertainChildEffect?: boolean } = {}) {
   let project: Record<string, unknown> | null = null;
   const invocations: InvocationRecord[] = [];
   const episodes: EpisodeRecord[] = [];
   const slateTopics = new Map<string, { slice_id: string; external_ref: string; name: string; scope: 'global'; items: Array<{ object_id: string; object_type: string }> }>();
   const blockOwner = new Map<string, string>();
+  let child: { conversation_id:string;title:string;owning_task_ref:string;revision:number;parent_conversation_id:null;route:Record<string,unknown>;rounds:Array<{round_id:string;ordinal:number;state:string;request:{prompt:string};response?:string;executions:[]}>;pending:{round_id:string;ordinal:number;state:string}|null;has_more:false;event_cursor:number;steering:Array<{steering_id:string;content:string}>;checkpoint:{checkpoint_id:string;content:{artifacts:[]}}|null } | null = null;
+  const childReceipts=new Map<string,unknown>();
+  let loseAcknowledgement=options.lostChildAcknowledgement ?? false;
   let sequence = 0;
   let secondaryUnavailable = options.secondaryUnavailable ?? false;
   let nativeDecision: 'allow' | 'deny' | null = null;
@@ -100,6 +103,36 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
     const url = new URL(request.url());
     const path = url.pathname;
     const body = request.postData() ? request.postDataJSON() as Record<string, any> : {};
+
+    if (path === '/api/v1/conversations' && request.method()==='GET') return json(intercepted,child ? [child] : []);
+    if (path === '/api/v1/conversations' && request.method()==='POST') {
+      child={conversation_id:'conversation_browser',title:String(body.title),owning_task_ref:String(body.owning_task_ref),revision:1,parent_conversation_id:null,route:body.route as Record<string,unknown>,rounds:[],pending:null,has_more:false,event_cursor:1,steering:[],checkpoint:null};
+      return json(intercepted,{conversation_id:child.conversation_id,revision:1});
+    }
+    if (path.startsWith('/api/v1/conversations/conversation_browser') && child) {
+      const action=path.split('/')[5];
+      if (!action) return json(intercepted,child);
+      if (action==='observations') return json(intercepted,{items:[],has_more:false,cursor:0});
+      if (action==='recovery-preview') return json(intercepted,{revision:child.revision,preview_sha256:'a'.repeat(64),mode:'portable',maximum_remaining_loss:'Unexposed provider computation cannot be recovered.',blockers:options.uncertainChildEffect && !body.effect_dispositions?.length ? [{code:'uncertain_mutating_effect',detail:'Inspect the unconfirmed action.',effects:[{attempt_id:'attempt_effect',tool_id:'effect:0',request:{name:'Bash',input:{command:'write an external record'}}}]}] : []});
+      const retainedReceipt=childReceipts.get(String(body.idempotency_key));
+      if (retainedReceipt) return json(intercepted,retainedReceipt);
+      if (body.expected_revision!==child.revision) return json(intercepted,{detail:'conversation revision changed'},409);
+      child.revision+=1;
+      if (action==='send') {
+        const ordinal=child.rounds.length+1;
+        const round={round_id:`round_${ordinal}`,ordinal,state:ordinal===1?'completed':'active',request:{prompt:String(body.prompt)},executions:[] as []};
+        child.rounds.push(ordinal===1 ? {...round,response:'First retained answer.\n\n'+Array.from({length:80},(_,i)=>`Retained paragraph ${i}.`).join('\n\n')} : round);
+        child.pending=ordinal===1?null:{round_id:round.round_id,ordinal,state:'active'};
+        child.checkpoint={checkpoint_id:'checkpoint_first',content:{artifacts:[]}};
+      }
+      if (action==='steer') child.steering.push({steering_id:'steering_one',content:String(body.content)});
+      if (action==='interrupt' && child.pending) { child.pending.state='needs_attention';child.rounds.at(-1)!.state='needs_attention'; }
+      if (action==='continue') { child.rounds.at(-1)!.state='completed';child.rounds.at(-1)!.response='Recovered using the saved conversation.';child.pending=null;child.steering=[]; }
+      const receipt={conversation_id:child.conversation_id,revision:child.revision,event_cursor:child.revision};
+      childReceipts.set(String(body.idempotency_key),receipt);
+      if (action==='send' && loseAcknowledgement) { loseAcknowledgement=false;return intercepted.abort('connectionreset'); }
+      return json(intercepted,receipt);
+    }
 
     if (path === '/api/v1/attempts/attempt_native_fixture/native-approvals/approval_native_fixture/decision') {
       if (nativeDecisionUnavailable) return json(intercepted, { detail: 'planted decision service outage' }, 503);
@@ -356,4 +389,75 @@ test('browser regression: the latest project choice wins overlapping loads', asy
   await expect(page.locator('.project-heading h2')).toHaveText('Project Alpha');
   await expect(page.getByRole('button', { name: /Project Alpha/ })).toHaveClass(/active/);
   await expect(page.getByRole('button', { name: /Project Beta/ })).not.toHaveClass(/active/);
+});
+
+
+test('durable child: saved draft and reading position survive reload, then interruption continues', async ({page}) => {
+  await installDeterministicLattice(page);
+  await page.goto('/');
+  await page.getByPlaceholder('New project').fill('Durable browser project');
+  await page.getByRole('button',{name:'Create',exact:true}).click();
+  await page.getByLabel('Child conversation title').fill('Relata pilot child');
+  await page.getByLabel('Owning task reference').fill('task:catalog');
+  await page.getByRole('button',{name:'Create with current route'}).click();
+  await page.getByLabel('Next request',{exact:true}).fill('First operator request');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.getByText('First retained answer.',{exact:false})).toBeVisible();
+  await page.getByLabel('Next request',{exact:true}).fill('Unsubmitted durable draft');
+  const region=page.getByRole('region',{name:'Saved conversation rounds'});
+  await region.evaluate(element=>{element.scrollTop=320;element.dispatchEvent(new Event('scroll'));});
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'Relata pilot child',exact:true})).toBeVisible();
+  await expect(page.getByLabel('Next request',{exact:true})).toHaveValue('Unsubmitted durable draft');
+  await expect.poll(()=>region.evaluate(element=>element.scrollTop)).toBe(320);
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Interrupt',exact:true})).toBeVisible();
+  await page.getByLabel('Steer this conversation').fill('Preserve the architectural north star.');
+  await page.getByRole('button',{name:'Steer next round'}).click();
+  await expect(page.getByText('Queued steering: Preserve the architectural north star.')).toBeVisible();
+  await page.getByRole('button',{name:'Interrupt',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(page.getByText('Recovered using the saved conversation.')).toBeVisible();
+  await expect(page.getByText('First retained answer.',{exact:false})).toBeVisible();
+});
+
+
+test('durable child: lost acknowledgement survives reload without duplicating the request', async ({page}) => {
+  await installDeterministicLattice(page,{lostChildAcknowledgement:true});
+  await page.goto('/');
+  await page.getByPlaceholder('New project').fill('Lost acknowledgement project');
+  await page.getByRole('button',{name:'Create',exact:true}).click();
+  await page.getByLabel('Child conversation title').fill('Recover the receipt');
+  await page.getByRole('button',{name:'Create with current route'}).click();
+  await page.getByLabel('Next request',{exact:true}).fill('Exactly one request');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.locator('.durable-conversations [role="alert"]')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('First retained answer.',{exact:false})).toBeVisible();
+  await expect(page.getByLabel('Next request',{exact:true})).toHaveValue('Exactly one request');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.getByLabel('Next request',{exact:true})).toHaveValue('');
+  await expect(page.locator('.durable-conversations .rounds article')).toHaveCount(1);
+});
+
+test('durable child: uncertain action requires an explicit disposition before continuing', async ({page}) => {
+  await installDeterministicLattice(page,{uncertainChildEffect:true});
+  await page.goto('/');
+  await page.getByPlaceholder('New project').fill('Uncertain effect project');
+  await page.getByRole('button',{name:'Create',exact:true}).click();
+  await page.getByLabel('Child conversation title').fill('Inspect effects');
+  await page.getByRole('button',{name:'Create with current route'}).click();
+  await page.getByLabel('Next request',{exact:true}).fill('First request');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await page.getByLabel('Next request',{exact:true}).fill('Second request');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await page.getByRole('button',{name:'Interrupt',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeDisabled();
+  await page.getByRole('combobox',{name:'Outcome',exact:true}).selectOption('do_not_repeat');
+  await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeDisabled();
+  await page.getByLabel('Evidence or instruction').fill('The external result cannot be established. Do not repeat the write.');
+  await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(page.getByText('Recovered using the saved conversation.')).toBeVisible();
 });

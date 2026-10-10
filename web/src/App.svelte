@@ -17,6 +17,8 @@
   import { orderByRecentProjects, readUiState, writeProjectUiState, type ProjectUiState } from './uiPersistence';
   import { reconcileSubmittedComposer } from './submissionState';
   import ConversationHistory from './components/ConversationHistory.svelte';
+  import DurableConversations from './components/DurableConversations.svelte';
+  let durableConversationSelected = false;
   import ComposerPane from './components/ComposerPane.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
   import ContextInspector from './components/ContextInspector.svelte';
@@ -486,7 +488,8 @@
         console.warn('Lattice recovery status was unavailable:', cause);
         recovery = null;
       }
-      const initialProject = projects.find((item) => item.project_id === storedUi.state.lastProjectId) ?? projects[0];
+      const linkedProject = new URLSearchParams(window.location.search).get('project');
+      const initialProject = projects.find((item) => item.project_id === (linkedProject ?? storedUi.state.lastProjectId)) ?? projects[0];
       if (initialProject) await openProject(initialProject.project_id);
       activityTimer = setInterval(() => { void refreshGlobalActivity(); }, 10_000);
     } catch (cause) {
@@ -1813,6 +1816,13 @@
             />
           {/if}
 
+          {#key project.project_id}
+            <DurableConversations projectId={project.project_id} getRoute={() => {
+              if (routeChoices.length !== 1) throw new Error('Choose one provider in the current route before creating a child conversation.');
+              return routePayload(routeChoices[0]);
+            }} onSelection={(selected) => { durableConversationSelected = selected; }} />
+          {/key}
+          {#if !durableConversationSelected}
           <ResponsePane
             {selected}
             activeAttemptIds={selectedActiveAttemptIds}
@@ -1922,6 +1932,7 @@
             onExecutePreparedBatch={executePreparedBatch}
             onPromptHistory={handlePromptHistory}
           />
+          {/if}
         {:else}
           <div class="empty-call standalone"><span>No project yet</span><h3>Create the first operational thread.</h3></div>
         {/if}

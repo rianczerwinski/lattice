@@ -4,13 +4,9 @@ This package is the sole operational subscription-model execution authority. Pro
 
 ## Recovery contract
 
-A caller resumes only on an explicit request. It loads the checkpoint, verifies the prompt binding and immutable request packet, and chooses:
+Durable conversations continue through `ConversationService` on an explicit operator request. Completed requests and accepted responses, the unfinished request, exact admitted observations, artifact bytes and selected context bindings supply portable recovery. The 400-line `observable_work` projection is only a display aid and never supplies authoritative conversation recovery context. Native continuation additionally requires independently verified raw qualification proof for the exact runtime, executable, model, route, authority and boundary, plus an unchanged observed session head. `auto` selects qualified native continuation when available, otherwise exact portable recovery. An unresolved mutating action blocks any continuation that might repeat it until an operator records its disposition.
 
-1. `native` — continue the official provider session by ID using the same isolated provider state;
-2. `portable` — start a fresh isolated session with the original task plus the mechanically projected observable work;
-3. `auto` — use native continuation when its identity and state survive, otherwise portable continuation.
-
-Neither mode reconstructs hidden model cognition. Both preserve externally manifested work.
+The legacy single-invocation checkpoint interface remains available: it binds the original request and supports native or projected portable continuation according to that interface's limits. Its portable observable-work projection does not establish the stronger durable-conversation guarantee. Neither interface reconstructs hidden model cognition.
 
 ## Journal and checkpoint rules
 
