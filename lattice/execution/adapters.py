@@ -690,7 +690,8 @@ def build_command(
                 "--effort",
                 effort,
                 "--output-format",
-                "stream-json" if interactive else "json",
+                "stream-json",
+                "--verbose",
                 "--json-schema",
                 schema_path.read_text(encoding="utf-8"),
                 "--safe-mode",
@@ -709,13 +710,11 @@ def build_command(
                 "--no-chrome",
             ]
         if interactive:
-            command.extend(["--input-format", "stream-json", "--permission-prompt-tool", "stdio", "--verbose"])
+            command.extend(["--input-format", "stream-json", "--permission-prompt-tool", "stdio"])
         if system_prompt_path is not None:
             command.extend(["--system-prompt-file", str(system_prompt_path)])
         if policy["execution_profile"] in {"compiled-fresh", "research-fresh"}:
             command.append("--no-session-persistence")
-            if policy["execution_profile"] == "research-fresh" and not interactive:
-                command.append("--verbose")
         elif policy["execution_profile"] == "native-continuation":
             command.extend(["--resume", policy["native_session_id"]])
             if policy["continuation_mode"] == "fork":
@@ -1090,6 +1089,7 @@ def invoke_subscription(
     timeout: float = 600,
     cancel_event: threading.Event | None = None,
     on_chunk: Callable[[str, bytes], None] | None = None,
+    on_journal: Callable[[Path], None] | None = None,
     execution_profile: str = "compiled-fresh",
     session_policy: str | None = None,
     continuation_mode: str | None = None,
@@ -1229,6 +1229,8 @@ def invoke_subscription(
                 "system_instruction_channel": "official-system-prompt-file" if system_prompt is not None else None,
             },
         )
+        if on_journal is not None:
+            on_journal(journal.root)
         try:
             result = run_native_approval(
                 command, prompt=input_text, timeout=timeout,
@@ -1306,7 +1308,7 @@ def invoke_subscription(
                 validation_error = next(_schema_validator(schema).iter_errors(payload), None)
                 if validation_error is not None:
                     raise SubscriptionInvocationFailed("malformed_output", f"structured response failed its Draft 2020-12 contract: {validation_error.message[:500]}")
-            elif interactive:
+            elif adapter.provider_code == "anthropic":
                 required_tools = tuple(effective_policy["tools"]) if effective_policy["execution_profile"] == "research-fresh" else ()
                 payload = parse_claude_sdk_response(result.stdout, schema, required_tools=required_tools)
             else:

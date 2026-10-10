@@ -22,6 +22,7 @@ from .canonical import canonical_bytes
 from .contracts import AttemptState, ExecuteRequest, OutputContractV2, execution_policy
 from .manifest_reader import verify_and_reconstruct
 from .store import LatticeConflict, LatticeStore
+from .observations import ObservationStore
 from . import native_approvals
 from .execution.native_approval import NativeApprovalCallback
 
@@ -82,6 +83,7 @@ class ExecutionSupervisor:
         self.startup_recovery_failures: list[dict[str, str]] = []
 
     async def start(self) -> int:
+        await asyncio.to_thread(self._reconcile_observations)
         attempts = await asyncio.to_thread(self.store.reconcile_orphans, self.boot_id)
         commands = await asyncio.to_thread(self.store.reconcile_workflow_commands, self.boot_id)
         undispatched = await asyncio.to_thread(self.store.list_undispatched_batch_members)
@@ -101,6 +103,19 @@ class ExecutionSupervisor:
                 except Exception as receipt_error:
                     failure["receipt_error"] = f"{type(receipt_error).__name__}: {receipt_error}"
         return attempts + commands + dispatched
+
+    def _reconcile_observations(self) -> None:
+        with self.store._connect() as conn:
+            rows = [dict(row) for row in conn.execute("SELECT e.subject_id,e.payload_json FROM events e JOIN attempts a ON a.attempt_id=e.subject_id WHERE e.event_type='attempt.journal' AND a.state IN ('leased','running')")]
+        for row in rows:
+            payload = json.loads(row["payload_json"])
+            root = Path(payload["path"])
+            if not root.is_relative_to(self.store.config.runs):
+                raise LatticeConflict("attempt journal lies outside its admitted runtime root")
+            request = self.store.blobs.get(payload["request_ref"].removeprefix("lattice:blob/"))
+            if (root / "request.json").read_bytes() != request:
+                raise LatticeConflict("attempt journal request binding changed")
+            ObservationStore(self.store).reconcile_journal(row["subject_id"], root)
 
     async def stop(self) -> None:
         owned = list(self._cancellations.items())
@@ -199,9 +214,14 @@ class ExecutionSupervisor:
             output_contract = OutputContractV2.from_stored(invocation["response_schema"])
 
             def on_chunk(channel: str, chunk: bytes) -> None:
-                digest = self.store.blobs.put(chunk)
-                self.store.record_event(project_id=project_id, event_type="attempt.chunk", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id": invocation["invocation_id"], "channel": channel, "content_ref": f"lattice:blob/{digest}", "sha256": digest, "byte_count": len(chunk), "preview": chunk.decode("utf-8", errors="replace")[:1000]})
+                ObservationStore(self.store).append(attempt_id, channel, chunk)
                 self.store.heartbeat_attempt(attempt_id, int(time.time()) + self.store.config.lease_seconds)
+
+            def on_journal(root: Path) -> None:
+                nonlocal journal
+                journal = root
+                digest = self.store.blobs.put((root / "request.json").read_bytes())
+                self.store.record_event(project_id=project_id, event_type="attempt.journal", subject_type="attempt", subject_id=attempt_id, payload={"invocation_id":invocation["invocation_id"], "path":str(root), "request_ref":f"lattice:blob/{digest}"})
 
             payload, journal = await asyncio.to_thread(
                 invoke_subscription,
@@ -215,6 +235,7 @@ class ExecutionSupervisor:
                 timeout=float(self.store.config.lease_seconds),
                 cancel_event=cancel,
                 on_chunk=on_chunk,
+                on_journal=on_journal,
                 **({"native_approval_callback": NativeApprovalCallback(self.store, attempt_id, owner_boot_id=self.boot_id, cancel_event=cancel)} if invocation["route"]["approval_policy"] == "on-request" else {}),
                 **execution_policy(invocation["route"]),
             )
