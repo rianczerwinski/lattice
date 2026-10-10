@@ -826,6 +826,7 @@ def plist_payload(label: str, *, backup: bool, runtime_id: str | None = None) ->
         "StandardErrorPath": str(LOG_ROOT / ("backup.stderr.log" if backup else "service.stderr.log")),
     }
     if backup:
+        payload["ProgramArguments"] = [str(CURRENT_LINK / ".venv" / "bin" / "python"), str(AXISVI_ROOT / "axis" / "tools" / "storage" / "lattice_backup.py"), "--data-root", str(DEFAULT_DATA_ROOT)]
         payload["StartCalendarInterval"] = {"Hour": 3, "Minute": 0}
     else:
         payload["RunAtLoad"] = True

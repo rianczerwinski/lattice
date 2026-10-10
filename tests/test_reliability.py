@@ -809,7 +809,7 @@ def test_launchd_and_cli_installation_bind_only_the_current_verified_runtime() -
     assert service["ProgramArguments"] == [str(deployment.CURRENT_LINK / ".venv" / "bin" / "lattice"), "serve"]
     assert service["RunAtLoad"] is True and service["KeepAlive"] is True and service["ThrottleInterval"] == 10
     assert service["ProcessType"] == "Interactive"
-    assert backup["ProgramArguments"][-2:] == ["--reason", "scheduled-daily"]
+    assert backup["ProgramArguments"] == [str(deployment.CURRENT_LINK / ".venv" / "bin" / "python"), str(deployment.AXISVI_ROOT / "axis/tools/storage/lattice_backup.py"), "--data-root", str(deployment.DEFAULT_DATA_ROOT)]
     assert backup["StartCalendarInterval"] == {"Hour": 3, "Minute": 0}
     assert backup["ProcessType"] == "Background"
     assert service["EnvironmentVariables"]["OUTPORT_BIN"] == str(deployment.required_binary("outport"))
