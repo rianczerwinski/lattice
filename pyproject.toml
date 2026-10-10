@@ -36,6 +36,9 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+# Passed temporary fixtures are disposable after their assertions complete.
+# Failed fixtures keep pytest's existing bounded diagnostic history.
+tmp_path_retention_policy = "failed"
 testpaths = ["tests"]
 markers = [
     "oracle: compares behavior with an independent source of truth",
