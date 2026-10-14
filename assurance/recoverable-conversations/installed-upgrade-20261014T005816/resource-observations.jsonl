@@ -1,0 +1,1 @@
+{"observed_at": "20261014T011215", "job": "install", "state": "running", "process_rows": ["17284 17282   0.0   3168 13:38", "17288 17284   7.6  54096 13:38"], "columns": ["pid", "ppid", "cpu_percent", "rss_kib", "elapsed"], "disk_free_bytes": 127999021056, "scope": "installer and immediate child only; instantaneous observation, not a completion claim"}

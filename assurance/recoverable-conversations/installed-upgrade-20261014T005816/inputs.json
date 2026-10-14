@@ -1,0 +1,12 @@
+{
+  "revision": "ed8d9b30d08d38b6bb345888d92d5ffd29b0a3ff",
+  "command": [
+    "/Users/rian/AXISVI/axis/chariots/lattice/.venv/bin/python",
+    "-u",
+    "/Users/rian/AXISVI/axis/chariots/lattice/ops/install.py"
+  ],
+  "source_junit": "/Users/rian/AXISVI/axis/chariots/lattice/assurance/recoverable-conversations/installed-upgrade-20261014T005816/source-tests.xml",
+  "prior_runtime": "0.3.1-a1237f49bacd-08c4296a0433",
+  "network_gate": "unmetered Wi-Fi observed before launch",
+  "retention": "keep: actual installed-runtime qualification evidence"
+}

@@ -1,0 +1,1 @@
+{"ended": "20261014T081342Z", "exit": 1, "heartbeat": "20261014T081342Z", "job_started_epoch": 1791964717.0, "name": "install", "pgid": 17284, "pid": 17284, "schema": 2, "started": "20261014T075836Z", "state": "failed", "supervisor_pid": 17282, "supervisor_started_epoch": 1791964717.0}
