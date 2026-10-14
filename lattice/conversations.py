@@ -282,6 +282,8 @@ def bind_in_transaction(store, conn, *, round_id: str, invocation_id: str, recov
     ordinal = conn.execute('SELECT COALESCE(MAX(ordinal),0)+1 FROM conversation_executions WHERE round_id=?', (round_id,)).fetchone()[0]
     conn.execute('INSERT INTO conversation_executions VALUES(?,?,?,?,?,?)', (identity, round_id, ordinal, invocation_id, encode(recovery), stamp()))
     conn.execute("UPDATE conversation_rounds SET state='active' WHERE round_id=?", (round_id,))
+    if recovery.get('route_changed'):
+        conn.execute('UPDATE conversations SET route_json=? WHERE conversation_id=?', (encode(recovery['route']), r['conversation_id']))
     conn.execute("UPDATE conversation_steering SET state='dispatched' WHERE resulting_round_id=? AND state='queued'", (round_id,))
     for instruction in recovery.get('steering', []):
         changed = conn.execute("UPDATE conversation_steering SET state='dispatched',resulting_round_id=? WHERE steering_id=? AND conversation_id=? AND state='queued' AND resulting_round_id IS NULL", (round_id,instruction['steering_id'],r['conversation_id'])).rowcount

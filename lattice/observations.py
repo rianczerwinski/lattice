@@ -19,10 +19,28 @@ def normalize(message: dict) -> list[dict]:
     records = []
     if kind == 'system' and message.get('subtype') == 'init':
         records.append({'kind': 'session', 'session_id': message.get('session_id'), 'model': message.get('model')})
+    elif kind == 'system' and message.get('subtype') == 'compact_boundary':
+        records.append({'kind':'compaction','detail':message})
     elif kind == 'thread.started':
         records.append({'kind': 'session', 'session_id': message.get('thread_id')})
+    elif kind == 'stream_event' and isinstance(message.get('event'), dict):
+        event = message['event']
+        if event.get('type') == 'message_start' and isinstance(event.get('message'), dict) and event['message'].get('model'):
+            records.append({'kind':'model','model':event['message']['model']})
+        if event.get('type') == 'content_block_start' and isinstance(event.get('content_block'), dict):
+            block = event['content_block']
+            if block.get('type') == 'tool_use':
+                records.append({'kind':'tool-request','id':block.get('id'),'name':block.get('name'),'arguments':block.get('input'),'partial':True})
+        elif event.get('type') == 'content_block_delta' and isinstance(event.get('delta'), dict):
+            delta = event['delta']
+            if delta.get('type') == 'text_delta':
+                records.append({'kind':'message','role':'assistant','text':delta.get('text'),'partial':True})
+            elif delta.get('type') == 'input_json_delta':
+                records.append({'kind':'tool-input-delta','index':event.get('index'),'partial_json':delta.get('partial_json')})
     if kind in ('assistant', 'user'):
         native = message.get('message')
+        if kind=='assistant' and isinstance(native,dict) and native.get('model'):
+            records.append({'kind':'model','model':native['model']})
         content = native.get('content', []) if isinstance(native, dict) else []
         if isinstance(content, str):
             records.append({'kind': 'message', 'role': kind, 'text': content})
@@ -31,7 +49,7 @@ def normalize(message: dict) -> list[dict]:
                 if not isinstance(block, dict):
                     continue
                 if block.get('type') == 'tool_use':
-                    records.append({'kind': 'tool-request', 'id': block.get('id'), 'name': block.get('name'), 'arguments': block.get('input')})
+                    records.append({'kind': 'tool-request', 'id': block.get('id'), 'name': block.get('name'), 'arguments': block.get('input'), 'stream_complete':True})
                 elif block.get('type') == 'tool_result':
                     records.append({'kind': 'tool-result', 'id': block.get('tool_use_id'), 'result': block.get('content'), 'is_error': block.get('is_error', False)})
                 elif block.get('type') == 'text':
@@ -53,7 +71,7 @@ def normalize(message: dict) -> list[dict]:
         records.append({'kind': 'terminal', 'success': message.get('is_error') is False and message.get('subtype') == 'success'})
     elif kind in ('error', 'turn.failed'):
         records.append({'kind': 'failure', 'detail': message})
-    elif kind == 'stream_event':
+    elif kind == 'stream_event' and not records:
         records.append({'kind': 'partial', 'detail': message.get('event')})
     return records
 

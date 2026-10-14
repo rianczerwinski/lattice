@@ -1820,7 +1820,7 @@
             <DurableConversations projectId={project.project_id} getRoute={() => {
               if (routeChoices.length !== 1) throw new Error('Choose one provider in the current route before creating a child conversation.');
               return routePayload(routeChoices[0]);
-            }} onSelection={(selected) => { durableConversationSelected = selected; }} />
+            }} getContextBlockIds={() => explicitSelections.filter(s=>s.disposition===undefined || s.disposition==='selected').map(s=>String(s.block_id))} onSelection={(selected) => { durableConversationSelected = selected; }} />
           {/key}
           {#if !durableConversationSelected}
           <ResponsePane

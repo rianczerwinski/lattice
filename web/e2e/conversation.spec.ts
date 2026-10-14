@@ -30,7 +30,7 @@ function json(route: BrowserRoute, value: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
 }
 
-async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean; nativeApproval?: boolean; lostChildAcknowledgement?: boolean; uncertainChildEffect?: boolean; lostChildCreationAcknowledgement?: boolean; onChildCreation?: (key:string)=>void; onChildCreationRequest?: (request:Record<string,unknown>)=>void } = {}) {
+async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean; nativeApproval?: boolean; lostChildAcknowledgement?: boolean; uncertainChildEffect?: boolean; limitedChildContext?:boolean; onChildContinue?: (request:Record<string,unknown>)=>void; lostChildCreationAcknowledgement?: boolean; onChildCreation?: (key:string)=>void; onChildCreationRequest?: (request:Record<string,unknown>)=>void } = {}) {
   let project: Record<string, unknown> | null = null;
   const invocations: InvocationRecord[] = [];
   const episodes: EpisodeRecord[] = [];
@@ -123,7 +123,12 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
       const action=path.split('/')[5];
       if (!action) return json(intercepted,child);
       if (action==='observations') return json(intercepted,{items:[],has_more:false,cursor:0});
-      if (action==='recovery-preview') return json(intercepted,{revision:child.revision,preview_sha256:'a'.repeat(64),mode:'portable',maximum_remaining_loss:'Unexposed provider computation cannot be recovered.',blockers:options.uncertainChildEffect && !body.effect_dispositions?.length ? [{code:'uncertain_mutating_effect',detail:'Inspect the unconfirmed action.',effects:[{attempt_id:'attempt_effect',tool_id:'effect:0',request:{name:'Bash',input:{command:'write an external record'}}}]}] : []});
+      if (action==='recovery-preview') {
+        const selected=body.context_selection?.omitted_round_ids?.includes('round_1') && body.context_selection.reason?.trim();
+        return json(intercepted,{revision:child.revision,preview_sha256:(selected?'b':'a').repeat(64),mode:'portable',maximum_remaining_loss:'Unexposed provider computation cannot be recovered.',
+          ...(options.limitedChildContext ? {available_context:{rounds:[{round_id:'round_1',ordinal:1}],observations:[],artifacts:[],blocks:[]},required_confirmations:selected?[{code:'context.operator-selection',detail:{selection:body.context_selection},reason_sha256:'c'.repeat(64)}]:[]} : {}),
+          blockers:options.limitedChildContext && !selected ? [{code:'provider_context_limit',detail:'Select smaller retained context before continuing.'}] : options.uncertainChildEffect && !body.effect_dispositions?.length ? [{code:'uncertain_mutating_effect',detail:'Inspect the unconfirmed action.',effects:[{attempt_id:'attempt_effect',tool_id:'effect:0',request:{name:'Bash',input:{command:'write an external record'}}}]}] : []});
+      }
       const retainedReceipt=childReceipts.get(String(body.idempotency_key));
       if (retainedReceipt) return json(intercepted,retainedReceipt);
       if (body.expected_revision!==child.revision) return json(intercepted,{detail:'conversation revision changed'},409);
@@ -137,7 +142,11 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
       }
       if (action==='steer') child.steering.push({steering_id:'steering_one',content:String(body.content)});
       if (action==='interrupt' && child.pending) { child.pending.state='needs_attention';child.rounds.at(-1)!.state='needs_attention'; }
-      if (action==='continue') { child.rounds.at(-1)!.state='completed';child.rounds.at(-1)!.response='Recovered using the saved conversation.';child.pending=null;child.steering=[]; }
+      if (action==='continue') {
+        if (options.limitedChildContext && (!body.context_selection?.omitted_round_ids?.includes('round_1') || !body.confirmed_reason_sha256s?.includes('c'.repeat(64)))) return json(intercepted,{detail:'exact context selection was not confirmed'},409);
+        options.onChildContinue?.(body);
+        child.rounds.at(-1)!.state='completed';child.rounds.at(-1)!.response='Recovered using the saved conversation.';child.pending=null;child.steering=[];
+      }
       const receipt={conversation_id:child.conversation_id,revision:child.revision,event_cursor:child.revision};
       childReceipts.set(String(body.idempotency_key),receipt);
       if (action==='send' && loseAcknowledgement) { loseAcknowledgement=false;return intercepted.abort('connectionreset'); }
@@ -432,6 +441,72 @@ test('durable child: saved draft and reading position survive reload, then inter
   await expect(page.getByText('First retained answer.',{exact:false})).toBeVisible();
 });
 
+
+test('durable child: explicit context selection survives reload and confirms the exact recovery', async ({page}) => {
+  const admitted:Array<Record<string,unknown>>=[];
+  await installDeterministicLattice(page,{limitedChildContext:true,onChildContinue:request=>admitted.push(request)});
+  await page.goto('/');
+  await page.getByPlaceholder('New project').fill('Context selection project');
+  await page.getByRole('button',{name:'Create',exact:true}).click();
+  await page.getByLabel('Child conversation title').fill('Selected history child');
+  await page.getByRole('button',{name:'Create with current route'}).click();
+  await page.getByLabel('Next request',{exact:true}).fill('First saved request');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await page.getByLabel('Next request',{exact:true}).fill('Second pending request');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await page.getByRole('button',{name:'Interrupt',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeDisabled();
+  await page.getByText('Recovery context and route',{exact:true}).click();
+  await page.getByLabel('Include completed round 1',{exact:true}).uncheck();
+  await page.getByLabel('Reason for context selection',{exact:true}).fill('Use the pending request while keeping earlier saved work.');
+  await page.reload();
+  await page.getByText('Recovery context and route',{exact:true}).click();
+  await expect(page.getByLabel('Include completed round 1',{exact:true})).not.toBeChecked();
+  await expect(page.getByLabel('Reason for context selection',{exact:true})).toHaveValue('Use the pending request while keeping earlier saved work.');
+  await page.getByRole('button',{name:'Review recovery changes'}).click();
+  await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeDisabled();
+  await page.getByLabel('Use this explicit context selection; retain omitted material in saved history.',{exact:true}).check();
+  await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(page.getByText('Recovered using the saved conversation.')).toBeVisible();
+  await expect(page.getByText('First retained answer.',{exact:false})).toBeVisible();
+  expect(admitted).toHaveLength(1);
+  expect(admitted[0].context_selection).toMatchObject({omitted_round_ids:['round_1'],reason:'Use the pending request while keeping earlier saved work.'});
+  expect(admitted[0].expected_preview_sha256).toBe('b'.repeat(64));
+  expect(admitted[0].confirmed_reason_sha256s).toEqual(['c'.repeat(64)]);
+});
+
+test('durable child: fresh operator discovers children beyond the first page and filters by owner', async ({page}) => {
+  await installDeterministicLattice(page);
+  await page.goto('/');
+  await page.getByPlaceholder('New project').fill('Paged child project');
+  await page.getByRole('button',{name:'Create',exact:true}).click();
+  await page.getByLabel('Child conversation title').fill('Needle child');
+  await page.getByLabel('Owning task reference').fill('task:needle');
+  await page.getByRole('button',{name:'Create with current route'}).click();
+  const queries:Array<Record<string,string>>=[];
+  const many=Array.from({length:500},(_,i)=>({conversation_id:`conversation_${String(i).padStart(4,'0')}`,title:`Other child ${i}`,owning_task_ref:'task:other',revision:1,parent_conversation_id:null}));
+  const needle={conversation_id:'conversation_browser',title:'Needle child',owning_task_ref:'task:needle',revision:1,parent_conversation_id:null};
+  await page.route('**/api/v1/conversations?**', async route=>{
+    const query=new URL(route.request().url()).searchParams;
+    queries.push(Object.fromEntries(query));
+    const owner=query.get('owning_task_ref');
+    return json(route,owner==='task:needle' || query.get('after')==='conversation_0499' ? [needle] : many);
+  });
+  await page.getByRole('button',{name:'Invocation workspace',exact:true}).click();
+  await page.reload();
+  const navigation=page.getByRole('navigation',{name:'Saved child conversations'});
+  await expect(navigation.getByRole('button',{name:'Needle child'})).toHaveCount(0);
+  await page.getByRole('button',{name:'More conversations'}).click();
+  await navigation.getByRole('button',{name:'Needle child'}).click();
+  await expect(page.getByRole('heading',{name:'Needle child',exact:true})).toBeVisible();
+  expect(queries.some(q=>q.after==='conversation_0499')).toBe(true);
+  await page.getByLabel('Filter children by owning task').fill('task:needle');
+  await page.getByRole('button',{name:'Filter children'}).click();
+  await expect(navigation.getByRole('button',{name:'Needle child'})).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Previous conversations'})).toHaveCount(0);
+  expect(queries.at(-1)).toMatchObject({owning_task_ref:'task:needle',after:''});
+});
 
 test('durable child: lost acknowledgement survives reload without duplicating the request', async ({page}) => {
   await installDeterministicLattice(page,{lostChildAcknowledgement:true});

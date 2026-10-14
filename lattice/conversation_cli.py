@@ -93,17 +93,30 @@ def command(args):
         key=args.idempotency_key or str(uuid.uuid4())
         if action=='continue':
             effects=json.loads(Path(args.effects).read_text()) if args.effects else []
-            preview=client.conversation_preview(args.conversation_id,policy=args.policy,include_steering=not args.exclude_steering,effect_dispositions=effects)
-            if args.preview or preview['blockers']:
+            choices={}
+            if args.omit_round or args.omit_observation or args.omit_artifact or args.context_block is not None:
+                if not args.reason:
+                    raise ValueError('explicit context selection requires --reason')
+                choices['context_selection']={'omitted_round_ids':args.omit_round,'omitted_observation_ids':args.omit_observation,'omitted_artifact_ids':args.omit_artifact,'context_block_ids':args.context_block,'reason':args.reason}
+            if args.route:
+                choices['route']=ProviderRoute.model_validate_json(Path(args.route).read_text()).model_dump(mode='json')
+            preview=client.conversation_preview(args.conversation_id,policy=args.policy,include_steering=not args.exclude_steering,effect_dispositions=effects,**choices)
+            confirmations=preview.get('required_confirmations',[])
+            if args.preview or preview['blockers'] or (confirmations and not args.confirm):
                 if args.json:
                     print(json.dumps(preview,ensure_ascii=False,indent=2))
                 else:
                     print(f"Continuation: {preview['mode']}\n{preview['maximum_remaining_loss']}")
                     for blocker in preview['blockers']:
                         print(f"{blocker['code']}: {blocker['detail']}")
-                return 2 if preview['blockers'] else 0
+                    for reason in confirmations:
+                        print(f"Confirm {reason['code']}: {json.dumps(reason['detail'],ensure_ascii=False)}")
+                    if confirmations and not args.confirm:
+                        print('Review these changes, then continue with --confirm.')
+                return 2 if preview['blockers'] or (confirmations and not args.confirm) else 0
             result=client.conversation_continue(args.conversation_id,{'expected_revision':preview['revision'],'idempotency_key':key,
-                'expected_preview_sha256':preview['preview_sha256'],'policy':args.policy,'include_steering':not args.exclude_steering,'effect_dispositions':effects})
+                'expected_preview_sha256':preview['preview_sha256'],'policy':args.policy,'include_steering':not args.exclude_steering,'effect_dispositions':effects,**choices,
+                'confirmed_reason_sha256s':[r['reason_sha256'] for r in confirmations] if args.confirm else []})
         else:
             state=client.conversation_show(args.conversation_id,limit=1)
             request={'expected_revision':state['revision'] if args.revision is None else args.revision,'idempotency_key':key}
@@ -158,6 +171,13 @@ def add_parser(subparsers):
             item.add_argument('--preview',action='store_true')
             item.add_argument('--exclude-steering',action='store_true')
             item.add_argument('--effects',help='JSON file with inspected uncertain-effect dispositions')
+            item.add_argument('--omit-round',action='append',default=[],help='omit one completed round from recovery input; keep its saved history')
+            item.add_argument('--omit-observation',action='append',default=[],help='omit an exact observation identity printed by preview')
+            item.add_argument('--omit-artifact',action='append',default=[])
+            item.add_argument('--context-block',action='append',default=None,help='replace selected context with these retained blocks')
+            item.add_argument('--reason',help='why this explicit context selection is being made')
+            item.add_argument('--route',help='use this exact route as the conversation default after confirmed admission')
+            item.add_argument('--confirm',action='store_true',help='confirm the exact changes shown by recovery preview')
         if name=='watch':
             item.add_argument('--after',type=int,default=0)
             item.add_argument('--timeout',type=float,default=1800)

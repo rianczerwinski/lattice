@@ -81,7 +81,8 @@ class ConversationService:
                             channels = [r[0] for r in conn.execute("SELECT DISTINCT json_extract(payload_json,'$.channel') FROM events WHERE subject_id=? AND event_type='attempt.chunk'", (attempt_id,))]
                         for channel in sorted(channels):
                             raw = ObservationStore(self.store).bytes(attempt_id, channel)
-                            active_evidence.append({'attempt_id':attempt_id,'channel':channel,'sha256':sha256_bytes(raw),**exact_text(raw)})
+                            digest = sha256_bytes(raw)
+                            active_evidence.append({'observation_id':f'{attempt_id}:{channel}:{digest}','attempt_id':attempt_id,'channel':channel,'sha256':digest,**exact_text(raw)})
                         # Reconstruct action facts from authoritative bytes as well as
                         # exposing indexed events; a missing derived index must not
                         # turn an unacknowledged mutation into an empty success.
@@ -105,6 +106,9 @@ class ConversationService:
                                     if fact['kind']=='tool-request':
                                         provider_id=fact.get('id')
                                         matched=open_ids.get(provider_id,[]) if provider_id is not None else []
+                                        if fact.get('stream_complete') and len(matched)==1 and requests[matched[0]].get('partial'):
+                                            requests[matched[0]] = fact
+                                            continue
                                         if fact.get('progress_update') and len(matched)==1:
                                             # Native item updates describe one in-flight
                                             # action; arguments do not identify actions.
@@ -125,16 +129,49 @@ class ConversationService:
                                                 requests[matched[0]]['failed_result']=fact
                                             open_ids[fact['id']]=[]
                         for identity, request in requests.items():
-                            if request.get('name') not in READ_ONLY_TOOLS:
+                            if request.get('name') not in READ_ONLY_TOOLS and not (inv['route']['provider']=='anthropic' and request.get('name')=='StructuredOutput'):
                                 unknown_effects.append({'attempt_id':attempt_id,'tool_id':identity,'request':request})
         for instruction in steering:
             sources.append({'ref':f"lattice:steering/{instruction['steering_id']}",'revision':str(instruction['ordinal']),'sha256':sha256_bytes(instruction['content'].encode('utf-8'))})
         return conversation, rows, target, steering, completed, invocations, sources, retained_artifacts, active_evidence, unknown_effects
 
-    def preview(self, conversation_id: str, *, policy: str | None = None, include_steering: bool = True, effect_dispositions: list[dict] | None = None) -> dict:
+    def preview(self, conversation_id: str, *, policy: str | None = None, include_steering: bool = True, effect_dispositions: list[dict] | None = None, context_selection: dict | None = None, route: dict | None = None) -> dict:
         conversation, rounds, target, steering, completed, invocations, sources, artifacts, observations, uncertain = self._history(conversation_id)
         selected_policy = policy or conversation['recovery_policy']
+        default_route = json.loads(conversation['route_json'])
+        selected_route = ProviderRoute.model_validate(route or default_route).model_dump(mode='json')
+        if selected_route['route_kind'] != 'execution' or selected_route['execution_profile'] == 'native-continuation':
+            raise LatticeConflict('select a fresh executable route; native ancestry is bound by recovery eligibility')
+        route_changed = selected_route != default_route
+        carried_selection = invocations[-1]['_conversation_recovery'].get('context_selection') if invocations else None
+        selection = context_selection if context_selection is not None else carried_selection
+        omissions = []
+        available_context = {'rounds':[{'round_id':r['round_id'],'ordinal':r['ordinal'],'request_sha256':r['request_sha256'],'response_sha256':r['response_sha256']} for r in completed],
+            'observations':[{'observation_id':o['observation_id'],'attempt_id':o['attempt_id'],'channel':o['channel'],'sha256':o['sha256']} for o in observations],
+            'artifacts':[{'artifact_id':a['artifact_id'],'sha256':a['sha256']} for a in artifacts]}
+        if selection is not None:
+            from .conversation_contracts import RecoveryContextSelection
+            selection = RecoveryContextSelection.model_validate(selection).model_dump(mode='json')
+            groups = [('omitted_round_ids', completed, 'round_id', 'response_sha256'), ('omitted_observation_ids', observations, 'observation_id', 'sha256'), ('omitted_artifact_ids', artifacts, 'artifact_id', 'sha256')]
+            for field, records, key, digest_key in groups:
+                identities = selection[field]
+                if len(set(identities)) != len(identities):
+                    raise LatticeConflict('context selection contains duplicate identities')
+                missing = set(identities) - {r[key] for r in records}
+                # An observation/artifact excluded at an earlier unfinished
+                # boundary need not still be in the current pending projection.
+                carried = set((carried_selection or {}).get(field, []))
+                if missing - carried:
+                    raise LatticeConflict('context selection names unavailable evidence')
+                for record in records:
+                    if record[key] in identities:
+                        omissions.append({'kind':field,'identity':record[key],'sha256':record[digest_key],'reason':selection['reason']})
+            completed = [r for r in completed if r['round_id'] not in selection['omitted_round_ids']]
+            observations = [o for o in observations if o['observation_id'] not in selection['omitted_observation_ids']]
+            artifacts = [a for a in artifacts if a['artifact_id'] not in selection['omitted_artifact_ids']]
         blockers = []
+        if invocations and invocations[-1]['attempts'] and invocations[-1]['attempts'][-1].get('failure_kind') == 'context_limit' and not route_changed and selection == carried_selection:
+            blockers.append({'code':'provider_context_limit','detail':'The provider rejected this context as too large. Select retained context or a different route before continuing.'})
         if target is None:
             blockers.append({'code':'no_pending_request','detail':'Send a request before continuing.'})
         elif target['state']=='active':
@@ -156,6 +193,8 @@ class ConversationService:
         # completed invocation alone must never turn this into an eligibility claim.
         from .native_recovery import eligibility
         native = eligibility(self.store,invocations[-1]) if invocations and invocations[-1]['_conversation_recovery'].get('mode')!='adopted' else {'eligible':False,'reason':'No native execution has supplied a boundary.'}
+        if route_changed or selection is not None:
+            native = {'eligible':False,'reason':'Explicit context or route changes require portable reconstruction; native state cannot forget excluded history.'}
         if selected_policy == 'native' and invocations and not native['eligible']:
             blockers.append({'code':'native_unqualified','detail':native['reason']})
         request = next((r['request'] for r in rounds if target and r['round_id']==target['round_id']), None)
@@ -165,7 +204,9 @@ class ConversationService:
         material = {'conversation_id':conversation_id,'revision':conversation['revision'],
                     'round_id':target['round_id'] if target else None, 'state':target['state'] if target else None,
                     'policy':selected_policy,'mode':'native' if selected_policy!='portable' and native['eligible'] else 'portable','native':native,'request':request,
-                    'route':json.loads(conversation['route_json']), 'history':history,
+                    'route':selected_route, 'route_changed':route_changed, 'history':history,
+                    'context_selection':selection,'omissions':omissions,'available_context':available_context,
+                    'context_selection_explicit':context_selection is not None,
                     'prior_steering':next((r['operator_steering'] for r in rounds if target and r['round_id']==target['round_id']),[]),
                     'steering':[{'steering_id':s['steering_id'],'content':s['content'],'ordinal':s['ordinal']} for s in steering] if include_steering else [],
                     'include_steering':include_steering,'effect_dispositions':dispositions,'sources':sources,'blockers':blockers,
@@ -175,14 +216,27 @@ class ConversationService:
             if prior is None and invocations:
                 prior = invocations[-1]
             material['context_bindings'] = [item for item in prior['manifest']['segments'] if item['plane']!='current_prompt' and item['semantic_type']!='conversation-history'] if prior and prior['_conversation_recovery'].get('mode')!='adopted' else []
-            material['initial_context'] = prior is None or prior['_conversation_recovery'].get('mode')=='adopted'
+            material['initial_context'] = (prior is None or prior['_conversation_recovery'].get('mode')=='adopted') and (selection or {}).get('context_block_ids') is None
+            material['available_context']['blocks'] = [{'block_id':b['block_id'],'label':b['label'],'plane':b['plane']} for b in material['context_bindings']]
+            changed_bindings = any(self.store.get_block(b['block_id'],include_content=False)['status_revision'] != b['status_revision'] for b in material['context_bindings'])
             material['execution_ordinal'] = len(next(r for r in rounds if r['round_id']==target['round_id'])['executions'])+1
             try:
                 prepared = self._prepare(material)
                 material['batch_preview_sha256'] = prepared[1]['preview_sha256']
                 material['confirmation_reasons'] = prepared[1]['confirmation_reasons']
+                decisions = []
+                if context_selection is not None and (selection != carried_selection or changed_bindings):
+                    bindings = [{'block_id':b['block_id'],'sha256':b['sha256'],'status_revision':b['status_revision'],'plane':b['plane']} for b in prepared[1]['members'][0]['preflight']['segments'] if b['semantic_type'] != 'conversation-history']
+                    decisions.append({'code':'context.operator-selection','detail':{'selection':selection,'omissions':omissions,'selected_bindings':bindings}})
+                if route_changed:
+                    decisions.append({'code':'route.operator-change','detail':{'before':default_route,'after':selected_route}})
+                for decision in decisions:
+                    decision['reason_sha256'] = sha256_json(decision)
+                material['confirmation_reasons'] += decisions
+                material['required_confirmations'] = [r for r in material['confirmation_reasons'] if route_changed or not r['code'].startswith('authority.')]
             except LatticeConflict as error:
                 material['blockers'].append({'code':'context_limit' if 'exceeds' in str(error) else 'context_binding','detail':str(error)})
+                material['required_confirmations'] = []
         return {**material,'preview_sha256':sha256_json(material)}
 
     def _prepare(self, preview):
@@ -191,11 +245,16 @@ class ConversationService:
         history_bytes = canonical_bytes(history)
         block = ContextBlockCreate(project_id=self.conversations.get(preview['conversation_id'],limit=1)['project_id'],
             semantic_type='conversation-history', content=history_bytes.decode(), authority='attributed-history', evidence_level='exact-retained-history',
-            transformation={'kind':'exact-conversation-history-v1','sources':preview['sources'],'encoding':'canonical-json','omissions':[],'summarized':False})
+            transformation={'kind':'exact-conversation-history-v1','sources':preview['sources'],'encoding':'canonical-json','omissions':preview['omissions'],'summarized':False,'initiated_by':'operator' if preview['context_selection'] else None})
         block_id = self.lattice.prepared_context(block)['block_id']
         selections = [ContextSelection(block_id=block_id,plane='knowledge',label='Retained conversation history')]
         selected_ids = {block_id}
-        for binding in preview['context_bindings']:
+        replacement = (preview['context_selection'] or {}).get('context_block_ids')
+        if replacement is not None and not preview['context_selection_explicit']:
+            for binding in preview['context_bindings']:
+                if binding['block_id'] in replacement and self.store.get_block(binding['block_id'],include_content=False)['status_revision'] != binding['status_revision']:
+                    raise LatticeConflict('selected context changed since the prior execution; explicit context selection is required')
+        for binding in preview['context_bindings'] if replacement is None else []:
             if binding['block_id'] in selected_ids:
                 continue
             current_block = self.store.get_block(binding['block_id'],include_content=False)
@@ -203,9 +262,10 @@ class ConversationService:
                 raise LatticeConflict('selected context changed since the prior execution; explicit context selection is required')
             selections.append(ContextSelection(block_id=binding['block_id'],plane=binding['plane'],label=binding['label']))
             selected_ids.add(binding['block_id'])
-        for block_id in request.get('context_block_ids',[]):
+        for block_id in request.get('context_block_ids',[]) if replacement is None else replacement:
             if block_id not in selected_ids:
-                selections.append(ContextSelection(block_id=block_id,plane='knowledge',label=f'Selected context {len(selections)}'))
+                prior_binding = next((b for b in preview['context_bindings'] if b['block_id']==block_id), None)
+                selections.append(ContextSelection(block_id=block_id,plane=prior_binding['plane'] if prior_binding else 'knowledge',label=prior_binding['label'] if prior_binding else f'Selected context {len(selections)}'))
                 selected_ids.add(block_id)
         # The compositor retargets this placeholder to the exact content-bound
         # current request block; explicit mode prevents live defaults drifting in.
@@ -234,13 +294,20 @@ class ConversationService:
     def seal(self, conversation_id: str, *, continuation: ConversationContinue | None = None) -> dict:
         mutation = {'action':'continue',**continuation.model_dump(mode='json')} if continuation else None
         if mutation:
+            # Additive controls must not change an earlier neutral request's
+            # identity: lost acknowledgements can cross a runtime upgrade.
+            for key in ('context_selection','route','confirmed_reason_sha256s'):
+                if mutation[key] in (None, []):
+                    mutation.pop(key)
             with self.store._connect() as conn:
                 old = replay(conn,conversation_id,continuation.idempotency_key,mutation)
             if old is not None:
                 return old
         preview = self.preview(conversation_id,policy=continuation.policy if continuation else None,
                                include_steering=continuation.include_steering if continuation else False,
-                               effect_dispositions=[d.model_dump(mode="json") for d in continuation.effect_dispositions] if continuation else None)
+                               effect_dispositions=[d.model_dump(mode="json") for d in continuation.effect_dispositions] if continuation else None,
+                               context_selection=continuation.context_selection.model_dump(mode='json') if continuation and continuation.context_selection else None,
+                               route=continuation.route.model_dump(mode='json') if continuation and continuation.route else None)
         if continuation:
             if preview['revision'] != continuation.expected_revision or preview['preview_sha256'] != continuation.expected_preview_sha256:
                 raise LatticeConflict('conversation recovery preview changed; inspect the new boundary')
@@ -254,8 +321,12 @@ class ConversationService:
         # Create already admitted this exact route. Confirm only authority already
         # present there; transformations/omissions retain their existing gate.
         reasons = compiled['confirmation_reasons']
-        if any(not reason['code'].startswith('authority.') for reason in reasons):
+        required = {reason['reason_sha256'] for reason in preview['required_confirmations']}
+        confirmed = set(continuation.confirmed_reason_sha256s) if continuation else set()
+        if required - confirmed:
             raise LatticeConflict('conversation continuation requires explicit context confirmation')
+        if confirmed - required:
+            raise LatticeConflict('conversation confirmation does not match this recovery preview')
         recovery = {k:v for k,v in preview.items() if k not in ('history','request')}
         recovery['continuing'] = continuation is not None
         recovery['generated_object'] = generated_object(kind='conversation-recovery-manifest',schema_name='lattice-conversation-recovery-manifest',

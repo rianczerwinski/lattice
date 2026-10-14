@@ -40,6 +40,19 @@ def native(lattice_env,tmp_path,monkeypatch):
     return env,service,identity,sealed['invocation_id'],path,row
 
 
+@pytest.mark.oracle
+@pytest.mark.parametrize('change', ['model','compaction'])
+def test_selected_boundary_cannot_bind_changed_model_or_compacted_history(native,change):
+    env,service,identity,parent,path,row=native
+    inv=env['store'].get_invocation(parent)
+    attempt_id=inv['attempts'][-1]['attempt_id']
+    frame={'type':'assistant','message':{'model':'claude-opus-5','content':'unexpected model'}} if change=='model' else {'type':'system','subtype':'compact_boundary'}
+    ObservationStore(env['store']).append(attempt_id,'stdout',json.dumps(frame).encode()+b'\n')
+    captured=capture_boundary(env['store'],env['store'].get_invocation(parent),inv['attempts'][-1]['runtime_receipt'])
+    assert captured['eligible_evidence'] is False
+    assert ('switched' if change=='model' else 'compacted') in captured['reason']
+
+
 @pytest.mark.contract
 def test_interrupted_native_boundary_requires_independent_qualification(native,monkeypatch):
     env,service,identity,parent,path,row=native

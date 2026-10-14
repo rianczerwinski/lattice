@@ -7,7 +7,8 @@ from fastapi import APIRouter, Query
 from pydantic import Field
 from .contracts import StrictModel
 from .conversation_contracts import (ConversationCreate, ConversationSend, ConversationSteer,
-    ConversationContinue, ConversationMutation, ConversationAdopt, EffectDisposition)
+    ConversationContinue, ConversationMutation, ConversationAdopt, EffectDisposition, RecoveryContextSelection)
+from .contracts import ProviderRoute
 from .conversations import ConversationStore
 from .conversation_service import ConversationService
 
@@ -16,6 +17,8 @@ class RecoveryPreview(StrictModel):
     policy: Literal['auto','native','portable'] | None = None
     include_steering: bool = True
     effect_dispositions: list[EffectDisposition] = Field(default_factory=list,max_length=1000)
+    context_selection: RecoveryContextSelection | None = None
+    route: ProviderRoute | None = None
 
 
 def conversation_router(store, supervisor):

@@ -36,7 +36,20 @@ def test_raw_interrupted_native_evidence_is_accepted(evidence):
 
 
 @pytest.mark.oracle
-@pytest.mark.parametrize('fault',['wrong_model','changed_authority','wrong_binary','no_interruption','wrong_session','missing_recall','leaked_canary','false_success','missing_bytes'])
+def test_partial_native_activity_qualifies_only_before_terminal_output(evidence):
+    store,put,blobs,route,proof=evidence
+    messages=[json.loads(line) for line in blobs[proof['first']['stdout'].rsplit('/',1)[1]].splitlines()]
+    messages[1]={'type':'stream_event','event':{'type':'content_block_delta','index':0,'delta':{'type':'text_delta','text':'retained partial'}}}
+    proof['first']['stdout']=put(b''.join(json.dumps(m).encode()+b'\n' for m in messages))
+    assert verify_native_case(store,proof,route,'b'*64,'interrupted')['boundary']=='interrupted'
+    messages.append({'type':'result','subtype':'success','is_error':False,'structured_output':{'response':'already complete'}})
+    proof['first']['stdout']=put(b''.join(json.dumps(m).encode()+b'\n' for m in messages))
+    with pytest.raises(ValueError,match='after terminal output'):
+        verify_native_case(store,proof,route,'b'*64,'interrupted')
+
+
+@pytest.mark.oracle
+@pytest.mark.parametrize('fault',['wrong_model','changed_authority','wrong_binary','no_interruption','wrong_session','missing_recall','leaked_canary','false_success','missing_bytes','switched_model','compaction','tool_retrieval'])
 def test_native_proof_rejects_false_qualification(evidence,fault):
     store,put,blobs,route,proof=evidence
     proof=copy.deepcopy(proof)
@@ -56,10 +69,14 @@ def test_native_proof_rejects_false_qualification(evidence,fault):
         raw=('Recall '+proof['canary']).encode()
         value=read('continued','request');value['prompt_sha256']=hashlib.sha256(raw).hexdigest()
         proof['continued']['request']=put(value);proof['continued']['prompt']=put(raw)
-    elif fault in ('missing_recall','false_success'):
+    elif fault in ('missing_recall','false_success','switched_model','compaction','tool_retrieval'):
         messages=[json.loads(line) for line in blobs[proof['continued']['stdout'].rsplit('/',1)[1]].splitlines()]
         if fault=='missing_recall':messages[-1]['structured_output']['response']='forgotten'
-        else:messages[-1]['is_error']=True
+        elif fault=='false_success':messages[-1]['is_error']=True
+        elif fault=='switched_model':messages[1]['message']['model']='claude-opus-5'
+        elif fault=='compaction':messages.insert(1,{'type':'system','subtype':'compact_boundary'})
+        else:
+            messages[1:1]=[{'type':'assistant','message':{'content':[{'type':'tool_use','id':'retrieved','name':'Read','input':{'file_path':'/private/prior-token.txt'}}]}}, {'type':'user','message':{'content':[{'type':'tool_result','tool_use_id':'retrieved','content':proof['canary']}]}}]
         proof['continued']['stdout']=put(b''.join(json.dumps(m).encode()+b'\n' for m in messages))
     else:
         del blobs[proof['first']['stdout'].rsplit('/',1)[1]]

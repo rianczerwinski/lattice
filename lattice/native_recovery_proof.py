@@ -45,6 +45,12 @@ def _journal(store, refs, route, binary_sha256):
     messages=[strict_json_loads(line) for line in raw['stdout'].split(b'\n') if line.strip()]
     if any(not isinstance(item,dict) for item in messages):
         raise ValueError('native qualification stream contains a nonobject')
+    if any(m.get('type')=='system' and m.get('subtype')=='compact_boundary' for m in messages):
+        raise ValueError('native qualification silently compacted selected context')
+    models = [m['message']['model'] for m in messages if m.get('type')=='assistant' and isinstance(m.get('message'),dict) and m['message'].get('model')]
+    models.extend(m['event']['message']['model'] for m in messages if m.get('type')=='stream_event' and isinstance(m.get('event'),dict) and m['event'].get('type')=='message_start' and isinstance(m['event'].get('message'),dict) and m['event']['message'].get('model'))
+    if any(model != route['model'] and not re.fullmatch(re.escape(route['model']) + r'-\d{8}', str(model)) for model in models):
+        raise ValueError('native qualification switched the exposed model')
     identities={(m.get('session_id'),m.get('model')) for m in messages if m.get('type')=='system' and m.get('subtype')=='init'}
     session=checkpoint.get('native_session',{}).get('id')
     if not session or identities!={(session,route['model'])}:
@@ -68,6 +74,14 @@ def verify_native_case(store, proof, route, binary_sha256, boundary):
         raise ValueError('native canary was absent initially or leaked into the continuation request')
     if nonce.encode() in canonical_bytes(resumed[0]):
         raise ValueError('native canary leaked through continuation input metadata')
+    for message in resumed[2]:
+        content = message.get('message', {}).get('content', []) if isinstance(message.get('message'), dict) else []
+        if isinstance(content, list) and any(isinstance(block, dict) and block.get('type') == 'tool_use' and block.get('name') != 'StructuredOutput' for block in content):
+            raise ValueError('native recall used an alternate tool input channel')
+        event = message.get('event')
+        block = event.get('content_block') if isinstance(event, dict) else None
+        if message.get('type')=='stream_event' and isinstance(block, dict) and block.get('type')=='tool_use' and block.get('name')!='StructuredOutput':
+            raise ValueError('native recall used an alternate partial tool input channel')
     if any(item[0]['metadata'].get('schema') != NATIVE_RECALL_SCHEMA for item in (first,resumed)):
         raise ValueError('native recall proof requires the fixed non-disclosing output schema')
     # No alternate prompt or system channel may supply the answer to the recall
@@ -87,7 +101,17 @@ def verify_native_case(store, proof, route, binary_sha256, boundary):
         _response(first[2])
     elif first[3]['status']!='interrupted' or first[3].get('failure_kind')!='operator_interruption':
         raise ValueError('interrupted qualification never exercised cancellation')
-    if not any(m.get('type')=='assistant' for m in first[2]):
+    if boundary=='interrupted' and any(m.get('type')=='result' for m in first[2]):
+        raise ValueError('interrupted qualification cancelled after terminal output')
+    exposed = False
+    for message in first[2]:
+        if message.get('type')=='assistant':
+            exposed = True
+        event = message.get('event')
+        delta = event.get('delta') if isinstance(event, dict) else None
+        if message.get('type')=='stream_event' and isinstance(delta, dict) and delta.get('type') in ('text_delta','input_json_delta') and (delta.get('text') or delta.get('partial_json')):
+            exposed = True
+    if not exposed:
         raise ValueError('native qualification cancelled before exposed model activity')
     if resumed[3]['status']!='success':
         raise ValueError('native continuation did not complete')

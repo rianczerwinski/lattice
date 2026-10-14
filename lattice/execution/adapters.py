@@ -42,6 +42,7 @@ FAILURE_KINDS = {
     "harness_failure",
     "tool_permission_denied",
     "output_limit",
+    "context_limit",
 }
 
 MAX_SCHEMA_BYTES = 1024 * 1024
@@ -634,6 +635,8 @@ def validate_execution_policy(
         ]
     if execution_profile == "native-continuation":
         enforcement.append(f"provider-session-{continuation_mode}")
+    if adapter.provider_code == "anthropic":
+        enforcement.extend(["provider-compaction-disabled", "requested-model-allowlist"])
     return {
         "execution_profile": execution_profile,
         "session_policy": expected_session_policy,
@@ -692,11 +695,14 @@ def build_command(
                 "--output-format",
                 "stream-json",
                 "--verbose",
+                "--include-partial-messages",
                 "--json-schema",
                 schema_path.read_text(encoding="utf-8"),
                 "--safe-mode",
                 "--setting-sources",
                 "",
+                "--settings",
+                json.dumps({"autoCompactEnabled": False, "availableModels": [adapter.model_code]}, separators=(",", ":")),
                 "--strict-mcp-config",
                 "--mcp-config",
                 json.dumps({"mcpServers": {}}, separators=(",", ":")),
@@ -859,6 +865,8 @@ def classify_provider_failure(returncode: int, stdout: str, stderr: str) -> str:
         return "subscription_exhausted"
     if "structured_output_retry_exhausted" in text or "failed to provide valid structured output after" in text:
         return "malformed_output"
+    if any(marker in text for marker in ('prompt is too long', 'context length exceeded', 'context window exceeded', 'maximum context length')):
+        return 'context_limit'
     if "rate limit" in text or "too many requests" in text or "quota" in text or _provider_api_error_status(stdout) == 429:
         return "rate_limit"
     # A socket rejecting the connection is operational, not a refusal of the
@@ -1043,7 +1051,7 @@ def parse_structured_response(
     raise SubscriptionInvocationFailed("malformed_output", f"structured response failed its Draft 2020-12 contract: {detail}")
 
 
-def parse_claude_sdk_response(stdout: str, schema: dict[str, Any], *, required_tools: tuple[str, ...] = ()) -> dict[str, Any]:
+def parse_claude_sdk_response(stdout: str, schema: dict[str, Any], *, required_tools: tuple[str, ...] = (), expected_model: str | None = None) -> dict[str, Any]:
     """Select only the single final native result, never a nested source object."""
     try:
         messages = [_strict_json_loads(line) for line in stdout.split("\n") if line.strip()]
@@ -1064,6 +1072,16 @@ def parse_claude_sdk_response(stdout: str, schema: dict[str, Any], *, required_t
         if terminal.get("terminal_reason") not in {None, "completed"} or terminal.get("origin") not in (None, {"kind": "human"}):
             raise ValueError("native result was interrupted or belonged to an injected turn")
         _check_claude_research_permissions(terminal, required_tools)
+        if any(message.get('type') == 'system' and message.get('subtype') == 'compact_boundary' for message in messages):
+            raise SubscriptionInvocationFailed('policy_refusal', 'Claude performed compaction despite the exact-context route')
+        if expected_model and expected_model.startswith('claude-'):
+            observed = [message.get('model') for message in messages if message.get('type') == 'system' and message.get('subtype') == 'init']
+            observed.extend(message['message']['model'] for message in messages if message.get('type') == 'assistant' and isinstance(message.get('message'), dict) and message['message'].get('model'))
+            observed.extend(message['event']['message']['model'] for message in messages if message.get('type') == 'stream_event' and isinstance(message.get('event'), dict) and message['event'].get('type') == 'message_start' and isinstance(message['event'].get('message'), dict) and message['event']['message'].get('model'))
+            # A dated release suffix resolves the requested version; an older
+            # model family or another minor version is an unauthorized switch.
+            if not observed or any(model != expected_model and not re.fullmatch(re.escape(expected_model) + r'-\d{8}', str(model)) for model in observed):
+                raise SubscriptionInvocationFailed('policy_refusal', 'Claude exposed a model different from the requested exact version')
         payload = terminal.get("structured_output")
         if payload is None:
             payload = _strict_json_loads(terminal["result"])
@@ -1147,6 +1165,12 @@ def invoke_subscription(
         output_path = isolated / "structured-output.json"
         execution_cwd = Path(effective_policy["workspace"]) if effective_policy["workspace"] else isolated
         execution_environment = subscription_environment()
+        if adapter.provider_code == 'anthropic':
+            # Official controls disable both automatic and manual compaction.
+            # Apply per invocation, not to the user's provider configuration.
+            execution_environment['DISABLE_COMPACT'] = '1'
+            execution_environment['DISABLE_AUTO_COMPACT'] = '1'
+            execution_environment['CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK'] = '1'
         provider_prompt = None
         if adapter.provider_code == "google":
             allow_web = effective_policy["execution_profile"] == "research-fresh"
@@ -1311,7 +1335,7 @@ def invoke_subscription(
                     raise SubscriptionInvocationFailed("malformed_output", f"structured response failed its Draft 2020-12 contract: {validation_error.message[:500]}")
             elif adapter.provider_code == "anthropic":
                 required_tools = tuple(effective_policy["tools"]) if effective_policy["execution_profile"] == "research-fresh" else ()
-                payload = parse_claude_sdk_response(result.stdout, schema, required_tools=required_tools)
+                payload = parse_claude_sdk_response(result.stdout, schema, required_tools=required_tools, expected_model=adapter.model_code)
             else:
                 required_tools = tuple(effective_policy["tools"]) if effective_policy["execution_profile"] == "research-fresh" else ()
                 payload = parse_structured_response(adapter, result.stdout, output_path, schema, required_tools=required_tools)

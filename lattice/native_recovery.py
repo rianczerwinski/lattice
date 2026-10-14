@@ -64,6 +64,11 @@ def capture_boundary(store, invocation, runtime_receipt):
         identities = {(record.get('session_id'),record.get('model')) for event in observations for record in event['records'] if record['kind']=='session'}
         if identities != {(session,route['model'])}:
             raise ValueError('Exposed native session/model identity is absent, ambiguous, or differs from the exact route.')
+        records = [record for event in observations for record in event['records']]
+        if any(record['kind']=='compaction' for record in records):
+            raise ValueError('Selected native boundary compacted its context.')
+        if any(record['kind']=='model' and record['model']!=route['model'] and not re.fullmatch(re.escape(route['model'])+r'-\d{8}',str(record['model'])) for record in records):
+            raise ValueError('Selected native boundary switched its model.')
         # Claude's local project-session layout is checked by live qualification;
         # use only an exact observed UUID, never recursive profile copying.
         root=Path.home()/'.claude'/'projects'

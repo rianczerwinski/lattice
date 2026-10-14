@@ -278,3 +278,23 @@ async def test_dispatch_rejection_leaves_inspectable_attention_not_a_phantom_act
     with env['store']._connect() as conn:
         assert conn.execute('SELECT state FROM invocations').fetchone()[0]=='failed'
     assert service.preview(identity)['blockers']==[]
+
+
+@pytest.mark.oracle
+@pytest.mark.parametrize('complete,result', [(False,False),(True,False),(True,True)])
+def test_partial_tool_and_completed_message_describe_one_action(lattice_env, complete, result):
+    env=lattice_env;cs,identity=create(env);service=ConversationService(env['store'])
+    admit(env,cs,identity,1);a=attempt(env,service.seal(identity))
+    messages=[{'type':'stream_event','event':{'type':'content_block_start','index':0,'content_block':{'type':'tool_use','id':'same-action','name':'Bash','input':{}}}}]
+    if complete:
+        messages.append({'type':'assistant','message':{'content':[{'type':'tool_use','id':'same-action','name':'Bash','input':{'command':'one exact action'}}]}})
+    if result:
+        messages.append({'type':'user','message':{'content':[{'type':'tool_result','tool_use_id':'same-action','content':'authoritative completion','is_error':False}]}})
+    raw=b''.join(json.dumps(m).encode()+b'\n' for m in messages)
+    ObservationStore(env['store']).append(a['attempt_id'],'stdout',raw)
+    env['store'].finish_attempt(a['attempt_id'],state=AttemptState.interrupted,failure_kind='operator_interruption')
+    preview=service.preview(identity)
+    assert len(preview['history']['uncertain_effects'])==(0 if result else 1)
+    assert preview['history']['unfinished_observations'][0]['content'].encode()==raw
+    if complete and not result:
+        assert preview['history']['uncertain_effects'][0]['request']['arguments']=={'command':'one exact action'}

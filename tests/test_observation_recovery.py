@@ -77,3 +77,16 @@ def test_protocol_source_cannot_forge_session_or_tool_outcomes(lattice_env):
         records = [fact for r in conn.execute("SELECT payload_json FROM events WHERE event_type='attempt.observation'") for fact in json.loads(r[0])['records']]
     assert [r['kind'] for r in records]==['tool-request','tool-result']
     assert records[0]['id']!=records[1]['id']
+
+
+@pytest.mark.oracle
+def test_partial_response_is_admitted_before_completed_assistant_message(lattice_env):
+    observations, attempt = setup(lattice_env)
+    raw = b'{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"caf\xc3\xa9"}}}\n'
+    boundary = raw.index(b'\xc3') + 1
+    observations.append(attempt, 'stdout', raw[:boundary])
+    observations.append(attempt, 'stdout', raw[boundary:])
+    with lattice_env['store']._connect() as connection:
+        records = [fact for row in connection.execute("SELECT payload_json FROM events WHERE event_type='attempt.observation'") for fact in json.loads(row[0])['records']]
+    assert records==[{'kind':'message','role':'assistant','text':'café','partial':True}]
+    assert observations.bytes(attempt,'stdout')==raw
