@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="4.868" timestamp="2026-10-14T00:43:19.154074-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_conversation_kernel" name="test_v9_issuer_migration_preserves_manifest_bytes_and_marks_legacy_authority_unknown" time="4.799"><failure message="assert [1, 2, 3, 4, 5, 6, ...] == [1, 2, 3, 4, 5, 6, ...]&#10;  &#10;  Left contains one more item: 16&#10;  Use -v to get more diff">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...4ed03187ad3c5a', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.regression
+    def test_v9_issuer_migration_preserves_manifest_bytes_and_marks_legacy_authority_unknown(lattice_env) -&gt; None:
+        store = lattice_env["store"]
+        draft = store.create_draft(DraftCreate(project_id=lattice_env["project"]["project_id"], actor_binding=DirectActorBinding(), prompt="legacy issuer bytes", route=lattice_env["route"]))
+        invocation = lattice_env["lattice"].seal(draft["draft_id"])
+        prompt_block_id = invocation["manifest"]["segments"][-1]["block_id"]
+        with sqlite3.connect(store.config.database) as conn:
+            before = conn.execute("SELECT manifest_json FROM invocations WHERE invocation_id=?", (invocation["invocation_id"],)).fetchone()[0]
+        _downgrade_context_issuer_schema(store.config.database)
+    
+        migrated = LatticeStore(LatticeConfig(data_root=store.config.data_root, port=store.config.port, axisvi_root=None))
+        with sqlite3.connect(store.config.database) as conn:
+            after = conn.execute("SELECT manifest_json FROM invocations WHERE invocation_id=?", (invocation["invocation_id"],)).fetchone()[0]
+            migration_count = conn.execute("SELECT COUNT(*) FROM schema_migrations WHERE version=10").fetchone()[0]
+            migration_versions = [row[0] for row in conn.execute("SELECT version FROM schema_migrations ORDER BY version")]
+            latest_image = json.loads(conn.execute("SELECT row_json FROM ledger_changes WHERE table_name='context_blocks' AND json_extract(primary_key_json,'$.block_id')=? ORDER BY seq DESC LIMIT 1", (prompt_block_id,)).fetchone()[0])
+    
+        assert after == before
+        assert migration_count == 1
+&gt;       assert migration_versions == list(range(1, 16))
+E       assert [1, 2, 3, 4, 5, 6, ...] == [1, 2, 3, 4, 5, 6, ...]
+E         
+E         Left contains one more item: 16
+E         Use -v to get more diff
+
+tests/test_conversation_kernel.py:207: AssertionError</failure></testcase></testsuite></testsuites>

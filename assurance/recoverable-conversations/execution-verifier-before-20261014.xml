@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="3.321" timestamp="2026-10-14T00:43:43.770343-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_execution_consolidation_verifier" name="test_independent_verifier_reconciles_external_execution_from_base_records" time="3.237"><failure message="verify_execution_consolidation.ConsolidationVerificationError: database schema is 16, expected 15">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...59cd190a827f86', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+
+    @pytest.mark.oracle
+    def test_independent_verifier_reconciles_external_execution_from_base_records(lattice_env) -&gt; None:
+        _completed_external(lattice_env)
+    
+&gt;       result = verifier.verify_database(lattice_env["config"].data_root)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_execution_consolidation_verifier.py:113: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data_root = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-83/test_independent_verifier_reco0/data')
+require_terminal_external = True, historical_roots = None
+
+    def verify_database(data_root: Path, *, require_terminal_external: bool = True, historical_roots: dict[str, Path] | None = None) -&gt; dict[str, Any]:
+        database = data_root / "lattice.sqlite3"
+        connection = sqlite3.connect(f"file:{database.resolve(strict=True)}?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        refs: set[str] = set()
+        try:
+            if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise ConsolidationVerificationError("SQLite quick_check failed")
+            foreign = list(connection.execute("PRAGMA foreign_key_check"))
+            if foreign:
+                raise ConsolidationVerificationError(f"SQLite foreign-key violations exist: {foreign[:3]}")
+            schema = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
+            if schema != EXPECTED_SCHEMA_VERSION:
+&gt;               raise ConsolidationVerificationError(f"database schema is {schema}, expected {EXPECTED_SCHEMA_VERSION}")
+E               verify_execution_consolidation.ConsolidationVerificationError: database schema is 16, expected 15
+
+ops/verify_execution_consolidation.py:347: ConsolidationVerificationError</failure></testcase></testsuite></testsuites>
