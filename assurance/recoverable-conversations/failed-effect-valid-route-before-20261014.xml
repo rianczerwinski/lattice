@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.717" timestamp="2026-10-14T14:23:06.079603-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_conversation_recovery" name="test_failed_mutating_tool_result_does_not_prove_no_effect" time="1.591"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for ProviderRoute&#10;network_policy&#10;  Input should be 'disabled', 'provider_managed' or 'declared_allowlist' [type=literal_error, input_value='provider-managed', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/literal_error">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...f1ea34637bb66e', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-87/test_failed_mutating_tool_resu0')
+
+    @pytest.mark.oracle
+    def test_failed_mutating_tool_result_does_not_prove_no_effect(lattice_env, tmp_path):
+        from lattice.contracts import ProviderRoute
+&gt;       env={**lattice_env,'route':ProviderRoute(provider='anthropic',model='claude-fable-5-1',harness='claude',effort='high',execution_profile='workspace-agent',workspace=str(tmp_path),tools=['Bash'],permissions=['Bash'],sandbox='provider-permissions',network_policy='provider-managed')}
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for ProviderRoute
+E       network_policy
+E         Input should be 'disabled', 'provider_managed' or 'declared_allowlist' [type=literal_error, input_value='provider-managed', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.13/v/literal_error
+
+tests/test_conversation_recovery.py:127: ValidationError</failure></testcase></testsuite></testsuites>

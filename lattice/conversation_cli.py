@@ -21,6 +21,8 @@ def display(value, *, as_json=False):
         print(f"{value['title']} — {value['conversation_id']} (revision {value['revision']})")
         for r in value['rounds']:
             print(f"\nRound {r['ordinal']} · {r['state']}\nYou: {r['request']['prompt']}")
+            for instruction in r.get('operator_steering',[]):
+                print(f"\nAdmitted correction: {instruction['content']}")
             if 'response' in r:
                 print(f"\nModel: {r['response']}")
             for execution in r['executions']:

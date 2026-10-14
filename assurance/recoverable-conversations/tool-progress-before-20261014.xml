@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.844" timestamp="2026-10-14T14:29:40.658156-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_conversation_recovery" name="test_codex_progress_updates_do_not_duplicate_one_exposed_action" time="1.783"><failure message="assert not True&#10; +  where True = any(&lt;generator object test_codex_progress_updates_do_not_duplicate_one_exposed_action.&lt;locals&gt;.&lt;genexpr&gt; at 0x10798d080&gt;)">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...cd42b7a3b6e245', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-90/test_codex_progress_updates_do0')
+
+    @pytest.mark.oracle
+    def test_codex_progress_updates_do_not_duplicate_one_exposed_action(lattice_env, tmp_path):
+        env={**lattice_env,'route':lattice_env['route'].model_copy(update={'execution_profile':'workspace-agent','workspace':str(tmp_path),'tools':['shell'],'sandbox':'workspace-write'})}
+        cs,identity=create(env);service=ConversationService(env['store'])
+        admit(env,cs,identity,1);a=attempt(env,service.seal(identity))
+        messages=[{'type':'item.started','item':{'id':'one-action','type':'command_execution','command':'one action','status':'in_progress'}}]
+        messages += [{'type':'item.updated','item':{'id':'one-action','type':'command_execution','aggregated_output':f'progress {i}','status':'in_progress'}} for i in range(2)]
+        messages.append({'type':'item.completed','item':{'id':'one-action','type':'command_execution','status':'completed','exit_code':0}})
+        raw=b''.join(json.dumps(m).encode()+b'\n' for m in messages)
+        ObservationStore(env['store']).append(a['attempt_id'],'stdout',raw)
+        env['store'].finish_attempt(a['attempt_id'],state=AttemptState.failed,failure_kind='malformed_output')
+        preview=service.preview(identity,policy='portable')
+&gt;       assert not any(b['code']=='uncertain_mutating_effect' for b in preview['blockers'])
+E       assert not True
+E        +  where True = any(&lt;generator object test_codex_progress_updates_do_not_duplicate_one_exposed_action.&lt;locals&gt;.&lt;genexpr&gt; at 0x10798d080&gt;)
+
+tests/test_conversation_recovery.py:156: AssertionError</failure></testcase></testsuite></testsuites>

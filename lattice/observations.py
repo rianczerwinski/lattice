@@ -43,7 +43,12 @@ def normalize(message: dict) -> list[dict]:
             if item_kind == 'agent_message':
                 records.append({'kind': 'message', 'role': 'assistant', 'text': item.get('text'), 'partial': kind != 'item.completed'})
             elif item_kind in ('command_execution', 'file_change', 'mcp_tool_call', 'web_search'):
-                records.append({'kind': 'tool-result' if kind == 'item.completed' else 'tool-request', 'id': item.get('id'), 'name': item_kind, 'detail': item})
+                record={'kind': 'tool-result' if kind == 'item.completed' else 'tool-request', 'id': item.get('id'), 'name': item_kind, 'detail': item}
+                if kind=='item.updated':
+                    record['progress_update']=True
+                elif kind=='item.completed':
+                    record['is_error']=item.get('status') in ('failed','declined') or item.get('exit_code') not in (None,0) or bool(item.get('error'))
+                records.append(record)
     elif kind == 'result':
         records.append({'kind': 'terminal', 'success': message.get('is_error') is False and message.get('subtype') == 'success'})
     elif kind in ('error', 'turn.failed'):

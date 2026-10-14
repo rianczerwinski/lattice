@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.991" timestamp="2026-10-14T14:23:32.574339-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_conversation_recovery" name="test_failed_mutating_tool_result_does_not_prove_no_effect" time="1.890"><failure message="assert False&#10; +  where False = any(&lt;generator object test_failed_mutating_tool_result_does_not_prove_no_effect.&lt;locals&gt;.&lt;genexpr&gt; at 0x10758c380&gt;)">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...b855e13811b350', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-88/test_failed_mutating_tool_resu0')
+
+    @pytest.mark.oracle
+    def test_failed_mutating_tool_result_does_not_prove_no_effect(lattice_env, tmp_path):
+        from lattice.contracts import ProviderRoute
+        env={**lattice_env,'route':ProviderRoute(provider='anthropic',model='claude-fable-5-1',harness='claude',effort='high',execution_profile='workspace-agent',workspace=str(tmp_path),tools=['Bash'],permissions=['Bash'],sandbox='provider-permissions',network_policy='provider_managed')}
+        cs,identity=create(env);service=ConversationService(env['store'])
+        admit(env,cs,identity,1);a=attempt(env,service.seal(identity))
+        action_log=tmp_path/'external-action-log.txt'
+        action_log.write_text('The first part of the action was applied.\n')
+        messages=[{'type':'assistant','message':{'content':[{'type':'tool_use','id':'partial-write','name':'Bash','input':{'command':'write a record, then fail'}}]}},{'type':'user','message':{'content':[{'type':'tool_result','tool_use_id':'partial-write','content':'Command exited 1 after writing the record.','is_error':True}]}}]
+        ObservationStore(env['store']).append(a['attempt_id'],'stdout',b''.join(json.dumps(m).encode()+b'\n' for m in messages))
+        env['store'].finish_attempt(a['attempt_id'],state=AttemptState.failed,failure_kind='harness_failure')
+        preview=service.preview(identity,policy='portable')
+        assert action_log.read_text()=='The first part of the action was applied.\n'
+&gt;       assert any(b['code']=='uncertain_mutating_effect' for b in preview['blockers'])
+E       assert False
+E        +  where False = any(&lt;generator object test_failed_mutating_tool_result_does_not_prove_no_effect.&lt;locals&gt;.&lt;genexpr&gt; at 0x10758c380&gt;)
+
+tests/test_conversation_recovery.py:137: AssertionError</failure></testcase></testsuite></testsuites>

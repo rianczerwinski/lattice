@@ -64,6 +64,49 @@ def test_recovery_keeps_full_exposed_stream_and_rejects_stale_preview(lattice_en
     assert cs.get(identity)['steering']==[]
 
 
+@pytest.mark.oracle
+@pytest.mark.parametrize('boundary', ['interrupted', 'completed', 'dispatch_rejected'])
+def test_admitted_operator_steering_survives_later_recovery_and_rounds(lattice_env, boundary):
+    env=lattice_env;cs,identity=create(env);service=ConversationService(env['store'])
+    admit(env,cs,identity,1);first=service.seal(identity);a=attempt(env,first)
+    env['store'].finish_attempt(a['attempt_id'],state=AttemptState.failed,failure_kind='rate_limit')
+    correction='Retain the violet operator correction across every recovery.'
+    instruction=cs.steer(identity,ConversationSteer(content=correction,expected_revision=cs.get(identity)['revision'],idempotency_key='violet-correction'))
+    preview=service.preview(identity)
+    continued=service.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='violet-first-continue',expected_preview_sha256=preview['preview_sha256']))
+    if boundary=='dispatch_rejected':
+        service.dispatch_failed(continued['invocation_id'],RuntimeError('rejected before provider admission'))
+    else:
+        a=attempt(env,continued)
+        if boundary=='completed':
+            success(env['store'],a,'An answer that does not echo the instruction.')
+            admit(env,cs,identity,2)
+        else:
+            env['store'].finish_attempt(a['attempt_id'],state=AttemptState.interrupted,failure_kind='operator_interruption')
+    replacement=ConversationService(env['store'])
+    preview=replacement.preview(identity)
+    if boundary=='completed':
+        resumed=replacement.seal(identity)
+    else:
+        resumed=replacement.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='violet-second-continue',expected_preview_sha256=preview['preview_sha256']))
+    assert correction in env['lattice'].inspect(resumed['invocation_id'])['compiled_prompt']
+    with env['store']._connect() as connection:
+        rows=connection.execute('SELECT steering_id,state FROM conversation_steering').fetchall()
+    assert [(row['steering_id'],row['state']) for row in rows]==[(instruction['steering_id'],'dispatched')]
+
+
+@pytest.mark.oracle
+def test_next_round_steering_is_not_duplicated_as_a_recovery_correction(lattice_env):
+    env=lattice_env;cs,identity=create(env);service=ConversationService(env['store'])
+    admit(env,cs,identity,1);first=service.seal(identity);a=attempt(env,first)
+    text='One amber instruction supplies the whole next request.'
+    cs.steer(identity,ConversationSteer(content=text,expected_revision=cs.get(identity)['revision'],idempotency_key='amber-next-round'))
+    success(env['store'],a,'First answer without the next instruction.')
+    second=service.seal(identity)
+    assert env['lattice'].inspect(second['invocation_id'])['compiled_prompt'].count(text)==1
+    assert cs.get(identity)['rounds'][1]['operator_steering']==[]
+
+
 @pytest.mark.regression
 def test_unknown_mutating_effect_blocks_both_modes(lattice_env):
     env=lattice_env;cs,identity=create(env);service=ConversationService(env['store'])
@@ -76,6 +119,42 @@ def test_unknown_mutating_effect_blocks_both_modes(lattice_env):
         assert any(b['code']=='uncertain_mutating_effect' for b in preview['blockers'])
         with pytest.raises(LatticeConflict,match='uncertain_mutating_effect'):
             service.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='recover-'+policy,expected_preview_sha256=preview['preview_sha256'],policy=policy))
+
+
+@pytest.mark.oracle
+@pytest.mark.parametrize('provider', ['anthropic', 'openai'])
+def test_failed_mutating_tool_result_does_not_prove_no_effect(lattice_env, tmp_path, provider):
+    from lattice.contracts import ProviderRoute
+    route=ProviderRoute(provider='anthropic',model='claude-fable-5-1',harness='claude',effort='high',execution_profile='workspace-agent',workspace=str(tmp_path),tools=['Bash'],permissions=['Bash'],sandbox='provider-permissions',network_policy='provider_managed') if provider=='anthropic' else lattice_env['route'].model_copy(update={'execution_profile':'workspace-agent','workspace':str(tmp_path),'tools':['shell'],'sandbox':'workspace-write'})
+    env={**lattice_env,'route':route}
+    cs,identity=create(env);service=ConversationService(env['store'])
+    admit(env,cs,identity,1);a=attempt(env,service.seal(identity))
+    action_log=tmp_path/'external-action-log.txt'
+    action_log.write_text('The first part of the action was applied.\n')
+    messages=[{'type':'assistant','message':{'content':[{'type':'tool_use','id':'partial-write','name':'Bash','input':{'command':'write a record, then fail'}}]}},{'type':'user','message':{'content':[{'type':'tool_result','tool_use_id':'partial-write','content':'Command exited 1 after writing the record.','is_error':True}]}}]
+    if provider=='openai':
+        messages=[{'type':'item.started','item':{'id':'partial-write','type':'command_execution','command':'write a record, then fail','status':'in_progress'}},{'type':'item.completed','item':{'id':'partial-write','type':'command_execution','command':'write a record, then fail','status':'failed','exit_code':1}}]
+    ObservationStore(env['store']).append(a['attempt_id'],'stdout',b''.join(json.dumps(m).encode()+b'\n' for m in messages))
+    env['store'].finish_attempt(a['attempt_id'],state=AttemptState.failed,failure_kind='harness_failure')
+    preview=service.preview(identity,policy='portable')
+    assert action_log.read_text()=='The first part of the action was applied.\n'
+    assert any(b['code']=='uncertain_mutating_effect' for b in preview['blockers'])
+
+
+@pytest.mark.oracle
+def test_codex_progress_updates_do_not_duplicate_one_exposed_action(lattice_env, tmp_path):
+    env={**lattice_env,'route':lattice_env['route'].model_copy(update={'execution_profile':'workspace-agent','workspace':str(tmp_path),'tools':['shell'],'sandbox':'workspace-write'})}
+    cs,identity=create(env);service=ConversationService(env['store'])
+    admit(env,cs,identity,1);a=attempt(env,service.seal(identity))
+    messages=[{'type':'item.started','item':{'id':'one-action','type':'command_execution','command':'one action','status':'in_progress'}}]
+    messages += [{'type':'item.updated','item':{'id':'one-action','type':'command_execution','aggregated_output':f'progress {i}','status':'in_progress'}} for i in range(2)]
+    messages.append({'type':'item.completed','item':{'id':'one-action','type':'command_execution','status':'completed','exit_code':0}})
+    raw=b''.join(json.dumps(m).encode()+b'\n' for m in messages)
+    ObservationStore(env['store']).append(a['attempt_id'],'stdout',raw)
+    env['store'].finish_attempt(a['attempt_id'],state=AttemptState.failed,failure_kind='malformed_output')
+    preview=service.preview(identity,policy='portable')
+    assert not any(b['code']=='uncertain_mutating_effect' for b in preview['blockers'])
+    assert preview['history']['unfinished_observations'][0]['content'].encode()==raw
 
 
 @pytest.mark.concurrency

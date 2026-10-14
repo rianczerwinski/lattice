@@ -50,6 +50,16 @@ def pending(conn, conversation_id):
     return conn.execute("SELECT * FROM conversation_rounds WHERE conversation_id=? AND state IN ('queued','active','needs_attention')", (conversation_id,)).fetchone()
 
 
+def admitted_corrections(conn, round_id: str, request: dict) -> list[dict]:
+    """Return corrections that supplement, rather than constitute, the request.
+
+    Next-round steering already forms that round's immutable prompt. Steering
+    admitted during recovery remains additional operator input for that round.
+    """
+    original = set(request.get('steering_ids', []))
+    return [dict(row) for row in conn.execute("SELECT steering_id,ordinal,content FROM conversation_steering WHERE resulting_round_id=? AND state='dispatched' ORDER BY ordinal", (round_id,)) if row['steering_id'] not in original]
+
+
 def insert_round(conn, conversation, request):
     round_id = opaque_id('round')
     ordinal = conn.execute('SELECT COALESCE(MAX(ordinal),0)+1 FROM conversation_rounds WHERE conversation_id=?', (conversation['conversation_id'],)).fetchone()[0]
@@ -100,6 +110,7 @@ class ConversationStore:
             value['rounds'] = rows[:limit]
             for r in value['rounds']:
                 r['request'] = json.loads(r.pop('request_json'))
+                r['operator_steering'] = admitted_corrections(conn, r['round_id'], r['request'])
                 r['executions'] = [dict(e) for e in conn.execute('SELECT * FROM conversation_executions WHERE round_id=? ORDER BY ordinal', (r['round_id'],))]
                 for e in r['executions']:
                     e['recovery'] = json.loads(e.pop('recovery_json'))

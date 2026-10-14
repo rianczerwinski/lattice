@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="6.202" timestamp="2026-10-14T14:07:55.574983-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_conversation_recovery" name="test_admitted_operator_steering_survives_later_recovery_and_rounds[interrupted]" time="1.902"><failure message="assert 'Retain the violet operator correction across every recovery.' in 'LATTICE-CONVERSATION/10\nThe user sent this message through their local Lattice conversation-routing client. Each fol...&quot;,&quot;kind&quot;:&quot;lattice-conversation-segment-v10&quot;,&quot;label&quot;:&quot;Current operator request&quot;,&quot;ordinal&quot;:1,&quot;plane&quot;:&quot;current_prompt&quot;}\n'">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...4d1bea54791bc3', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+boundary = 'interrupted'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('boundary', ['interrupted', 'completed', 'dispatch_rejected'])
+    def test_admitted_operator_steering_survives_later_recovery_and_rounds(lattice_env, boundary):
+        env=lattice_env;cs,identity=create(env);service=ConversationService(env['store'])
+        admit(env,cs,identity,1);first=service.seal(identity);a=attempt(env,first)
+        env['store'].finish_attempt(a['attempt_id'],state=AttemptState.failed,failure_kind='rate_limit')
+        correction='Retain the violet operator correction across every recovery.'
+        instruction=cs.steer(identity,ConversationSteer(content=correction,expected_revision=cs.get(identity)['revision'],idempotency_key='violet-correction'))
+        preview=service.preview(identity)
+        continued=service.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='violet-first-continue',expected_preview_sha256=preview['preview_sha256']))
+        if boundary=='dispatch_rejected':
+            service.dispatch_failed(continued['invocation_id'],RuntimeError('rejected before provider admission'))
+        else:
+            a=attempt(env,continued)
+            if boundary=='completed':
+                success(env['store'],a,'An answer that does not echo the instruction.')
+                admit(env,cs,identity,2)
+            else:
+                env['store'].finish_attempt(a['attempt_id'],state=AttemptState.interrupted,failure_kind='operator_interruption')
+        replacement=ConversationService(env['store'])
+        preview=replacement.preview(identity)
+        if boundary=='completed':
+            resumed=replacement.seal(identity)
+        else:
+            resumed=replacement.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='violet-second-continue',expected_preview_sha256=preview['preview_sha256']))
+&gt;       assert correction in env['lattice'].inspect(resumed['invocation_id'])['compiled_prompt']
+E       assert 'Retain the violet operator correction across every recovery.' in 'LATTICE-CONVERSATION/10\nThe user sent this message through their local Lattice conversation-routing client. Each fol...","kind":"lattice-conversation-segment-v10","label":"Current operator request","ordinal":1,"plane":"current_prompt"}\n'
+
+tests/test_conversation_recovery.py:92: AssertionError</failure></testcase><testcase classname="tests.test_conversation_recovery" name="test_admitted_operator_steering_survives_later_recovery_and_rounds[completed]" time="2.210"><failure message="assert 'Retain the violet operator correction across every recovery.' in 'LATTICE-CONVERSATION/10\nThe user sent this message through their local Lattice conversation-routing client. Each fol...&quot;,&quot;kind&quot;:&quot;lattice-conversation-segment-v10&quot;,&quot;label&quot;:&quot;Current operator request&quot;,&quot;ordinal&quot;:1,&quot;plane&quot;:&quot;current_prompt&quot;}\n'">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...7c64a904bd30a1', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+boundary = 'completed'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('boundary', ['interrupted', 'completed', 'dispatch_rejected'])
+    def test_admitted_operator_steering_survives_later_recovery_and_rounds(lattice_env, boundary):
+        env=lattice_env;cs,identity=create(env);service=ConversationService(env['store'])
+        admit(env,cs,identity,1);first=service.seal(identity);a=attempt(env,first)
+        env['store'].finish_attempt(a['attempt_id'],state=AttemptState.failed,failure_kind='rate_limit')
+        correction='Retain the violet operator correction across every recovery.'
+        instruction=cs.steer(identity,ConversationSteer(content=correction,expected_revision=cs.get(identity)['revision'],idempotency_key='violet-correction'))
+        preview=service.preview(identity)
+        continued=service.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='violet-first-continue',expected_preview_sha256=preview['preview_sha256']))
+        if boundary=='dispatch_rejected':
+            service.dispatch_failed(continued['invocation_id'],RuntimeError('rejected before provider admission'))
+        else:
+            a=attempt(env,continued)
+            if boundary=='completed':
+                success(env['store'],a,'An answer that does not echo the instruction.')
+                admit(env,cs,identity,2)
+            else:
+                env['store'].finish_attempt(a['attempt_id'],state=AttemptState.interrupted,failure_kind='operator_interruption')
+        replacement=ConversationService(env['store'])
+        preview=replacement.preview(identity)
+        if boundary=='completed':
+            resumed=replacement.seal(identity)
+        else:
+            resumed=replacement.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='violet-second-continue',expected_preview_sha256=preview['preview_sha256']))
+&gt;       assert correction in env['lattice'].inspect(resumed['invocation_id'])['compiled_prompt']
+E       assert 'Retain the violet operator correction across every recovery.' in 'LATTICE-CONVERSATION/10\nThe user sent this message through their local Lattice conversation-routing client. Each fol...","kind":"lattice-conversation-segment-v10","label":"Current operator request","ordinal":1,"plane":"current_prompt"}\n'
+
+tests/test_conversation_recovery.py:92: AssertionError</failure></testcase><testcase classname="tests.test_conversation_recovery" name="test_admitted_operator_steering_survives_later_recovery_and_rounds[dispatch_rejected]" time="1.978"><failure message="assert 'Retain the violet operator correction across every recovery.' in 'LATTICE-CONVERSATION/10\nThe user sent this message through their local Lattice conversation-routing client. Each fol...&quot;,&quot;kind&quot;:&quot;lattice-conversation-segment-v10&quot;,&quot;label&quot;:&quot;Current operator request&quot;,&quot;ordinal&quot;:1,&quot;plane&quot;:&quot;current_prompt&quot;}\n'">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...8f96ead84979a1', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+boundary = 'dispatch_rejected'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('boundary', ['interrupted', 'completed', 'dispatch_rejected'])
+    def test_admitted_operator_steering_survives_later_recovery_and_rounds(lattice_env, boundary):
+        env=lattice_env;cs,identity=create(env);service=ConversationService(env['store'])
+        admit(env,cs,identity,1);first=service.seal(identity);a=attempt(env,first)
+        env['store'].finish_attempt(a['attempt_id'],state=AttemptState.failed,failure_kind='rate_limit')
+        correction='Retain the violet operator correction across every recovery.'
+        instruction=cs.steer(identity,ConversationSteer(content=correction,expected_revision=cs.get(identity)['revision'],idempotency_key='violet-correction'))
+        preview=service.preview(identity)
+        continued=service.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='violet-first-continue',expected_preview_sha256=preview['preview_sha256']))
+        if boundary=='dispatch_rejected':
+            service.dispatch_failed(continued['invocation_id'],RuntimeError('rejected before provider admission'))
+        else:
+            a=attempt(env,continued)
+            if boundary=='completed':
+                success(env['store'],a,'An answer that does not echo the instruction.')
+                admit(env,cs,identity,2)
+            else:
+                env['store'].finish_attempt(a['attempt_id'],state=AttemptState.interrupted,failure_kind='operator_interruption')
+        replacement=ConversationService(env['store'])
+        preview=replacement.preview(identity)
+        if boundary=='completed':
+            resumed=replacement.seal(identity)
+        else:
+            resumed=replacement.seal(identity,continuation=ConversationContinue(expected_revision=preview['revision'],idempotency_key='violet-second-continue',expected_preview_sha256=preview['preview_sha256']))
+&gt;       assert correction in env['lattice'].inspect(resumed['invocation_id'])['compiled_prompt']
+E       assert 'Retain the violet operator correction across every recovery.' in 'LATTICE-CONVERSATION/10\nThe user sent this message through their local Lattice conversation-routing client. Each fol...","kind":"lattice-conversation-segment-v10","label":"Current operator request","ordinal":1,"plane":"current_prompt"}\n'
+
+tests/test_conversation_recovery.py:92: AssertionError</failure></testcase></testsuite></testsuites>

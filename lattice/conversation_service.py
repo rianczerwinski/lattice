@@ -10,7 +10,7 @@ from .contracts import (ContextAssemblyV1, ContextBlockCreate, ContextSelection,
                         ExecuteRequest, InvocationBatchCreateV1, InvocationBatchPreviewV1, InvocationSpecV1,
                         OutputContractV2, ProviderRoute)
 from .conversation_contracts import ConversationContinue
-from .conversations import ConversationStore, current, pending, replay, bump
+from .conversations import ConversationStore, current, pending, replay, bump, admitted_corrections
 from .operations import Lattice
 from .observations import ObservationStore, normalize
 from .store import LatticeConflict
@@ -42,6 +42,7 @@ class ConversationService:
             steering = [dict(r) for r in conn.execute("SELECT * FROM conversation_steering WHERE conversation_id=? AND state='queued' AND resulting_round_id IS NULL ORDER BY ordinal", (conversation_id,))]
             for row in rows:
                 row['request'] = json.loads(row.pop('request_json'))
+                row['operator_steering'] = admitted_corrections(conn, row['round_id'], row['request'])
                 row['executions'] = [dict(e) for e in conn.execute('SELECT * FROM conversation_executions WHERE round_id=? ORDER BY ordinal', (row['round_id'],))]
         completed = []
         sources = []
@@ -51,11 +52,14 @@ class ConversationService:
         unknown_effects = []
         for row in rows:
             sources.append({'ref':f"lattice:round/{row['round_id']}",'revision':str(row['admission_revision']),'sha256':row['request_sha256']})
+            for instruction in row['operator_steering']:
+                sources.append({'ref':f"lattice:steering/{instruction['steering_id']}",'revision':str(instruction['ordinal']),'sha256':sha256_bytes(instruction['content'].encode('utf-8'))})
             if sha256_json(row['request']) != row['request_sha256']:
                 raise LatticeConflict('immutable conversation request hash mismatch')
             if row['state'] == 'completed':
                 response = self.store.get_block(row['accepted_response_id'])
                 completed.append({'round_id':row['round_id'],'ordinal':row['ordinal'],'request':row['request'],
+                                  'operator_steering':row['operator_steering'],
                                   'request_sha256':row['request_sha256'],'response':response['content'],
                                   'response_ref':f"lattice:block/{response['block_id']}",'response_sha256':response['content_sha256'],
                                   'checkpoint_id':row['checkpoint_id']})
@@ -100,6 +104,12 @@ class ConversationService:
                                 for fact in facts:
                                     if fact['kind']=='tool-request':
                                         provider_id=fact.get('id')
+                                        matched=open_ids.get(provider_id,[]) if provider_id is not None else []
+                                        if fact.get('progress_update') and len(matched)==1:
+                                            # Native item updates describe one in-flight
+                                            # action; arguments do not identify actions.
+                                            requests[matched[0]]['latest_progress']=fact
+                                            continue
                                         key=f"{provider_id or 'unidentified'}:{sequence}"
                                         sequence+=1
                                         requests[key]=fact
@@ -107,11 +117,18 @@ class ConversationService:
                                     elif fact['kind']=='tool-result' and fact.get('id') is not None:
                                         matched=open_ids.get(fact['id'],[])
                                         if len(matched)==1:
-                                            requests.pop(matched[0],None)
+                                            if not fact.get('is_error'):
+                                                requests.pop(matched[0],None)
+                                            else:
+                                                # A failing tool can have applied a partial
+                                                # mutation before reporting its error.
+                                                requests[matched[0]]['failed_result']=fact
                                             open_ids[fact['id']]=[]
                         for identity, request in requests.items():
                             if request.get('name') not in READ_ONLY_TOOLS:
                                 unknown_effects.append({'attempt_id':attempt_id,'tool_id':identity,'request':request})
+        for instruction in steering:
+            sources.append({'ref':f"lattice:steering/{instruction['steering_id']}",'revision':str(instruction['ordinal']),'sha256':sha256_bytes(instruction['content'].encode('utf-8'))})
         return conversation, rows, target, steering, completed, invocations, sources, retained_artifacts, active_evidence, unknown_effects
 
     def preview(self, conversation_id: str, *, policy: str | None = None, include_steering: bool = True, effect_dispositions: list[dict] | None = None) -> dict:
@@ -149,6 +166,7 @@ class ConversationService:
                     'round_id':target['round_id'] if target else None, 'state':target['state'] if target else None,
                     'policy':selected_policy,'mode':'native' if selected_policy!='portable' and native['eligible'] else 'portable','native':native,'request':request,
                     'route':json.loads(conversation['route_json']), 'history':history,
+                    'prior_steering':next((r['operator_steering'] for r in rounds if target and r['round_id']==target['round_id']),[]),
                     'steering':[{'steering_id':s['steering_id'],'content':s['content'],'ordinal':s['ordinal']} for s in steering] if include_steering else [],
                     'include_steering':include_steering,'effect_dispositions':dispositions,'sources':sources,'blockers':blockers,
                     'maximum_remaining_loss':'Provider-private computation and work not emitted before interruption cannot be recovered. Completed rounds and admitted bytes are retained.'}
@@ -194,6 +212,8 @@ class ConversationService:
         if not preview['initial_context']:
             selections.append(ContextSelection(block_id='current-request',plane='current_prompt',label='Current operator request'))
         prompt = request['prompt']
+        if preview['prior_steering']:
+            prompt += '\n\nOperator corrections already admitted for this unfinished request:\n'+ '\n\n'.join(s['content'] for s in preview['prior_steering'])
         if preview['effect_dispositions']:
             prompt += '\n\nOperator dispositions of uncertain prior effects (do not repeat confirmed-applied or do-not-repeat actions):\n'+json.dumps(preview['effect_dispositions'],ensure_ascii=False)
         if preview['steering']:

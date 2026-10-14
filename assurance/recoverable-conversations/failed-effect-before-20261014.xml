@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.799" timestamp="2026-10-14T14:22:27.906417-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_conversation_recovery" name="test_failed_mutating_tool_result_does_not_prove_no_effect" time="1.716"><failure message="lattice.store.LatticeConflict: [{&quot;code&quot;: &quot;context_binding&quot;, &quot;detail&quot;: &quot;Claude network-capable tools require an explicit provider-managed network policy&quot;}]">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...51d62353091f22', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-86/test_failed_mutating_tool_resu0')
+
+    @pytest.mark.oracle
+    def test_failed_mutating_tool_result_does_not_prove_no_effect(lattice_env, tmp_path):
+        from lattice.contracts import ProviderRoute
+        env={**lattice_env,'route':ProviderRoute(provider='anthropic',model='claude-fable-5-1',harness='claude',effort='high',execution_profile='workspace-agent',workspace=str(tmp_path),tools=['Bash'],permissions=['Bash'],sandbox='provider-permissions')}
+        cs,identity=create(env);service=ConversationService(env['store'])
+&gt;       admit(env,cs,identity,1);a=attempt(env,service.seal(identity))
+                                               ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_conversation_recovery.py:129: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;lattice.conversation_service.ConversationService object at 0x10559a3c0&gt;
+conversation_id = 'conversation_210cf05178224302b558a12b5640c345'
+continuation = None
+
+    def seal(self, conversation_id: str, *, continuation: ConversationContinue | None = None) -&gt; dict:
+        mutation = {'action':'continue',**continuation.model_dump(mode='json')} if continuation else None
+        if mutation:
+            with self.store._connect() as conn:
+                old = replay(conn,conversation_id,continuation.idempotency_key,mutation)
+            if old is not None:
+                return old
+        preview = self.preview(conversation_id,policy=continuation.policy if continuation else None,
+                               include_steering=continuation.include_steering if continuation else False,
+                               effect_dispositions=[d.model_dump(mode="json") for d in continuation.effect_dispositions] if continuation else None)
+        if continuation:
+            if preview['revision'] != continuation.expected_revision or preview['preview_sha256'] != continuation.expected_preview_sha256:
+                raise LatticeConflict('conversation recovery preview changed; inspect the new boundary')
+        elif preview['state'] != 'queued':
+            raise LatticeConflict('an unfinished failed round requires explicit continuation')
+        if preview['blockers']:
+&gt;           raise LatticeConflict(json.dumps(preview['blockers']))
+E           lattice.store.LatticeConflict: [{"code": "context_binding", "detail": "Claude network-capable tools require an explicit provider-managed network policy"}]
+
+lattice/conversation_service.py:239: LatticeConflict</failure></testcase></testsuite></testsuites>
