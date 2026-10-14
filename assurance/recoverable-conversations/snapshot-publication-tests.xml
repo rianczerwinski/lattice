@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="23" time="32.019" timestamp="2026-10-10T04:51:07.402491-06:00" hostname="Mac.lan"><testcase classname="tests.test_reliability" name="test_oracle_snapshot_restore_reproduces_exact_lattice_state" time="2.414" /><testcase classname="tests.test_reliability" name="test_snapshot_uses_clone_seam_for_immutable_content" time="1.968" /><testcase classname="tests.test_reliability" name="test_snapshot_inventory_stream_scales_past_the_canonical_tree_node_limit" time="0.519" /><testcase classname="tests.test_reliability" name="test_candidate_must_verify_the_exact_prepublication_backup" time="0.002" /><testcase classname="tests.test_reliability" name="test_installer_refuses_publication_after_release_revision_changes" time="0.002" /><testcase classname="tests.test_reliability" name="test_negative_control_compressed_snapshot_rejects_a_substituted_database_identity" time="3.073" /><testcase classname="tests.test_reliability" name="test_v2_snapshot_reader_preserves_v010_producer_compatibility" time="3.352" /><testcase classname="tests.test_reliability" name="test_snapshot_and_restore_sync_complete_directory_trees" time="2.363" /><testcase classname="tests.test_reliability" name="test_snapshot_identity_describes_the_captured_generation_not_a_stale_preflight" time="2.370" /><testcase classname="tests.test_reliability" name="test_negative_control_snapshot_paths_cannot_corrupt_content_or_snapshot_identity" time="2.386" /><testcase classname="tests.test_reliability" name="test_negative_control_snapshot_rejects_direct_symlink_sources" time="2.415" /><testcase classname="tests.test_reliability" name="test_snapshot_refuses_active_durable_work" time="2.378" /><testcase classname="tests.test_reliability" name="test_live_publication_probe_never_swallows_operator_interrupt" time="0.006" /><testcase classname="tests.test_reliability" name="test_negative_control_live_publication_rejects_the_prior_runtime" time="0.002" /><testcase classname="tests.test_reliability" name="test_negative_control_live_publication_rejects_wrong_package_version" time="0.000" /><testcase classname="tests.test_reliability" name="test_negative_control_live_publication_rejects_quarantined_workflows" time="0.000" /><testcase classname="tests.test_reliability" name="test_publication_rollback_attempts_every_independent_restoration" time="0.003" /><testcase classname="tests.test_reliability" name="test_publication_failure_always_invokes_exact_state_rollback" time="0.002" /><testcase classname="tests.test_reliability" name="test_failed_upgrade_verifies_the_restored_runtime_against_its_own_version" time="0.003" /><testcase classname="tests.test_reliability" name="test_negative_control_selector_publication_failure_also_rolls_back" time="0.001" /><testcase classname="tests.test_reliability" name="test_candidate_migration_runs_on_copy_and_rejects_changed_source_rows" time="3.886" /><testcase classname="tests.test_reliability" name="test_older_runtime_refuses_future_schema_before_touching_database" time="2.453" /><testcase classname="tests.test_reliability" name="test_snapshot_validation_releases_live_writers_without_changing_capture" time="2.087"><failure message="TypeError: test_snapshot_validation_releases_live_writers_without_changing_capture.&lt;locals&gt;.validate_copy() got an unexpected keyword argument 'database_path'">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...b4964ca7ccddc1', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1200/test_snapshot_validation_relea0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x13c40fa10&gt;
+
+    @pytest.mark.concurrency
+    @pytest.mark.oracle
+    def test_snapshot_validation_releases_live_writers_without_changing_capture(lattice_env, tmp_path, monkeypatch):
+        import fcntl
+        import lattice.diagnostics as diagnostics
+        from lattice.run_journal import DURABLE_RUNS_LOCK
+        root = lattice_env['config'].data_root
+        before = assess_data_root(root)
+        actual_assess = diagnostics.assess_data_root
+        reached = []
+        def validate_copy(captured_root):
+            if captured_root.name.startswith('.lattice-snapshot-'):
+                descriptor = os.open(root / DURABLE_RUNS_LOCK, os.O_RDWR)
+                try:
+                    # A reintroduced capture lock fails immediately at the real OS
+                    # seam. SQLite admission must also be available during validation.
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    lattice_env['store'].create_project(ProjectCreate(title='after capture', purpose='must stay outside saved state'))
+                    reached.append(True)
+                finally:
+                    os.close(descriptor)
+            return actual_assess(captured_root)
+        monkeypatch.setattr(diagnostics, 'assess_data_root', validate_copy)
+        snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='capture-lock-oracle', source_revision=before['state_digest'], schema_version=before['schema_version'], state_digest=before['state_digest'])
+        assert reached == [True]
+&gt;       assert assess_backup(snapshot)['state_digest'] == before['state_digest']
+               ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_reliability.py:1614: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+snapshot_root = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-1200/test_snapshot_validation_relea0/backups/20261010T045139-106ee556-c09')
+
+    def assess_backup(snapshot_root: Path) -&gt; dict[str, Any]:
+        manifest = verify_snapshot(snapshot_root)
+        with materialized_snapshot_database(snapshot_root, manifest) as database:
+&gt;           data = assess_data_root(snapshot_root, database_path=database)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: test_snapshot_validation_releases_live_writers_without_changing_capture.&lt;locals&gt;.validate_copy() got an unexpected keyword argument 'database_path'
+
+lattice/diagnostics.py:291: TypeError</failure></testcase></testsuite></testsuites>

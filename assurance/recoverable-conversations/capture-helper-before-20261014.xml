@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="2.236" timestamp="2026-10-14T00:24:34.057633-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_reliability" name="test_every_captured_integrity_scan_releases_live_writer_lock" time="2.062"><failure message="BlockingIOError: [Errno 35] Resource temporarily unavailable">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...09884a15da9971', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-80/test_every_captured_integrity_0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x11a337bb0&gt;
+
+    @pytest.mark.concurrency
+    @pytest.mark.oracle
+    def test_every_captured_integrity_scan_releases_live_writer_lock(lattice_env, tmp_path, monkeypatch):
+        import fcntl
+        from lattice.run_journal import DURABLE_RUNS_LOCK
+    
+        root = lattice_env['config'].data_root
+        before = assess_data_root(root)
+        actual_connect = sqlite3.connect
+        scans = []
+    
+        class CapturedConnection(sqlite3.Connection):
+            def execute(self, sql, *args, **kwargs):
+                if sql.strip().upper() == 'PRAGMA INTEGRITY_CHECK':
+                    descriptor = os.open(root / DURABLE_RUNS_LOCK, os.O_RDWR)
+                    try:
+                        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        with actual_connect(root / 'lattice.sqlite3', timeout=0) as writer:
+                            writer.execute('BEGIN IMMEDIATE')
+                            writer.rollback()
+                        scans.append(True)
+                    finally:
+                        os.close(descriptor)
+                return super().execute(sql, *args, **kwargs)
+    
+        def connect(database, *args, **kwargs):
+            if '.lattice-snapshot-' in str(database):
+                kwargs['factory'] = CapturedConnection
+            return actual_connect(database, *args, **kwargs)
+    
+        monkeypatch.setattr(snapshot_runtime.sqlite3, 'connect', connect)
+&gt;       snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='all-integrity-scans-unlocked', source_revision=before['state_digest'], schema_version=before['schema_version'], state_digest=before['state_digest'])
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_reliability.py:1671: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+lattice/snapshot.py:340: in create_snapshot
+    _backup_database(database, staging / SNAPSHOT_DATABASE)
+lattice/snapshot.py:233: in _backup_database
+    result = check.execute("PRAGMA integrity_check").fetchone()[0]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;test_reliability.test_every_captured_integrity_scan_releases_live_writer_lock.&lt;locals&gt;.CapturedConnection object at 0x107da05c0&gt;
+sql = 'PRAGMA integrity_check', args = (), kwargs = {}
+
+    def execute(self, sql, *args, **kwargs):
+        if sql.strip().upper() == 'PRAGMA INTEGRITY_CHECK':
+            descriptor = os.open(root / DURABLE_RUNS_LOCK, os.O_RDWR)
+            try:
+&gt;               fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+E               BlockingIOError: [Errno 35] Resource temporarily unavailable
+
+tests/test_reliability.py:1656: BlockingIOError</failure></testcase></testsuite></testsuites>

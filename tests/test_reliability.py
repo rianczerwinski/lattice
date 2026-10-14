@@ -298,6 +298,10 @@ def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tm
     snapshot = tmp_path / "backup"
     target = tmp_path / "candidate"
     calls = []
+    monkeypatch.setattr(deployment, "capture_publication_state", lambda: deployment.PublicationState(None, None, None, None, None, False, False))
+    monkeypatch.setattr(deployment, "unload_job", lambda _label: None)
+    monkeypatch.setattr(deployment, "restore_publication_state", lambda _prior: None)
+    monkeypatch.setattr(deployment, "qualify_candidate_migration", lambda _target, _snapshot: None)
     monkeypatch.setattr(deployment, "verify_source", lambda: calls.append("source"))
     monkeypatch.setattr(deployment, "git_revision", lambda _root: "revision")
     monkeypatch.setattr(deployment, "migrate_legacy_data", lambda _root: calls.append("migration"))
@@ -315,6 +319,10 @@ def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tm
 @pytest.mark.regression
 def test_installer_refuses_publication_after_release_revision_changes(monkeypatch, tmp_path) -> None:
     calls = []
+    monkeypatch.setattr(deployment, "capture_publication_state", lambda: deployment.PublicationState(None, None, None, None, None, False, False))
+    monkeypatch.setattr(deployment, "unload_job", lambda _label: None)
+    monkeypatch.setattr(deployment, "restore_publication_state", lambda _prior: None)
+    monkeypatch.setattr(deployment, "qualify_candidate_migration", lambda _target, _snapshot: None)
     monkeypatch.setattr(deployment, "verify_source", lambda: "verified-revision")
     monkeypatch.setattr(deployment, "git_revision", lambda _root: "changed-revision")
     monkeypatch.setattr(deployment, "migrate_legacy_data", lambda _root: None)
@@ -1488,3 +1496,178 @@ def test_negative_control_migration_baseline_rejects_invented_source_rows(lattic
 def test_macos_default_state_is_outside_the_development_checkout() -> None:
     root = user_data_root({})
     assert root == Path.home() / "Library" / "Application Support" / "Lattice"
+
+
+@pytest.mark.oracle
+def test_failed_candidate_restores_saved_database_before_old_runtime(lattice_env, tmp_path, monkeypatch):
+    root = lattice_env['config'].data_root
+    source = assess_data_root(root)
+    snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='upgrade-rollback-oracle', source_revision=source['state_digest'], schema_version=source['schema_version'], state_digest=source['state_digest'])
+    monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', root)
+    prior = deployment.PublicationState(tmp_path / 'prior', None, None, None, None, True, False)
+    target = tmp_path / 'candidate'
+    calls = []
+    monkeypatch.setattr(deployment, 'install_links', lambda _target: None)
+    def start_candidate(_target):
+        lattice_env['store'].create_project(ProjectCreate(title='candidate-only', purpose='retained in failed upgrade evidence'))
+        with sqlite3.connect(root / 'lattice.sqlite3') as conn:
+            conn.execute('CREATE TABLE candidate_schema_marker(value TEXT)')
+            conn.execute("INSERT INTO schema_migrations VALUES(17, '20261010T000000')")
+    monkeypatch.setattr(deployment, 'install_launchd', start_candidate)
+    monkeypatch.setattr(deployment, 'installed_runtime_version', lambda _target: '0.3.1')
+    monkeypatch.setattr(deployment, 'unload_job', lambda label: calls.append(('stop', label)))
+    def restore_prior(_prior):
+        # This is the independent restart oracle. An older process must only
+        # see the saved rows; the candidate's database remains inspectable.
+        with sqlite3.connect(root / 'lattice.sqlite3') as conn:
+            assert conn.execute("SELECT count(*) FROM projects WHERE title='candidate-only'").fetchone()[0] == 0
+            assert conn.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0] == source['schema_version']
+            assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='candidate_schema_marker'").fetchone()[0] == 0
+        assert assess_data_root(root)['state_digest'] == source['state_digest']
+        archives = list((root / 'acceptance' / 'failed-upgrades').glob('*/lattice.sqlite3'))
+        assert len(archives) == 1
+        with sqlite3.connect(archives[0]) as conn:
+            assert conn.execute("SELECT count(*) FROM projects WHERE title='candidate-only'").fetchone()[0] == 1
+            assert conn.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0] == 17
+        calls.append(('restart', 'prior'))
+    monkeypatch.setattr(deployment, 'restore_publication_state', restore_prior)
+    def verify(runtime_id, _version):
+        if runtime_id == target.name:
+            raise RuntimeError('planted candidate startup failure after database writes')
+    monkeypatch.setattr(deployment, 'verify_live_service', verify)
+    with pytest.raises(RuntimeError, match='planted candidate startup failure'):
+        deployment.publish_runtime(target, snapshot=snapshot, prior=prior)
+    assert calls == [('stop', deployment.SERVICE_LABEL), ('stop', deployment.BACKUP_LABEL), ('restart', 'prior')]
+
+
+@pytest.mark.oracle
+def test_restore_failure_keeps_incompatible_old_runtime_stopped(monkeypatch, tmp_path):
+    prior = deployment.PublicationState(tmp_path / 'prior', None, None, None, None, True, False)
+    monkeypatch.setattr(deployment, 'install_links', lambda _target: None)
+    monkeypatch.setattr(deployment, 'install_launchd', lambda _target: (_ for _ in ()).throw(RuntimeError('candidate failed')))
+    monkeypatch.setattr(deployment, 'unload_job', lambda _label: None)
+    monkeypatch.setattr(deployment, 'restore_upgrade_database', lambda _snapshot: (_ for _ in ()).throw(OSError('saved database unavailable')))
+    restarted = []
+    monkeypatch.setattr(deployment, 'restore_publication_state', lambda _prior: restarted.append(True))
+    with pytest.raises(BaseExceptionGroup, match='automatic rollback both failed'):
+        deployment.publish_runtime(tmp_path / 'candidate', snapshot=tmp_path / 'missing', prior=prior)
+    assert restarted == []
+
+
+@pytest.mark.oracle
+def test_candidate_migration_runs_on_copy_and_rejects_changed_source_rows(lattice_env, tmp_path, monkeypatch):
+    source = assess_data_root(lattice_env['config'].data_root)
+    snapshot = create_snapshot(lattice_env['config'].data_root, backup_root=tmp_path / 'backups', reason='candidate-migration-oracle', source_revision=source['state_digest'], schema_version=source['schema_version'], state_digest=source['state_digest'])
+    reached = []
+    def candidate(command, **_kwargs):
+        root = Path(command[-1])
+        assert root != lattice_env['config'].data_root
+        assert assess_data_root(root)['state_digest'] == source['state_digest']
+        reached.append(root)
+        from lattice import LatticeStore
+        LatticeStore(LatticeConfig(data_root=root, axisvi_root=None)).create_project(ProjectCreate(title='invented by migration', purpose='must reject'))
+    monkeypatch.setattr(deployment, 'run', candidate)
+    with pytest.raises(OSError, match='changed source-schema rows in projects'):
+        deployment.qualify_candidate_migration(tmp_path / 'candidate', snapshot)
+    assert len(reached) == 1
+    assert assess_data_root(lattice_env['config'].data_root)['state_digest'] == source['state_digest']
+
+
+@pytest.mark.oracle
+def test_older_runtime_refuses_future_schema_before_touching_database(lattice_env):
+    from lattice import LatticeStore
+    from lattice.store import SCHEMA_VERSION
+    root = lattice_env['config'].data_root
+    with sqlite3.connect(root / 'lattice.sqlite3') as conn:
+        conn.execute('INSERT INTO schema_migrations VALUES(?, ?)', (SCHEMA_VERSION + 1, '20261010T000000'))
+    before = (root / 'lattice.sqlite3').read_bytes()
+    with pytest.raises(OSError, match='newer than runtime schema'):
+        LatticeStore(lattice_env['config'])
+    assert (root / 'lattice.sqlite3').read_bytes() == before
+
+
+@pytest.mark.concurrency
+@pytest.mark.oracle
+def test_snapshot_validation_releases_live_writers_without_changing_capture(lattice_env, tmp_path, monkeypatch):
+    import fcntl
+    import lattice.diagnostics as diagnostics
+    from lattice.run_journal import DURABLE_RUNS_LOCK
+    root = lattice_env['config'].data_root
+    before = assess_data_root(root)
+    actual_assess = diagnostics.assess_data_root
+    reached = []
+    def validate_copy(captured_root, **kwargs):
+        if captured_root.name.startswith('.lattice-snapshot-'):
+            descriptor = os.open(root / DURABLE_RUNS_LOCK, os.O_RDWR)
+            try:
+                # A reintroduced capture lock fails immediately at the real OS
+                # seam. SQLite admission must also be available during validation.
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                lattice_env['store'].create_project(ProjectCreate(title='after capture', purpose='must stay outside saved state'))
+                reached.append(True)
+            finally:
+                os.close(descriptor)
+        return actual_assess(captured_root, **kwargs)
+    monkeypatch.setattr(diagnostics, 'assess_data_root', validate_copy)
+    snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='capture-lock-oracle', source_revision=before['state_digest'], schema_version=before['schema_version'], state_digest=before['state_digest'])
+    assert reached == [True]
+    assert assess_backup(snapshot)['state_digest'] == before['state_digest']
+    assert actual_assess(root)['state_digest'] != before['state_digest']
+
+
+@pytest.mark.oracle
+def test_candidate_migration_receipt_binds_inputs_and_base_record_counts(lattice_env, tmp_path, monkeypatch):
+    root = lattice_env['config'].data_root
+    source = assess_data_root(root)
+    snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='candidate-receipt-oracle', source_revision=source['state_digest'], schema_version=source['schema_version'], state_digest=source['state_digest'])
+    target = tmp_path / 'candidate'
+    target.mkdir()
+    (target / 'runtime.json').write_bytes(b'candidate-runtime-fixture')
+    monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', root)
+    monkeypatch.setattr(deployment, 'run', lambda _command, **_kwargs: None)
+    deployment.qualify_candidate_migration(target, snapshot)
+    receipts = list((root / 'acceptance').glob('candidate-migration-*.json'))
+    assert len(receipts) == 1
+    value = json.loads(receipts[0].read_bytes())
+    validate_generated_object_envelope(value['generated_object'])
+    assert value['before'] == value['after'] == {'schema_version': source['schema_version'], 'state_digest': source['state_digest']}
+    assert value['generated_object']['sources'][0]['sha256'] == __import__('hashlib').sha256(b'candidate-runtime-fixture').hexdigest()
+    with sqlite3.connect(root / 'lattice.sqlite3') as conn:
+        assert value['preserved_tables']['projects'] == conn.execute('SELECT count(*) FROM projects').fetchone()[0]
+    assert value['preserved_file_count'] == len(deployment._filesystem_invariants(root))
+
+
+@pytest.mark.concurrency
+@pytest.mark.oracle
+def test_every_captured_integrity_scan_releases_live_writer_lock(lattice_env, tmp_path, monkeypatch):
+    import fcntl
+    from lattice.run_journal import DURABLE_RUNS_LOCK
+
+    root = lattice_env['config'].data_root
+    before = assess_data_root(root)
+    actual_connect = sqlite3.connect
+    scans = []
+
+    class CapturedConnection(sqlite3.Connection):
+        def execute(self, sql, *args, **kwargs):
+            if sql.strip().upper() == 'PRAGMA INTEGRITY_CHECK':
+                descriptor = os.open(root / DURABLE_RUNS_LOCK, os.O_RDWR)
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    with actual_connect(root / 'lattice.sqlite3', timeout=0) as writer:
+                        writer.execute('BEGIN IMMEDIATE')
+                        writer.rollback()
+                    scans.append(True)
+                finally:
+                    os.close(descriptor)
+            return super().execute(sql, *args, **kwargs)
+
+    def connect(database, *args, **kwargs):
+        if '.lattice-snapshot-' in str(database):
+            kwargs['factory'] = CapturedConnection
+        return actual_connect(database, *args, **kwargs)
+
+    monkeypatch.setattr(snapshot_runtime.sqlite3, 'connect', connect)
+    snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='all-integrity-scans-unlocked', source_revision=before['state_digest'], schema_version=before['schema_version'], state_digest=before['state_digest'])
+    assert scans
+    assert assess_backup(snapshot)['state_digest'] == before['state_digest']

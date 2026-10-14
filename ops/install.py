@@ -452,6 +452,92 @@ def verify_candidate_backup(target: Path, snapshot: Path | None) -> None:
     ], cwd=target, capture=True)
 
 
+def qualify_candidate_migration(target: Path, snapshot: Path | None) -> None:
+    """Exercise the candidate's migration on an independent saved-state copy."""
+
+    if snapshot is None:
+        return
+    from lattice.diagnostics import assess_data_root
+    from lattice.snapshot import restore_snapshot
+    from lattice.canonical import canonical_bytes, generated_object
+
+    with tempfile.TemporaryDirectory(prefix="lattice-upgrade-migration-") as temporary:
+        root = Path(temporary) / "data"
+        restore_snapshot(snapshot, root)
+        captured = assess_data_root(root)
+        before = capture_migration_baseline(root)
+        command = [
+            str(target / ".venv" / "bin" / "python"), "-c",
+            "import sys; from pathlib import Path; from lattice import LatticeStore,LatticeConfig; LatticeStore(LatticeConfig(data_root=Path(sys.argv[1]),axisvi_root=None))",
+            str(root),
+        ]
+        run(command, cwd=target, capture=True)
+        verify_migration_baseline(root, before)
+        report = assess_data_root(root)
+        if report["schema_version"] != report["expected_schema_version"]:
+            raise RuntimeError("candidate migration did not reach the supported schema")
+        receipt = {
+            "generated_object": generated_object(kind="lattice-candidate-migration", schema_name="lattice-candidate-migration", subject=f"lattice:upgrade:{target.name}", role="snapshot", sources=[
+                {"ref": f"file:{target / 'runtime.json'}", "revision": None, "sha256": exact_sha256(target / "runtime.json")},
+                {"ref": f"file:{snapshot / 'snapshot.json'}", "revision": None, "sha256": exact_sha256(snapshot / "snapshot.json")},
+                {"ref": f"file:{Path(__file__).resolve()}", "revision": None, "sha256": exact_sha256(Path(__file__).resolve())},
+            ], producer_name="lattice-installer", producer_version="4.1.0"),
+            "contract_version": "LatticeCandidateMigration/1.0",
+            "command": command, "runtime_id": target.name,
+            "before": {"state_digest": captured["state_digest"], "schema_version": captured["schema_version"]},
+            "after": {"state_digest": report["state_digest"], "schema_version": report["schema_version"]},
+            "preserved_tables": {name: len(value["rows"]) for name, value in before["tables"].items()},
+            "preserved_append_prefixes": {name: len(value["rows"]) for name, value in before["append_prefixes"].items()},
+            "preserved_file_count": len(before["files"]),
+            "copy_retention": "disposable: reproduce by restoring the referenced snapshot",
+        }
+        path = DEFAULT_DATA_ROOT / "acceptance" / f"candidate-migration-{receipt['generated_object']['generated_at']}-{uuid.uuid4().hex}.json"
+        write_atomic(path, canonical_bytes(receipt), mode=0o600)
+        print(f"Candidate copied-store migration qualified at schema {report['schema_version']}: {path}")
+
+
+def restore_upgrade_database(snapshot: Path) -> None:
+    """Restore the quiesced database before an older runtime may restart.
+
+    Failed-candidate database/WAL bytes remain separately inspectable. Extra
+    immutable blobs and journals stay retained; none are removed by rollback.
+    """
+
+    from lattice.diagnostics import assess_data_root
+    from lattice.snapshot import materialized_snapshot_database, verify_snapshot
+
+    manifest = verify_snapshot(snapshot)
+    with materialized_snapshot_database(snapshot, manifest) as source:
+        descriptor, name = tempfile.mkstemp(prefix=".lattice-rollback-", dir=DEFAULT_DATA_ROOT)
+        os.close(descriptor)
+        staged = Path(name)
+        try:
+            shutil.copyfile(source, staged)
+            staged.chmod(0o600)
+            with staged.open("rb") as handle:
+                sync_file(handle.fileno())
+            archive = DEFAULT_DATA_ROOT / "acceptance" / "failed-upgrades" / f"{time.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex}"
+            archive.mkdir(parents=True, mode=0o700)
+            index = archive.parent / "README.md"
+            if not index.exists():
+                write_atomic(index, b"# Failed upgrades\n\nEach directory retains a stopped candidate database and sidecars before rollback. These private records preserve candidate work and diagnose failed publication; the active database lives at the data root.\n", mode=0o600)
+            write_atomic(archive / "README.md", f"# Failed upgrade state\n\nDatabase and SQLite sidecars retained before restoring `{snapshot}`. These bytes preserve candidate work for inspection; they are not the active database.\n".encode(), mode=0o600)
+            for name in ("lattice.sqlite3", "lattice.sqlite3-wal", "lattice.sqlite3-shm"):
+                path = DEFAULT_DATA_ROOT / name
+                if path.is_symlink():
+                    raise RuntimeError(f"rollback database path is a symlink: {path}")
+                if path.exists():
+                    os.replace(path, archive / name)
+            sync_tree(archive)
+            os.replace(staged, DEFAULT_DATA_ROOT / "lattice.sqlite3")
+            sync_directory(DEFAULT_DATA_ROOT)
+        finally:
+            staged.unlink(missing_ok=True)
+    restored = assess_data_root(DEFAULT_DATA_ROOT)
+    if restored["state_digest"] != manifest["state_digest"]:
+        raise RuntimeError("rollback database did not reproduce pre-upgrade state; prior runtime remains stopped")
+
+
 def probe_runtime(target: Path) -> dict[str, str]:
     result = run([
         str(target / ".venv" / "bin" / "python"),
@@ -792,14 +878,18 @@ def restore_publication_state(state: PublicationState) -> None:
         raise BaseExceptionGroup("Lattice publication rollback was incomplete", failures)
 
 
-def publish_runtime(target: Path) -> None:
-    prior = capture_publication_state()
+def publish_runtime(target: Path, *, snapshot: Path | None = None, prior: PublicationState | None = None) -> None:
+    prior = prior or capture_publication_state()
     try:
         install_links(target)
         install_launchd(target)
         verify_live_service(target.name, installed_runtime_version(target))
     except BaseException as publication_error:
         try:
+            if snapshot is not None:
+                unload_job(SERVICE_LABEL)
+                unload_job(BACKUP_LABEL)
+                restore_upgrade_database(snapshot)
             restore_publication_state(prior)
             if prior.current_target is not None and prior.service_loaded:
                 verify_live_service(prior.current_target.name, installed_runtime_version(prior.current_target))
@@ -896,12 +986,25 @@ def main() -> None:
     args = parser.parse_args()
     lattice_revision = git_revision(SOURCE_ROOT) if args.skip_tests else verify_source()
     migrate_legacy_data(args.legacy_data_root.expanduser().resolve())
-    snapshot = backup_before_upgrade()
     target = install_runtime(lattice_revision)
-    verify_candidate_backup(target, snapshot)
-    if git_revision(SOURCE_ROOT) != lattice_revision:
-        raise RuntimeError("source revision changed before runtime publication")
-    publish_runtime(target)
+    # Build while the old service is usable, then stop all database writers before
+    # the rollback boundary. Publication never revives an older runtime first.
+    prior = capture_publication_state()
+    try:
+        unload_job(SERVICE_LABEL)
+        unload_job(BACKUP_LABEL)
+        snapshot = backup_before_upgrade()
+        verify_candidate_backup(target, snapshot)
+        qualify_candidate_migration(target, snapshot)
+        if git_revision(SOURCE_ROOT) != lattice_revision:
+            raise RuntimeError("source revision changed before runtime publication")
+    except BaseException as preparation_error:
+        try:
+            restore_publication_state(prior)
+        except BaseException as rollback_error:
+            raise BaseExceptionGroup("Lattice upgrade preparation and rollback both failed", [preparation_error, rollback_error])
+        raise
+    publish_runtime(target, snapshot=snapshot, prior=prior)
     print(f"Installed Lattice runtime {target.name}")
     print(f"CLI: {SHIM}")
     print(f"State: {DEFAULT_DATA_ROOT}")

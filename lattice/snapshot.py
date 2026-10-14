@@ -228,15 +228,18 @@ def _backup_database(source: Path, destination: Path) -> None:
         target.close()
         reader.close()
     os.chmod(destination, 0o600)
-    check = sqlite3.connect(f"file:{destination}?mode=ro", uri=True)
+    with destination.open("rb") as handle:
+        _sync_file(handle.fileno())
+
+
+def _validate_database_integrity(database: Path) -> None:
+    check = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
     try:
         result = check.execute("PRAGMA integrity_check").fetchone()[0]
         if result != "ok":
             raise OSError(f"snapshot SQLite integrity check failed: {result}")
     finally:
         check.close()
-    with destination.open("rb") as handle:
-        _sync_file(handle.fileno())
 
 
 def _compress_database(source: Path, destination: Path, *, reuse_root: Path | None = None) -> dict[str, Any]:
@@ -348,22 +351,24 @@ def create_snapshot(
                     if not source.is_dir():
                         raise OSError(f"snapshot content root is not a directory: {source}")
                     copy_exact_tree(source, staging / name)
-            if state_digest is not None:
-                # The staged bytes, not a caller's earlier observation of the live
-                # store, are the authority for the published snapshot identity.
-                from .diagnostics import assess_data_root
+        # The capture is now independent of live writers. Integrity scans and
+        # compression must not hold the live-store reservation or journal lock.
+        if state_digest is not None:
+            from .diagnostics import assess_data_root
 
-                captured = assess_data_root(staging)
-                if source_revision == state_digest:
-                    source_revision = captured["state_digest"]
-                schema_version = captured["schema_version"]
-                state_digest = captured["state_digest"]
-            database_descriptor = _compress_database(
-                staging / SNAPSHOT_DATABASE,
-                staging / COMPRESSED_SNAPSHOT_DATABASE,
-                reuse_root=backup_root,
-            )
-            (staging / SNAPSHOT_DATABASE).unlink()
+            captured = assess_data_root(staging)
+            if source_revision == state_digest:
+                source_revision = captured["state_digest"]
+            schema_version = captured["schema_version"]
+            state_digest = captured["state_digest"]
+        else:
+            _validate_database_integrity(staging / SNAPSHOT_DATABASE)
+        database_descriptor = _compress_database(
+            staging / SNAPSHOT_DATABASE,
+            staging / COMPRESSED_SNAPSHOT_DATABASE,
+            reuse_root=backup_root,
+        )
+        (staging / SNAPSHOT_DATABASE).unlink()
         inventory = _inventory(staging)
         inventory_descriptor = _write_inventory(staging, inventory)
         manifest = {
@@ -524,7 +529,9 @@ def pre_migration_snapshot_if_needed(data_root: Path, *, target_schema_version: 
         current = int(connection.execute("SELECT COALESCE(MAX(version),0) FROM schema_migrations").fetchone()[0]) if "schema_migrations" in tables else 0
     finally:
         connection.close()
-    if current >= target_schema_version:
+    if current > target_schema_version:
+        raise OSError(f"database schema {current} is newer than runtime schema {target_schema_version}; use a compatible runtime or restore pre-upgrade state")
+    if current == target_schema_version:
         return None
     return create_snapshot(
         data_root,
