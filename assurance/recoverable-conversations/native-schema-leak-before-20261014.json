@@ -1,0 +1,53 @@
+{
+  "fault": "The continuation output schema supplies the supposedly recalled canary.",
+  "observed": "Independent native verifier accepted the false qualification.",
+  "result": {
+    "boundary": "interrupted",
+    "session_id": "session-one",
+    "first": "first",
+    "continued": "continued"
+  },
+  "request": {
+    "invocation_id": "continued",
+    "model": "claude-fable-5-1",
+    "effort": "high",
+    "prompt_sha256": "f5cc5bd2f1ba5d975f9ff28518dae6b3f005b67622721c1cff9412107f4bfabb",
+    "metadata": {
+      "binary_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "effective_policy": {
+        "tools": [
+          "Read",
+          "Glob",
+          "Grep"
+        ],
+        "permissions": [
+          "Read",
+          "Glob",
+          "Grep"
+        ],
+        "workspace": "/fixture",
+        "sandbox": "provider-permissions",
+        "approval_policy": "never",
+        "network_policy": "disabled",
+        "execution_profile": "native-continuation",
+        "native_session_id": "session-one",
+        "continuation_mode": "resume"
+      },
+      "schema": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "const": "1376646dfe114fd983c15b5a7a54b101"
+          }
+        },
+        "required": [
+          "response"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "scope": "synthetic raw-proof gate; no provider or installed claim",
+  "repair_required": "Reject canary disclosure through any continuation input channel, including output-schema metadata."
+}

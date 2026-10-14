@@ -6,7 +6,17 @@ The validator reads immutable blobs, not the producer's rendered status.
 """
 from __future__ import annotations
 import re
-from .canonical import sha256_bytes, strict_json_loads
+from .canonical import canonical_bytes, sha256_bytes, strict_json_loads
+
+
+# Qualification recalls an answer absent from every new input channel. A fixed
+# string-only contract cannot disclose it through const, examples or descriptions.
+NATIVE_RECALL_SCHEMA = {
+    'type': 'object',
+    'properties': {'response': {'type': 'string'}},
+    'required': ['response'],
+    'additionalProperties': False,
+}
 
 
 def _blob(store, reference):
@@ -56,6 +66,10 @@ def verify_native_case(store, proof, route, binary_sha256, boundary):
         raise ValueError('native qualification reused one execution as two rounds')
     if nonce.encode() not in first[5]['prompt'] or nonce.encode() in resumed[5]['prompt']:
         raise ValueError('native canary was absent initially or leaked into the continuation request')
+    if nonce.encode() in canonical_bytes(resumed[0]):
+        raise ValueError('native canary leaked through continuation input metadata')
+    if any(item[0]['metadata'].get('schema') != NATIVE_RECALL_SCHEMA for item in (first,resumed)):
+        raise ValueError('native recall proof requires the fixed non-disclosing output schema')
     # No alternate prompt or system channel may supply the answer to the recall
     # test. This deliberately bounds qualification to the ordinary route used.
     for item in (first,resumed):

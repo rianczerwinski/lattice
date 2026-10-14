@@ -19,6 +19,7 @@ def evidence():
     def journal(name,continued):
         prompt=b'Recall the original token exactly.' if continued else ('Retain this token: '+nonce).encode()
         request={'invocation_id':name,'model':route['model'],'effort':'high','prompt_sha256':hashlib.sha256(prompt).hexdigest(),'metadata':{'binary_sha256':'b'*64,'effective_policy':{k:v for k,v in route.items() if k not in ('provider','model','effort')}}}
+        request['metadata']['schema']={'type':'object','properties':{'response':{'type':'string'}},'required':['response'],'additionalProperties':False}
         request['metadata']['effective_policy'].update(execution_profile='native-continuation' if continued else 'workspace-agent',native_session_id='session-one' if continued else None,continuation_mode='resume' if continued else None)
         messages=[{'type':'system','subtype':'init','session_id':'session-one','model':route['model']},{'type':'assistant','message':{'content':'exposed work'}}]
         if continued:
@@ -77,6 +78,25 @@ def test_completed_round_proof_does_not_qualify_interruption(evidence):
     proof['first']['stdout']=put(raw)
     assert verify_native_case(store,proof,route,'b'*64,'completed')['boundary']=='completed'
     with pytest.raises(ValueError,match='cancellation'):
+        verify_native_case(store,proof,route,'b'*64,'interrupted')
+
+
+@pytest.mark.oracle
+@pytest.mark.parametrize('channel', ['schema', 'other_metadata', 'encoded_schema', 'missing_schema'])
+def test_continuation_input_metadata_cannot_supply_the_recalled_canary(evidence, channel):
+    store,put,blobs,route,proof=evidence
+    request=json.loads(blobs[proof['continued']['request'].rsplit('/',1)[1]])
+    if channel=='schema':
+        request['metadata']['schema']={'type':'object','properties':{'response':{'const':proof['canary']}}}
+    elif channel=='other_metadata':
+        request['metadata']['alternate_input']={'text':proof['canary']}
+    elif channel=='encoded_schema':
+        import base64
+        request['metadata']['schema']['description']='Decode this answer: '+base64.b64encode(proof['canary'].encode()).decode()
+    else:
+        request['metadata'].pop('schema')
+    proof['continued']['request']=put(request)
+    with pytest.raises(ValueError,match='canary.*continuation input|non-disclosing output schema'):
         verify_native_case(store,proof,route,'b'*64,'interrupted')
 
 

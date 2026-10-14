@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="0.058" timestamp="2026-10-14T01:16:53.014514-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_native_recovery_proof" name="test_continuation_input_metadata_cannot_supply_the_recalled_canary[schema]" time="0.001"><failure message="Failed: DID NOT RAISE ValueError">evidence = (namespace(blobs=namespace(get=&lt;function evidence.&lt;locals&gt;.&lt;lambda&gt; at 0x10d6e64b0&gt;)), &lt;function evidence.&lt;locals&gt;.put...5ced1934c4bf6c95f', 'terminal': 'lattice:blob/f7595dd1432c2af197e5c9f4469a61467c7742278add90591cba7d5a816ef4bf', ...}})
+channel = 'schema'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('channel', ['schema', 'other_metadata'])
+    def test_continuation_input_metadata_cannot_supply_the_recalled_canary(evidence, channel):
+        store,put,blobs,route,proof=evidence
+        request=json.loads(blobs[proof['continued']['request'].rsplit('/',1)[1]])
+        if channel=='schema':
+            request['metadata']['schema']={'type':'object','properties':{'response':{'const':proof['canary']}}}
+        else:
+            request['metadata']['alternate_input']={'text':proof['canary']}
+        proof['continued']['request']=put(request)
+&gt;       with pytest.raises(ValueError,match='canary.*continuation input'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_native_recovery_proof.py:93: Failed</failure></testcase><testcase classname="tests.test_native_recovery_proof" name="test_continuation_input_metadata_cannot_supply_the_recalled_canary[other_metadata]" time="0.001"><failure message="Failed: DID NOT RAISE ValueError">evidence = (namespace(blobs=namespace(get=&lt;function evidence.&lt;locals&gt;.&lt;lambda&gt; at 0x10d4de2a0&gt;)), &lt;function evidence.&lt;locals&gt;.put...5ced1934c4bf6c95f', 'terminal': 'lattice:blob/f7595dd1432c2af197e5c9f4469a61467c7742278add90591cba7d5a816ef4bf', ...}})
+channel = 'other_metadata'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('channel', ['schema', 'other_metadata'])
+    def test_continuation_input_metadata_cannot_supply_the_recalled_canary(evidence, channel):
+        store,put,blobs,route,proof=evidence
+        request=json.loads(blobs[proof['continued']['request'].rsplit('/',1)[1]])
+        if channel=='schema':
+            request['metadata']['schema']={'type':'object','properties':{'response':{'const':proof['canary']}}}
+        else:
+            request['metadata']['alternate_input']={'text':proof['canary']}
+        proof['continued']['request']=put(request)
+&gt;       with pytest.raises(ValueError,match='canary.*continuation input'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_native_recovery_proof.py:93: Failed</failure></testcase></testsuite></testsuites>
