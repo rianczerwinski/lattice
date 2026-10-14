@@ -30,7 +30,7 @@ function json(route: BrowserRoute, value: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
 }
 
-async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean; nativeApproval?: boolean; lostChildAcknowledgement?: boolean; uncertainChildEffect?: boolean } = {}) {
+async function installDeterministicLattice(page: Page, options: { secondaryUnavailable?: boolean; workflowUnavailable?: boolean; nativeApproval?: boolean; lostChildAcknowledgement?: boolean; uncertainChildEffect?: boolean; lostChildCreationAcknowledgement?: boolean; onChildCreation?: (key:string)=>void; onChildCreationRequest?: (request:Record<string,unknown>)=>void } = {}) {
   let project: Record<string, unknown> | null = null;
   const invocations: InvocationRecord[] = [];
   const episodes: EpisodeRecord[] = [];
@@ -39,6 +39,8 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
   let child: { conversation_id:string;title:string;owning_task_ref:string;revision:number;parent_conversation_id:null;route:Record<string,unknown>;rounds:Array<{round_id:string;ordinal:number;state:string;request:{prompt:string};response?:string;executions:[]}>;pending:{round_id:string;ordinal:number;state:string}|null;has_more:false;event_cursor:number;steering:Array<{steering_id:string;content:string}>;checkpoint:{checkpoint_id:string;content:{artifacts:[]}}|null } | null = null;
   const childReceipts=new Map<string,unknown>();
   let loseAcknowledgement=options.lostChildAcknowledgement ?? false;
+  let loseCreationAcknowledgement=options.lostChildCreationAcknowledgement ?? false;
+  const creationReceipts=new Map<string,unknown>();
   let sequence = 0;
   let secondaryUnavailable = options.secondaryUnavailable ?? false;
   let nativeDecision: 'allow' | 'deny' | null = null;
@@ -106,8 +108,16 @@ async function installDeterministicLattice(page: Page, options: { secondaryUnava
 
     if (path === '/api/v1/conversations' && request.method()==='GET') return json(intercepted,child ? [child] : []);
     if (path === '/api/v1/conversations' && request.method()==='POST') {
+      options.onChildCreationRequest?.(body);
+      const key=String(body.idempotency_key);
+      const retained=creationReceipts.get(key);
+      if (retained) return json(intercepted,retained);
+      options.onChildCreation?.(key);
       child={conversation_id:'conversation_browser',title:String(body.title),owning_task_ref:String(body.owning_task_ref),revision:1,parent_conversation_id:null,route:body.route as Record<string,unknown>,rounds:[],pending:null,has_more:false,event_cursor:1,steering:[],checkpoint:null};
-      return json(intercepted,{conversation_id:child.conversation_id,revision:1});
+      const receipt={conversation_id:child.conversation_id,revision:1};
+      creationReceipts.set(key,receipt);
+      if (loseCreationAcknowledgement) { loseCreationAcknowledgement=false; return intercepted.abort('connectionreset'); }
+      return json(intercepted,receipt);
     }
     if (path.startsWith('/api/v1/conversations/conversation_browser') && child) {
       const action=path.split('/')[5];
@@ -460,4 +470,23 @@ test('durable child: uncertain action requires an explicit disposition before co
   await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await expect(page.getByText('Recovered using the saved conversation.')).toBeVisible();
+});
+
+test('durable child: lost creation acknowledgement retries the same request after reload', async ({page}) => {
+  const created:string[]=[];
+  const requests:Record<string,unknown>[]=[];
+  await installDeterministicLattice(page,{lostChildCreationAcknowledgement:true,onChildCreation:key=>created.push(key),onChildCreationRequest:request=>requests.push(request)});
+  await page.goto('/');
+  await page.getByPlaceholder('New project').fill('Creation recovery project');
+  await page.getByRole('button',{name:'Create',exact:true}).click();
+  await page.getByLabel('Child conversation title').fill('Once-created child');
+  await page.getByRole('button',{name:'Create with current route'}).click();
+  await expect(page.locator('.durable-conversations [role="alert"]')).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Child conversation title')).toHaveValue('Once-created child');
+  await page.getByRole('button',{name:'Create with current route'}).click();
+  await expect(page.getByRole('heading',{name:'Once-created child',exact:true})).toBeVisible();
+  expect(created).toHaveLength(1);
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual(requests[0]);
 });

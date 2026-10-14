@@ -108,7 +108,13 @@
   async function create() {
     busy=true;
     try {
-      const result=await post<{conversation_id:string}>('/api/v1/conversations',{ project_id:projectId,title:title.trim(),owning_task_ref:owner.trim(),parent_conversation_id:view.selected || null,route:getRoute(),idempotency_key:crypto.randomUUID() });
+      const payload={project_id:projectId,title:title.trim(),owning_task_ref:owner.trim(),parent_conversation_id:view.selected || null,route:getRoute()};
+      const signature=JSON.stringify(payload);
+      const retained=view.requests?.create;
+      const request=retained?.signature===signature ? retained.request : {...payload,idempotency_key:crypto.randomUUID()};
+      view.requests={...view.requests,create:{signature,request}}; save();
+      const result=await post<{conversation_id:string}>('/api/v1/conversations',request);
+      delete view.requests.create; save();
       title=''; await select(result.conversation_id);
     } catch (cause: unknown) { error=failure(cause); }
     finally { busy=false; }
@@ -153,6 +159,8 @@
         view=saved as ViewState;
       }
     } catch (cause: unknown) { persistenceError=`Saved conversation view unavailable: ${failure(cause)}`; }
+    const creation=view.requests?.create?.request;
+    if (creation && typeof creation.title==='string' && typeof creation.owning_task_ref==='string') { title=creation.title; owner=creation.owning_task_ref; }
     const linked=new URLSearchParams(window.location.search).get('conversation');
     if (linked) view.selected=linked;
     void select(view.selected);
