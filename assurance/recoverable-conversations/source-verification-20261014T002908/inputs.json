@@ -1,0 +1,11 @@
+{
+  "revision": "84ae70b97f40ccb28c03352b03da6f6e607815c6",
+  "command": [
+    "/Users/rian/AXISVI/axis/chariots/lattice/.venv/bin/python",
+    "-u",
+    "-c",
+    "from ops.install import verify_source; print(\"SOURCE_VERIFIED\", verify_source())"
+  ],
+  "junit": "/Users/rian/AXISVI/axis/chariots/lattice/assurance/recoverable-conversations/source-verification-20261014T002908/source-tests.xml",
+  "retention": "keep: installer source qualification evidence"
+}

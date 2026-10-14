@@ -1,0 +1,1 @@
+{"ended": "20261014T074420Z", "exit": 1, "heartbeat": "20261014T074420Z", "job_started_epoch": 1791962997.0, "name": "source", "pgid": 64742, "pid": 64742, "schema": 2, "started": "20261014T072957Z", "state": "failed", "supervisor_pid": 64740, "supervisor_started_epoch": 1791962997.0}

@@ -1,0 +1,1 @@
+{"argv": ["/Users/rian/AXISVI/axis/chariots/lattice/.venv/bin/python", "-u", "-c", "from ops.install import verify_source; print(\"SOURCE_VERIFIED\", verify_source())"], "cwd": "/Users/rian/AXISVI/axis/chariots/lattice"}
