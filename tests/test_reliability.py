@@ -7,6 +7,7 @@ import json
 import os
 import sqlite3
 import subprocess
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -298,6 +299,7 @@ def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tm
     snapshot = tmp_path / "backup"
     target = tmp_path / "candidate"
     calls = []
+    monkeypatch.setattr(deployment, 'upgrade_quiescence', nullcontext)
     monkeypatch.setattr(deployment, "capture_publication_state", lambda: deployment.PublicationState(None, None, None, None, None, False, False))
     monkeypatch.setattr(deployment, "unload_job", lambda _label: None)
     monkeypatch.setattr(deployment, "restore_publication_state", lambda _prior: None)
@@ -319,6 +321,7 @@ def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tm
 @pytest.mark.regression
 def test_installer_refuses_publication_after_release_revision_changes(monkeypatch, tmp_path) -> None:
     calls = []
+    monkeypatch.setattr(deployment, 'upgrade_quiescence', nullcontext)
     monkeypatch.setattr(deployment, "capture_publication_state", lambda: deployment.PublicationState(None, None, None, None, None, False, False))
     monkeypatch.setattr(deployment, "unload_job", lambda _label: None)
     monkeypatch.setattr(deployment, "restore_publication_state", lambda _prior: None)
@@ -1671,3 +1674,53 @@ def test_every_captured_integrity_scan_releases_live_writer_lock(lattice_env, tm
     snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='all-integrity-scans-unlocked', source_revision=before['state_digest'], schema_version=before['schema_version'], state_digest=before['state_digest'])
     assert scans
     assert assess_backup(snapshot)['state_digest'] == before['state_digest']
+
+
+@pytest.mark.oracle
+def test_installer_does_not_stop_or_restart_active_provider_work(lattice_env, tmp_path, monkeypatch):
+    store = lattice_env['store']
+    draft = store.create_draft(DraftCreate(project_id=lattice_env['project']['project_id'], role_session_id=lattice_env['session']['role_session_id'], prompt='Unrelated work must remain running.', route=lattice_env['route']))
+    invocation = lattice_env['lattice'].seal(draft['draft_id'])
+    attempt = store.create_attempt(invocation['invocation_id'], 'active-upgrade-oracle', 'other-operator', 9_999_999_999)
+    store.mark_attempt_running(attempt['attempt_id'])
+    monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', store.config.data_root)
+    monkeypatch.setattr(deployment, 'verify_source', lambda: 'revision')
+    monkeypatch.setattr(deployment, 'git_revision', lambda _root: 'revision')
+    monkeypatch.setattr(deployment, 'migrate_legacy_data', lambda _root: None)
+    monkeypatch.setattr(deployment, 'install_runtime', lambda _revision: tmp_path / 'candidate')
+    monkeypatch.setattr(deployment, 'capture_publication_state', lambda: deployment.PublicationState(None, None, None, None, None, True, True))
+    calls = []
+    monkeypatch.setattr(deployment, 'unload_job', lambda label: calls.append(('stop', label)))
+    monkeypatch.setattr(deployment, 'restore_publication_state', lambda _prior: calls.append(('restart', 'prior')))
+    monkeypatch.setattr(deployment, 'backup_before_upgrade', lambda: None)
+    monkeypatch.setattr(deployment, 'verify_candidate_backup', lambda *_args: None)
+    monkeypatch.setattr(deployment, 'qualify_candidate_migration', lambda *_args: None)
+    monkeypatch.setattr(deployment, 'publish_runtime', lambda *_args, **_kwargs: calls.append(('publish', 'candidate')))
+    monkeypatch.setattr('sys.argv', ['install.py'])
+    with pytest.raises(RuntimeError, match='durable work is active'):
+        deployment.main()
+    assert calls == []
+    with sqlite3.connect(store.config.database) as connection:
+        assert connection.execute('SELECT state FROM attempts WHERE attempt_id=?', (attempt['attempt_id'],)).fetchone()[0] == 'running'
+
+
+@pytest.mark.concurrency
+@pytest.mark.oracle
+def test_upgrade_idle_boundary_holds_both_admission_locks_until_stop(lattice_env, monkeypatch):
+    import fcntl
+    from lattice.run_journal import DURABLE_RUNS_LOCK
+    root = lattice_env['config'].data_root
+    monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', root)
+    with deployment.upgrade_quiescence():
+        with sqlite3.connect(root / 'lattice.sqlite3', timeout=0) as connection:
+            with pytest.raises(sqlite3.OperationalError, match='locked'):
+                connection.execute('BEGIN IMMEDIATE')
+        descriptor = os.open(root / DURABLE_RUNS_LOCK, os.O_RDWR)
+        try:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally:
+            os.close(descriptor)
+    with sqlite3.connect(root / 'lattice.sqlite3', timeout=0) as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        connection.rollback()

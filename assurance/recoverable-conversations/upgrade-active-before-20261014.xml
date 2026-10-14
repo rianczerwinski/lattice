@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.774" timestamp="2026-10-14T00:51:50.051985-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_reliability" name="test_installer_does_not_stop_or_restart_active_provider_work" time="1.582"><failure message="Failed: DID NOT RAISE RuntimeError">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...ceda5654e7e034', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-84/test_installer_does_not_stop_o0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x109f93bb0&gt;
+
+    @pytest.mark.oracle
+    def test_installer_does_not_stop_or_restart_active_provider_work(lattice_env, tmp_path, monkeypatch):
+        store = lattice_env['store']
+        draft = store.create_draft(DraftCreate(project_id=lattice_env['project']['project_id'], role_session_id=lattice_env['session']['role_session_id'], prompt='Unrelated work must remain running.', route=lattice_env['route']))
+        invocation = lattice_env['lattice'].seal(draft['draft_id'])
+        attempt = store.create_attempt(invocation['invocation_id'], 'active-upgrade-oracle', 'other-operator', 9_999_999_999)
+        store.mark_attempt_running(attempt['attempt_id'])
+        monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', store.config.data_root)
+        monkeypatch.setattr(deployment, 'verify_source', lambda: 'revision')
+        monkeypatch.setattr(deployment, 'git_revision', lambda _root: 'revision')
+        monkeypatch.setattr(deployment, 'migrate_legacy_data', lambda _root: None)
+        monkeypatch.setattr(deployment, 'install_runtime', lambda _revision: tmp_path / 'candidate')
+        monkeypatch.setattr(deployment, 'capture_publication_state', lambda: deployment.PublicationState(None, None, None, None, None, True, True))
+        calls = []
+        monkeypatch.setattr(deployment, 'unload_job', lambda label: calls.append(('stop', label)))
+        monkeypatch.setattr(deployment, 'restore_publication_state', lambda _prior: calls.append(('restart', 'prior')))
+        monkeypatch.setattr(deployment, 'backup_before_upgrade', lambda: None)
+        monkeypatch.setattr(deployment, 'verify_candidate_backup', lambda *_args: None)
+        monkeypatch.setattr(deployment, 'qualify_candidate_migration', lambda *_args: None)
+        monkeypatch.setattr(deployment, 'publish_runtime', lambda *_args, **_kwargs: calls.append(('publish', 'candidate')))
+        monkeypatch.setattr('sys.argv', ['install.py'])
+&gt;       with pytest.raises(RuntimeError, match='durable work is active'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RuntimeError
+
+tests/test_reliability.py:1697: Failed</failure></testcase></testsuite></testsuites>

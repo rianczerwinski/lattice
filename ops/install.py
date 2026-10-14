@@ -20,6 +20,7 @@ import time
 import urllib.request
 import uuid
 from dataclasses import dataclass
+from contextlib import contextmanager
 from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
@@ -403,6 +404,20 @@ def migrate_legacy_data(legacy_root: Path) -> None:
     finally:
         shutil.rmtree(temporary_backup)
         shutil.rmtree(migration_wrapper)
+
+
+@contextmanager
+def upgrade_quiescence():
+    """Refuse active work and block new dispatch until the old writers stop."""
+    database = DEFAULT_DATA_ROOT / "lattice.sqlite3"
+    if not database.exists():
+        yield
+        return
+    import_source_modules()
+    from lattice.snapshot import _snapshot_guard
+
+    with _snapshot_guard(DEFAULT_DATA_ROOT, database, require_idle=True):
+        yield
 
 
 def backup_before_upgrade() -> Path | None:
@@ -990,15 +1005,20 @@ def main() -> None:
     # Build while the old service is usable, then stop all database writers before
     # the rollback boundary. Publication never revives an older runtime first.
     prior = capture_publication_state()
+    quiescence_started = False
     try:
-        unload_job(SERVICE_LABEL)
-        unload_job(BACKUP_LABEL)
+        with upgrade_quiescence():
+            quiescence_started = True
+            unload_job(SERVICE_LABEL)
+            unload_job(BACKUP_LABEL)
         snapshot = backup_before_upgrade()
         verify_candidate_backup(target, snapshot)
         qualify_candidate_migration(target, snapshot)
         if git_revision(SOURCE_ROOT) != lattice_revision:
             raise RuntimeError("source revision changed before runtime publication")
     except BaseException as preparation_error:
+        if not quiescence_started:
+            raise
         try:
             restore_publication_state(prior)
         except BaseException as rollback_error:
