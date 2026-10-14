@@ -14,6 +14,8 @@ Snapshots store the consistent SQLite image as a bounded gzip payload and use co
 
 [`qualify_context.py`](qualify_context.py) qualifies Claude's provider-facing context representation through the installed service. `prepare RUN_ROOT --fixture-dir DIAGNOSTIC_ROOT` freezes the retained packaging diagnostic's original synthetic eligibility prompt/schema, five cases, runner hashes, and installed runtime before any model call. `run RUN_ROOT --case CASE_ID` performs exactly one case in the declared order: `eligibility`, `parent_a`, `parent_b`, `edited_join`, `conflicting_references`. Run with the source environment's Python after a clean install. Every started case is reserved permanently; a failure, timeout, changed input, or missing earlier result stops admission. On interruption, inspect the case's sealed invocation and native journals rather than resubmitting. Requests have no tools or network authority; the 120-second bound cancels only that case. Exact answers, source quotations, and raw provider receipts—not a model's self-assessment—determine the result. Retain the run directory and native journals; no production queue is dispatched.
 
+[`qualify_conversation_native.py`](qualify_conversation_native.py) qualifies the exact installed Fable 5.1 read-only route one round at a time. Run it with the current immutable runtime's Python and a private run directory. `prepare` freezes the runtime, executable, route, runner and unpredictable canaries; `run --step completed-first`, then `completed-continued`, proves ordinary native recall. `admit --boundary completed` publishes that independent capability before the interruption cases. `interrupted-first` cancels at exposed activity before terminal output, and `interrupted-continued` must recall the token without file retrieval or a new input channel before `admit --boundary interrupted`. Each started round is reserved permanently; provider failures stop advancement. `reconcile --step STEP` finishes a lost operator acknowledgement from its existing journal without dispatching again. A separately proven completed boundary remains usable if later qualification fails. Raw journals remain private, and immutable qualification receipts bind the actual installed package tree and executable.
+
 ```text
 ops/
 ├── README.md                    Operations-boundary map and deployment contract
@@ -22,6 +24,7 @@ ops/
 ├── install.py                   Verified installer, upgrade switch, state cutover, and launchd publisher
 ├── qualify_browser.py           Installed cockpit journey and ledger reconstruction
 ├── qualify_context.py           Bounded Claude context, edited join, and attribution canaries
+├── qualify_conversation_native.py Independently admitted ordinary/interrupted native recall
 ├── qualify_interruption.py      Active-work crash and lease-reconciliation proof
 ├── qualify_release.py           Fixed suites, consumers, and provider-profile canaries
 ├── qualify_restore.py           Launchd restart, backup, separate-root restore, and continuation
