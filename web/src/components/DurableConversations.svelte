@@ -8,7 +8,7 @@
   export let onSelection: (selected: boolean) => void;
   type Child = { conversation_id: string; title: string; owning_task_ref: string; revision: number; parent_conversation_id: string | null };
   type Attempt = { attempt_id: string; state: string; failure_kind: string | null; error_text: string | null };
-  type Round = { round_id: string; ordinal: number; state: string; request: { prompt: string }; response?: string; executions: Array<{ invocation_id: string; attempts: Attempt[] }> };
+  type Round = { round_id: string; ordinal: number; state: string; request: { prompt: string }; response?: string; operator_steering?: Array<{steering_id:string;content:string}>; executions: Array<{ invocation_id: string; attempts: Attempt[] }> };
   type Conversation = Child & { rounds: Round[]; has_more: boolean; pending: { round_id: string; state: string; ordinal: number; attempt_ids?: string[] } | null; event_cursor: number; steering: Array<{ steering_id: string; content: string }>; checkpoint: { checkpoint_id: string; content: { artifacts: Array<{ artifact_id: string }> } } | null; route: { model: string } };
   type Effect = { attempt_id: string; tool_id: string | null; request: { name?: string; [key:string]:unknown } };
   type Disposition = { attempt_id:string; tool_id:string|null; disposition:string; evidence:string };
@@ -69,7 +69,11 @@
             if (destroyed || selected!==view.selected) continue;
             conversation=data;
             view.seen[selected]=data.revision; save();
-            if (data.pending?.state==='needs_attention') preview=await post<Preview>(`${path(selected)}/recovery-preview`,{});
+            if (data.pending?.state==='needs_attention') {
+              const recovered=await post<Preview>(`${path(selected)}/recovery-preview`,{});
+              if (destroyed || selected!==view.selected) continue;
+              preview=recovered;
+            }
             else preview=null;
           }
           error='';
@@ -86,6 +90,7 @@
     if (id) url.searchParams.set('conversation',id); else url.searchParams.delete('conversation');
     window.history.replaceState(null,'',url);
     await refresh(); await tick();
+    if (destroyed || id!==view.selected) return;
     if (reading) reading.scrollTop=view.positions[id] ?? 0;
     const restored = conversation as Conversation | null;
     if (id && restored?.pending) {
@@ -95,6 +100,7 @@
         let more=true;
         while (more && view.selected===id && !destroyed) {
           const page=await api<{items:Array<{seq:number;subject_id:string;event_type:string;payload:{preview?:string}}>;cursor:number;has_more:boolean}>(`${path(id)}/observations?after=${cursor}&limit=500`);
+          if (destroyed || id!==view.selected) return;
           for (const event of page.items) if (attemptIds.has(event.subject_id) && event.event_type==='attempt.chunk') admitActivity(event.seq,event.payload.preview ?? '');
           cursor=page.cursor;more=page.has_more;
         }
@@ -134,7 +140,8 @@
       if (action==='steer') { request.content=draft; request.interrupt=redirect; }
       if (action==='continue' && !retry) {
         const effect_dispositions=selectedDispositions();
-        const current=await post<Preview>(`${path(id)}/recovery-preview`,{effect_dispositions}); preview=current;
+        const current=await post<Preview>(`${path(id)}/recovery-preview`,{effect_dispositions});
+        if (id===view.selected) preview=current;
         if (current.blockers.length) return;
         request={...request,expected_revision:current.revision,expected_preview_sha256:current.preview_sha256,effect_dispositions};
       }
@@ -206,6 +213,7 @@
     <div class="rounds" bind:this={reading} on:scroll={savePosition} role="region" aria-label="Saved conversation rounds">
       {#each conversation.rounds as round}
         <article><small>Round {round.ordinal} · {round.state}</small><h3>You</h3><div class="operator-text">{round.request.prompt}</div>
+          {#each round.operator_steering ?? [] as instruction}<p class="operator-text">Admitted correction: {instruction.content}</p>{/each}
           {#if round.response !== undefined}<h3>Model</h3><div class="markdown">{@html renderMarkdown(round.response)}</div>{/if}
           {#each round.executions as execution}{#each execution.attempts as attempt}{#if attempt.failure_kind}<p class="surface-failure">{attempt.failure_kind}: {attempt.error_text ?? 'This attempt ended before completion.'}</p>{/if}{/each}{/each}
         </article>

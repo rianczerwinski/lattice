@@ -1,0 +1,50 @@
+<testsuites id="" name="" tests="1" failures="1" skipped="0" errors="0" time="13.627048">
+<testsuite name="conversation.spec.ts" timestamp="2026-10-14T21:19:36.383Z" hostname="" tests="1" failures="1" skipped="0" time="6.302" errors="0">
+<testcase name="durable child: late observations cannot enter a different selected child" classname="conversation.spec.ts" time="6.302">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/error-context.md]]
+
+[[ATTACHMENT|../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).not.toContainText(expected) failed" type="expect.not.toContainText">
+<![CDATA[  conversation.spec.ts:494:1 › durable child: late observations cannot enter a different selected child 
+
+    Error: expect(locator).not.toContainText(expected) failed
+
+    Locator: locator('.durable-conversations details pre')
+    Expected substring: not "Stale child A activity."
+    Received string: "Stale child A activity.Only current child B activity."
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "not toContainText" with timeout 5000ms
+      - waiting for locator('.durable-conversations details pre')
+        14 × locator resolved to <pre class="svelte-1n6hf1b">Stale child A activity.Only current child B activ…</pre>
+           - unexpected value "Stale child A activity.Only current child B activity."
+
+
+      521 |     await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+      522 |     await expect(page.getByRole('heading',{name:'Child B',exact:true})).toBeVisible();
+    > 523 |     await expect(partial).not.toContainText('Stale child A activity.');
+          |                               ^
+      524 |   } finally { releaseA(); }
+      525 | });
+      526 |
+        at /Users/rian/AXISVI/axis/chariots/lattice/web/e2e/conversation.spec.ts:523:31
+
+    Error Context: ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

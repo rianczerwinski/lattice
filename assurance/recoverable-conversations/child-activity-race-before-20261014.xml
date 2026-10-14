@@ -1,0 +1,34 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="1" time="181.631582">
+<testsuite name="conversation.spec.ts" timestamp="2026-10-14T21:15:09.866Z" hostname="" tests="1" failures="0" skipped="0" time="0.005" errors="1">
+<testcase name="durable child: late observations cannot enter a different selected child" classname="conversation.spec.ts" time="0.005">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/error-context.md]]
+
+[[ATTACHMENT|../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/trace.zip]]
+]]>
+</system-out>
+<error message="browserType.launch: Timeout 180000ms exceeded." type="TimeoutError">
+<![CDATA[  conversation.spec.ts:494:1 › durable child: late observations cannot enter a different selected child 
+
+    TimeoutError: browserType.launch: Timeout 180000ms exceeded.
+    Call log:
+      - <launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/playwright_chromiumdev_profile-AE3xac --remote-debugging-pipe --no-startup-window
+      - <launched> pid=59993
+      - [pid=59993] <gracefully close start>
+
+
+    Error Context: ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-feb89--a-different-selected-child/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+</testsuite>
+</testsuites>

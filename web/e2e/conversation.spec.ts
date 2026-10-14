@@ -490,3 +490,36 @@ test('durable child: lost creation acknowledgement retries the same request afte
   expect(requests).toHaveLength(2);
   expect(requests[1]).toEqual(requests[0]);
 });
+
+test('durable child: late observations cannot enter a different selected child', async ({page}) => {
+  await installDeterministicLattice(page);
+  let releaseA!:()=>void;
+  const heldA=new Promise<void>(resolve=>{releaseA=resolve;});
+  let startedA=false;
+  const child=(id:string)=>({conversation_id:`conversation_${id}`,title:`Child ${id.toUpperCase()}`,owning_task_ref:'task:race',revision:1,parent_conversation_id:null,route:{model:'fixture-model'},rounds:[{round_id:`round_${id}`,ordinal:1,state:'active',request:{prompt:`Request ${id}`},executions:[]}],pending:{round_id:`round_${id}`,ordinal:1,state:'active',attempt_ids:[`attempt_${id}`]},has_more:false,event_cursor:1,steering:[],checkpoint:null});
+  await page.route('**/api/v1/conversations**',async route=>{
+    const path=new URL(route.request().url()).pathname;
+    if (path==='/api/v1/conversations') return json(route,[child('a'),child('b')]);
+    const id=path.includes('conversation_a')?'a':'b';
+    if (path.endsWith('/observations')) {
+      if (id==='a') { startedA=true;await heldA; }
+      return json(route,{items:[{seq:id==='a'?1:2,subject_id:`attempt_${id}`,event_type:'attempt.chunk',payload:{preview:id==='a'?'Stale child A activity.':'Only current child B activity.'}}],cursor:2,has_more:false});
+    }
+    return json(route,child(id));
+  });
+  try {
+    await page.goto('/');
+    await page.getByPlaceholder('New project').fill('Child activity race');
+    await page.getByRole('button',{name:'Create',exact:true}).click();
+    await page.getByRole('button',{name:/Child A/}).click();
+    await expect.poll(()=>startedA).toBe(true);
+    await page.getByRole('button',{name:/Child B/}).click();
+    const partial=page.locator('.durable-conversations details pre');
+    await expect(partial).toContainText('Only current child B activity.');
+    const response=page.waitForResponse(value=>value.url().includes('/conversation_a/observations'));
+    releaseA();await (await response).finished();
+    await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+    await expect(page.getByRole('heading',{name:'Child B',exact:true})).toBeVisible();
+    await expect(partial).not.toContainText('Stale child A activity.');
+  } finally { releaseA(); }
+});
