@@ -1,0 +1,10 @@
+{
+  "revision": "c2c9115515c69543584e8a666a333ebe379c07e7",
+  "command": [
+    "/Users/rian/AXISVI/axis/chariots/lattice/.venv/bin/python",
+    "-u",
+    "/Users/rian/AXISVI/axis/chariots/lattice/ops/install.py"
+  ],
+  "source_junit": "/Users/rian/AXISVI/axis/chariots/lattice/assurance/recoverable-conversations/installed-upgrade-20261014T143431/source-tests.xml",
+  "retention": "keep: exact installation evidence"
+}

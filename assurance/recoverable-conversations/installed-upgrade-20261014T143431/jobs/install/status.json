@@ -1,0 +1,1 @@
+{"ended": "20261014T214414Z", "exit": 143, "heartbeat": "20261014T214414Z", "job_started_epoch": 1792013683.0, "name": "install", "pgid": 15020, "pid": 15020, "reason": "stopped by runjob stop", "schema": 2, "signal": "SIGTERM", "started": "20261014T213443Z", "state": "stopped", "supervisor_pid": 15018, "supervisor_started_epoch": 1792013683.0}

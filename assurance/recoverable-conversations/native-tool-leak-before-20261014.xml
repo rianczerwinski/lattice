@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.106" timestamp="2026-10-14T14:54:57.059470-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_native_recovery_proof" name="test_native_proof_rejects_false_qualification[tool_retrieval]" time="0.012"><failure message="Failed: DID NOT RAISE any of (ValueError, KeyError)">evidence = (namespace(blobs=namespace(get=&lt;function evidence.&lt;locals&gt;.&lt;lambda&gt; at 0x1097926c0&gt;)), &lt;function evidence.&lt;locals&gt;.put...5ced1934c4bf6c95f', 'terminal': 'lattice:blob/f7595dd1432c2af197e5c9f4469a61467c7742278add90591cba7d5a816ef4bf', ...}})
+fault = 'tool_retrieval'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('fault',['wrong_model','changed_authority','wrong_binary','no_interruption','wrong_session','missing_recall','leaked_canary','false_success','missing_bytes','switched_model','compaction','tool_retrieval'])
+    def test_native_proof_rejects_false_qualification(evidence,fault):
+        store,put,blobs,route,proof=evidence
+        proof=copy.deepcopy(proof)
+        def read(part,name):
+            return json.loads(blobs[proof[part][name].rsplit('/',1)[1]])
+        if fault in ('wrong_model','changed_authority','wrong_binary'):
+            value=read('continued','request')
+            if fault=='wrong_model':value['model']='another-model'
+            elif fault=='wrong_binary':value['metadata']['binary_sha256']='c'*64
+            else:value['metadata']['effective_policy']['permissions'].append('Bash')
+            proof['continued']['request']=put(value)
+        elif fault=='no_interruption':
+            value=read('first','terminal');value['status']='success';proof['first']['terminal']=put(value)
+        elif fault=='wrong_session':
+            proof['continued']['checkpoint']=put({'native_session':{'id':'another-session'}})
+        elif fault=='leaked_canary':
+            raw=('Recall '+proof['canary']).encode()
+            value=read('continued','request');value['prompt_sha256']=hashlib.sha256(raw).hexdigest()
+            proof['continued']['request']=put(value);proof['continued']['prompt']=put(raw)
+        elif fault in ('missing_recall','false_success','switched_model','compaction','tool_retrieval'):
+            messages=[json.loads(line) for line in blobs[proof['continued']['stdout'].rsplit('/',1)[1]].splitlines()]
+            if fault=='missing_recall':messages[-1]['structured_output']['response']='forgotten'
+            elif fault=='false_success':messages[-1]['is_error']=True
+            elif fault=='switched_model':messages[1]['message']['model']='claude-opus-5'
+            elif fault=='compaction':messages.insert(1,{'type':'system','subtype':'compact_boundary'})
+            else:
+                messages[1:1]=[{'type':'assistant','message':{'content':[{'type':'tool_use','id':'retrieved','name':'Read','input':{'file_path':'/private/prior-token.txt'}}]}}, {'type':'user','message':{'content':[{'type':'tool_result','tool_use_id':'retrieved','content':proof['canary']}]}}]
+            proof['continued']['stdout']=put(b''.join(json.dumps(m).encode()+b'\n' for m in messages))
+        else:
+            del blobs[proof['first']['stdout'].rsplit('/',1)[1]]
+&gt;       with pytest.raises((ValueError,KeyError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, KeyError)
+
+tests/test_native_recovery_proof.py:70: Failed</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="0.116" timestamp="2026-10-14T14:45:05.904005-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_conversation_route_guarantees" name="test_provider_cannot_compact_or_select_a_fallback_model" time="0.009"><failure message="KeyError: 'DISABLE_COMPACT'">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-92/test_provider_cannot_compact_o0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x1054e5220&gt;
+
+    @pytest.mark.oracle
+    def test_provider_cannot_compact_or_select_a_fallback_model(tmp_path, monkeypatch):
+        def oracle(command, kwargs):
+            assert kwargs['env']['DISABLE_COMPACT'] == '1'
+            settings = json.loads(command[command.index('--settings') + 1])
+            assert settings['availableModels'] == ['claude-fable-5-1']
+            assert settings['autoCompactEnabled'] is False
+        fixture(monkeypatch, events(), oracle)
+&gt;       assert invoke(tmp_path)[0] == {'response': 'retained'}
+               ^^^^^^^^^^^^^^^^
+
+tests/test_conversation_route_guarantees.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_conversation_route_guarantees.py:30: in invoke
+    return adapters.invoke_subscription(selected(), prompt='Preserve exact supplied history.', schema=SCHEMA, runs_dir=root / 'runs', subject='exact-route')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lattice/execution/adapters.py:1241: in invoke_subscription
+    ) if interactive else run_bounded(
+tests/test_conversation_route_guarantees.py:20: in process
+    inspect(command, kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+command = ['/fixture/claude', '--print', '--model', 'claude-fable-5-1', '--effort', 'high', ...]
+kwargs = {'timeout': 600, 'input_text': 'Preserve exact supplied history.', 'cwd': PosixPath('/var/folders/0p/hbttw0xn1gzcjc5l2...nthropic-4e1uquuv'), 'env': {'COLORTERM': '', 'HOME': '/Users/rian', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8', ...}, ...}
+
+    def oracle(command, kwargs):
+&gt;       assert kwargs['env']['DISABLE_COMPACT'] == '1'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'DISABLE_COMPACT'
+
+tests/test_conversation_route_guarantees.py:42: KeyError</failure></testcase><testcase classname="tests.test_conversation_route_guarantees" name="test_valid_terminal_payload_cannot_hide_changed_execution[model-switch]" time="0.011"><failure message="Failed: DID NOT RAISE SubscriptionInvocationFailed">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-92/test_valid_terminal_payload_ca0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x1054e5940&gt;
+fault = 'model-switch'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('fault', ['model-switch', 'compaction'])
+    def test_valid_terminal_payload_cannot_hide_changed_execution(tmp_path, monkeypatch, fault):
+        transcript = events('claude-opus-5' if fault == 'model-switch' else 'claude-fable-5-1')
+        if fault == 'compaction':
+            transcript.insert(1, {'type': 'system', 'subtype': 'compact_boundary', 'compact_metadata': {'trigger': 'auto'}})
+        fixture(monkeypatch, transcript)
+&gt;       with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SubscriptionInvocationFailed
+
+tests/test_conversation_route_guarantees.py:57: Failed</failure></testcase><testcase classname="tests.test_conversation_route_guarantees" name="test_valid_terminal_payload_cannot_hide_changed_execution[compaction]" time="0.009"><failure message="Failed: DID NOT RAISE SubscriptionInvocationFailed">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-92/test_valid_terminal_payload_ca1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x1054bb9b0&gt;
+fault = 'compaction'
+
+    @pytest.mark.oracle
+    @pytest.mark.parametrize('fault', ['model-switch', 'compaction'])
+    def test_valid_terminal_payload_cannot_hide_changed_execution(tmp_path, monkeypatch, fault):
+        transcript = events('claude-opus-5' if fault == 'model-switch' else 'claude-fable-5-1')
+        if fault == 'compaction':
+            transcript.insert(1, {'type': 'system', 'subtype': 'compact_boundary', 'compact_metadata': {'trigger': 'auto'}})
+        fixture(monkeypatch, transcript)
+&gt;       with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SubscriptionInvocationFailed
+
+tests/test_conversation_route_guarantees.py:57: Failed</failure></testcase></testsuite></testsuites>
