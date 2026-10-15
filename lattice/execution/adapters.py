@@ -1301,7 +1301,7 @@ def invoke_subscription(
             finish_run_journal(journal, "failed", failure_kind="harness_failure")
             raise SubscriptionInvocationFailed(
                 "harness_failure",
-                f"{adapter.provider_code} process could not start: {error}",
+                f"{adapter.provider_code} execution or output capture failed: {error}",
                 journal=journal.root,
             ) from error
         if result.returncode != 0:

@@ -1222,3 +1222,31 @@ def test_oracle_meta_dispatch_parses_muse_jsonl_and_journals_the_provider_prompt
     assert payload == {"status": "ok"}
     assert (journal / "provider-prompt.txt").read_text(encoding="utf-8") == provider_prompt
     assert request["provider_prompt_sha256"] == __import__("hashlib").sha256(provider_prompt.encode()).hexdigest()
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize('channel',['stdout','stderr'])
+def test_completed_child_waits_for_slow_durable_observation(tmp_path,channel):
+    journal=tmp_path/'stdout.log'
+    seen=[]
+    def slow_observer(channel,chunk):
+        seen.append((channel,chunk))
+        # Deliberately exceed the two-second pipe grace while the child has
+        # already closed its writers. This is capture latency, not a descendant.
+        time.sleep(2.5)
+    result=run_bounded([sys.executable,'-c',f"import sys; print('completed retained output',file=sys.{channel},flush=True)"],timeout=10,**{channel+'_journal':journal},on_chunk=slow_observer)
+    assert result.returncode==0
+    assert getattr(result,channel)=='completed retained output\n'
+    assert journal.read_bytes()==b'completed retained output\n'
+    assert seen==[(channel,b'completed retained output\n')]
+
+
+@pytest.mark.regression
+def test_local_observation_uses_the_declared_execution_deadline(tmp_path):
+    journal=tmp_path/'stdout.log'
+    def slow_observer(_channel,_chunk):
+        time.sleep(.5)
+    with pytest.raises(subprocess.TimeoutExpired) as failure:
+        run_bounded([sys.executable,'-c',"print('retained before capture deadline',flush=True)"],timeout=.2,stdout_journal=journal,on_chunk=slow_observer)
+    assert failure.value.output=='retained before capture deadline\n'
+    assert journal.read_bytes()==b'retained before capture deadline\n'

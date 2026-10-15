@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import os
 import queue
+import select
 import signal
 import subprocess
 import sys
 import threading
 import time
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Mapping
 
@@ -54,6 +55,10 @@ class ProcessOutputLimit(RuntimeError):
 
 class ProcessInputLimit(RuntimeError):
     """A streaming sender exceeded the admitted input budget before delivery."""
+
+
+class _ObservationDeadlineExpired(TimeoutError):
+    """The child finished, but its durable observation exceeded the run budget."""
 
 
 def terminate_process_group(proc: subprocess.Popen[object]) -> None:
@@ -131,10 +136,24 @@ def _owned_process(command: list[str], *, has_input: bool, cwd: Path | None, env
                         stream.close()
 
 
-def _join_drain_thread(thread: threading.Thread | None, stop: Callable[[], None], *, timeout: float) -> bool:
+def _join_drain_thread(thread: threading.Thread | None, stop: Callable[[], None], *, timeout: float,
+                       writer_closed: Callable[[], bool] | None = None, deadline: float | None = None) -> bool:
     if thread is None:
         return False
     thread.join(timeout=max(timeout, 0.001))
+    if thread.is_alive() and writer_closed is not None and writer_closed():
+        # POLLHUP proves that every pipe writer has closed. The remaining work
+        # is local fsync/indexing/callback admission, not an orphan process.
+        # Let that work use the declared execution budget rather than the short
+        # grace reserved for detecting a descendant which kept a writer open.
+        thread.join(timeout=None if deadline is None else max(0.001, deadline - time.monotonic()))
+        if not thread.is_alive():
+            return False
+        stop()
+        thread.join(timeout=2)
+        if thread.is_alive():
+            raise OSError("durable output observation remained active after its execution deadline")
+        raise _ObservationDeadlineExpired()
     retained_pipe = thread.is_alive()
     if thread.is_alive():
         stop()
@@ -186,7 +205,16 @@ def run_bounded(
         raise ProcessInputLimit(f"process input exceeds its {max_input_bytes}-byte input limit")
     if cancel_event is not None and cancel_event.is_set():
         raise ProcessCancelled(command, "", "")
-    with _owned_process(command, has_input=initial_input is not None or input_messages is not None, cwd=cwd, env=env) as (proc, stop):
+    with _owned_process(command, has_input=initial_input is not None or input_messages is not None, cwd=cwd, env=env) as (proc, stop), ExitStack() as monitors:
+        writer_monitors = {}
+        for channel, stream in (("stdout", proc.stdout), ("stderr", proc.stderr)):
+            # A private duplicate prevents descriptor reuse while a drain
+            # thread closes its stream. Keeping a reader open cannot hide HUP.
+            descriptor = os.dup(stream.fileno())
+            monitors.callback(os.close, descriptor)
+            poller = select.poll()
+            poller.register(descriptor, select.POLLHUP)
+            writer_monitors[channel] = poller
         root = _journal_root(stdout_journal, stderr_journal)
         stdout_chunks: list[bytes] = []
         stderr_chunks: list[bytes] = []
@@ -342,8 +370,13 @@ def run_bounded(
             # An idle queue reader needs its bounded wake-up after input_stop, even
             # when the execution deadline has elapsed. It is not a retained pipe.
             retained_pipe = _join_drain_thread(input_thread, stop, timeout=2.0)
-            retained_pipe = _join_drain_thread(stdout_thread, stop, timeout=join_timeout) or retained_pipe
-            retained_pipe = _join_drain_thread(stderr_thread, stop, timeout=join_timeout) or retained_pipe
+            for channel, thread in (("stdout", stdout_thread), ("stderr", stderr_thread)):
+                try:
+                    retained_pipe = _join_drain_thread(thread, stop, timeout=join_timeout,
+                        writer_closed=lambda channel=channel: any(events & select.POLLHUP for _fd, events in writer_monitors[channel].poll(0)),
+                        deadline=deadline) or retained_pipe
+                except _ObservationDeadlineExpired:
+                    timed_out = True
             if not observation_failed:
                 refresh_sidecars()
 
