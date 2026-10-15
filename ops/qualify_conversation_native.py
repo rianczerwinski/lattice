@@ -47,7 +47,10 @@ def runtime_binding():
     if not (current / 'runtime.json').is_file() or not package.is_relative_to(current):
         raise RuntimeError('Use the installed runtime Python, not the source environment.')
     binary = Path(shutil.which('claude') or '').resolve(strict=True)
-    return {'runtime': json.loads((current / 'runtime.json').read_bytes()),
+    manifest_path = current / 'runtime.json'
+    manifest_raw = manifest_path.read_bytes()
+    return {'runtime': json.loads(manifest_raw),
+            'runtime_manifest_path': str(manifest_path), 'runtime_manifest_sha256': sha256_bytes(manifest_raw),
             'runtime_tree_sha256': sha256_json(tree_inventory(package)),
             'binary': str(binary), 'binary_sha256': _digest(binary)[0],
             'runner_sha256': sha256_bytes(Path(__file__).read_bytes())}
@@ -57,13 +60,19 @@ def prepare(root):
     binding = runtime_binding()
     root.mkdir(parents=True, exist_ok=False)
     (root / 'README.md').write_text('# Native conversation qualification\n\nEach named command reserves one round before execution. Its journal and result survive replacement of the operator. Inspect a reserved unfinished round; never repeat it. Completion and interruption qualify separate boundaries, with a token absent from all continuation input channels. Raw transcripts remain in this private directory.\n')
+    fixture = root / 'synthetic-reading-fixture.txt'
+    fixture.write_text('Synthetic arithmetic qualification material; no personal or workspace content.\n' +
+                       ''.join(f'Line {n}: a square has four sides; {n} plus one equals {n+1}.\n' for n in range(20000)))
+    interruption_source = {'path': str(fixture.resolve()), 'sha256': sha256_bytes(fixture.read_bytes())}
     canaries = {boundary: secrets.token_hex(16) for boundary in ('completed', 'interrupted')}
-    envelope = generated_object(kind='conversation-native-qualification-plan', schema_name='conversation-native-qualification-plan',
-        subject='lattice:native-qualification:' + root.name, producer_name='lattice-native-qualification', producer_version='1.0.0',
-        sources=[{'ref': str(Path(__file__).resolve()), 'revision': None, 'sha256': binding['runner_sha256']}])
-    envelope['commitment'] = {'fields': ['binding', 'route', 'steps', 'canaries', 'schema'], 'sealed_at': stamp(), 'supersedes': None, 'change_reason': None}
+    envelope = generated_object(kind='conversation-native-qualification-plan', schema_name='conversation-native-qualification-plan', schema_version=2,
+        subject='lattice:native-qualification:' + root.name, producer_name='lattice-native-qualification', producer_version='1.1.0',
+        sources=[{'ref': str(Path(__file__).resolve()), 'revision': None, 'sha256': binding['runner_sha256']},
+                 {'ref': binding['runtime_manifest_path'], 'revision': None, 'sha256': binding['runtime_manifest_sha256']},
+                 {'ref': interruption_source['path'], 'revision': None, 'sha256': interruption_source['sha256']}])
+    envelope['commitment'] = {'fields': ['binding', 'route', 'steps', 'canaries', 'schema', 'interruption_source'], 'sealed_at': stamp(), 'supersedes': None, 'change_reason': None}
     write_once(root / 'plan.json', {'generated_object': envelope, 'binding': binding, 'route': ROUTE, 'steps': STEPS,
-        'canaries': canaries, 'schema': NATIVE_RECALL_SCHEMA, 'timeout_seconds': 180,
+        'canaries': canaries, 'schema': NATIVE_RECALL_SCHEMA, 'timeout_seconds': 180, 'interruption_source': interruption_source,
         'proof_limits': ['This is a bounded authenticated capability check, not a reliability estimate.',
                          'Only exposed provider computation can be recovered. No external mutations are authorized.']})
     print(json.dumps({'plan': str(root / 'plan.json'), 'remaining': STEPS}))
@@ -73,6 +82,9 @@ def checked_plan(root):
     plan = json.loads((root / 'plan.json').read_bytes())
     if plan['binding'] != runtime_binding():
         raise RuntimeError('Installed runtime, executable or qualification runner changed.')
+    source = plan.get('interruption_source')
+    if not source or sha256_bytes(Path(source['path']).read_bytes()) != source['sha256']:
+        raise RuntimeError('Synthetic interruption fixture changed; do not dispatch.')
     return plan
 
 
@@ -93,7 +105,7 @@ def run(root, step):
     else:
         prompt = 'Remember this unpredictable token for the next request: ' + plan['canaries'][boundary] + '. '
         prompt += ('Return response="retained".' if boundary == 'completed' else
-                   'First read /Users/rian/AXISVI/README.md. Then inspect its referenced README files one at a time and formulate a long architectural account before returning response="retained". The operator will interrupt this synthetic request after exposed activity; do not perform any mutations.')
+                   'Read only ' + plan['interruption_source']['path'] + ' in successive 100-line chunks and explain its synthetic arithmetic patterns at length before returning response="retained". Do not read other files. The operator will interrupt after exposed activity; do not perform any mutations.')
     request = {'step': step, 'prompt': prompt, 'session': session, 'plan_sha256': sha256_bytes((root / 'plan.json').read_bytes())}
     # Reserving before dispatch means replacement operators cannot purchase a
     # duplicate after lost acknowledgement or an interrupted runner.

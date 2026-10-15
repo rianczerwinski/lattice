@@ -18,8 +18,11 @@ def runner(monkeypatch):
 
 
 def plan(root, runner):
+    fixture = root / 'synthetic-reading-fixture.txt'
+    fixture.write_text('A square has four sides.\n')
     value = {'route': runner.ROUTE, 'schema': runner.NATIVE_RECALL_SCHEMA,
-             'canaries': {'completed': '1' * 32, 'interrupted': '2' * 32}, 'timeout_seconds': 180}
+             'canaries': {'completed': '1' * 32, 'interrupted': '2' * 32}, 'timeout_seconds': 180,
+             'interruption_source': {'path':str(fixture), 'sha256':runner.sha256_bytes(fixture.read_bytes())}}
     (root / 'plan.json').write_text(json.dumps(value))
     return value
 
@@ -51,6 +54,8 @@ def test_cancel_uses_exposed_record_boundary_and_persists_once(runner, tmp_path,
     (journal / 'request.json').write_text('{}')
 
     def interrupted(*args, **kwargs):
+        assert str(tmp_path / 'synthetic-reading-fixture.txt') in kwargs['prompt']
+        assert '/Users/rian/AXISVI/' not in kwargs['prompt']
         kwargs['on_journal'](journal)
         observe = kwargs['on_chunk']
         event = json.dumps({'type': 'assistant', 'message': {'content': 'é'}}, ensure_ascii=False).encode() + b'\n'
@@ -67,6 +72,26 @@ def test_cancel_uses_exposed_record_boundary_and_persists_once(runner, tmp_path,
     result = json.loads((tmp_path / 'interrupted-first.result.json').read_bytes())
     assert result['passed'] and result['exposed'] and result['expected_interruption']
     assert json.loads((tmp_path / 'interrupted-first.cancel.json').read_bytes())['reason'] == 'exposed assistant activity'
+
+
+def test_prepared_fixture_is_bound_and_drift_refuses_dispatch(runner,tmp_path,monkeypatch):
+    manifest=tmp_path/'runtime.json';manifest.write_text('{"runtime_id":"fixture"}')
+    binding={'runner_sha256':runner.sha256_bytes(Path(runner.__file__).read_bytes()),
+             'runtime_manifest_path':str(manifest),'runtime_manifest_sha256':runner.sha256_bytes(manifest.read_bytes())}
+    monkeypatch.setattr(runner,'runtime_binding',lambda:binding)
+    root=tmp_path/'qualification';runner.prepare(root)
+    prepared=json.loads((root/'plan.json').read_bytes());source=prepared['interruption_source']
+    fixture=Path(source['path']);assert fixture.parent==root
+    assert source['sha256']==runner.sha256_bytes(fixture.read_bytes())
+    assert {'ref':source['path'],'revision':None,'sha256':source['sha256']} in prepared['generated_object']['sources']
+    assert {'ref':str(manifest),'revision':None,'sha256':binding['runtime_manifest_sha256']} in prepared['generated_object']['sources']
+    monkeypatch.undo()
+    monkeypatch.setattr(runner,'runtime_binding',lambda:binding)
+    runner.checked_plan(root)
+    fixture.write_text('Changed material that was never admitted.\n')
+    with pytest.raises(RuntimeError,match='fixture changed'):
+        runner.run(root,'completed-first')
+    assert not (root/'completed-first.started.json').exists()
 
 
 def test_provider_failure_retains_cause_and_blocks_next_round(runner, tmp_path, monkeypatch):
