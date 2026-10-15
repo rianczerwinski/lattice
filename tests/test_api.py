@@ -1406,3 +1406,17 @@ def test_batch_dispatch_failure_returns_a_truthful_partial_receipt_and_retries_i
     with lattice_env["store"]._connect() as conn:
         event = conn.execute("SELECT payload_json FROM events WHERE event_type='invocation-batch.dispatch-failed' ORDER BY seq DESC LIMIT 1").fetchone()
     assert event is not None and "planted dispatch admission failure" in event["payload_json"]
+
+
+@pytest.mark.regression
+def test_manifest_inspection_refusal_has_an_operator_visible_cause(lattice_env,monkeypatch):
+    from lattice.manifest_reader import ManifestVerificationError
+    app=create_app(lattice_env['config'])
+    def refused(_identity):
+        raise ManifestVerificationError('saved policy does not match its proof')
+    monkeypatch.setattr(app.state.lattice,'inspect',refused)
+    with TestClient(app,raise_server_exceptions=False) as client:
+        _operator_session(client,lattice_env)
+        response=client.get('/api/v1/invocations/invocation_fixture')
+    assert response.status_code==422
+    assert response.json()=={'detail':'saved policy does not match its proof','code':'manifest_verification_failed'}

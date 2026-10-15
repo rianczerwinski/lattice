@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .__about__ import __version__
 from .config import WEB_DIST, LatticeConfig
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, strict_json_loads
+from .manifest_reader import ManifestVerificationError
 from .contracts import (
     ActorBindingV1,
     ContextBlockCreate,
@@ -362,6 +363,10 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.exception_handler(LatticeConflict)
     async def conflict(_request: Request, error: LatticeConflict):
         return Response(json.dumps({"detail": str(error)}), status_code=409, media_type="application/json")
+
+    @app.exception_handler(ManifestVerificationError)
+    async def invalid_manifest(_request: Request, error: ManifestVerificationError):
+        return Response(json.dumps({"detail": str(error), "code": "manifest_verification_failed"}), status_code=422, media_type="application/json")
 
     @app.exception_handler(QuaternaryBoundaryError)
     async def quaternary_boundary(_request: Request, error: QuaternaryBoundaryError):

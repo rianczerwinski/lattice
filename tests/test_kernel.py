@@ -785,3 +785,32 @@ def test_contract_installed_package_does_not_infer_repository_paths_from_site_pa
 def test_negative_control_invalid_explicit_axisvi_root_fails_closed(tmp_path) -> None:
     with pytest.raises(RuntimeError, match="does not name an AXISVI repository"):
         discover_axisvi_root(tmp_path, {"AXISVI_ROOT": str(tmp_path / "not-axisvi")})
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize('persisted,extra_missing',[(True,False),(False,False),(True,True)])
+def test_claude_old_enforcement_is_history_only(lattice_env,persisted,extra_missing):
+    route=ProviderRoute(provider='anthropic',model='claude-fable-5',harness='claude')
+    draft=lattice_env['store'].create_draft(DraftCreate(project_id=lattice_env['project']['project_id'],role_session_id=lattice_env['session']['role_session_id'],prompt='Retain this old conversation.',route=route))
+    manifest,compiled=lattice_env['lattice'].compositor.compile(draft)
+    removed={'provider-compaction-disabled','requested-model-allowlist'}
+    if extra_missing:removed.add('safe-mode')
+    manifest['capabilities']['enforcement']=[value for value in manifest['capabilities']['enforcement'] if value not in removed]
+    keys={'invocation_id','project_id','actor_binding','role_session_id','draft_id','draft_revision','context_mode','ancestry','segments','omitted','source_bindings','capabilities','execution','response_contract','compilation','provider_boundary'}
+    manifest['preflight_sha256']=sha256_json({'contract_version':'LatticeContextPreflight/9.0',**{key:manifest[key] for key in keys}})
+    manifest['manifest_sha256']=sha256_json({key:value for key,value in manifest.items() if key!='manifest_sha256'})
+    lattice_env['store'].blobs.put(compiled)
+    if persisted:
+        lattice_env['store'].insert_invocation(draft,manifest,manifest['manifest_sha256'],sha256_bytes(compiled))
+    if persisted and not extra_missing:
+        before=canonical_bytes(lattice_env['store'].get_invocation(manifest['invocation_id'])['manifest'])
+        assert verify_and_reconstruct(lattice_env['store'],manifest)==compiled
+        assert canonical_bytes(lattice_env['store'].get_invocation(manifest['invocation_id'])['manifest'])==before
+        forged=json.loads(json.dumps(manifest))
+        forged['generated_object']['generated_at']='20200101T000000'
+        forged['manifest_sha256']=sha256_json({key:value for key,value in forged.items() if key!='manifest_sha256'})
+        with pytest.raises(ManifestVerificationError,match='capabilities'):
+            verify_and_reconstruct(lattice_env['store'],forged)
+    else:
+        with pytest.raises(ManifestVerificationError,match='capabilities'):
+            verify_and_reconstruct(lattice_env['store'],manifest)

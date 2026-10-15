@@ -10,7 +10,7 @@ from .execution import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_
 
 from .canonical import canonical_bytes, sha256_bytes, sha256_json
 from .contracts import execution_policy
-from .store import LatticeStore
+from .store import LatticeNotFound, LatticeStore
 
 
 class ManifestVerificationError(ValueError):
@@ -377,7 +377,20 @@ def verify_and_reconstruct(
         except SubscriptionRouteUnavailable as error:
             raise ManifestVerificationError(f"manifest execution policy is not enforceable: {error}") from error
     if manifest["capabilities"] != effective_policy:
-        raise ManifestVerificationError("manifest capabilities do not match the enforced provider policy")
+        # These two controls were added after existing Claude manifests had
+        # already sealed their policy. Recognize that exact historical shape
+        # only when the immutable stored manifest is identical. Unsealed or
+        # modified inputs still have to satisfy today's complete policy.
+        legacy_policy = {**effective_policy, "enforcement": [value for value in effective_policy.get("enforcement", [])
+            if value not in {"provider-compaction-disabled", "requested-model-allowlist"}]}
+        persisted = None
+        if route["provider"] == "anthropic" and manifest["capabilities"] == legacy_policy:
+            try:
+                persisted = store.get_invocation(manifest["invocation_id"])
+            except LatticeNotFound:
+                persisted = None
+        if persisted is None or persisted["manifest_sha256"] != claimed_manifest_sha or persisted["manifest"] != manifest:
+            raise ManifestVerificationError("manifest capabilities do not match the enforced provider policy")
     ancestry_invocations: dict[str, dict[str, Any]] = {}
     for parent in manifest["ancestry"]:
         invocation = store.get_invocation(parent["invocation_id"])
