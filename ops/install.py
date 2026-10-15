@@ -893,9 +893,28 @@ def restore_publication_state(state: PublicationState) -> None:
         raise BaseExceptionGroup("Lattice publication rollback was incomplete", failures)
 
 
+def migrate_database_for_publication(target: Path, snapshot: Path | None) -> None:
+    """Finish fallible migration before starting the service-readiness clock.
+
+    Store migration may first take a full crash-consistent snapshot. That work
+    has its own retained process/log boundary and cannot fit a small HTTP boot
+    deadline. Publication's rollback owns any database changes from this point.
+    """
+    if snapshot is None:
+        return
+    print(f"Migrating canonical state with {target.name} before service startup", flush=True)
+    run([
+        str(target / '.venv' / 'bin' / 'python'), '-c',
+        'import sys; from pathlib import Path; from lattice import LatticeStore,LatticeConfig; LatticeStore(LatticeConfig(data_root=Path(sys.argv[1]),axisvi_root=Path(sys.argv[2])))',
+        str(DEFAULT_DATA_ROOT), str(AXISVI_ROOT),
+    ], cwd=target)
+    print('Canonical migration completed; starting service readiness', flush=True)
+
+
 def publish_runtime(target: Path, *, snapshot: Path | None = None, prior: PublicationState | None = None) -> None:
     prior = prior or capture_publication_state()
     try:
+        migrate_database_for_publication(target, snapshot)
         install_links(target)
         install_launchd(target)
         verify_live_service(target.name, installed_runtime_version(target))
@@ -974,7 +993,7 @@ def install_launchd(target: Path) -> None:
     reload_job(SERVICE_LABEL, service_path)
 
 
-def verify_live_service(expected_runtime_id: str, expected_version: str, timeout_seconds: int = 90) -> None:
+def verify_live_service(expected_runtime_id: str, expected_version: str, timeout_seconds: int = 300) -> None:
     import_source_modules()
     from lattice.outport import resolve_lattice_service
 

@@ -33,6 +33,71 @@ from ops import install as deployment
 from conftest import completed_invocation
 
 
+@pytest.mark.oracle
+def test_publication_finishes_migration_before_launching_readiness(monkeypatch, tmp_path):
+    root = tmp_path / 'state'; root.mkdir()
+    database = root / 'lattice.sqlite3'
+    with sqlite3.connect(database) as connection:
+        connection.execute('CREATE TABLE schema_migrations(version)')
+        connection.execute('INSERT INTO schema_migrations VALUES(15)')
+    target = tmp_path / 'candidate'; target.mkdir()
+    snapshot = tmp_path / 'retained-snapshot'
+    prior = deployment.PublicationState(None, None, None, None, None, False, False)
+    monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', root)
+    monkeypatch.setattr(deployment, 'unload_job', lambda _label: None)
+    monkeypatch.setattr(deployment, 'restore_upgrade_database', lambda _snapshot: None)
+    monkeypatch.setattr(deployment, 'restore_publication_state', lambda _prior: None)
+    calls = []
+    elapsed = [0]
+    def migrate(command, **options):
+        assert command[0] == str(target / '.venv/bin/python')
+        assert command[-2:] == [str(root), str(deployment.AXISVI_ROOT)]
+        assert options['cwd'] == target
+        elapsed[0] += 1000  # A valid migration exceeds the old HTTP deadline.
+        with sqlite3.connect(database) as connection:
+            connection.execute('INSERT INTO schema_migrations VALUES(16)')
+        calls.append('migration')
+    monkeypatch.setattr(deployment, 'run', migrate)
+    monkeypatch.setattr(deployment, 'install_links', lambda _target: calls.append('links'))
+    def launch(_target):
+        with sqlite3.connect(database) as connection:
+            assert connection.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0] == 16
+        calls.append('launch')
+    monkeypatch.setattr(deployment, 'install_launchd', launch)
+    monkeypatch.setattr(deployment, 'installed_runtime_version', lambda _target: '0.3.1')
+    monkeypatch.setattr(deployment, 'verify_live_service', lambda *_args: calls.append(('readiness-start', elapsed[0])))
+    deployment.publish_runtime(target, snapshot=snapshot, prior=prior)
+    assert calls == ['migration', 'links', 'launch', ('readiness-start', 1000)]
+
+
+@pytest.mark.oracle
+def test_prelaunch_migration_failure_restores_database_before_old_service(monkeypatch, tmp_path):
+    prior = deployment.PublicationState(tmp_path / 'prior', None, None, None, None, True, False)
+    calls = []
+    state = {'schema': 15}
+    def migrate(*_args):
+        state['schema'] = 16
+        raise RuntimeError('planted partially applied migration')
+    monkeypatch.setattr(deployment, 'migrate_database_for_publication', migrate)
+    monkeypatch.setattr(deployment, 'install_links', lambda *_args: pytest.fail('must not publish after failed migration'))
+    monkeypatch.setattr(deployment, 'install_launchd', lambda *_args: pytest.fail('must not launch after failed migration'))
+    monkeypatch.setattr(deployment, 'unload_job', lambda label: calls.append(label))
+    def restore(_snapshot):
+        assert state['schema'] == 16
+        state['schema'] = 15
+        calls.append('database-restored')
+    monkeypatch.setattr(deployment, 'restore_upgrade_database', restore)
+    def restart(_prior):
+        assert state['schema'] == 15
+        calls.append('prior-restarted')
+    monkeypatch.setattr(deployment, 'restore_publication_state', restart)
+    monkeypatch.setattr(deployment, 'installed_runtime_version', lambda _target: '0.3.0')
+    monkeypatch.setattr(deployment, 'verify_live_service', lambda *_args: None)
+    with pytest.raises(RuntimeError, match='partially applied migration'):
+        deployment.publish_runtime(tmp_path / 'candidate', snapshot=tmp_path / 'snapshot', prior=prior)
+    assert calls == [deployment.SERVICE_LABEL, deployment.BACKUP_LABEL, 'database-restored', 'prior-restarted']
+
+
 def outport_payload(*, port: int = 9010, url: str = "https://lattice.axisvi.test") -> bytes:
     return json.dumps({
         "ok": True,
@@ -1503,6 +1568,7 @@ def test_macos_default_state_is_outside_the_development_checkout() -> None:
 
 @pytest.mark.oracle
 def test_failed_candidate_restores_saved_database_before_old_runtime(lattice_env, tmp_path, monkeypatch):
+    monkeypatch.setattr(deployment, 'migrate_database_for_publication', lambda *_args: None)
     root = lattice_env['config'].data_root
     source = assess_data_root(root)
     snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='upgrade-rollback-oracle', source_revision=source['state_digest'], schema_version=source['schema_version'], state_digest=source['state_digest'])
@@ -1545,6 +1611,7 @@ def test_failed_candidate_restores_saved_database_before_old_runtime(lattice_env
 
 @pytest.mark.oracle
 def test_restore_failure_keeps_incompatible_old_runtime_stopped(monkeypatch, tmp_path):
+    monkeypatch.setattr(deployment, 'migrate_database_for_publication', lambda *_args: None)
     prior = deployment.PublicationState(tmp_path / 'prior', None, None, None, None, True, False)
     monkeypatch.setattr(deployment, 'install_links', lambda _target: None)
     monkeypatch.setattr(deployment, 'install_launchd', lambda _target: (_ for _ in ()).throw(RuntimeError('candidate failed')))
