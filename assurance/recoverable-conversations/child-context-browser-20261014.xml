@@ -1,0 +1,64 @@
+<testsuites id="" name="" tests="8" failures="1" skipped="0" errors="0" time="21.254509">
+<testsuite name="conversation.spec.ts" timestamp="2026-10-15T03:02:20.397Z" hostname="" tests="8" failures="1" skipped="0" time="12.455" errors="0">
+<testcase name="durable child: saved draft and reading position survive reload, then interruption continues" classname="conversation.spec.ts" time="2.149">
+</testcase>
+<testcase name="durable child: explicit context selection survives reload and confirms the exact recovery" classname="conversation.spec.ts" time="1.083">
+</testcase>
+<testcase name="durable child: fresh operator discovers children beyond the first page and filters by owner" classname="conversation.spec.ts" time="0.931">
+</testcase>
+<testcase name="durable child: lost acknowledgement survives reload without duplicating the request" classname="conversation.spec.ts" time="0.637">
+</testcase>
+<testcase name="durable child: uncertain action requires an explicit disposition before continuing" classname="conversation.spec.ts" time="0.739">
+</testcase>
+<testcase name="durable child: lost creation acknowledgement retries the same request after reload" classname="conversation.spec.ts" time="0.59">
+</testcase>
+<testcase name="durable child: late observations cannot enter a different selected child" classname="conversation.spec.ts" time="0.557">
+</testcase>
+<testcase name="durable child: context follows its execution, rejects stale results and surfaces inspection failure" classname="conversation.spec.ts" time="5.769">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-fde7a-surfaces-inspection-failure/error-context.md]]
+
+[[ATTACHMENT|../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-fde7a-surfaces-inspection-failure/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toContainText(expected) failed" type="expect.toContainText">
+<![CDATA[  conversation.spec.ts:602:1 › durable child: context follows its execution, rejects stale results and surfaces inspection failure 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('complementary', { name: 'Conversation execution context' }).getByRole('alert')
+    Expected substring: "503"
+    Received string:    "Selected execution unavailable: planted inspection outage"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByRole('complementary', { name: 'Conversation execution context' }).getByRole('alert')
+        13 × locator resolved to <p role="alert" class="surface-failure">Selected execution unavailable: planted inspectio…</p>
+           - unexpected value "Selected execution unavailable: planted inspection outage"
+
+
+      637 |     failB=true;
+      638 |     await page.getByRole('button',{name:/Context child b/}).click();
+    > 639 |     await expect(inspector.getByRole('alert')).toContainText('503');
+          |                                                ^
+      640 |     await expect(inspector).not.toContainText('Manifest reconstructed');
+      641 |     failB=false;
+      642 |     await inspector.getByRole('button',{name:'Retry inspection'}).click();
+        at /Users/rian/AXISVI/axis/chariots/lattice/web/e2e/conversation.spec.ts:639:48
+
+    Error Context: ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-fde7a-surfaces-inspection-failure/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-fde7a-surfaces-inspection-failure/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../../../../../../../var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/lattice-playwright-results/conversation-durable-child-fde7a-surfaces-inspection-failure/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

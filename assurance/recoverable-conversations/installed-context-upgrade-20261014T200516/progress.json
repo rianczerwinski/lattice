@@ -1,0 +1,21 @@
+{
+  "remaining": [
+    "successor source fixes require their own installed qualification"
+  ],
+  "source_revision": "1145b7757070deb73465259eb89eb6e6fc361ec9",
+  "state": "done",
+  "phase": "published and healthy",
+  "at": "20261015T093657",
+  "completed": [
+    "809 Python checks passed; 3 explicitly skipped",
+    "52 frontend checks passed; typecheck/build passed",
+    "candidate runtime constructed",
+    "rollback snapshot published and backup verifier exited",
+    "copied-store migration verified, schema16 preserved",
+    "canonical migration and publication completed",
+    "installed health: conversation and provider execution ready"
+  ],
+  "active": null,
+  "proof_limit": "This runtime qualified child/context repair; later reader/capture source repairs require a successor installation.",
+  "runtime": "0.3.1-1145b7757070-9a37bed466cc"
+}

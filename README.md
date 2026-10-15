@@ -83,6 +83,8 @@ The public API lives under `/api/v1/conversations`, with project/owning-task lis
 
 Explicit `adopt CONVERSATION INVOCATION...` references selected historical responses with their original identities and provenance. Adoption does not make a provider session eligible for native recovery. `withdraw` preserves an unfinished request and its evidence while explicitly abandoning that request. A snapshot carries requests, checkpoints, exposed observations and referenced artifacts; portable continuation does not require the original provider home. Native state and credentials are not copied into the backup.
 
+Historical inspection preserves the original manifest and model identity. The reader recognizes the exact previously sealed Claude policy shape only when it matches the immutable stored invocation; that compatibility does not admit a new request with weaker controls. A manifest that cannot be verified produces an explicit inspection failure with its cause.
+
 ## Telos
 
 Lattice should make the following interaction ordinary:

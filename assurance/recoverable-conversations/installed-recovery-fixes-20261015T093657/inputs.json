@@ -1,0 +1,33 @@
+{
+  "generated_object": {
+    "artifact_id": "artifact:7175d411-deb5-4322-be85-64fe0defa8ce",
+    "contract_version": 1,
+    "generated_at": "20261015T093657",
+    "kind": "lattice-installed-upgrade-inputs",
+    "producer": {
+      "name": "lattice-qualification",
+      "version": "1.0.0"
+    },
+    "role": "canonical",
+    "schema": {
+      "name": "lattice-installed-upgrade-inputs",
+      "version": 1
+    },
+    "sources": [
+      {
+        "ref": "git:/Users/rian/AXISVI/axis/chariots/lattice",
+        "revision": "1fdf6c0f5e990a0f0000651a5d9f4bf751182546",
+        "sha256": null
+      }
+    ],
+    "subject": "lattice:recoverable-conversations:history-and-capture-repair"
+  },
+  "source_revision": "1fdf6c0f5e990a0f0000651a5d9f4bf751182546",
+  "command": [
+    ".venv/bin/python",
+    "-u",
+    "ops/install.py"
+  ],
+  "skip_tests": false,
+  "model_dispatch": false
+}

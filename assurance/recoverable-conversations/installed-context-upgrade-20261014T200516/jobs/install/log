@@ -1,0 +1,165 @@
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 35%]
+........................................................................ [ 44%]
+....................sss................................................. [ 53%]
+........................................................................ [ 62%]
+........................................................................ [ 70%]
+........................................................................ [ 79%]
+........................................................................ [ 88%]
+........................................................................ [ 97%]
+....................                                                     [100%]
+=============================== warnings summary ===============================
+tests/test_project_search.py::test_search_api_is_operator_bound
+  /Users/rian/AXISVI/axis/chariots/lattice/.venv/lib/python3.14/site-packages/starlette/testclient.py:455: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+809 passed, 3 skipped, 1 warning in 963.54s (0:16:03)
+
+> check
+> svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /Users/rian/AXISVI/axis/chariots/lattice/web
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> build
+> vite build
+
+8:21:37 PM [vite-plugin-svelte] no Svelte config found at /Users/rian/AXISVI/axis/chariots/lattice/web - using default configuration.
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 143 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.43 kB │ gzip:  0.28 kB
+dist/assets/index-_v7yof1I.css   27.28 kB │ gzip:  6.28 kB
+dist/assets/index-BGuGcnAe.js   287.53 kB │ gzip: 93.13 kB
+✓ built in 1.88s
+
+> test
+> vitest run --environment jsdom src --run
+
+8:21:40 PM [vite-plugin-svelte] no Svelte config found at /Users/rian/AXISVI/axis/chariots/lattice/web - using default configuration.
+
+ RUN  v3.2.7 /Users/rian/AXISVI/axis/chariots/lattice/web
+
+ ✓ src/virtualizedText.test.ts (3 tests) 2ms
+ ✓ src/executionRoutes.test.ts (5 tests) 2ms
+ ✓ src/contextModules.test.ts (2 tests) 4ms
+ ✓ src/commandPalette.test.ts (1 test) 3ms
+ ✓ src/invocationBatch.test.ts (7 tests) 4ms
+ ✓ src/promptHistory.test.ts (2 tests) 3ms
+ ✓ src/uiPersistence.test.ts (6 tests) 3ms
+ ✓ src/api.test.ts (4 tests) 26ms
+ ✓ src/renderMarkdown.test.ts (2 tests) 72ms
+ ✓ src/fileLinks.test.ts (2 tests) 6ms
+ ✓ src/contextActions.test.ts (2 tests) 3ms
+ ✓ src/submissionState.test.ts (3 tests) 3ms
+ ✓ src/operatorNotifications.test.ts (3 tests) 5ms
+ ✓ src/invocationActivity.test.ts (4 tests) 4ms
+ ✓ src/workflowPresentation.test.ts (2 tests) 8ms
+ ✓ src/copyExport.test.ts (2 tests) 5ms
+ ✓ src/recoveryStatus.test.ts (2 tests) 2ms
+
+ Test Files  17 passed (17)
+      Tests  52 passed (52)
+   Start at  20:21:40
+   Duration  2.16s (transform 511ms, setup 0ms, collect 931ms, tests 155ms, environment 10.23s, prepare 1.78s)
+
+Using CPython 3.14.4 interpreter at: .venv/bin/python
+Creating virtual environment at: /Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-1145b7757070-9a37bed466cc/.venv
+Activate with: source '/Users/rian/Library/Application Support/Lattice/runtime/versions/0.3.1-1145b7757070-9a37bed466cc/.venv/bin/activate'
+   Building lattice @ file:///Users/rian/AXISVI/axis/chariots/lattice
+      Built lattice @ file:///Users/rian/AXISVI/axis/chariots/lattice
+Prepared 1 package in 1.14s
+Installed 37 packages in 28ms
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.14.2
+ + attrs==26.1.0
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + claude-agent-sdk==0.2.152
+ + click==8.4.2
+ + cryptography==50.0.1
+ + fastapi==0.141.1
+ + h11==0.16.0
+ + httpcore==1.0.9
+ + httpcore2==2.12.0
+ + httpx==0.28.1
+ + httpx2==2.12.0
+ + idna==3.19
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + lattice==0.3.1 (from file:///Users/rian/AXISVI/axis/chariots/lattice)
+ + mcp==2.2.0
+ + mcp-types==2.2.0
+ + opentelemetry-api==1.44.0
+ + pycparser==3.0
+ + pydantic==2.13.4
+ + pydantic-core==2.46.4
+ + pyjwt==2.14.0
+ + python-multipart==0.0.32
+ + referencing==0.37.0
+ + rfc8785==0.1.4
+ + rpds-py==2026.6.3
+ + sniffio==1.3.1
+ + sse-starlette==3.4.11
+ + starlette==1.6.0
+ + truststore==0.10.4
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + uvicorn==0.52.3
+usage: lattice [-h] [--version]
+               {conversation,serve,open,status,doctor,backup,restore,invoke,result,cancel-attempt,artifact,blob,routes,workflow-project-create,workflow-project,workflow-refresh,workflow-adapter-evidence,workflow-transition,batch-preview,batch-create,invocation,execute-invocation,route-amendment,import-history} ...
+
+Operate the local Lattice conversational harness
+
+positional arguments:
+  {conversation,serve,open,status,doctor,backup,restore,invoke,result,cancel-attempt,artifact,blob,routes,workflow-project-create,workflow-project,workflow-refresh,workflow-adapter-evidence,workflow-transition,batch-preview,batch-create,invocation,execute-invocation,route-amendment,import-history}
+    conversation        discover and operate durable child conversations
+    serve               run the single-origin Lattice service
+    open                open Lattice through its Outport identity
+    status              show Outport identity and live health
+    doctor              verify service, state, runtime, providers, and
+                        recovery
+    backup              create and verify a consistent Lattice snapshot
+    restore             restore a verified snapshot into a new directory
+    invoke              submit one execution as a one-node Lattice graph
+    result              read one external execution result
+    cancel-attempt      request cancellation of one provider attempt
+    artifact            read one content-addressed execution artifact
+    blob                write exact content-addressed bytes to stdout
+    routes              read Lattice provider profiles and qualification state
+    workflow-project-create
+                        create one pack-bound workflow project
+    workflow-project    read one workflow project and its role sessions
+    workflow-refresh    refresh one workflow project's authoritative
+                        blackboard
+    workflow-adapter-evidence
+                        derive and admit evidence through a registered
+                        workflow adapter
+    workflow-transition
+                        advance one pack-bound workflow transition
+    batch-preview       preview an idempotent invocation batch
+    batch-create        create and dispatch an approved invocation batch
+    invocation          read one invocation and its terminal artifacts
+    execute-invocation  execute or append an attempt to an existing invocation
+    route-amendment     inspect, request, or explicitly decide a paused runner
+                        switch
+    import-history      register an immutable census of historical execution
+                        files
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+Candidate copied-store migration qualified at schema 16: /Users/rian/Library/Application Support/Lattice/acceptance/candidate-migration-20261015T090930-42abb33cb3424c75bf604f3b10f553ce.json
+Migrating canonical state with 0.3.1-1145b7757070-9a37bed466cc before service startup
+Canonical migration completed; starting service readiness
+Installed Lattice runtime 0.3.1-1145b7757070-9a37bed466cc
+CLI: /Users/rian/.local/bin/lattice
+State: /Users/rian/Library/Application Support/Lattice

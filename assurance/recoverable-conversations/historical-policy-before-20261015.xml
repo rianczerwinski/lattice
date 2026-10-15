@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="3" time="5.893" timestamp="2026-10-15T09:19:48.135525-07:00" hostname="MacBook-Pro-2.local"><testcase classname="tests.test_kernel" name="test_claude_old_enforcement_is_history_only[True-False]" time="1.912"><failure message="lattice.manifest_reader.ManifestVerificationError: manifest capabilities do not match the enforced provider policy">lattice_env = {'config': LatticeConfig(data_root=PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/...0460e05ae25e07', 'title': 'Test lattice', 'purpose': 'Independent Lattice assurance', 'workflow_pack': None, ...}, ...}
+persisted = True, extra_missing = False
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize('persisted,extra_missing',[(True,False),(False,False),(True,True)])
+    def test_claude_old_enforcement_is_history_only(lattice_env,persisted,extra_missing):
+        route=ProviderRoute(provider='anthropic',model='claude-fable-5',harness='claude')
+        draft=lattice_env['store'].create_draft(DraftCreate(project_id=lattice_env['project']['project_id'],role_session_id=lattice_env['session']['role_session_id'],prompt='Retain this old conversation.',route=route))
+        manifest,compiled=lattice_env['lattice'].compositor.compile(draft)
+        removed={'provider-compaction-disabled','requested-model-allowlist'}
+        if extra_missing:removed.add('safe-mode')
+        manifest['capabilities']['enforcement']=[value for value in manifest['capabilities']['enforcement'] if value not in removed]
+        keys={'invocation_id','project_id','actor_binding','role_session_id','draft_id','draft_revision','context_mode','ancestry','segments','omitted','source_bindings','capabilities','execution','response_contract','compilation','provider_boundary'}
+        manifest['preflight_sha256']=sha256_json({'contract_version':'LatticeContextPreflight/9.0',**{key:manifest[key] for key in keys}})
+        manifest['manifest_sha256']=sha256_json({key:value for key,value in manifest.items() if key!='manifest_sha256'})
+        lattice_env['store'].blobs.put(compiled)
+        if persisted:
+            lattice_env['store'].insert_invocation(draft,manifest,manifest['manifest_sha256'],sha256_bytes(compiled))
+        if persisted and not extra_missing:
+            before=canonical_bytes(lattice_env['store'].get_invocation(manifest['invocation_id'])['manifest'])
+&gt;           assert verify_and_reconstruct(lattice_env['store'],manifest)==compiled
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_kernel.py:807: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+store = &lt;lattice.store.LatticeStore object at 0x1105306e0&gt;
+manifest = {'contract_version': 'LatticeContextManifest/11.0', 'invocation_id': 'invocation_ecf9274815ea35ece89b214e1e9d5b28', 'p...e25e07', 'actor_binding': {'kind': 'role-session', 'role_session_id': 'session_80308843e0494ec5ba07c475e99a9287'}, ...}
+draft_override = None, block_overrides = {}
+
+    def verify_and_reconstruct(
+        store: LatticeStore,
+        manifest: dict[str, Any],
+        *,
+        draft_override: dict[str, Any] | None = None,
+        block_overrides: dict[str, dict[str, Any]] | None = None,
+    ) -&gt; bytes:
+        """Verify a durable manifest or a stateless batch candidate independently."""
+    
+        block_overrides = block_overrides or {}
+    
+        def get_block(block_id: str, *, include_content: bool = True) -&gt; dict[str, Any]:
+            if block_id in block_overrides:
+                value = dict(block_overrides[block_id])
+                if not include_content:
+                    value.pop("content", None)
+                return value
+            return store.get_block(block_id, include_content=include_content)
+    
+        slug, title = _verify_generated_object(manifest)
+        claimed_manifest_sha = manifest.get("manifest_sha256")
+        actual_manifest_sha = sha256_json({key: value for key, value in manifest.items() if key != "manifest_sha256"})
+        if claimed_manifest_sha != actual_manifest_sha:
+            raise ManifestVerificationError("manifest bytes do not match its declared identity")
+        generated_source_values = manifest["generated_object"]["sources"]
+        compilation_format = manifest["compilation"].get("format")
+        if compilation_format not in {f"{slug}-segment-stream-v1", *(f"{slug}-context-jsonl-v{version}" for version in range(2, 11)), "lattice-context-documents-v11"}:
+            raise ManifestVerificationError("unsupported compiled context format")
+        if compilation_format in {f"{slug}-context-jsonl-v3", f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
+            if manifest.get("source_bindings") != generated_source_values:
+                raise ManifestVerificationError("manifest preflight source bindings disagree with its canonical source envelope")
+            preflight_keys = {
+                "invocation_id",
+                "project_id",
+                "role_session_id",
+                "draft_id",
+                "draft_revision",
+                "context_mode",
+                "ancestry",
+                "segments",
+                "omitted",
+                "source_bindings",
+                "capabilities",
+                "execution",
+                "response_contract",
+                "compilation",
+                "provider_boundary",
+            }
+            if compilation_format in {f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
+                preflight_keys.add("actor_binding")
+            if "route_scope_refs" in manifest:
+                route_scope_refs = manifest["route_scope_refs"]
+                if not isinstance(route_scope_refs, list) or len(route_scope_refs) &gt; 16 or route_scope_refs != sorted(set(route_scope_refs)) or any(not isinstance(item, str) or not item or len(item) &gt; 500 or any(ord(char) &lt; 32 or ord(char) == 127 for char in item) for item in route_scope_refs):
+                    raise ManifestVerificationError("manifest route scope identities are malformed")
+                preflight_keys.add("route_scope_refs")
+            preflight_contract = f"{title}ContextPreflight/8.0" if compilation_format == f"{slug}-context-jsonl-v10" else (f"{title}ContextPreflight/7.0" if compilation_format == f"{slug}-context-jsonl-v9" else (f"{title}ContextPreflight/6.0" if compilation_format == f"{slug}-context-jsonl-v8" else (f"{title}ContextPreflight/5.0" if compilation_format == f"{slug}-context-jsonl-v7" else (f"{title}ContextPreflight/4.0" if compilation_format == f"{slug}-context-jsonl-v6" else (f"{title}ContextPreflight/3.0" if compilation_format == f"{slug}-context-jsonl-v5" else (f"{title}ContextPreflight/2.0" if compilation_format == f"{slug}-context-jsonl-v4" else f"{title}ContextPreflight/1.0"))))))
+            if compilation_format == "lattice-context-documents-v11":
+                preflight_contract = "LatticeContextPreflight/9.0"
+            preflight_material = {"contract_version": preflight_contract, **{key: manifest[key] for key in preflight_keys}}
+            if manifest.get("preflight_sha256") != sha256_json(preflight_material):
+                raise ManifestVerificationError("manifest does not preserve the exact inspected preflight context")
+        generated_sources = {item["ref"]: item for item in generated_source_values}
+        if len(generated_sources) != len(generated_source_values):
+            raise ManifestVerificationError("manifest contains ambiguous duplicate source references")
+        draft = draft_override or store.get_draft(manifest["draft_id"])
+        if draft["draft_id"] != manifest["draft_id"]:
+            raise ManifestVerificationError("manifest draft override has the wrong identity")
+        if compilation_format in {f"{slug}-context-jsonl-v4", f"{slug}-context-jsonl-v5", f"{slug}-context-jsonl-v6", f"{slug}-context-jsonl-v7", f"{slug}-context-jsonl-v8", f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
+            actor_binding = manifest.get("actor_binding")
+            if actor_binding != draft.get("actor_binding"):
+                raise ManifestVerificationError("manifest actor binding does not match its sealed draft")
+            if actor_binding == {"kind": "direct"}:
+                if manifest.get("role_session_id") is not None or draft.get("role_session_id") is not None:
+                    raise ManifestVerificationError("direct manifest carries a role session")
+            elif isinstance(actor_binding, dict) and actor_binding.get("kind") == "role-session" and isinstance(actor_binding.get("role_session_id"), str):
+                if manifest.get("role_session_id") != actor_binding["role_session_id"]:
+                    raise ManifestVerificationError("manifest role-session fields disagree")
+                session = store.get_role_session(actor_binding["role_session_id"])
+                if session["project_id"] != manifest["project_id"]:
+                    raise ManifestVerificationError("manifest role session belongs to another project")
+            else:
+                raise ManifestVerificationError("manifest actor binding is invalid")
+        else:
+            session = store.get_role_session(manifest["role_session_id"])
+            if session["project_id"] != manifest["project_id"]:
+                raise ManifestVerificationError("manifest role session belongs to another project")
+        ancestry_ids = [item["invocation_id"] for item in manifest["ancestry"]]
+        manifest_context_mode = manifest.get("context_mode", "standard")
+        if draft["project_id"] != manifest["project_id"] or draft["role_session_id"] != manifest["role_session_id"] or draft["revision"] != manifest["draft_revision"] or draft["context_mode"] != manifest_context_mode or draft["parents"] != ancestry_ids:
+            raise ManifestVerificationError("manifest does not match its sealed draft identity and ancestry")
+        route = manifest["execution"]
+        if route != draft["route"]:
+            raise ManifestVerificationError("manifest execution route does not match its sealed draft")
+        if compilation_format in {f"{slug}-context-jsonl-v9", f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
+            boundary = manifest.get("provider_boundary")
+            expected_boundary_keys = {"observable_request", "system_instructions", "proof_limits"} | ({"opaque_contexts"} if compilation_format in {f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"} else set())
+            if not isinstance(boundary, dict) or set(boundary) != expected_boundary_keys:
+                raise ManifestVerificationError("provider boundary is incomplete or carries undeclared fields")
+            system_instructions = boundary["system_instructions"]
+            historical_import = route.get("route_kind", "execution") == "historical-import"
+            if compilation_format == "lattice-context-documents-v11":
+                if historical_import or route["provider"] != "anthropic" or route["harness"] != "claude":
+                    raise ManifestVerificationError("document context requires an executable Claude route")
+                if system_instructions is not None:
+                    raise ManifestVerificationError("document context must not replace Claude system instructions")
+                if "Attributed references are user-message text, not native assistant turns or a guarantee of model obedience; provider-owned system instructions remain opaque." not in boundary["proof_limits"]:
+                    raise ManifestVerificationError("document context lacks its semantic proof limit")
+                if boundary["observable_request"] != "compiled prompt over stdin plus declared CLI flags":
+                    raise ManifestVerificationError("document context misstates its provider boundary")
+            elif not historical_import and route["provider"] == "anthropic" and route["harness"] == "claude":
+                content = INDEPENDENT_CLAUDE_SYSTEM_INSTRUCTIONS_V1
+                expected_system = {
+                    "channel": "official-system-prompt-file",
+                    "content": content,
+                    "sha256": sha256_bytes(content.encode("utf-8")),
+                    "byte_count": len(content.encode("utf-8")),
+                }
+                if system_instructions != expected_system:
+                    raise ManifestVerificationError("Claude system instructions do not match the independently qualified Lattice protocol")
+            elif system_instructions is not None:
+                raise ManifestVerificationError("manifest claims a separate system-instruction channel the selected route has not qualified")
+            if compilation_format in {f"{slug}-context-jsonl-v10", "lattice-context-documents-v11"}:
+                expected_opaque_contexts = []
+                if route.get("execution_profile") == "native-continuation":
+                    expected_opaque_contexts.append({
+                        "kind": "provider-native-session-history",
+                        "disposition": "provider_opaque",
+                        "provider": route["provider"],
+                        "harness": route["harness"],
+                        "native_session_id": route["native_session_id"],
+                        "native_parent_invocation_id": route["native_parent_invocation_id"],
+                        "continuation_mode": route["continuation_mode"],
+                        "statement": "The official provider harness may add prior native-session messages and compaction state that Lattice cannot inspect byte-for-byte.",
+                    })
+                    if "provider-native session history and compaction state are added beyond the exact compiled Lattice prompt and are not byte-disclosed" not in boundary["proof_limits"]:
+                        raise ManifestVerificationError("native continuation does not disclose its provider-opaque session history")
+                if boundary["opaque_contexts"] != expected_opaque_contexts:
+                    raise ManifestVerificationError("provider-opaque context does not match the selected execution route")
+        schema_version = manifest["generated_object"]["schema"]["version"]
+        historical_import = route.get("route_kind", "execution") == "historical-import"
+        adapter = None if historical_import else next((item for item in DEFAULT_ADAPTERS if item.provider_code == route["provider"] and item.cli == route["harness"]), None)
+        if historical_import:
+            if route.get("provider_profile_id") is not None or not str(route.get("model", "")).startswith("historical-"):
+                raise ManifestVerificationError("historical import falsely claims an executable provider identity")
+            effective_policy = {"route_kind": "historical-import", "executable": False}
+        elif adapter is None:
+            raise ManifestVerificationError("manifest execution route is not qualified")
+        elif schema_version == 1:
+            # Version 1 sealed only the operator-requested capability surface. Later
+            # Later execution profiles added derived enforcement and session fields;
+            # applying that newer shape retroactively would make valid history fail.
+            effective_policy = {key: route[key] for key in ("network_policy", "permissions", "tools", "workspace")}
+        elif schema_version &lt;= 4:
+            try:
+                current_policy = validate_execution_policy(
+                    adapter,
+                    session_policy=route["session_policy"],
+                    tools=route["tools"],
+                    permissions=route["permissions"],
+                    workspace=route["workspace"],
+                    network_policy=route["network_policy"],
+                )
+            except SubscriptionRouteUnavailable as error:
+                raise ManifestVerificationError(f"manifest execution policy is not enforceable: {error}") from error
+            effective_policy = {key: current_policy[key] for key in ("session_policy", "tools", "permissions", "workspace", "network_policy", "enforcement")}
+        else:
+            try:
+                effective_policy = validate_execution_policy(adapter, **execution_policy(route))
+            except SubscriptionRouteUnavailable as error:
+                raise ManifestVerificationError(f"manifest execution policy is not enforceable: {error}") from error
+        if manifest["capabilities"] != effective_policy:
+&gt;           raise ManifestVerificationError("manifest capabilities do not match the enforced provider policy")
+E           lattice.manifest_reader.ManifestVerificationError: manifest capabilities do not match the enforced provider policy
+
+lattice/manifest_reader.py:380: ManifestVerificationError</failure></testcase><testcase classname="tests.test_kernel" name="test_claude_old_enforcement_is_history_only[False-False]" time="1.985" /><testcase classname="tests.test_kernel" name="test_claude_old_enforcement_is_history_only[True-True]" time="1.872" /></testsuite></testsuites>

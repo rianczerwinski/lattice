@@ -1,0 +1,33 @@
+{
+  "at": "20261015T103232",
+  "state": "done",
+  "source_revision": "1fdf6c0f5e990a0f0000651a5d9f4bf751182546",
+  "completed": [
+    "source fixes committed; exact patches and ancestor verified",
+    "124 execution/kernel checks passed",
+    "53 shared provider checks passed",
+    "historical-policy and pipe-writer mutations rejected",
+    "817 Python passes, 3 separate native-approval skips, 1 third-party deprecation warning",
+    "52 frontend passes; zero typecheck errors/warnings; build passed",
+    "immutable candidate runtime built",
+    "rollback snapshot artifact:f3ae7a00-11a5-41c4-85a1-edbfcd83a2a4 published, 79207 inventory entries",
+    "candidate Fable completed and interrupted native recall independently admitted in isolated store",
+    "candidate Fable actual bounded Read result and exact original-token completion",
+    "candidate Codex exposed cancellation and fresh CLI portable recall; four input-checker mutants rejected",
+    "independent original history hashes unchanged after both final-provider journeys",
+    "browser reload preserves draft, 1063.5px reading position, selected execution and unread sibling",
+    "copied-store migration: schema16, original state digest and history preserved",
+    "canonical migration completed before service readiness",
+    "published runtime matches candidate artifact and package tree",
+    "canonical completed/interrupted native proof admission finished",
+    "actual historical survey public inspection passes without rewriting original model or manifest"
+  ],
+  "active": null,
+  "remaining": [
+    "real Relata pilot completion",
+    "final evidence, documentation and Surface"
+  ],
+  "phase": "published and healthy",
+  "proof_limit": "Candidate native checks and canonical publication remain separate gates.",
+  "copy_receipt": "/Users/rian/Library/Application Support/Lattice/acceptance/candidate-migration-20261015T102455-c7f362109640425381576cf7b9ae0034.json"
+}
