@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.173" timestamp="2026-10-14T18:34:03.082084-07:00" hostname="Mac.localdomain"><testcase classname="tests.test_reliability" name="test_publication_finishes_migration_before_launching_readiness" time="0.027"><failure message="ExceptionGroup: Lattice publication and automatic rollback both failed (2 sub-exceptions)">_target = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-103/test_publication_finishes_migr0/candidate')
+
+    def launch(_target):
+        with sqlite3.connect(database) as connection:
+&gt;           assert connection.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0] == 16
+E           assert 15 == 16
+
+tests/test_reliability.py:61: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+snapshot = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-103/test_publication_finishes_migr0/retained-snapshot')
+
+    def restore_upgrade_database(snapshot: Path) -&gt; None:
+        """Restore the quiesced database before an older runtime may restart.
+    
+        Failed-candidate database/WAL bytes remain separately inspectable. Extra
+        immutable blobs and journals stay retained; none are removed by rollback.
+        """
+    
+        from lattice.diagnostics import assess_data_root
+        from lattice.snapshot import materialized_snapshot_database, verify_snapshot
+    
+&gt;       manifest = verify_snapshot(snapshot)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ops/install.py:524: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+lattice/snapshot.py:413: in verify_snapshot
+    snapshot_root = snapshot_root.expanduser().resolve(strict=True)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-103/test_publication_finishes_migr0/retained-snapshot')
+strict = True
+
+    def resolve(self, strict=False):
+        """
+        Make the path absolute, resolving all symlinks on the way and also
+        normalizing it.
+        """
+    
+&gt;       return self.with_segments(os.path.realpath(self, strict=strict))
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-103/test_publication_finishes_migr0/retained-snapshot'
+
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:938: FileNotFoundError
+
+During handling of the above exception, another exception occurred:
+Traceback (most recent call last):
+  File "&lt;isolated-publication-order-mutant&gt;", line 13, in publish_runtime
+  File "/Users/rian/AXISVI/axis/chariots/lattice/ops/install.py", line 524, in restore_upgrade_database
+    manifest = verify_snapshot(snapshot)
+  File "/Users/rian/AXISVI/axis/chariots/lattice/lattice/snapshot.py", line 413, in verify_snapshot
+    snapshot_root = snapshot_root.expanduser().resolve(strict=True)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py", line 938, in resolve
+    return self.with_segments(os.path.realpath(self, strict=strict))
+                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "&lt;frozen posixpath&gt;", line 457, in realpath
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-103/test_publication_finishes_migr0/retained-snapshot'
+
+During handling of the above exception, another exception occurred:
+
+  + Exception Group Traceback (most recent call last):
+  |   File "/Users/rian/AXISVI/axis/chariots/lattice/tests/test_reliability.py", line 66, in test_publication_finishes_migration_before_launching_readiness
+  |     deployment.publish_runtime(target, snapshot=snapshot, prior=prior)
+  |     ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "&lt;isolated-publication-order-mutant&gt;", line 18, in publish_runtime
+  | ExceptionGroup: Lattice publication and automatic rollback both failed (2 sub-exceptions)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "&lt;isolated-publication-order-mutant&gt;", line 5, in publish_runtime
+    |   File "/Users/rian/AXISVI/axis/chariots/lattice/tests/test_reliability.py", line 61, in launch
+    |     assert connection.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0] == 16
+    | AssertionError: assert 15 == 16
+    +---------------- 2 ----------------
+    | Traceback (most recent call last):
+    |   File "&lt;isolated-publication-order-mutant&gt;", line 13, in publish_runtime
+    |   File "/Users/rian/AXISVI/axis/chariots/lattice/ops/install.py", line 524, in restore_upgrade_database
+    |     manifest = verify_snapshot(snapshot)
+    |   File "/Users/rian/AXISVI/axis/chariots/lattice/lattice/snapshot.py", line 413, in verify_snapshot
+    |     snapshot_root = snapshot_root.expanduser().resolve(strict=True)
+    |   File "/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py", line 938, in resolve
+    |     return self.with_segments(os.path.realpath(self, strict=strict))
+    |                               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+    |   File "&lt;frozen posixpath&gt;", line 457, in realpath
+    | FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-103/test_publication_finishes_migr0/retained-snapshot'
+    +------------------------------------</failure></testcase></testsuite></testsuites>

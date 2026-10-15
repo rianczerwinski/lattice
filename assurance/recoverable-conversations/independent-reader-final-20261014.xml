@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="10" time="7.180" timestamp="2026-10-14T15:47:18.426937-07:00" hostname="MacBook-Pro-2.local"><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_completed_ten_remain_usable_after_eleventh_failure" time="0.101" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_false_persistence_claims_are_rejected[missing_response]" time="0.141" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_false_persistence_claims_are_rejected[self_consistent_replacement]" time="0.163" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_false_persistence_claims_are_rejected[checkpoint_chain]" time="0.149" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_false_persistence_claims_are_rejected[another_project]" time="0.129" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_false_persistence_claims_are_rejected[second_pending]" time="0.315" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_false_persistence_claims_are_rejected[duplicate_execution]" time="0.213" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_admitted_observations_require_exact_offsets_and_bytes" time="0.294" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_duplicate_json_cannot_hide_unbound_request_bytes" time="0.157" /><testcase classname="assurance.recoverable-conversations.test_inspect_persistence" name="test_reader_accepts_actual_store_records_without_using_status_projection" time="5.308"><failure message="conversation_persistence_reader.PersistenceFailure: invocation manifest identity changed">tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-96/test_reader_accepts_actual_sto0')
+
+    def test_reader_accepts_actual_store_records_without_using_status_projection(tmp_path):
+        import time
+        from lattice import LatticeConfig,LatticeStore
+        from lattice.contracts import ProjectCreate,ProviderRoute,AttemptState
+        from lattice.conversation_contracts import ConversationCreate,ConversationSend
+        from lattice.conversations import ConversationStore
+        from lattice.conversation_service import ConversationService
+        root=tmp_path/'actual-store'
+        store=LatticeStore(LatticeConfig(data_root=root,axisvi_root=None))
+        project=store.create_project(ProjectCreate(title='Reader qualification'))
+        cs=ConversationStore(store)
+        identity=cs.create(ConversationCreate(project_id=project['project_id'],title='Real schema child',owning_task_ref='task:independent',
+            route=ProviderRoute(provider='openai',harness='codex',model='gpt-5.6-sol'),idempotency_key='actual-reader-child'))['conversation_id']
+        service=ConversationService(store)
+        for ordinal in (1,2):
+            with store._connect() as connection:
+                revision=connection.execute('SELECT revision FROM conversations WHERE conversation_id=?',(identity,)).fetchone()[0]
+            cs.send(identity,ConversationSend(prompt=f'Hand-written request {ordinal}',expected_revision=revision,idempotency_key=f'actual-reader-{ordinal}'))
+            execution=service.seal(identity)
+            attempt=store.create_attempt(execution['invocation_id'],f'actual-dispatch-{ordinal}','oracle',int(time.time())+100)
+            store.mark_attempt_running(attempt['attempt_id'])
+            if ordinal==1:
+                store.finish_successful_attempt(attempt['attempt_id'],response='Hand-written accepted answer',artifacts=[],journal_path='synthetic',runtime_receipt={})
+            else:
+                store.finish_attempt(attempt['attempt_id'],state=AttemptState.interrupted,failure_kind='operator_interruption')
+&gt;       result=reader.inspect(root,identity)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+assurance/recoverable-conversations/test_inspect_persistence.py:168: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+assurance/recoverable-conversations/inspect_persistence.py:78: in inspect
+    require(object_digest(load(inv['manifest_json']))==inv['manifest_sha256'],'invocation manifest identity changed')
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+condition = False, detail = 'invocation manifest identity changed'
+
+    def require(condition, detail):
+        if not condition:
+&gt;           raise PersistenceFailure(detail)
+E           conversation_persistence_reader.PersistenceFailure: invocation manifest identity changed
+
+assurance/recoverable-conversations/inspect_persistence.py:24: PersistenceFailure</failure></testcase></testsuite></testsuites>

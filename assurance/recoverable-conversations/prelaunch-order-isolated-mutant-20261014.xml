@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.388" timestamp="2026-10-14T18:35:11.489631-07:00" hostname="Mac.localdomain"><testcase classname="tests.test_reliability" name="test_publication_finishes_migration_before_launching_readiness" time="0.026"><failure message="assert 15 == 16">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x107cf0050&gt;
+tmp_path = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-105/test_publication_finishes_migr0')
+
+    @pytest.mark.oracle
+    def test_publication_finishes_migration_before_launching_readiness(monkeypatch, tmp_path):
+        root = tmp_path / 'state'; root.mkdir()
+        database = root / 'lattice.sqlite3'
+        with sqlite3.connect(database) as connection:
+            connection.execute('CREATE TABLE schema_migrations(version)')
+            connection.execute('INSERT INTO schema_migrations VALUES(15)')
+        target = tmp_path / 'candidate'; target.mkdir()
+        snapshot = tmp_path / 'retained-snapshot'
+        prior = deployment.PublicationState(None, None, None, None, None, False, False)
+        monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', root)
+        monkeypatch.setattr(deployment, 'unload_job', lambda _label: None)
+        monkeypatch.setattr(deployment, 'restore_upgrade_database', lambda _snapshot: None)
+        monkeypatch.setattr(deployment, 'restore_publication_state', lambda _prior: None)
+        calls = []
+        elapsed = [0]
+        def migrate(command, **options):
+            assert command[0] == str(target / '.venv/bin/python')
+            assert command[-2:] == [str(root), str(deployment.AXISVI_ROOT)]
+            assert options['cwd'] == target
+            elapsed[0] += 1000  # A valid migration exceeds the old HTTP deadline.
+            with sqlite3.connect(database) as connection:
+                connection.execute('INSERT INTO schema_migrations VALUES(16)')
+            calls.append('migration')
+        monkeypatch.setattr(deployment, 'run', migrate)
+        monkeypatch.setattr(deployment, 'install_links', lambda _target: calls.append('links'))
+        def launch(_target):
+            with sqlite3.connect(database) as connection:
+                assert connection.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0] == 16
+            calls.append('launch')
+        monkeypatch.setattr(deployment, 'install_launchd', launch)
+        monkeypatch.setattr(deployment, 'installed_runtime_version', lambda _target: '0.3.1')
+        monkeypatch.setattr(deployment, 'verify_live_service', lambda *_args: calls.append(('readiness-start', elapsed[0])))
+&gt;       deployment.publish_runtime(target, snapshot=snapshot, prior=prior)
+
+tests/test_reliability.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+&lt;isolated-publication-order-mutant&gt;:19: in publish_runtime
+    ???
+&lt;isolated-publication-order-mutant&gt;:5: in publish_runtime
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_target = PosixPath('/private/var/folders/0p/hbttw0xn1gzcjc5l23_sy7sc0000gn/T/pytest-of-rian/pytest-105/test_publication_finishes_migr0/candidate')
+
+    def launch(_target):
+        with sqlite3.connect(database) as connection:
+&gt;           assert connection.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0] == 16
+E           assert 15 == 16
+
+tests/test_reliability.py:64: AssertionError</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,40 @@
+{
+  "generated_object": {
+    "contract_version": 1,
+    "role": "snapshot",
+    "kind": "provider-home-authentication-probe",
+    "schema": {
+      "name": "provider-home-authentication-probe",
+      "version": 1
+    },
+    "artifact_id": "artifact:dd50f1c5-1381-4b17-a9b6-c5239d156287",
+    "generated_at": "20261014T155337",
+    "producer": {
+      "name": "lattice-qualification",
+      "version": "1.0.0"
+    },
+    "subject": "lattice:recoverable-conversations:provider-home",
+    "sources": [
+      {
+        "ref": "/private/tmp/lattice-provider-home-check-20261014T155130/auth-status.json",
+        "revision": null,
+        "sha256": "ca3c3453a8ad4efe9c14c05fab70eaf9467b8f099893014995db3231c8ad2536"
+      }
+    ]
+  },
+  "observation": {
+    "loggedIn": false,
+    "authMethod": "none",
+    "apiProvider": "firstParty",
+    "subscriptionType": null,
+    "configDirectory": "/private/tmp/lattice-provider-home-check-20261014T155130/provider",
+    "returncode": 1,
+    "original_home_used": false,
+    "model_dispatched": false
+  },
+  "proof_limits": [
+    "No model was called and no original profile was modified.",
+    "An empty provider directory has no consumer login; portable conversation data and account authentication are separate obligations.",
+    "This does not establish restored authenticated recovery."
+  ]
+}

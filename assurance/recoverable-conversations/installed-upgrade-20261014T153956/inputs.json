@@ -1,0 +1,17 @@
+{
+  "revision": "42f97892aa2508d09e5c7cd130324ff2b149decf",
+  "command": [
+    "/Users/rian/AXISVI/axis/chariots/lattice/.venv/bin/python",
+    "-u",
+    "/Users/rian/AXISVI/axis/chariots/lattice/ops/install.py"
+  ],
+  "source_junit": "/Users/rian/AXISVI/axis/chariots/lattice/assurance/recoverable-conversations/installed-upgrade-20261014T153956/source-tests.xml",
+  "retention": "keep: exact installation evidence",
+  "remaining_gates": [
+    "copied-state migration",
+    "installed native/portable Claude and Codex qualification",
+    "restore",
+    "Relata pilot",
+    "independent closure and Surface"
+  ]
+}

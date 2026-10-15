@@ -1,0 +1,1 @@
+{"at": "20261014T183757", "signal": "SIGCONT", "coordinator_pid": 53371, "source_revision_now": "e7d6e67c1839416c47d2d5df246217c4073d8bf1", "expected_result": "Source-revision guard refuses obsolete publication after copied-state check; restore prior service."}

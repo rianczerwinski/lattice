@@ -1,0 +1,3 @@
+# Installed runtime upgrade
+
+This historical run retains 807 passing source checks, the frontend checks and build, a verified rollback snapshot, and its original candidate's schema-16 copied-state comparison. Its coordinator was held before publication while the startup-deadline defect was repaired, then released to finish the active unit. The frozen-source guard refused obsolete publication with exit 1 at `20261015T013920Z` and restored the prior runtime/service. This run establishes no repaired-release installation, authenticated recovery or pilot pass. Its status, logs, commands and phase samples remain available for independent diagnosis.
