@@ -598,3 +598,50 @@ test('durable child: late observations cannot enter a different selected child',
     await expect(partial).not.toContainText('Stale child A activity.');
   } finally { releaseA(); }
 });
+
+test('durable child: context follows its execution, rejects stale results and surfaces inspection failure', async ({page}) => {
+  await installDeterministicLattice(page);
+  let release!:()=>void;
+  const held=new Promise<void>(resolve=>{release=resolve;});
+  let started=false;
+  let failB=false;
+  const child=(id:string)=>({conversation_id:`conversation_context_${id}`,title:`Context child ${id}`,owning_task_ref:'task:context',revision:1,parent_conversation_id:null,route:{model:`model-${id}`},rounds:[{round_id:`round_${id}`,ordinal:1,state:'completed',request:{prompt:`Request ${id}`},response:`Answer ${id}`,executions:[{invocation_id:`invocation_context_${id}`,attempts:[]}]}],pending:null,has_more:false,event_cursor:1,steering:[],checkpoint:null});
+  await page.route('**/api/v1/conversations**',async route=>{
+    const path=new URL(route.request().url()).pathname;
+    if (path==='/api/v1/conversations') return json(route,[child('a'),child('b'),{...child('empty'),rounds:[]}]);
+    return json(route,path.endsWith('conversation_context_empty')?{...child('empty'),rounds:[]}:child(path.endsWith('_a')?'a':'b'));
+  });
+  await page.route('**/api/v1/invocations/invocation_context_*',async route=>{
+    const id=new URL(route.request().url()).pathname.endsWith('_a')?'a':'b';
+    if (id==='a') {started=true;await held;}
+    if (id==='b' && failB) return json(route,{detail:'planted inspection outage'},503);
+    return json(route,{invocation_id:`invocation_context_${id}`,compiled_prompt:`Exact context ${id}`,manifest_verification:{valid:true},manifest:{segments:[],omitted:[],execution:{model:`model-${id}`},response_contract:{},capabilities:{},provider_boundary:{proof_limits:[]}},attempts:[],artifacts:[]});
+  });
+  try {
+    await page.goto('/');
+    await page.getByPlaceholder('New project').fill('Context binding');
+    await page.getByRole('button',{name:'Create',exact:true}).click();
+    await page.getByRole('button',{name:/Context child a/}).click();
+    await expect.poll(()=>started).toBe(true);
+    await page.getByRole('button',{name:/Context child b/}).click();
+    const inspector=page.getByRole('complementary',{name:'Conversation execution context'});
+    await inspector.getByText('Execution route',{exact:true}).click();
+    await expect(inspector).toContainText('model-b');
+    await expect(page.locator('.route-status')).toHaveText('Conversation · model-b');
+    const response=page.waitForResponse(value=>value.url().endsWith('/invocation_context_a'));
+    release();await (await response).finished();
+    await expect(inspector).not.toContainText('model-a');
+    await page.getByRole('button',{name:/Context child empty/}).click();
+    await expect(inspector).toContainText('no execution to inspect');
+    await expect(inspector).not.toContainText('model-b');
+    failB=true;
+    await page.getByRole('button',{name:/Context child b/}).click();
+    await expect(inspector.getByRole('alert')).toContainText('planted inspection outage');
+    await expect(inspector).not.toContainText('Manifest reconstructed');
+    failB=false;
+    await inspector.getByRole('button',{name:'Retry inspection'}).click();
+    await expect(inspector).toContainText('Manifest reconstructed');
+    await page.reload();
+    await expect(inspector).toContainText('invocation_context_b');
+  } finally {release();}
+});

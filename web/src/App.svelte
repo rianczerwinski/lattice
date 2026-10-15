@@ -18,7 +18,9 @@
   import { reconcileSubmittedComposer } from './submissionState';
   import ConversationHistory from './components/ConversationHistory.svelte';
   import DurableConversations from './components/DurableConversations.svelte';
-  let durableConversationSelected = false;
+  let durableSelection: { conversationId: string; invocationId: string | null; model: string | null } | null = null;
+  $: durableConversationSelected = durableSelection !== null;
+  import ConversationInspector from './components/ConversationInspector.svelte';
   import ComposerPane from './components/ComposerPane.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
   import ContextInspector from './components/ContextInspector.svelte';
@@ -1726,7 +1728,7 @@
       <button class="activity-status" class:notice={Boolean(activityNotice)} class:failed={Boolean(activitySurfaceError)} title={activitySurfaceError || 'Open projects, active work, and cockpit commands'} on:click={() => { paletteOpen = true; activityNotice = ''; }}>
         {#if activitySurfaceError}activity delayed{:else if activityNotice}{activityNotice}{:else if activeGlobalRuns.length + activeProviderActivities.length}{activeGlobalRuns.length + activeProviderActivities.length} open · ⌘K{:else}quiet · ⌘K{/if}
       </button>
-      <div class="route-status">{routeCatalogueError ? `Provider catalogue unavailable · ${routeCatalogueError}` : activeRoute ? `${activeRoute.official_cli} · ${activeRoute.model_code}` : 'No qualified route'}</div>
+      <div class="route-status">{durableSelection ? `Conversation · ${durableSelection.model ?? 'Loading route…'}` : routeCatalogueError ? `Provider catalogue unavailable · ${routeCatalogueError}` : activeRoute ? `${activeRoute.official_cli} · ${activeRoute.model_code}` : 'No qualified route'}</div>
     </header>
 
     {#if error}<div class="error"><span>Execution boundary</span>{error}<button on:click={() => error = ''}>×</button></div>{/if}
@@ -1820,7 +1822,7 @@
             <DurableConversations projectId={project.project_id} getRoute={() => {
               if (routeChoices.length !== 1) throw new Error('Choose one provider in the current route before creating a child conversation.');
               return routePayload(routeChoices[0]);
-            }} getContextBlockIds={() => explicitSelections.filter(s=>s.disposition===undefined || s.disposition==='selected').map(s=>String(s.block_id))} onSelection={(selected) => { durableConversationSelected = selected; }} />
+            }} getContextBlockIds={() => explicitSelections.filter(s=>s.disposition===undefined || s.disposition==='selected').map(s=>String(s.block_id))} onSelection={(selection) => { durableSelection = selection; }} />
           {/key}
           {#if !durableConversationSelected}
           <ResponsePane
@@ -1940,6 +1942,8 @@
 
       {#if projectOpening}
         <aside class="inspector"><div class="section-label">Context truth</div><p class="muted">Available when the project has finished opening.</p></aside>
+      {:else if durableConversationSelected}
+        <ConversationInspector invocationId={durableSelection?.invocationId ?? null} />
       {:else}
         <ContextInspector
           {preview}

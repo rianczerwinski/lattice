@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InvocationEvidence from './InvocationEvidence.svelte';
   import type { ContextAction } from '../contextActions';
   import type { BatchPreview, ContextModuleCatalogue, ContextModuleSourceKind, Invocation, InvocationSummary, LiveSlice, Project } from '../types';
 
@@ -57,16 +58,7 @@
     <details><summary>Exact compiled context</summary><pre>{primaryPreview.compiled_prompt_preview}</pre></details>
     {#each preview.members as member}<details><summary>{member.preflight.execution.provider} route, tools & proof limits</summary><pre>{JSON.stringify(member.preflight.capabilities, null, 2)}</pre>{#each member.preflight.provider_boundary.proof_limits as limit}<p>{limit}</p>{/each}{#each (member.preflight.provider_boundary.opaque_contexts ?? []) as opaque}<p><strong>Provider-opaque context:</strong> {opaque.statement}</p><pre>{JSON.stringify(opaque, null, 2)}</pre>{/each}</details>{/each}
   {:else if selected}
-    <div class="truth-status" class:valid={selected.manifest_verification?.valid}>{selected.manifest_verification?.valid ? 'Manifest reconstructed' : 'Manifest unavailable'}</div>
-    <h3>What this invocation saw</h3>
-    <div class="segments">{#each selected.manifest.segments as segment}<div class="segment"><i class={`plane ${segment.plane}`}></i><div><strong>{segment.label}</strong><small>{segment.plane} · {segment.status}</small><code>{segment.sha256.slice(0, 12)}</code></div></div>{/each}</div>
-    {#if selected.manifest.omitted.length}<h3>Not supplied</h3>{#each selected.manifest.omitted as segment}<div class="omitted">{segment.label} · {segment.disposition}</div>{/each}{/if}
-    <details><summary>Exact compiled context</summary><pre>{selected.compiled_prompt}</pre></details>
-    <details><summary>Execution route</summary><pre>{JSON.stringify(selected.manifest.execution, null, 2)}</pre></details>
-    <details><summary>Response contract</summary><pre>{JSON.stringify(selected.manifest.response_contract, null, 2)}</pre></details>
-    <details><summary>Tools & authority</summary><pre>{JSON.stringify(selected.manifest.capabilities, null, 2)}</pre></details>
-    <details open={(selected.manifest.provider_boundary.opaque_contexts ?? []).length > 0}><summary>Proof limits & provider-opaque context</summary>{#each selected.manifest.provider_boundary.proof_limits as limit}<p>{limit}</p>{/each}{#each (selected.manifest.provider_boundary.opaque_contexts ?? []) as opaque}<p><strong>Provider-opaque context:</strong> {opaque.statement}</p><pre>{JSON.stringify(opaque, null, 2)}</pre>{/each}</details>
-    <details><summary>Attempts ({selected.attempts.length})</summary><pre>{JSON.stringify(selected.attempts, null, 2)}</pre></details>
+    <InvocationEvidence {selected} />
     {#if selected.artifacts.length}<details><summary>Artifacts ({selected.artifacts.length})</summary>{#each selected.artifacts as artifact}<details on:toggle={(event) => event.currentTarget.open && onLoadArtifact(artifact.artifact_id)}><summary>{artifact.artifact_id}</summary><pre>{artifactContents[artifact.artifact_id] ?? 'Loading exact bytes…'}</pre><div class="response-actions"><button class="quiet" disabled={working} on:click={() => onGraftArtifact(artifact.artifact_id, 'side-quest')}>Side quest</button><button class="quiet" disabled={working} on:click={() => onGraftArtifact(artifact.artifact_id, 'ask-claude')}>Ask Claude</button><button class="quiet" disabled={working} on:click={() => onGraftArtifact(artifact.artifact_id, 'ask-codex')}>Ask Codex</button><button class="quiet" disabled={working} on:click={() => onGraftArtifact(artifact.artifact_id, 'ask-both')}>Ask both</button><button class="quiet" disabled={working} on:click={() => onGraftArtifact(artifact.artifact_id, 'bring-here')}>Bring here</button><button class="quiet" disabled={working} on:click={() => onGraftArtifact(artifact.artifact_id, 'compare')}>Compare</button></div></details>{/each}</details>{/if}
     {#if neighborhood}<details><summary>Local graph{neighborhood.coverage.state === 'partial' ? ' partial' : ''} · {neighborhood.nodes.length} nodes</summary>{#if neighborhood.coverage.state === 'partial'}<p class="muted">This bounded view reached its node or edge limit at depth {neighborhood.coverage.completed_depth} of {neighborhood.coverage.requested_depth}.</p>{/if}<pre>{JSON.stringify(neighborhood.edges, null, 2)}</pre></details>{/if}
     {#if neighborhoodError}<details class="surface-failure"><summary>Local graph unavailable</summary><p>{neighborhoodError}</p></details>{/if}

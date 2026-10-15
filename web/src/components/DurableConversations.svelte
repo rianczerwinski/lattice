@@ -5,7 +5,7 @@
 
   export let projectId: string;
   export let getRoute: () => Record<string, unknown>;
-  export let onSelection: (selected: boolean) => void;
+  export let onSelection: (selected: { conversationId: string; invocationId: string | null; model: string | null } | null) => void;
   export let getContextBlockIds: () => string[] = () => [];
   type Child = { conversation_id: string; title: string; owning_task_ref: string; revision: number; parent_conversation_id: string | null };
   type Attempt = { attempt_id: string; state: string; failure_kind: string | null; error_text: string | null };
@@ -17,7 +17,7 @@
   type RecoveryOptions = { context_selection?:ContextChoice; route?:Record<string,unknown> };
   type Confirmation = { code:string; detail:Record<string,unknown>; reason_sha256:string };
   type Preview = { revision: number; preview_sha256: string; mode: string; maximum_remaining_loss: string; blockers: Array<{ code: string; detail: string; effects?: Effect[] }>; context_selection?:ContextChoice|null; required_confirmations?:Confirmation[]; available_context?:{rounds:Array<{round_id:string;ordinal:number}>;observations:Array<{observation_id:string;attempt_id:string;channel:string}>;artifacts:Array<{artifact_id:string}>;blocks?:Array<{block_id:string;label:string;plane:string}>} };
-  type ViewState = { selected: string; drafts: Record<string,string>; positions: Record<string,number>; seen: Record<string,number>; pages?: Record<string,number>; requests?: Record<string,{signature:string;request:Record<string,unknown>}>; recovery?:Record<string,RecoveryOptions>; childOwner?:string; childPages?:string[] };
+  type ViewState = { selected: string; drafts: Record<string,string>; positions: Record<string,number>; seen: Record<string,number>; pages?: Record<string,number>; requests?: Record<string,{signature:string;request:Record<string,unknown>}>; recovery?:Record<string,RecoveryOptions>; childOwner?:string; childPages?:string[]; executions?:Record<string,string> };
   let view: ViewState = { selected:'',drafts:{},positions:{},seen:{} };
   let children: Child[] = [];
   let conversation: Conversation | null = null;
@@ -115,6 +115,7 @@
             const data=await api<Conversation>(`${path(selected)}?after=${view.pages?.[selected] ?? 0}`);
             if (destroyed || selected!==view.selected) continue;
             conversation=data;
+            publishSelection();
             view.seen[selected]=data.revision; save();
             if (data.pending?.state==='needs_attention') {
               const recovered=await post<Preview>(`${path(selected)}/recovery-preview`,recoveryOptions);
@@ -130,9 +131,18 @@
     })();
     try { await refreshTask; } finally { refreshTask=null; }
   }
+  function publishSelection() {
+    const executions=conversation?.rounds.flatMap(round=>round.executions) ?? [];
+    const pinned=view.executions?.[view.selected];
+    const invocationId=executions.find(item=>item.invocation_id===pinned)?.invocation_id ?? executions.at(-1)?.invocation_id ?? null;
+    onSelection(view.selected ? {conversationId:view.selected,invocationId,model:conversation?.route.model ?? null} : null);
+  }
+  function inspectExecution(id: string) {
+    view.executions={...view.executions,[view.selected]:id};save();publishSelection();
+  }
   async function select(id: string) {
     savePosition();
-    view.selected=id; draft=view.drafts[id] ?? ''; recoveryOptions=view.recovery?.[id] ?? {}; confirmations={}; conversation=null; preview=null; activity=''; activityEvents.clear(); dispositions={}; save(); onSelection(Boolean(id));
+    view.selected=id; draft=view.drafts[id] ?? ''; recoveryOptions=view.recovery?.[id] ?? {}; confirmations={}; conversation=null; preview=null; activity=''; activityEvents.clear(); dispositions={}; save(); publishSelection();
     const url=new URL(window.location.href); url.searchParams.set('project',projectId);
     if (id) url.searchParams.set('conversation',id); else url.searchParams.delete('conversation');
     window.history.replaceState(null,'',url);
@@ -268,7 +278,7 @@
         <article><small>Round {round.ordinal} · {round.state}</small><h3>You</h3><div class="operator-text">{round.request.prompt}</div>
           {#each round.operator_steering ?? [] as instruction}<p class="operator-text">Admitted correction: {instruction.content}</p>{/each}
           {#if round.response !== undefined}<h3>Model</h3><div class="markdown">{@html renderMarkdown(round.response)}</div>{/if}
-          {#each round.executions as execution}{#each execution.attempts as attempt}{#if attempt.failure_kind}<p class="surface-failure">{attempt.failure_kind}: {attempt.error_text ?? 'This attempt ended before completion.'}</p>{/if}{/each}{/each}
+          {#each round.executions as execution}<button class="quiet" on:click={()=>inspectExecution(execution.invocation_id)}>Inspect round {round.ordinal} execution {execution.invocation_id.slice(-8)}</button>{#each execution.attempts as attempt}{#if attempt.failure_kind}<p class="surface-failure">{attempt.failure_kind}: {attempt.error_text ?? 'This attempt ended before completion.'}</p>{/if}{/each}{/each}
         </article>
       {/each}
       {#if (view.pages?.[view.selected] ?? 0)>0}<button on:click={()=>pageRounds(Math.max(0,(view.pages?.[view.selected] ?? 0)-100))}>Earlier rounds</button>{/if}
