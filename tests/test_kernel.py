@@ -303,6 +303,43 @@ def test_runtime_receipt_streams_large_journal_files(tmp_path, lattice_env, monk
 
 
 @pytest.mark.regression
+def test_runtime_receipt_accepts_checkpoint_with_large_observable_image_exchange(tmp_path, lattice_env) -> None:
+    journal = tmp_path / "image-checkpoint-journal"
+    journal.mkdir()
+    (journal / "request.json").write_text('{"driver":"claude","model":"fixture","metadata":{}}')
+    checkpoint = {"native_session": {"id": "retained-session"}, "observed": {"stdout_bytes": 3 * 1024 * 1024},
+                  "observable_work": ["retained image/tool bytes" * 128 * 1024]}
+    raw = json.dumps(checkpoint).encode()
+    (journal / "checkpoint.json").write_bytes(raw)
+    receipt = _runtime_receipt(journal, lattice_env["store"].blobs)
+    assert receipt["native_session"] == {"id": "retained-session"}
+    assert receipt["observed"] == checkpoint["observed"]
+    assert lattice_env["store"].blobs.get(receipt["checkpoint_sha256"]) == raw
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("name", ["request.json", "checkpoint.json", "terminal.json"])
+def test_runtime_control_limits_still_reject_before_buffering(name) -> None:
+    from types import SimpleNamespace
+    from lattice.supervisor import _read_runtime_control
+    from lattice.execution import MAX_MODEL_OUTPUT_BYTES
+
+    class OversizedControl:
+        def __init__(self):
+            self.name = name
+
+        def stat(self):
+            limit = MAX_MODEL_OUTPUT_BYTES if name == "checkpoint.json" else 1024 * 1024
+            return SimpleNamespace(st_size=limit + 1)
+
+        def read_bytes(self):
+            raise AssertionError("oversized control must not be buffered")
+
+    with pytest.raises(OSError, match="model journal control file exceeds"):
+        _read_runtime_control(OversizedControl())
+
+
+@pytest.mark.regression
 def test_blob_store_removes_private_partial_files_after_write_failure(lattice_env, monkeypatch) -> None:
     def fail_write(_descriptor: int, _content) -> int:
         raise OSError("planted disk failure")

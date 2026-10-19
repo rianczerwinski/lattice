@@ -12,6 +12,7 @@ from typing import Any
 
 from .execution import (
     DEFAULT_ADAPTERS,
+    MAX_MODEL_OUTPUT_BYTES,
     SubscriptionInvocationFailed,
     SubscriptionRouteUnavailable,
     invoke_subscription,
@@ -31,9 +32,12 @@ MAX_RUNTIME_CONTROL_BYTES = 1024 * 1024
 
 
 def _read_runtime_control(path: Any) -> bytes:
+    # Checkpoints include the bounded observable-work projection (including
+    # image/tool data), not just the small request/terminal control metadata.
+    limit = MAX_MODEL_OUTPUT_BYTES if path.name == "checkpoint.json" else MAX_RUNTIME_CONTROL_BYTES
     size = path.stat().st_size
-    if size > MAX_RUNTIME_CONTROL_BYTES:
-        raise OSError(f"model journal control file exceeds {MAX_RUNTIME_CONTROL_BYTES} bytes: {path.name}")
+    if size > limit:
+        raise OSError(f"model journal control file exceeds {limit} bytes: {path.name}")
     content = path.read_bytes()
     if len(content) != size:
         raise OSError(f"model journal control file changed while being read: {path.name}")
