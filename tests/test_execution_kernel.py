@@ -696,7 +696,7 @@ def test_contract_claude_system_instruction_uses_a_file_not_process_arguments(tm
 
     system_prompt_path = Path(command[command.index("--system-prompt-file") + 1])
     assert system_prompt_path.read_text(encoding="utf-8") == "trusted harness protocol"
-    assert input_text == "routed conversation"
+    assert json.loads(input_text)["message"] == {"role": "user", "content": "routed conversation"}
     assert "trusted harness protocol" not in command
 
 
@@ -874,7 +874,10 @@ def test_contract_provider_prompts_are_never_process_arguments(tmp_path: Path) -
             prompt=prompt,
         )
         assert prompt not in command
-        assert input_text == prompt
+        if adapter.provider_code == "anthropic":
+            assert json.loads(input_text)["message"] == {"role": "user", "content": prompt}
+        else:
+            assert input_text == prompt
 
 
 @pytest.mark.regression

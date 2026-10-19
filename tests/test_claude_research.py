@@ -38,7 +38,8 @@ def test_research_native_allowlist_matches_only_the_declared_web_tools(tmp_path)
     assert "--no-session-persistence" in command
     assert command.count("--verbose") == 1
     assert command[command.index("--output-format") + 1] == "stream-json"
-    assert "--input-format" not in command
+    assert command.count("--input-format") == 1
+    assert command[command.index("--input-format") + 1] == "stream-json"
     assert "--permission-prompt-tool" not in command
     assert "tools-disabled" not in effective["enforcement"]
     assert effective["permissions"] == []  # No caller-supplied general permission authority.

@@ -694,6 +694,8 @@ def build_command(
                 effort,
                 "--output-format",
                 "stream-json",
+                "--input-format",
+                "stream-json",
                 "--verbose",
                 "--include-partial-messages",
                 "--json-schema",
@@ -716,7 +718,7 @@ def build_command(
                 "--no-chrome",
             ]
         if interactive:
-            command.extend(["--input-format", "stream-json", "--permission-prompt-tool", "stdio"])
+            command.extend(["--permission-prompt-tool", "stdio"])
         if system_prompt_path is not None:
             command.extend(["--system-prompt-file", str(system_prompt_path)])
         if policy["execution_profile"] in {"compiled-fresh", "research-fresh"}:
@@ -725,7 +727,7 @@ def build_command(
             command.extend(["--resume", policy["native_session_id"]])
             if policy["continuation_mode"] == "fork":
                 command.append("--fork-session")
-        return command, prompt, {}
+        return command, prompt if interactive else claude.encode_user_message(prompt), {}
     if system_prompt is not None:
         raise SubscriptionRouteUnavailable(f"{adapter.provider_code} official CLI has no qualified separate system-instruction channel")
     if adapter.provider_code == "openai":
@@ -1230,6 +1232,21 @@ def invoke_subscription(
             )
         if provider_prompt is not None and len(provider_prompt.encode("utf-8")) > MAX_MODEL_INPUT_BYTES:
             raise ValueError(f"compiled provider input exceeds {MAX_MODEL_INPUT_BYTES} bytes")
+        streaming_input = None
+        if adapter.provider_code == "anthropic" and not interactive:
+            assert input_text is not None
+            if len(input_text.encode("utf-8")) + (len(system_prompt.encode("utf-8")) if system_prompt else 0) > MAX_MODEL_INPUT_BYTES:
+                raise ValueError(f"compiled provider input exceeds {MAX_MODEL_INPUT_BYTES} bytes")
+            # Retain both the original text and exact provider-facing wire bytes.
+            provider_prompt = input_text
+            streaming_input = claude.StreamingInput(input_text)
+
+        def observe_output(channel: str, chunk: bytes) -> None:
+            if streaming_input is not None:
+                streaming_input.observe(channel, chunk)
+            if on_chunk is not None:
+                on_chunk(channel, chunk)
+
         bind_request(
             journal,
             prompt=prompt,
@@ -1252,6 +1269,7 @@ def invoke_subscription(
                 },
                 "effective_policy": effective_policy,
                 "system_instruction_channel": "official-system-prompt-file" if system_prompt is not None else None,
+                **({"provider_prompt_format": "claude-stream-json-user/1", "stdin_eof_policy": "after-complete-native-result-or-invalid-frame"} if streaming_input is not None else {}),
             },
         )
         if on_journal is not None:
@@ -1265,14 +1283,14 @@ def invoke_subscription(
             ) if interactive else run_bounded(
                 command,
                 timeout=timeout,
-                input_text=input_text,
+                **({"input_messages": streaming_input.messages} if streaming_input is not None else {"input_text": input_text}),
                 cwd=execution_cwd,
                 env=execution_environment,
                 stdout_journal=journal.stdout,
                 stderr_journal=journal.stderr,
                 observed_files=observed_files,
                 cancel_event=cancel_event,
-                on_chunk=on_chunk,
+                on_chunk=observe_output,
             )
         except subprocess.TimeoutExpired as error:
             finish_run_journal(journal, "timeout", failure_kind="timeout")
@@ -1318,6 +1336,10 @@ def invoke_subscription(
                 journal=journal.root,
             )
         try:
+            if streaming_input is not None:
+                streaming_input.finish()
+                if streaming_input.protocol_error:
+                    raise SubscriptionInvocationFailed("malformed_output", streaming_input.protocol_error)
             if adapter.provider_code == "google":
                 payload = antigravity.parse_output(result.stdout)
                 validation_error = next(_schema_validator(schema).iter_errors(payload), None)
