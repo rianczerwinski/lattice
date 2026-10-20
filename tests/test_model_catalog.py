@@ -54,6 +54,13 @@ def test_catalog_refresh_does_not_admit_unknown_ids_or_cross_provider_models():
 
 
 @pytest.mark.regression
+def test_google_default_uses_the_approved_flash_successor():
+    google = next(profile for profile in DEFAULT_ADAPTERS if profile.provider_code == "google")
+    assert google.model_code == "gemini-3.8-flash-high"
+    assert google.select_model("gemini-3.7-flash-high").model_code == "gemini-3.7-flash-high"
+
+
+@pytest.mark.regression
 def test_kimi_ids_are_current_but_route_remains_unqualified():
     kimi = next(profile for profile in DEFAULT_ADAPTERS if profile.provider_code == "moonshot")
     assert kimi.model_code == "k3"

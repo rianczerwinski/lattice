@@ -30,7 +30,7 @@ SUITES: dict[str, tuple[str, list[list[str]], list[str]]] = {
 PROVIDERS = {
     "anthropic": {"model": "opus", "harness": "claude", "effort": "high"},
     "openai": {"model": "gpt-5.6-sol", "harness": "codex", "effort": "high"},
-    "google": {"model": "gemini-3.7-flash-high", "harness": "antigravity", "effort": "high"},
+    "google": {"model": "gemini-3.8-flash-high", "harness": "antigravity", "effort": "high"},
     "xai": {"model": "grok-4.5", "harness": "grok", "effort": "high"},
     "meta": {"model": "muse-spark-1.3-contributor", "harness": "muse", "effort": "high"},
 }

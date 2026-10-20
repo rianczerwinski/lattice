@@ -198,7 +198,7 @@ DEFAULT_ADAPTERS = (
         "google",
         "antigravity",
         "agy",
-        "gemini-3.7-flash-high",
+        "gemini-3.8-flash-high",
         "antigravity_json_envelope",
         (
             "temporary-home",
