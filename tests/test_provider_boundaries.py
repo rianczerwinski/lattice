@@ -327,6 +327,42 @@ def test_antigravity_probe_rejects_silent_model_fallback(monkeypatch, tmp_path: 
     assert "would execute as" in detail
 
 
+@pytest.mark.oracle
+@pytest.mark.parametrize("timed_out_stage", ["--version", "--help", "models", "/model", None])
+def test_antigravity_probe_timeout_preserves_other_provider_status(monkeypatch, tmp_path: Path, timed_out_stage) -> None:
+    selected = tuple(item for item in adapters.DEFAULT_ADAPTERS if item.provider_code in {"anthropic", "google"})
+    model = next(item.model_code for item in selected if item.provider_code == "google")
+    for adapter in selected:
+        (tmp_path / adapter.executable).write_text("fixture", encoding="utf-8")
+
+    def fake_run(command, **kwargs):
+        if command[-1] == timed_out_stage:
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+        if command[-1] == "--version":
+            text = "1.1.19\n"
+        elif command[-1] == "--help":
+            text = "--print --model --effort --sandbox --mode --log-file --json-schema --output-format --disable-slash-commands"
+        else:
+            text = model + "\n"
+        return subprocess.CompletedProcess(command, 0, text, "")
+
+    monkeypatch.setattr(adapters.shutil, "which", lambda name: str(tmp_path / name))
+    monkeypatch.setattr(adapters, "_cli_version", lambda binary: "1.1.19")
+    monkeypatch.setattr(adapters, "_claude_capability_probe", lambda binary: (True, "qualified fixture"))
+    monkeypatch.setattr(antigravity, "run_bounded", fake_run)
+    monkeypatch.setattr(antigravity, "isolated_home", lambda root, allow_web: (root, {}))
+
+    statuses = adapters.installed_adapter_status(selected, probe_versions=True)
+    assert len(statuses) == 2
+    assert next(item for item in statuses if item["provider_code"] == "anthropic")["operational"] is True
+    google = next(item for item in statuses if item["provider_code"] == "google")
+    assert google["control_surface_qualified"] is (timed_out_stage is None)
+    assert google["operational"] is (timed_out_stage is None)
+    if timed_out_stage is not None:
+        assert timed_out_stage in google["control_surface_detail"]
+        assert "timed out" in google["control_surface_detail"]
+
+
 @pytest.mark.property
 def test_subscription_environment_excludes_developer_credentials_and_proxy_routing() -> None:
     filtered = adapters.subscription_environment(

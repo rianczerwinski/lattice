@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -127,7 +128,7 @@ def capability_probe(binary: str, *, model: str, effort: str, allow_web: bool) -
             if selected.returncode != 0 or effective != model:
                 return False, f"requested model {model!r} would execute as {effective or 'unreported'!r}"
         return True, "qualified Antigravity subscription, isolation controls, and exact model selection"
-    except (OSError, RuntimeError) as error:
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         return False, str(error)
 
 
