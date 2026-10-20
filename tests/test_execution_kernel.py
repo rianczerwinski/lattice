@@ -403,6 +403,24 @@ def test_regression_fast_route_discovery_does_not_probe_cli_versions() -> None:
     assert next(item for item in statuses if item["provider_code"] == "moonshot")["qualified"] is False
 
 
+@pytest.mark.contract
+def test_requested_sol_61_reaches_cli_without_model_substitution(tmp_path: Path) -> None:
+    from lattice.contracts import ProviderRoute
+
+    route = ProviderRoute(provider="openai", harness="codex", model="gpt-6.1-sol")
+    base = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "openai")
+    selected = base.select_model(route.model)
+    command, _, _ = build_command(
+        selected, binary="/fixture/codex", isolated=tmp_path,
+        schema_path=tmp_path / "schema.json", output_path=tmp_path / "output.json",
+        effort="high", prompt="Return the requested response.",
+    )
+    assert command[command.index("--model") + 1] == "gpt-6.1-sol"
+    assert selected.profile_id != base.profile_id
+    with pytest.raises(SubscriptionRouteUnavailable):
+        base.select_model("gpt-6.1-sol-unknown")
+
+
 @pytest.mark.regression
 def test_negative_control_operational_probe_does_not_call_a_hung_cli_qualified() -> None:
     codex = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "openai")
