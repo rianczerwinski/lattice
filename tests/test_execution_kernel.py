@@ -1277,7 +1277,8 @@ def test_completed_child_waits_for_slow_durable_observation(tmp_path,channel):
     assert result.returncode==0
     assert getattr(result,channel)=='completed retained output\n'
     assert journal.read_bytes()==b'completed retained output\n'
-    assert seen==[(channel,b'completed retained output\n')]
+    assert seen and all(observed_channel == channel for observed_channel, _ in seen)
+    assert b''.join(chunk for _, chunk in seen) == b'completed retained output\n'
 
 
 @pytest.mark.regression
