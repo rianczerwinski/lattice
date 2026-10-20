@@ -194,8 +194,9 @@ def test_adversarial_timeout_keeps_partial_work_for_portable_resume(tmp_path: Pa
 @pytest.mark.regression
 def test_direct_child_exit_with_live_descendant_never_returns_false_success(tmp_path: Path) -> None:
     started_marker = tmp_path / "descendant-started"
-    # Five seconds exceeds the three-second assertion window. The handshake
-    # proves that a live descendant actually inherited the output pipe.
+    # The marker proves a live descendant inherited the pipe before leader exit.
+    # Keep it alive beyond the two-second drain grace; the owned-group finalizer
+    # kills it. The execution budget is a safety bound, not a startup benchmark.
     parent_script = """
 import subprocess
 import sys
@@ -205,10 +206,10 @@ from pathlib import Path
 marker = Path(sys.argv[1])
 subprocess.Popen([
     sys.executable, "-c",
-    "from pathlib import Path; import sys,time; Path(sys.argv[1]).write_text('started'); time.sleep(5)",
+    "from pathlib import Path; import sys,time; Path(sys.argv[1]).write_text('started'); time.sleep(30)",
     str(marker),
 ])
-deadline = time.monotonic() + 1
+deadline = time.monotonic() + 5
 while not marker.exists() and time.monotonic() < deadline:
     time.sleep(0.01)
 """
@@ -218,12 +219,29 @@ while not marker.exists() and time.monotonic() < deadline:
         parent_script,
         str(started_marker),
     ]
-    started = time.monotonic()
     with pytest.raises(OSError) as observed:
-        run_bounded(command, timeout=0.2)
+        run_bounded(command, timeout=15)
+    if observed.value.errno == errno.EPERM:
+        pytest.skip("host denied owned-process-group termination; pipe-ownership oracle was not exercised")
     assert started_marker.read_text() == "started"
-    assert "descendant retained its output pipe" in str(observed.value) or observed.value.errno == errno.EPERM
-    assert time.monotonic() - started < 3
+    assert "descendant retained its output pipe" in str(observed.value)
+
+
+@pytest.mark.oracle
+def test_descendant_fixture_distinguishes_unavailable_from_false_success(monkeypatch, tmp_path: Path) -> None:
+    # Acceptance-seam checks only: these do not prove real process ownership.
+    (tmp_path / "descendant-started").write_text("started")
+
+    def denied(*args, **kwargs):
+        raise PermissionError(errno.EPERM, "owned process group denied")
+
+    monkeypatch.setitem(globals(), "run_bounded", denied)
+    with pytest.raises(pytest.skip.Exception, match="oracle was not exercised"):
+        test_direct_child_exit_with_live_descendant_never_returns_false_success(tmp_path)
+
+    monkeypatch.setitem(globals(), "run_bounded", lambda *args, **kwargs: subprocess.CompletedProcess([], 0))
+    with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
+        test_direct_child_exit_with_live_descendant_never_returns_false_success(tmp_path)
 
 
 @pytest.mark.regression
