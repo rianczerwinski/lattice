@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
+import os
 import sqlite3
 from pathlib import Path
 
@@ -15,12 +17,22 @@ from lattice.diagnostics import assess_data_root
 from lattice.snapshot import create_snapshot
 
 
-VERIFIER_PATH = Path(__file__).parents[1] / "ops" / "verify_execution_consolidation.py"
-REPOSITORY_ROOT = Path(__file__).parents[1]
+# LATTICE_SOURCE_ROOT lets an isolated copy of this file exercise the live
+# verifier and fixtures read-only; inside the checkout it is unset and inert.
+REPOSITORY_ROOT = Path(os.environ.get("LATTICE_SOURCE_ROOT") or Path(__file__).parents[1])
+VERIFIER_PATH = REPOSITORY_ROOT / "ops" / "verify_execution_consolidation.py"
 SPEC = importlib.util.spec_from_file_location("verify_execution_consolidation", VERIFIER_PATH)
 assert SPEC and SPEC.loader
 verifier = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(verifier)
+
+
+def _load_source_module(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.mark.regression
@@ -360,6 +372,38 @@ def test_consumer_source_inventory_prunes_before_descent(tmp_path, monkeypatch) 
 
 
 @pytest.mark.regression
+def test_false_mutation_reintroduced_model_runner_tree_is_refused_by_final_closure_and_tolerated_only_while_inert(tmp_path) -> None:
+    # Finding 627260b7: the retired sibling execution tree. The final closure
+    # path (no --retirement-readiness) must refuse the tree's mere existence;
+    # the readiness path tolerates it only while nothing references it.
+    lattice = tmp_path / "axis/chariots/lattice"
+    lattice.mkdir(parents=True)
+    (lattice / "pyproject.toml").write_text('[project]\nname="lattice"\n', encoding="utf-8")
+    live = tmp_path / "sui/mission/projects/live"
+    live.mkdir(parents=True)
+    (live / "safe.py").write_text("value = 1\n", encoding="utf-8")
+
+    retired = verifier.verify_consumer_census(tmp_path, [], require_retired_model_runner=True)
+    assert retired["model_runner_retired"] is True
+    assert retired["violations"] == 0
+
+    runner = tmp_path / "axis/tools/model-runner/axis_model_runner"
+    runner.mkdir(parents=True)
+    (runner / "__init__.py").write_text('import subprocess\n\ndef launch():\n    subprocess.run(["claude", "-p", "prompt"])\n', encoding="utf-8")
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match=r"retired sibling execution tree remains: .*axis/tools/model-runner"):
+        verifier.verify_consumer_census(tmp_path, [], require_retired_model_runner=True)
+
+    tolerated = verifier.verify_consumer_census(tmp_path, [], require_retired_model_runner=False)
+    assert tolerated["model_runner_retired"] is False
+    assert tolerated["violations"] == 0
+
+    (live / "uses_runner.py").write_text("import axis_model_runner\n", encoding="utf-8")
+    with pytest.raises(verifier.ConsolidationVerificationError, match=r"retired sibling execution package remains active: .*uses_runner\.py"):
+        verifier.verify_consumer_census(tmp_path, [], require_retired_model_runner=False)
+
+
+@pytest.mark.regression
 def test_negative_control_forbidden_credential_canary_is_detected(tmp_path) -> None:
     root = tmp_path / "state"
     root.mkdir()
@@ -573,6 +617,33 @@ def test_negative_control_octopus_consumer_canary_rejects_nonexact_sentinel(latt
         canary = {field: report[field] for field in ("consumer_id", "external_project_key", "invocation_id", "manifest_sha256")}
         with pytest.raises(verifier.ConsolidationVerificationError, match="exact sentinel"):
             verifier._verify_octopus_consumer_canary(connection, report_path, canary)
+
+
+@pytest.mark.regression
+def test_false_mutation_copied_transcript_bytes_in_slate_are_refused_against_a_live_slice_control(lattice_env) -> None:
+    # Finding e03e72a6: the browser receipt's Slate claim must be a live
+    # concern-backed slice with zero copied transcript bytes. The journey
+    # fixture and receipt builder are the installed-browser producer's own;
+    # the independent verifier is the oracle under test.
+    browser_tests = _load_source_module(REPOSITORY_ROOT / "tests" / "test_browser_qualification.py", "browser_qualification_fixtures")
+    driver, _identities = browser_tests._seed_browser_journey(lattice_env, "20261021T000000-0badc0de")
+    data_root = lattice_env["config"].data_root
+    runtime = {"runtime_artifact_id": "artifact:installed-runtime"}
+    receipt = browser_tests.qualifier.build_receipt(data_root=data_root, driver=driver, runtime_artifact_id=runtime["runtime_artifact_id"])
+
+    control = verifier.verify_browser_receipt(receipt, data_root=data_root, runtime=runtime)
+    assert control == {"actions": 10, "invocations": 8, "slate_slice": receipt["slate"]["slice_id"]}
+
+    transcript = verifier._blob_content(data_root, receipt["excerpt"]["source_sha256"], label="browser root output")
+    copied = copy.deepcopy(receipt)
+    copied["slate"]["copied_transcript_bytes"] = len(transcript)
+    with pytest.raises(verifier.ConsolidationVerificationError, match="not a live concern-backed slice"):
+        verifier.verify_browser_receipt(copied, data_root=data_root, runtime=runtime)
+
+    detached = copy.deepcopy(receipt)
+    detached["slate"]["external_ref"] = "slate:copied-transcript"
+    with pytest.raises(verifier.ConsolidationVerificationError, match="not a live concern-backed slice"):
+        verifier.verify_browser_receipt(detached, data_root=data_root, runtime=runtime)
 
 
 @pytest.mark.contract
