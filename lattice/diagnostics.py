@@ -25,6 +25,23 @@ def _connect_read_only(database: Path) -> sqlite3.Connection:
     return connection
 
 
+def _begin_read_snapshot(connection: sqlite3.Connection) -> None:
+    """Pin one SQLite snapshot for every read that follows on this connection.
+
+    Without an explicit transaction a read-only connection under WAL takes a new
+    snapshot per statement, so a ledger scan and the count that follows it can
+    observe different committed states while a writer is active and the verifier
+    reports a false divergence. A deferred BEGIN is the store's own pattern for
+    reads that must not mix snapshots (LatticeStore._project_invocation_activity,
+    LatticeStore.get_invocation). Under WAL the pinned reader never blocks writers;
+    it only holds the checkpoint mark until the caller rolls back.
+    """
+
+    connection.execute("BEGIN")
+    if not connection.in_transaction:
+        raise OSError("Lattice diagnostics could not open a read snapshot")
+
+
 def _state_digest(connection: sqlite3.Connection, tables: tuple[str, ...]) -> str:
     digest = hashlib.sha256()
 
@@ -231,6 +248,7 @@ def assess_data_root(data_root: Path, *, database_path: Path | None = None) -> d
     database = database_path or data_root / "lattice.sqlite3"
     connection = _connect_read_only(database)
     try:
+        _begin_read_snapshot(connection)
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
         if integrity != "ok":
             raise OSError(f"SQLite integrity check failed: {integrity}")
@@ -245,8 +263,6 @@ def assess_data_root(data_root: Path, *, database_path: Path | None = None) -> d
         LatticeStore._verify_current_views_against_change_ledger(connection, tracked_tables)
         state_digest = _state_digest(connection, tracked_tables)
         refs = _referenced_blobs(connection, data_root / "blobs")
-        blob_bytes = sum(_verify_blob(data_root / "blobs" / digest[:2] / digest, digest) for digest in sorted(refs))
-        model_runs = _assess_model_runs(data_root / "model-runs")
         present_tables = {str(row[0]) for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         durable_runs = {
             "total": int(connection.execute("SELECT COUNT(*) FROM runs").fetchone()[0]) if "runs" in present_tables else 0,
@@ -262,7 +278,14 @@ def assess_data_root(data_root: Path, *, database_path: Path | None = None) -> d
             "leases": int(connection.execute("SELECT COUNT(*) FROM leases WHERE state='active'").fetchone()[0]),
         }
     finally:
+        # Release the pinned snapshot as soon as the last SQL read is done. The blob
+        # and model-run journal hashing below is filesystem work that can take many
+        # minutes on a live root and must not hold the WAL checkpoint mark.
+        if connection.in_transaction:
+            connection.rollback()
         connection.close()
+    blob_bytes = sum(_verify_blob(data_root / "blobs" / digest[:2] / digest, digest) for digest in sorted(refs))
+    model_runs = _assess_model_runs(data_root / "model-runs")
     return {
         "data_root": str(data_root),
         "database": str(database),
