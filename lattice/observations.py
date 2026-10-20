@@ -81,8 +81,10 @@ class ObservationStore:
         self.store = store
 
     def _events(self, conn, attempt_id, event_type):
+        # Namespace is both an evidence boundary and the leading key of
+        # events_subject_seq; omitting it scans unrelated historical events.
         return [dict(r) | {'payload': json.loads(r['payload_json'])} for r in conn.execute(
-            'SELECT seq,payload_json FROM events WHERE subject_id=? AND event_type=? ORDER BY seq', (attempt_id, event_type))]
+            "SELECT seq,payload_json FROM events WHERE subject_type='attempt' AND subject_id=? AND event_type=? ORDER BY seq", (attempt_id, event_type))]
 
     def bytes(self, attempt_id: str, channel: str) -> bytes:
         with self.store._connect() as conn:
@@ -106,7 +108,7 @@ class ObservationStore:
         digest = self.store.blobs.put(chunk)
         with self.store.transaction() as conn:
             attempt = self.store._row(conn.execute('SELECT a.invocation_id,i.project_id FROM attempts a JOIN invocations i USING(invocation_id) WHERE attempt_id=?', (attempt_id,)).fetchone(), attempt_id)
-            size = conn.execute("SELECT COALESCE(SUM(json_extract(payload_json,'$.byte_count')),0) FROM events WHERE subject_id=? AND event_type='attempt.chunk' AND json_extract(payload_json,'$.channel')=?", (attempt_id, channel)).fetchone()[0]
+            size = conn.execute("SELECT COALESCE(SUM(json_extract(payload_json,'$.byte_count')),0) FROM events WHERE subject_type='attempt' AND subject_id=? AND event_type='attempt.chunk' AND json_extract(payload_json,'$.channel')=?", (attempt_id, channel)).fetchone()[0]
             start = size if offset is None else offset
             if start < size:
                 prior = self._bytes(conn, attempt_id, channel)
@@ -121,8 +123,8 @@ class ObservationStore:
 
     def reindex(self, attempt_id: str, channel: str):
         with self.store.transaction() as conn:
-            offset = conn.execute("SELECT COALESCE(MAX(json_extract(payload_json,'$.end_offset')),0) FROM events WHERE subject_id=? AND event_type='attempt.observation' AND json_extract(payload_json,'$.channel')=?", (attempt_id, channel)).fetchone()[0]
-            chunks = [json.loads(row[0]) for row in conn.execute("SELECT payload_json FROM events WHERE subject_id=? AND event_type='attempt.chunk' AND json_extract(payload_json,'$.channel')=? AND (json_extract(payload_json,'$.offset') IS NULL OR json_extract(payload_json,'$.offset')+json_extract(payload_json,'$.byte_count')>?) ORDER BY seq", (attempt_id,channel,offset))]
+            offset = conn.execute("SELECT COALESCE(MAX(json_extract(payload_json,'$.end_offset')),0) FROM events WHERE subject_type='attempt' AND subject_id=? AND event_type='attempt.observation' AND json_extract(payload_json,'$.channel')=?", (attempt_id, channel)).fetchone()[0]
+            chunks = [json.loads(row[0]) for row in conn.execute("SELECT payload_json FROM events WHERE subject_type='attempt' AND subject_id=? AND event_type='attempt.chunk' AND json_extract(payload_json,'$.channel')=? AND (json_extract(payload_json,'$.offset') IS NULL OR json_extract(payload_json,'$.offset')+json_extract(payload_json,'$.byte_count')>?) ORDER BY seq", (attempt_id,channel,offset))]
             if any('offset' not in item for item in chunks):
                 data = self._bytes(conn, attempt_id, channel)[offset:]
             else:

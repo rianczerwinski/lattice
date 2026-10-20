@@ -1,5 +1,6 @@
 """Independent byte/offset oracles for exposed provider work."""
 import json
+from contextlib import contextmanager
 import pytest
 from lattice.observations import ObservationStore
 from lattice.store import LatticeConflict
@@ -90,3 +91,52 @@ def test_partial_response_is_admitted_before_completed_assistant_message(lattice
         records = [fact for row in connection.execute("SELECT payload_json FROM events WHERE event_type='attempt.observation'") for fact in json.loads(row[0])['records']]
     assert records==[{'kind':'message','role':'assistant','text':'café','partial':True}]
     assert observations.bytes(attempt,'stdout')==raw
+
+
+@pytest.mark.oracle
+def test_observation_hot_queries_seek_the_attempt_subject_index(lattice_env, monkeypatch):
+    observations, attempt = setup(lattice_env)
+    store = lattice_env['store']
+    statements = []
+    original_connect = store._connect
+
+    @contextmanager
+    def traced_connect():
+        with original_connect() as connection:
+            connection.set_trace_callback(statements.append)
+            yield connection
+
+    monkeypatch.setattr(store, '_connect', traced_connect)
+    raw = b'{"type":"thread.started","thread_id":"indexed-session"}\n'
+    observations.append(attempt, 'stdout', raw)
+    assert observations.bytes(attempt, 'stdout') == raw
+    observations.reindex(attempt, 'stdout')
+    queries = {sql for sql in statements if sql.startswith('SELECT') and 'FROM events WHERE' in sql
+               and ('attempt.chunk' in sql or 'attempt.observation' in sql)}
+    assert len(queries) >= 4
+    with original_connect() as connection:
+        for sql in queries:
+            details = [row[3] for row in connection.execute('EXPLAIN QUERY PLAN ' + sql)]
+            assert any('SEARCH events USING' in detail and 'INDEX' in detail for detail in details), details
+            assert not any('SCAN events' in detail for detail in details), details
+
+
+@pytest.mark.oracle
+def test_observation_stream_ignores_another_subject_namespace(lattice_env):
+    observations, attempt = setup(lattice_env)
+    store = lattice_env['store']
+    foreign = b'foreign stream\n'
+    digest = store.blobs.put(foreign)
+    with store.transaction() as connection:
+        project = connection.execute('SELECT i.project_id FROM attempts a JOIN invocations i USING(invocation_id) WHERE a.attempt_id=?', (attempt,)).fetchone()[0]
+        store._event(connection, project_id=project, event_type='attempt.chunk', subject_type='invocation',
+                     subject_id=attempt, payload={'channel': 'stdout', 'offset': 0, 'sha256': digest, 'byte_count': len(foreign)})
+        store._event(connection, project_id=project, event_type='attempt.observation', subject_type='invocation',
+                     subject_id=attempt, payload={'channel': 'stdout', 'end_offset': 1000000, 'records': []})
+    raw = b'{"type":"thread.started","thread_id":"own-session"}\n'
+    observations.append(attempt, 'stdout', raw)
+    assert observations.bytes(attempt, 'stdout') == raw
+    with store._connect() as connection:
+        records = [fact for row in connection.execute("SELECT payload_json FROM events WHERE subject_type='attempt' AND subject_id=? AND event_type='attempt.observation'", (attempt,))
+                   for fact in json.loads(row[0])['records']]
+    assert records == [{'kind': 'session', 'session_id': 'own-session'}]
