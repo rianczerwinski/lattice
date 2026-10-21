@@ -340,7 +340,7 @@ def capture_migration_baseline(root: Path) -> dict:
     return {"tables": tables, "append_prefixes": append_prefixes, "files": _filesystem_invariants(root)}
 
 
-def verify_migration_baseline(root: Path, baseline: dict) -> None:
+def verify_migration_baseline(root: Path, baseline: dict, *, candidate_provider_profiles: dict | None = None) -> None:
     connection = sqlite3.connect(f"file:{(root / 'lattice.sqlite3').resolve(strict=True)}?mode=ro", uri=True)
     try:
         for table, contract in baseline["tables"].items():
@@ -348,7 +348,21 @@ def verify_migration_baseline(root: Path, baseline: dict) -> None:
             order = ",".join(f'"{name}"' for name in contract["primary"])
             actual = [tuple(row) for row in connection.execute(f'SELECT {selected} FROM "{table}" ORDER BY {order}')]
             if actual != contract["rows"]:
-                raise OSError(f"Lattice migration changed source-schema rows in {table}")
+                # Startup registers the candidate's immutable model catalog. This
+                # is the sole permitted addition to a source-schema table: old
+                # profiles stay byte-exact, and new definitions must come from
+                # the installed candidate, not from the migrated database.
+                originals = set(contract["rows"])
+                preserved = [row for row in actual if row in originals]
+                additions = [dict(zip(contract["columns"], row, strict=True)) for row in actual if row not in originals]
+                permitted = table == "provider_profiles" and candidate_provider_profiles is not None and preserved == contract["rows"]
+                for row in additions if permitted else ():
+                    created_at = row.pop("created_at", None)
+                    if not isinstance(created_at, str) or re.fullmatch(r"[0-9]{8}T[0-9]{6}", created_at) is None or row != candidate_provider_profiles.get(row.get("profile_id")):
+                        permitted = False
+                        break
+                if not permitted:
+                    raise OSError(f"Lattice migration changed source-schema rows in {table}")
         for table, contract in baseline["append_prefixes"].items():
             selected = ",".join(f'"{name}"' for name in contract["columns"])
             actual = [tuple(row) for row in connection.execute(f'SELECT {selected} FROM "{table}" ORDER BY "{contract["order"]}" LIMIT ?', (len(contract["rows"]),))]
@@ -467,6 +481,21 @@ def verify_candidate_backup(target: Path, snapshot: Path | None) -> None:
     ], cwd=target, capture=True)
 
 
+def candidate_provider_profile_catalog(target: Path) -> dict:
+    """Read admitted definitions from the frozen candidate without opening state."""
+
+    result = run([
+        str(target / ".venv" / "bin" / "python"), "-c",
+        "import json; from lattice.execution import DEFAULT_ADAPTERS; from lattice.canonical import canonical_bytes,sha256_bytes; "
+        "profiles=[base.select_model(model) for base in DEFAULT_ADAPTERS for model in base.supported_models or (base.model_code,)]; "
+        "print(json.dumps({p.profile_id:dict(profile_id=p.profile_id,provider_code=p.provider_code,harness=p.harness,model_code=p.model_code,definition_json=canonical_bytes(p.definition()).decode(),definition_sha256=sha256_bytes(canonical_bytes(p.definition()))) for p in profiles}))",
+    ], cwd=target, capture=True)
+    catalog = json.loads(result.stdout)
+    if not isinstance(catalog, dict) or not catalog:
+        raise RuntimeError("candidate runtime returned no provider profile catalog")
+    return catalog
+
+
 def qualify_candidate_migration(target: Path, snapshot: Path | None) -> None:
     """Exercise the candidate's migration on an independent saved-state copy."""
 
@@ -481,13 +510,14 @@ def qualify_candidate_migration(target: Path, snapshot: Path | None) -> None:
         restore_snapshot(snapshot, root)
         captured = assess_data_root(root)
         before = capture_migration_baseline(root)
+        catalog = candidate_provider_profile_catalog(target)
         command = [
             str(target / ".venv" / "bin" / "python"), "-c",
             "import sys; from pathlib import Path; from lattice import LatticeStore,LatticeConfig; LatticeStore(LatticeConfig(data_root=Path(sys.argv[1]),axisvi_root=None))",
             str(root),
         ]
         run(command, cwd=target, capture=True)
-        verify_migration_baseline(root, before)
+        verify_migration_baseline(root, before, candidate_provider_profiles=catalog)
         report = assess_data_root(root)
         if report["schema_version"] != report["expected_schema_version"]:
             raise RuntimeError("candidate migration did not reach the supported schema")
@@ -502,6 +532,7 @@ def qualify_candidate_migration(target: Path, snapshot: Path | None) -> None:
             "before": {"state_digest": captured["state_digest"], "schema_version": captured["schema_version"]},
             "after": {"state_digest": report["state_digest"], "schema_version": report["schema_version"]},
             "preserved_tables": {name: len(value["rows"]) for name, value in before["tables"].items()},
+            "candidate_provider_profile_catalog": catalog,
             "preserved_append_prefixes": {name: len(value["rows"]) for name, value in before["append_prefixes"].items()},
             "preserved_file_count": len(before["files"]),
             "copy_retention": "disposable: reproduce by restoring the referenced snapshot",

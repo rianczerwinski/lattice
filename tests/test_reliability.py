@@ -1560,6 +1560,49 @@ def test_negative_control_migration_baseline_rejects_invented_source_rows(lattic
         deployment.verify_migration_baseline(lattice_env["config"].data_root, baseline)
 
 
+@pytest.mark.oracle
+def test_migration_baseline_accepts_only_exact_candidate_profile_additions(lattice_env) -> None:
+    import copy
+    from lattice.canonical import sha256_bytes, stamp
+    from lattice.execution import DEFAULT_ADAPTERS
+
+    root = lattice_env["config"].data_root
+    baseline = deployment.capture_migration_baseline(root)
+    # A real registered definition is absent from this simulated older baseline.
+    # It models startup adding a newly admitted binding without rewriting one.
+    profile = DEFAULT_ADAPTERS[0].select_model(DEFAULT_ADAPTERS[0].model_code)
+    definition = canonical_bytes(profile.definition())
+    expected = dict(profile_id=profile.profile_id, provider_code=profile.provider_code, harness=profile.harness, model_code=profile.model_code, definition_json=definition.decode(), definition_sha256=sha256_bytes(definition))
+    contract = baseline["tables"]["provider_profiles"]
+    identity_index = contract["columns"].index("profile_id")
+    contract["rows"] = [row for row in contract["rows"] if row[identity_index] != profile.profile_id]
+    catalog = {profile.profile_id: expected}
+
+    deployment.verify_migration_baseline(root, baseline, candidate_provider_profiles=catalog)
+    # A catalog is not permission to accept arbitrary additions or changed bytes.
+    for candidate in ({}, {profile.profile_id: {**expected, "model_code": "different"}}):
+        with pytest.raises(OSError, match="changed source-schema rows in provider_profiles"):
+            deployment.verify_migration_baseline(root, baseline, candidate_provider_profiles=candidate)
+    with pytest.raises(OSError, match="changed source-schema rows in provider_profiles"):
+        deployment.verify_migration_baseline(root, baseline)
+
+    # Existing source rows remain immutable even when the new catalog approves
+    # their current definition: additions cannot excuse a missing or changed row.
+    for mutate in ("changed", "removed"):
+        broken = copy.deepcopy(baseline)
+        rows = broken["tables"]["provider_profiles"]["rows"]
+        if mutate == "changed":
+            rows[0] = (*rows[0][:-1], stamp() + "-changed")
+        else:
+            rows.append((*rows[0][:-1], "missing-original"))
+        with pytest.raises(OSError, match="changed source-schema rows in provider_profiles"):
+            deployment.verify_migration_baseline(root, broken, candidate_provider_profiles=catalog)
+
+    lattice_env["store"].create_project(ProjectCreate(title="invented with valid profile addition", purpose="must still fail"))
+    with pytest.raises(OSError, match="changed source-schema rows in projects"):
+        deployment.verify_migration_baseline(root, baseline, candidate_provider_profiles=catalog)
+
+
 @pytest.mark.contract
 def test_macos_default_state_is_outside_the_development_checkout() -> None:
     root = user_data_root({})
@@ -1637,6 +1680,7 @@ def test_candidate_migration_runs_on_copy_and_rejects_changed_source_rows(lattic
         from lattice import LatticeStore
         LatticeStore(LatticeConfig(data_root=root, axisvi_root=None)).create_project(ProjectCreate(title='invented by migration', purpose='must reject'))
     monkeypatch.setattr(deployment, 'run', candidate)
+    monkeypatch.setattr(deployment, 'candidate_provider_profile_catalog', lambda _target: {})
     with pytest.raises(OSError, match='changed source-schema rows in projects'):
         deployment.qualify_candidate_migration(tmp_path / 'candidate', snapshot)
     assert len(reached) == 1
@@ -1695,6 +1739,7 @@ def test_candidate_migration_receipt_binds_inputs_and_base_record_counts(lattice
     (target / 'runtime.json').write_bytes(b'candidate-runtime-fixture')
     monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', root)
     monkeypatch.setattr(deployment, 'run', lambda _command, **_kwargs: None)
+    monkeypatch.setattr(deployment, 'candidate_provider_profile_catalog', lambda _target: {})
     deployment.qualify_candidate_migration(target, snapshot)
     receipts = list((root / 'acceptance').glob('candidate-migration-*.json'))
     assert len(receipts) == 1
