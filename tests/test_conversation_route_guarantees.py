@@ -63,3 +63,35 @@ def test_valid_terminal_payload_cannot_hide_changed_execution(tmp_path, monkeypa
     terminal = json.loads((failure.value.journal / 'terminal.json').read_bytes())
     assert terminal['status'] == 'failed'
     assert (failure.value.journal / 'stdout.log').read_text() == ''.join(json.dumps(item) + '\n' for item in transcript)
+
+
+@pytest.mark.regression
+def test_marked_claude_synthetic_error_is_not_a_model_switch(tmp_path, monkeypatch):
+    from lattice.observations import normalize
+    diagnostic = {'type': 'assistant', 'is_api_error_message': True, 'error': 'server_error',
+                  'message': {'model': '<synthetic>', 'content': [{'type': 'text', 'text': 'API Error: ENOTFOUND'}]}}
+    records = normalize(diagnostic)
+    assert not any(record['kind'] == 'model' for record in records)
+    assert any(record['kind'] == 'failure' for record in records)
+    assert any(record.get('text') == 'API Error: ENOTFOUND' for record in records)
+    # A recovered CLI error message does not change the identity of later
+    # actual model output. The terminal contract still decides success.
+    transcript = events()
+    transcript.insert(1, diagnostic)
+    fixture(monkeypatch, transcript)
+    assert invoke(tmp_path)[0] == {'response': 'retained'}
+
+
+@pytest.mark.oracle
+@pytest.mark.parametrize('model,marked', [('<synthetic>', False), ('claude-opus-5', True)])
+def test_synthetic_error_exception_cannot_hide_unmarked_or_real_model_switch(tmp_path, monkeypatch, model, marked):
+    from lattice.observations import normalize
+    diagnostic = {'type': 'assistant', 'is_api_error_message': marked, 'error': 'server_error',
+                  'message': {'model': model, 'content': [{'type': 'text', 'text': 'API Error'}]}}
+    assert any(record['kind'] == 'model' for record in normalize(diagnostic))
+    transcript = events()
+    transcript.insert(1, diagnostic)
+    fixture(monkeypatch, transcript)
+    with pytest.raises(adapters.SubscriptionInvocationFailed) as failure:
+        invoke(tmp_path)
+    assert failure.value.kind == 'policy_refusal'

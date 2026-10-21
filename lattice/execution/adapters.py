@@ -787,30 +787,42 @@ def build_command(
     )
 
 
+def _provider_terminal_result(stdout: str) -> dict[str, Any] | None:
+    """Select one native result from JSON or JSONL, excluding prior context."""
+    try:
+        terminal = json.loads(stdout)
+    except (TypeError, ValueError, RecursionError):
+        try:
+            messages = [json.loads(line) for line in stdout.split("\n") if line.strip()]
+        except (TypeError, ValueError, RecursionError):
+            return None
+        if any(not isinstance(message, dict) for message in messages):
+            return None
+        results = [message for message in messages if message.get("type") == "result"]
+        if len(results) != 1:
+            return None
+        terminal = results[0]
+    return terminal if isinstance(terminal, dict) and terminal.get("type") == "result" else None
+
+
 def _provider_failure_text(stdout: str, stderr: str) -> str:
     # Claude's JSON result also contains bookkeeping such as
     # subagent_stats.refused. Only its terminal diagnostic may classify a
     # provider refusal; otherwise a transport error can become a false policy
     # refusal and strand an otherwise recoverable invocation.
     diagnostic_stdout = stdout
-    try:
-        terminal = json.loads(stdout)
-        if isinstance(terminal, dict) and terminal.get("type") == "result":
-            diagnostic_stdout = "\n".join(
-                str(terminal.get(field) or "")
-                for field in ("result", "errors", "terminal_reason")
-            )
-    except (TypeError, ValueError):
-        pass
+    terminal = _provider_terminal_result(stdout)
+    if terminal is not None:
+        diagnostic_stdout = "\n".join(
+            str(terminal.get(field) or "")
+            for field in ("result", "errors", "terminal_reason")
+        )
     return f"{diagnostic_stdout}\n{stderr}".casefold()
 
 
 def _provider_api_error_status(stdout: str) -> int | None:
-    try:
-        terminal = json.loads(stdout)
-    except (TypeError, ValueError):
-        return None
-    if not isinstance(terminal, dict) or terminal.get("type") != "result" or terminal.get("is_error") is not True:
+    terminal = _provider_terminal_result(stdout)
+    if terminal is None or terminal.get("is_error") is not True:
         return None
     status = terminal.get("api_error_status")
     return status if type(status) is int else None
@@ -1078,7 +1090,7 @@ def parse_claude_sdk_response(stdout: str, schema: dict[str, Any], *, required_t
             raise SubscriptionInvocationFailed('policy_refusal', 'Claude performed compaction despite the exact-context route')
         if expected_model and expected_model.startswith('claude-'):
             observed = [message.get('model') for message in messages if message.get('type') == 'system' and message.get('subtype') == 'init']
-            observed.extend(message['message']['model'] for message in messages if message.get('type') == 'assistant' and isinstance(message.get('message'), dict) and message['message'].get('model'))
+            observed.extend(message['message']['model'] for message in messages if message.get('type') == 'assistant' and isinstance(message.get('message'), dict) and message['message'].get('model') and not claude.is_synthetic_error(message))
             observed.extend(message['event']['message']['model'] for message in messages if message.get('type') == 'stream_event' and isinstance(message.get('event'), dict) and message['event'].get('type') == 'message_start' and isinstance(message['event'].get('message'), dict) and message['event']['message'].get('model'))
             # A dated release suffix resolves the requested version; an older
             # model family or another minor version is an unauthorized switch.

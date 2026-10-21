@@ -53,6 +53,20 @@ def test_selected_boundary_cannot_bind_changed_model_or_compacted_history(native
     assert ('switched' if change=='model' else 'compacted') in captured['reason']
 
 
+@pytest.mark.regression
+@pytest.mark.parametrize('marked', [True, False])
+def test_native_boundary_distinguishes_marked_synthetic_error_from_model_evidence(native, marked):
+    env,service,identity,parent,path,row=native
+    inv=env['store'].get_invocation(parent)
+    frame={'type':'assistant','is_api_error_message':marked,'error':'server_error',
+           'message':{'model':'<synthetic>','content':[{'type':'text','text':'API Error: ENOTFOUND'}]}}
+    ObservationStore(env['store']).append(inv['attempts'][-1]['attempt_id'],'stdout',json.dumps(frame).encode()+b'\n')
+    captured=capture_boundary(env['store'],env['store'].get_invocation(parent),inv['attempts'][-1]['runtime_receipt'])
+    assert captured['eligible_evidence'] is marked
+    # Eligible evidence is not live recovery qualification or successful work.
+    assert service.preview(identity)['mode']=='portable'
+
+
 @pytest.mark.contract
 def test_interrupted_native_boundary_requires_independent_qualification(native,monkeypatch):
     env,service,identity,parent,path,row=native

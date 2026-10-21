@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 from .canonical import strict_json_loads
+from .execution.providers.claude import is_synthetic_error
 from .store import LatticeConflict
 
 
@@ -40,7 +41,10 @@ def normalize(message: dict) -> list[dict]:
     if kind in ('assistant', 'user'):
         native = message.get('message')
         if kind=='assistant' and isinstance(native,dict) and native.get('model'):
-            records.append({'kind':'model','model':native['model']})
+            if is_synthetic_error(message):
+                records.append({'kind':'failure','detail':message})
+            else:
+                records.append({'kind':'model','model':native['model']})
         content = native.get('content', []) if isinstance(native, dict) else []
         if isinstance(content, str):
             records.append({'kind': 'message', 'role': kind, 'text': content})

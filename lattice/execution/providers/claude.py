@@ -6,6 +6,21 @@ import json
 import queue
 
 
+def is_synthetic_error(message: dict) -> bool:
+    """The CLI's marked API-error placeholder is not an inference model.
+
+    Preserve the error as evidence; unmarked placeholders and real model IDs
+    still participate in exact-model enforcement.
+    """
+    native = message.get("message")
+    return (
+        message.get("type") == "assistant"
+        and message.get("is_api_error_message") is True
+        and isinstance(native, dict)
+        and native.get("model") == "<synthetic>"
+    )
+
+
 def encode_user_message(prompt: str) -> str:
     """Frame one unchanged user message using the official streaming input."""
     return json.dumps({

@@ -978,7 +978,8 @@ def test_claude_result_bookkeeping_cannot_turn_sleep_interruption_into_policy_re
 
 
 @pytest.mark.regression
-def test_dns_outage_has_bounded_diagnostic_in_failure_and_journal(tmp_path: Path) -> None:
+@pytest.mark.parametrize("streaming", [False, True])
+def test_dns_outage_has_bounded_diagnostic_in_failure_and_journal(tmp_path: Path, streaming: bool) -> None:
     adapter = next(item for item in DEFAULT_ADAPTERS if item.provider_code == "anthropic")
     native = json.dumps({
         "type": "result",
@@ -987,6 +988,8 @@ def test_dns_outage_has_bounded_diagnostic_in_failure_and_journal(tmp_path: Path
         "result": "API Error: Can't reach the API server (ENOTFOUND); private marker from provider output",
         "subagent_stats": {"refused": {"depth_limit": 0}},
     })
+    if streaming:
+        native = json.dumps({"type": "assistant", "message": {"content": "earlier quota/refusal context"}}) + "\n" + native
 
     def fake_run(_command, **kwargs):
         kwargs["stdout_journal"].write_text(native, encoding="utf-8")
@@ -1023,6 +1026,38 @@ def test_provider_failure_diagnostic_ignores_claude_bookkeeping() -> None:
     }
     assert adapters.provider_failure_diagnostic_code(json.dumps(terminal), "") is None
     assert classify_provider_failure(1, json.dumps(terminal), "") == "policy_refusal"
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("earlier_text", ["quota", "Request refused under policy", "quotation\u2028inside one JSONL frame"])
+def test_claude_stream_failure_uses_terminal_diagnostic_not_prior_context(earlier_text: str) -> None:
+    terminal = {
+        "type": "result", "is_error": True, "terminal_reason": "api_error",
+        "result": "API Error: Can't reach the API server (ENOTFOUND)",
+        "subagent_stats": {"refused": {"depth_limit": 0}},
+    }
+    stream = "\n".join(json.dumps(event, ensure_ascii=False) for event in [
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": earlier_text}]}},
+        {"type": "rate_limit_event", "rate_limit_info": {"status": "allowed"}},
+        terminal,
+        {"type": "system", "subtype": "session_state_changed"},
+    ])
+    assert classify_provider_failure(1, stream, "") == "outage"
+    assert adapters.provider_failure_diagnostic_code(stream, "") == "dns_resolution_failed"
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize("diagnostic,status,expected", [
+    ("Request refused under the safety policy", None, "policy_refusal"),
+    ("Request failed", 429, "rate_limit"),
+    ("You've hit your monthly spend limit", 429, "subscription_exhausted"),
+])
+def test_claude_stream_terminal_failures_keep_their_distinct_causes(diagnostic: str, status: int | None, expected: str) -> None:
+    stream = "\n".join(json.dumps(event) for event in [
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": "Earlier connection refused (ENOTFOUND)"}]}},
+        {"type": "result", "is_error": True, "terminal_reason": "api_error", "result": diagnostic, "api_error_status": status},
+    ])
+    assert classify_provider_failure(1, stream, "") == expected
 
 
 @pytest.mark.contract
