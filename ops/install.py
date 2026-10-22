@@ -502,13 +502,14 @@ def qualify_candidate_migration(target: Path, snapshot: Path | None) -> None:
     if snapshot is None:
         return
     from lattice.diagnostics import assess_data_root
-    from lattice.snapshot import restore_snapshot
+    from lattice.snapshot import temporary_restored_snapshot
     from lattice.canonical import canonical_bytes, generated_object
 
-    with tempfile.TemporaryDirectory(prefix="lattice-upgrade-migration-") as temporary:
-        root = Path(temporary) / "data"
-        restore_snapshot(snapshot, root)
+    print("Restoring temporary migration rehearsal copy", flush=True)
+    with temporary_restored_snapshot(snapshot) as root:
+        print("Checking restored state integrity", flush=True)
         captured = assess_data_root(root)
+        print("Capturing original rows and immutable-file identities", flush=True)
         before = capture_migration_baseline(root)
         catalog = candidate_provider_profile_catalog(target)
         command = [
@@ -516,8 +517,11 @@ def qualify_candidate_migration(target: Path, snapshot: Path | None) -> None:
             "import sys; from pathlib import Path; from lattice import LatticeStore,LatticeConfig; LatticeStore(LatticeConfig(data_root=Path(sys.argv[1]),axisvi_root=None))",
             str(root),
         ]
+        print("Running candidate migration on the temporary copy", flush=True)
         run(command, cwd=target, capture=True)
+        print("Checking preserved rows, history and immutable files", flush=True)
         verify_migration_baseline(root, before, candidate_provider_profiles=catalog)
+        print("Checking migrated state integrity", flush=True)
         report = assess_data_root(root)
         if report["schema_version"] != report["expected_schema_version"]:
             raise RuntimeError("candidate migration did not reach the supported schema")
@@ -539,7 +543,7 @@ def qualify_candidate_migration(target: Path, snapshot: Path | None) -> None:
         }
         path = DEFAULT_DATA_ROOT / "acceptance" / f"candidate-migration-{receipt['generated_object']['generated_at']}-{uuid.uuid4().hex}.json"
         write_atomic(path, canonical_bytes(receipt), mode=0o600)
-        print(f"Candidate copied-store migration qualified at schema {report['schema_version']}: {path}")
+        print(f"Candidate copied-store migration qualified at schema {report['schema_version']}: {path}", flush=True)
 
 
 def restore_upgrade_database(snapshot: Path) -> None:
@@ -1061,7 +1065,9 @@ def main() -> None:
             quiescence_started = True
             unload_job(SERVICE_LABEL)
             unload_job(BACKUP_LABEL)
+        print("Capturing pre-upgrade rollback snapshot", flush=True)
         snapshot = backup_before_upgrade()
+        print("Verifying candidate compatibility with the rollback snapshot", flush=True)
         verify_candidate_backup(target, snapshot)
         qualify_candidate_migration(target, snapshot)
         if git_revision(SOURCE_ROOT) != lattice_revision:

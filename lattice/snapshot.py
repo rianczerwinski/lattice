@@ -62,7 +62,7 @@ def _try_clone_regular(source: Path, destination: Path) -> bool:
     raise OSError(error, os.strerror(error), destination)
 
 
-def _copy_regular(source: Path, destination: Path) -> None:
+def _copy_regular(source: Path, destination: Path, *, durable: bool = True) -> None:
     if source.is_symlink():
         raise OSError(f"snapshot source is a symlink: {source}")
     source = source.resolve(strict=True)
@@ -75,9 +75,10 @@ def _copy_regular(source: Path, destination: Path) -> None:
         with source.open("rb") as input_handle, destination.open("xb") as output_handle:
             shutil.copyfileobj(input_handle, output_handle, length=1024 * 1024)
             output_handle.flush()
-            _sync_file(output_handle.fileno())
+            if durable:
+                _sync_file(output_handle.fileno())
     os.chmod(destination, 0o600)
-    if cloned:
+    if cloned and durable:
         with destination.open("rb") as output_handle:
             _sync_file(output_handle.fileno())
     after = source.stat()
@@ -471,6 +472,27 @@ def verify_snapshot(snapshot_root: Path) -> dict[str, Any]:
 
 
 def restore_snapshot(snapshot_root: Path, destination: Path) -> dict[str, Any]:
+    """Publish a crash-durable independent restore of the verified snapshot."""
+
+    return _restore_snapshot(snapshot_root, destination, durable=True)
+
+
+@contextmanager
+def temporary_restored_snapshot(snapshot_root: Path) -> Iterator[Path]:
+    """Yield a verified independent test copy, disposable when this scope ends.
+
+    A migration rehearsal needs exact bytes and isolated writes, but no published
+    recovery copy survives this scope. Avoid one drive-cache flush per retained
+    file; the immutable source snapshot remains the recovery authority.
+    """
+
+    with tempfile.TemporaryDirectory(prefix="lattice-upgrade-migration-") as temporary:
+        root = Path(temporary) / "data"
+        _restore_snapshot(snapshot_root, root, durable=False)
+        yield root
+
+
+def _restore_snapshot(snapshot_root: Path, destination: Path, *, durable: bool) -> dict[str, Any]:
     snapshot_root = snapshot_root.expanduser().resolve(strict=True)
     destination = destination.expanduser().resolve()
     if destination == snapshot_root or destination.is_relative_to(snapshot_root):
@@ -486,7 +508,7 @@ def restore_snapshot(snapshot_root: Path, destination: Path) -> dict[str, Any]:
         for item in manifest["inventory"]:
             if compressed and item["path"] == COMPRESSED_SNAPSHOT_DATABASE:
                 continue
-            _copy_regular(snapshot_root / item["path"], staging / item["path"])
+            _copy_regular(snapshot_root / item["path"], staging / item["path"], durable=durable)
         if compressed:
             _decompress_database(
                 snapshot_root / COMPRESSED_SNAPSHOT_DATABASE,
@@ -507,9 +529,11 @@ def restore_snapshot(snapshot_root: Path, destination: Path) -> dict[str, Any]:
                 raise OSError("restored Lattice files do not reproduce the snapshot inventory")
         elif _inventory(staging) != manifest["inventory"]:
             raise OSError("restored Lattice files do not reproduce the snapshot inventory")
-        _sync_tree_directories(staging)
+        if durable:
+            _sync_tree_directories(staging)
         os.replace(staging, destination)
-        _sync_directory(destination.parent)
+        if durable:
+            _sync_directory(destination.parent)
         return manifest
     except BaseException:
         if staging.exists():
