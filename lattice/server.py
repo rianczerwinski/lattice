@@ -379,19 +379,13 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
         runtime = installed_runtime_identity(config.runtime_id)
-        provider_execution_ready: bool | None = None
-        provider_execution_error: str | None = None
-        if runtime.get("provider_attestations") is not None:
-            try:
-                from .runtime_attestation import verify_provider_attestation_freshness
-                verify_provider_attestation_freshness(runtime["provider_attestations"])
-                provider_execution_ready = True
-            except (OSError, ValueError) as error:
-                provider_execution_ready = False
-                provider_execution_error = str(error)
-        degraded = bool(supervisor.startup_recovery_failures or workflow_pack_failures or provider_execution_ready is False)
+        # Health describes the service, not every optional provider installation.
+        # The selected adapter checks its required capabilities before dispatch.
+        provider_execution_ready = None
+        provider_execution_error = None
+        degraded = bool(supervisor.startup_recovery_failures or workflow_pack_failures)
         closure = latest_closure_state(config.data_root)
-        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures and provider_execution_ready is not False, "provider_execution_ready": provider_execution_ready, "provider_execution_error": provider_execution_error, "durable_run_ready": True, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "durable_run_boot_id": run_supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, **{key: runtime[key] for key in ("runtime_id", "runtime_artifact_id", "runtime_tree_digest", "provider_attestation_digest")}, "closure": closure, "startup_recovery_failures": supervisor.startup_recovery_failures, "durable_run_startup_reconciliation": run_supervisor.startup_reconciliation, "workflow_pack_failures": workflow_pack_failures}
+        return {"status": "degraded" if degraded else "ok", "service": "lattice", "conversation_ready": not supervisor.startup_recovery_failures, "provider_execution_ready": provider_execution_ready, "provider_execution_error": provider_execution_error, "durable_run_ready": True, "workflow_ready": not workflow_pack_failures, "boot_id": supervisor.boot_id, "durable_run_boot_id": run_supervisor.boot_id, "port": config.port, "data_root": str(config.data_root.resolve()), "version": __version__, **{key: runtime[key] for key in ("runtime_id", "runtime_artifact_id", "runtime_tree_digest", "provider_attestation_digest")}, "closure": closure, "startup_recovery_failures": supervisor.startup_recovery_failures, "durable_run_startup_reconciliation": run_supervisor.startup_reconciliation, "workflow_pack_failures": workflow_pack_failures}
 
     def set_operator_cookie(response: Response, session: str) -> None:
         response.set_cookie("lattice_operator", session, httponly=True, samesite="strict", secure=bool(config.public_url and config.public_url.startswith("https://")), path="/", max_age=sessions.ttl_seconds)
@@ -421,15 +415,19 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
         for status in statuses:
             qualification = store.latest_provider_qualification(status["profile_id"])
             status["latest_qualification"] = qualification
-            current = bool(
-                qualification
-                and qualification["state"] == "passed"
-                and qualification["binary_sha256"] == status.get("binary_sha256")
-            )
-            status["qualified"] = bool(status["qualified"] and current)
-            if not current:
-                status["operational"] = False
-                status["qualification_blocker"] = "the installed provider binary has not passed the current capability probe"
+            current = bool(qualification and qualification["binary_sha256"] == status.get("binary_sha256"))
+            status["qualification_current"] = current
+            if current:
+                receipt = qualification["receipt"]
+                passed = qualification["state"] == "passed"
+                status["qualified"] = bool(status["qualified"] and passed)
+                status["operational"] = passed
+                status["control_surface_qualified"] = receipt.get("control_surface_qualified")
+                status["control_surface_detail"] = receipt.get("control_surface_detail")
+                if not passed:
+                    status["qualification_blocker"] = receipt.get("control_surface_detail") or "provider capability probe failed"
+            # A missing or stale receipt is unknown, not a failed capability.
+            # Keep an installed route selectable; dispatch probes that adapter.
         return statuses
 
     @app.get("/api/v1/routes")

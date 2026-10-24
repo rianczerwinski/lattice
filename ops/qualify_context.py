@@ -85,8 +85,8 @@ def prepare(args, api):
     runtime_path = DEFAULT_DATA_ROOT / "runtime" / "current" / "runtime.json"
     health = api.get("/api/health")
     runtime = json.loads(runtime_path.read_bytes())
-    if health["runtime_id"] != runtime["runtime_id"] or not health["provider_execution_ready"]:
-        raise RuntimeError("installed runtime is not healthy and qualified for execution")
+    if health["runtime_id"] != runtime["runtime_id"] or not health["conversation_ready"]:
+        raise RuntimeError("installed runtime is not ready for conversations")
     integer = {"type": "integer"}
     cases = [
         {"id": "eligibility", "prompt": prompt, "response_schema": OutputContractV2(mode="json", json_schema=schema["properties"]["payload"]).model_dump(mode="json"), "evidence": json.loads(prompt.split("PACKET:\n", 1)[1])["evidence"]},

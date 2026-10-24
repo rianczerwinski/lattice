@@ -118,7 +118,7 @@ def test_private_project_reads_require_operator_authority(lattice_env) -> None:
 
 
 @pytest.mark.regression
-def test_route_catalogue_fails_closed_when_qualified_binary_drifts(monkeypatch, lattice_env) -> None:
+def test_route_catalogue_accepts_updates_without_reusing_stale_qualification(monkeypatch, lattice_env) -> None:
     adapter = DEFAULT_ADAPTERS[0]
     binary_sha256 = "a" * 64
 
@@ -141,15 +141,16 @@ def test_route_catalogue_fails_closed_when_qualified_binary_drifts(monkeypatch, 
     with TestClient(app) as client:
         session = _operator_session(client, lattice_env)
         headers = {"x-lattice-csrf": session.json()["csrf"], "origin": "http://testserver"}
-        assert client.get("/api/v1/routes").json()[0]["qualified"] is False
+        assert client.get("/api/v1/routes").json()[0]["qualified"] is True
         assert client.post("/api/v1/routes/probe", headers=headers).json()[0]["latest_qualification"]["state"] == "passed"
         assert client.get("/api/v1/routes").json()[0]["qualified"] is True
         binary_sha256 = "b" * 64
         drifted = client.get("/api/v1/routes").json()[0]
 
-    assert drifted["qualified"] is False
-    assert drifted["operational"] is False
-    assert "has not passed" in drifted["qualification_blocker"]
+    assert drifted["qualified"] is True
+    assert drifted["operational"] is None
+    assert drifted["qualification_current"] is False
+    assert drifted["latest_qualification"]["binary_sha256"] == "a" * 64
 
 
 @pytest.mark.contract
@@ -502,7 +503,7 @@ def test_smoke_health_and_cockpit_have_distinct_responses(lattice_env) -> None:
 
 
 @pytest.mark.regression
-def test_health_fails_closed_when_installed_provider_attestation_drifts(monkeypatch, lattice_env) -> None:
+def test_health_does_not_inspect_optional_provider_executables(monkeypatch, lattice_env) -> None:
     monkeypatch.setattr("lattice.server.installed_runtime_identity", lambda _runtime_id: {
         "runtime_id": "fixture-runtime",
         "runtime_artifact_id": "artifact:fixture",
@@ -510,15 +511,15 @@ def test_health_fails_closed_when_installed_provider_attestation_drifts(monkeypa
         "provider_attestation_digest": "b" * 64,
         "provider_attestations": {"google": {"binary": "/changed/antigravity"}},
     })
-    monkeypatch.setattr("lattice.runtime_attestation.verify_provider_attestation_freshness", lambda _value: (_ for _ in ()).throw(ValueError("Google provider binary drifted")))
+    monkeypatch.setattr("lattice.runtime_attestation.verify_provider_attestation_freshness", lambda _value: pytest.fail("service health must not inspect optional provider executables"))
     app = create_app(lattice_env["config"])
     with TestClient(app) as client:
         health = client.get("/api/health").json()
 
-    assert health["status"] == "degraded"
-    assert health["conversation_ready"] is False
-    assert health["provider_execution_ready"] is False
-    assert health["provider_execution_error"] == "Google provider binary drifted"
+    assert health["status"] == "ok"
+    assert health["conversation_ready"] is True
+    assert health["provider_execution_ready"] is None
+    assert health["provider_execution_error"] is None
 
 
 @pytest.mark.regression

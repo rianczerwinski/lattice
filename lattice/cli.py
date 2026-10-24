@@ -27,7 +27,7 @@ from .__about__ import __version__
 from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
 from .outport import OutportService, outport_executable, resolve_lattice_service
-from .runtime_attestation import tree_inventory, validate_tree_set, verify_provider_attestation_freshness
+from .runtime_attestation import tree_inventory, validate_tree_set, validate_provider_attestations
 from .runtime_identity import latest_closure_state
 from .security import ensure_cli_token
 from .server import create_app
@@ -180,7 +180,7 @@ def _runtime_status() -> dict[str, Any]:
     if actual_trees != expected_trees:
         raise RuntimeError("installed runtime application bytes disagree with its source-tree attestation")
     try:
-        provider_attestations = verify_provider_attestation_freshness(manifest.get("provider_attestations"))
+        provider_attestations = validate_provider_attestations(manifest.get("provider_attestations"))
     except ValueError as error:
         raise RuntimeError(str(error)) from error
     return {"version": _version(), "runtime_id": runtime_root.name, "artifact_id": artifact_id, "runtime_artifact_id": artifact_id, "runtime_tree_digest": sha256_bytes(canonical_bytes(expected_trees["lattice"])), "provider_attestation_digest": sha256_bytes(canonical_bytes(provider_attestations)), "runtime_manifest_path": str(manifest_path), "runtime_manifest_sha256": sha256_bytes(raw), "executable": str(executable), "module": str(module), "editable": False, "provider_profiles": {item["provider_code"]: item["profile_id"] for item in provider_attestations}}
