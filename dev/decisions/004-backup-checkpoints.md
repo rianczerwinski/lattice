@@ -1,0 +1,29 @@
+# Backup checkpoints
+
+## Purpose and boundary
+
+A local archive snapshot supports restoration of Lattice state. An upgrade rollback restores the database while preserving retained blobs, journals and failed-candidate evidence. Off-machine custody protects against losing the machine. These are separate promises: repeating a full archive copy for an unchanged upgrade database adds cost without additional rollback coverage, and a local copy does not prove off-machine custody.
+
+## Capture structure
+
+Keep the existing independently verified LatticeBackup/4.0 format and APFS copy-on-write copies. Every copied file still passes byte comparison. On macOS, `sync_volume_np` with `SYNC_VOLUME_FULLSYNC | SYNC_VOLUME_WAIT` flushes all filesystem data and metadata through the hardware before a checkpoint is published. Unsupported or sandboxed callers use per-file `fsync`, directory synchronization and a grouped `F_FULLFSYNC`. A native barrier that fails after admission fails the capture; it cannot silently downgrade with unsynchronized files. Both paths replace repeated physical barriers with a checkpoint boundary. Restore durability outside this capture path is unchanged.
+
+Retain interrupted unpublished captures with source-bound progress records. Resume revalidates existing copies against a newly guarded source generation, repairs torn or changed copies, and recaptures SQLite consistently. It does not claim an interrupted generation completed. Only explicitly named legacy partial captures can be adopted without a native progress record. Published snapshots remain immutable. The snapshot-maintenance lock prevents simultaneous capture operators; journal contention produces an observable refusal rather than an unbounded wait.
+
+The one-second checkpoint interval is an implementation choice for visibility and amortization, not a user-approved reliability threshold. Files beyond the last checkpoint may need repair after power loss; completed files are still compared before reuse. A process interruption loses at most the active file copy plus uncaptured database work; it does not discard earlier files. Progress exposes that revalidation itself remains work.
+
+## Upgrade reuse
+
+An explicitly selected rollback snapshot must independently verify and match the stopped service's logical database digest and schema. A changed database rejects reuse. The installer still rehearses the candidate migration, verifies preservation and retains automatic rollback. Later append-only files remain in canonical storage and do not need another archive copy merely to restore the same database.
+
+## Premise assessment
+
+The operator values availability and minimal intervention; the recovery engineer requires a consistent, independently restorable state; the archive custodian requires protection outside the machine. They converge on separating these boundaries for different reasons. The recovery engineer objects to replacing a complete snapshot with a database-only artifact unless retention of all referenced files is guaranteed. The custodian objects to describing local APFS clones as disaster recovery. Accordingly, this repair preserves complete snapshots, removes duplicate copying when exact rollback evidence is reusable, and does not silently enroll private conversation history in a new remote destination.
+
+A database-only upgrade checkpoint and a packed incremental archive are further structural options. They are not implemented or rejected here. A packed archive becomes preferable if measured file enumeration and verification remain the dominant operational burden after batched synchronization; its retention and restore semantics must be established before replacing existing history. Reuse of the workspace's existing custody service needs an explicit payload/destination grant because Lattice is currently outside that registry.
+
+## Evidence and prior art
+
+Tests exercise actual process death after a completed file, continuation by a new operator, unchanged-inode reuse, changed-source and torn-copy repair, a fresh SQLite generation, busy journal refusal and stale rollback rejection. Isolated mutations remove file synchronization or bypass byte equality and must fail the corresponding assertions. These checks establish exercised ordering and recovery, not empirical proof against every storage-controller failure.
+
+[Apple’s volume-sync implementation](https://github.com/apple-oss-distributions/Libc/blob/main/gen/sync_volume_np.c) and [public flag definitions](https://github.com/apple-oss-distributions/Libc/blob/main/include/unistd.h) establish the native batching mechanism. [Apple's fcntl documentation](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fcntl.2.html) defines the drive-wide flush operation. [SQLite's online backup API](https://www.sqlite.org/backup.html) supplies consistent database capture. [Restic's design](https://github.com/restic/restic/blob/master/doc/design.rst) supplies the closest packed, incremental archive precedent; the local custody service already uses it. No new archive engine or dependency is introduced by this repair.

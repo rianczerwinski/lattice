@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import ctypes
 import errno
+import fcntl
 import gzip
 import hashlib
 import os
+import resource
 import shutil
 import sqlite3
 import stat
 import sys
 import tempfile
+import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -21,6 +24,7 @@ from .canonical import canonical_bytes, generated_object, sha256_bytes, stamp, s
 from .durability import sync_directory as _sync_directory
 from .durability import sync_file as _sync_file
 from .durability import sync_tree_directories as _sync_tree_directories
+from .durability import sync_volume as _sync_volume
 from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard
 
 
@@ -90,10 +94,10 @@ def _copy_regular(source: Path, destination: Path, *, durable: bool = True) -> N
         raise OSError(f"snapshot copy changed bytes: {source}")
 
 
-def copy_exact_tree(source: Path, destination: Path) -> None:
+def copy_exact_tree(source: Path, destination: Path, *, capture=None) -> None:
     if source.is_symlink():
         raise OSError(f"snapshot source directory is a symlink: {source}")
-    destination.mkdir(parents=True, exist_ok=False, mode=0o700)
+    destination.mkdir(parents=True, exist_ok=capture is not None, mode=0o700)
     for child in sorted(source.rglob("*")):
         if child.is_symlink():
             raise OSError(f"snapshot source contains a symlink: {child}")
@@ -102,9 +106,96 @@ def copy_exact_tree(source: Path, destination: Path) -> None:
         if child.is_dir():
             target.mkdir(parents=True, exist_ok=True, mode=0o700)
         elif child.is_file():
-            _copy_regular(child, target)
+            if capture is None:
+                _copy_regular(child, target)
+            else:
+                capture.copy(child, target)
         else:
             raise OSError(f"snapshot source contains an unsupported filesystem object: {child}")
+
+
+class _CaptureProgress:
+    """Recoverable unpublished copies; a checkpoint amortizes drive-cache flushes."""
+
+    def __init__(self, staging: Path, source: Path):
+        self.staging = staging
+        self.path = staging.with_name(staging.name + ".progress.json")
+        if self.path.exists():
+            previous = strict_json_loads(self.path.read_bytes())
+            history = staging.with_name(staging.name + ".attempts.jsonl")
+            with history.open("ab") as handle:
+                os.chmod(history, 0o600)
+                handle.write(canonical_bytes(previous) + b"\n")
+                handle.flush()
+                _sync_file(handle.fileno())
+        self.started = time.monotonic()
+        self.last_checkpoint = self.started
+        self.directories: set[Path] = {staging, staging.parent}
+        self.volume_sync = _sync_volume(staging)
+        self.state = {"source_data_root": str(source), "staging": str(staging), "pid": os.getpid(),
+                      "started_at": stamp(), "phase": "capturing", "completed_files": 0,
+                      "reused_files": 0, "completed_bytes": 0, "active": None,
+                      "producer_sha256": sha256_bytes(Path(__file__).read_bytes() + Path(__file__).with_name("durability.py").read_bytes()),
+                      "synchronization": "volume-fullsync-wait" if self.volume_sync else "file-fsync-grouped-fullsync"}
+        self.checkpoint()
+
+    def checkpoint(self, **changes):
+        self.state.update(changes, updated_at=stamp(), elapsed_seconds=time.monotonic() - self.started)
+        elapsed = self.state["elapsed_seconds"]
+        rate = self.state["completed_files"] / elapsed if elapsed > 0 else 0
+        total = self.state.get("total_files")
+        remaining = max(0, total - self.state["completed_files"]) if total is not None else None
+        self.state.update(remaining_files=remaining, files_per_second=rate,
+                          estimated_copy_seconds_remaining=remaining / rate if remaining is not None and rate else None,
+                          eta_basis="current attempt's copy/revalidation rate; excludes final verification",
+                          cpu_seconds=time.process_time(), peak_rss=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+                          peak_rss_unit="bytes" if sys.platform == "darwin" else "KiB",
+                          free_disk_bytes=shutil.disk_usage(self.path.parent).free)
+        if self.volume_sync:
+            if not _sync_volume(self.path.parent):
+                raise OSError("volume synchronization became unavailable during capture")
+        else:
+            for path in sorted(self.directories, key=lambda p: len(p.parts), reverse=True):
+                _sync_directory(path)
+        self.directories.clear()
+        temporary = self.path.with_suffix(".tmp")
+        with temporary.open("wb") as handle:
+            os.chmod(temporary, 0o600)
+            handle.write(canonical_bytes(self.state))
+            handle.flush()
+            # The native volume barrier or fallback file+directory fsyncs
+            # precede publishing this checkpoint. F_FULLFSYNC flushes buffered drive data:
+            # https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fcntl.2.html
+            _sync_file(handle.fileno())
+        os.replace(temporary, self.path)
+        _sync_directory(self.path.parent)
+        self.last_checkpoint = time.monotonic()
+
+    def copy(self, source: Path, target: Path):
+        self.state["active"] = str(source.relative_to(Path(self.state["source_data_root"])))
+        if source.is_symlink():
+            raise OSError(f"snapshot source is a symlink: {source}")
+        if target.is_symlink():
+            raise OSError(f"snapshot destination is a symlink: {target}")
+        reused = target.is_file() and _sha256_file(source) == _sha256_file(target)
+        if not reused:
+            # Unpublished partial bytes are reproducible from the guarded source.
+            # A killed copy is repaired by exact comparison on the next attempt.
+            target.unlink(missing_ok=True)
+            _copy_regular(source, target, durable=False)
+        os.chmod(target, 0o600)
+        if not self.volume_sync:
+            with target.open("rb") as handle:
+                os.fsync(handle.fileno())
+        parent = target.parent
+        while parent != self.staging.parent:
+            self.directories.add(parent)
+            parent = parent.parent
+        self.state["completed_files"] += 1
+        self.state["reused_files"] += int(reused)
+        self.state["completed_bytes"] += target.stat().st_size
+        if time.monotonic() - self.last_checkpoint >= 1:
+            self.checkpoint()
 
 
 def _snapshot_files(root: Path) -> list[Path]:
@@ -203,7 +294,7 @@ def _active_work(connection: sqlite3.Connection) -> dict[str, int]:
 def _snapshot_guard(data_root: Path, source: Path, *, require_idle: bool) -> Iterator[dict[str, int]]:
     """Hold SQLite's write reservation across every byte copied into a snapshot."""
 
-    with journal_capture_guard(data_root):
+    with journal_capture_guard(data_root, blocking=not require_idle):
         guard = sqlite3.connect(source, timeout=30, isolation_level=None)
         guard.execute("PRAGMA busy_timeout=30000")
         guard.execute("BEGIN IMMEDIATE")
@@ -317,7 +408,26 @@ def create_snapshot(
     schema_version: int | None,
     state_digest: str | None,
     require_idle: bool = True,
+    resume: Path | None = None,
 ) -> Path:
+    """Serialize captures; resume retained copies without trusting their old state."""
+    data_root = data_root.expanduser().resolve(strict=True)
+    descriptor = os.open(data_root / "snapshot-maintenance.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError("another snapshot is active; inspect backups/*.progress.json") from error
+        return _create_snapshot(data_root, backup_root=backup_root, reason=reason,
+                                source_revision=source_revision, schema_version=schema_version,
+                                state_digest=state_digest, require_idle=require_idle, resume=resume)
+    finally:
+        os.close(descriptor)
+
+
+def _create_snapshot(data_root: Path, *, backup_root: Path | None, reason: str,
+                     source_revision: str, schema_version: int | None,
+                     state_digest: str | None, require_idle: bool, resume: Path | None) -> Path:
     """Publish one complete snapshot only after its database and file inventory verify."""
 
     data_root = data_root.expanduser().resolve(strict=True)
@@ -337,21 +447,60 @@ def create_snapshot(
     final = backup_root / f"{created_at}-{artifact_id.removeprefix('artifact:')[:12]}"
     if final.exists():
         raise FileExistsError(final)
-    staging = Path(tempfile.mkdtemp(prefix=".lattice-snapshot-", dir=backup_root))
+    if resume is None:
+        # Only our source-bound progress records authorize automatic reuse.
+        # Legacy partial captures require an explicit --resume path.
+        for record in sorted(backup_root.glob(".lattice-snapshot-*.progress.json")):
+            saved = strict_json_loads(record.read_bytes())
+            if saved.get("source_data_root") == str(data_root) and saved.get("phase") != "complete":
+                candidate = Path(saved["staging"])
+                if candidate.exists():
+                    resume = candidate
+                    break
+    if resume is not None:
+        if resume.is_symlink():
+            raise OSError("snapshot resume path is a symlink")
+        staging = resume.expanduser().resolve(strict=True)
+        if staging.parent != backup_root or not staging.name.startswith(".lattice-snapshot-") or not staging.is_dir():
+            raise OSError("resume requires an unpublished capture inside the backup root")
+        known = {*SNAPSHOT_CONTENT_ROOTS, *SNAPSHOT_CONTENT_FILES, COMPRESSED_SNAPSHOT_DATABASE, SNAPSHOT_INVENTORY, SNAPSHOT_MANIFEST,
+                 ".capture-database", ".capture-database-journal", ".capture-database-wal", ".capture-database-shm",
+                 "lattice.sqlite3-wal", "lattice.sqlite3-shm"}
+        for path in staging.rglob("*"):
+            if path.is_symlink() or path.relative_to(staging).parts[0] not in known:
+                raise OSError(f"unrecognized or redirected resumed snapshot entry: {path}")
+    else:
+        staging = Path(tempfile.mkdtemp(prefix=".lattice-snapshot-", dir=backup_root))
     os.chmod(staging, 0o700)
+    progress = _CaptureProgress(staging, data_root)
     try:
         with _snapshot_guard(data_root, database, require_idle=require_idle) as active_work:
-            _backup_database(database, staging / SNAPSHOT_DATABASE)
+            # A resumed capture gets one new consistent database generation.
+            # Earlier file units are retained only when they still match it.
+            # Metadata in an unpublished capture is disposable/recomputed. Even
+            # a torn final manifest must not trap otherwise reusable file units.
+            for name in (".capture-database", ".capture-database-journal", ".capture-database-wal", ".capture-database-shm", "lattice.sqlite3-wal", "lattice.sqlite3-shm", COMPRESSED_SNAPSHOT_DATABASE, SNAPSHOT_INVENTORY, SNAPSHOT_MANIFEST):
+                (staging / name).unlink(missing_ok=True)
+            total = sum((data_root / name).is_file() for name in SNAPSHOT_CONTENT_FILES[1:])
+            total += sum(len(files) for name in SNAPSHOT_CONTENT_ROOTS for _, _, files in os.walk(data_root / name))
+            progress.checkpoint(total_files=total, active=SNAPSHOT_DATABASE)
+            _backup_database(database, staging / ".capture-database")
+            os.replace(staging / ".capture-database", staging / SNAPSHOT_DATABASE)
+            for path in staging.rglob("*"):
+                relative = path.relative_to(staging)
+                if path.is_file() and relative.parts[0] in {*SNAPSHOT_CONTENT_ROOTS, *SNAPSHOT_CONTENT_FILES[1:]} and not (data_root / relative).exists():
+                    path.unlink()
             for name in SNAPSHOT_CONTENT_FILES[1:]:
                 source = data_root / name
                 if source.exists():
-                    _copy_regular(source, staging / name)
+                    progress.copy(source, staging / name)
             for name in SNAPSHOT_CONTENT_ROOTS:
                 source = data_root / name
                 if source.exists():
                     if not source.is_dir():
                         raise OSError(f"snapshot content root is not a directory: {source}")
-                    copy_exact_tree(source, staging / name)
+                    copy_exact_tree(source, staging / name, capture=progress)
+            progress.checkpoint(phase="validating", active=None)
         # The capture is now independent of live writers. Integrity scans and
         # compression must not hold the live-store reservation or journal lock.
         if state_digest is not None:
@@ -364,12 +513,14 @@ def create_snapshot(
             state_digest = captured["state_digest"]
         else:
             _validate_database_integrity(staging / SNAPSHOT_DATABASE)
+        progress.checkpoint(phase="compressing")
         database_descriptor = _compress_database(
             staging / SNAPSHOT_DATABASE,
             staging / COMPRESSED_SNAPSHOT_DATABASE,
             reuse_root=backup_root,
         )
         (staging / SNAPSHOT_DATABASE).unlink()
+        progress.checkpoint(phase="inventory")
         inventory = _inventory(staging)
         inventory_descriptor = _write_inventory(staging, inventory)
         manifest = {
@@ -401,12 +552,19 @@ def create_snapshot(
             _sync_file(handle.fileno())
         verify_snapshot(staging)
         _sync_tree_directories(staging)
+        with manifest_path.open("rb") as handle:
+            _sync_file(handle.fileno())
         os.replace(staging, final)
         _sync_directory(backup_root)
+        progress.directories.clear()
+        progress.checkpoint(phase="complete", snapshot=str(final), active=None)
         return final
-    except BaseException:
-        if staging.exists():
-            shutil.rmtree(staging)
+    except BaseException as error:
+        try:
+            progress.checkpoint(phase="failed", error=f"{type(error).__name__}: {error}")
+        except Exception as checkpoint_error:
+            error.add_note(f"Failure status could not be persisted: {checkpoint_error}")
+        error.add_note(f"Completed copies retained at {staging}; resume with lattice backup --resume '{staging}'")
         raise
 
 

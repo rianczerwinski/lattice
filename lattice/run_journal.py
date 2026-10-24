@@ -31,13 +31,16 @@ def acquire_journal_writer(data_root: Path) -> int:
 
 
 @contextmanager
-def journal_capture_guard(data_root: Path) -> Iterator[None]:
+def journal_capture_guard(data_root: Path, *, blocking: bool = True) -> Iterator[None]:
     """Exclude journal writers while snapshot or rebuild captures their bytes."""
 
     data_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor = os.open(data_root / DURABLE_RUNS_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+        except BlockingIOError as error:
+            raise RuntimeError("snapshot or journal writer is active; retry maintenance after it completes") from error
         yield
     finally:
         fcntl.flock(descriptor, fcntl.LOCK_UN)

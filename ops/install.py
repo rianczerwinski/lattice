@@ -468,6 +468,27 @@ def backup_before_upgrade() -> Path | None:
     return source_backup("pre-first-installed-runtime")
 
 
+def reuse_rollback_snapshot(snapshot: Path) -> Path:
+    """Reuse recovery bytes only when their logical database is still current.
+
+    Rollback restores the database; immutable blobs and journals remain in the
+    canonical store. Later append-only files do not require copying the archive
+    again. This is local rollback evidence, not a new disaster-recovery backup.
+    """
+    import_source_modules()
+    from lattice.diagnostics import assess_backup, assess_data_root
+
+    snapshot = snapshot.expanduser().resolve(strict=True)
+    saved = assess_backup(snapshot)
+    current = assess_data_root(DEFAULT_DATA_ROOT)
+    if any(current["active_work"].values()):
+        raise RuntimeError("cannot reuse rollback snapshot while durable work is active")
+    if (saved["state_digest"], saved["schema_version"]) != (current["state_digest"], current["schema_version"]):
+        raise RuntimeError("rollback snapshot is stale; capture the current database generation")
+    print(f"Reusing verified current rollback snapshot: {snapshot}", flush=True)
+    return snapshot
+
+
 def verify_candidate_backup(target: Path, snapshot: Path | None) -> None:
     """Reject a runtime that cannot verify the backup needed for its rollback."""
 
@@ -1052,6 +1073,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--legacy-data-root", type=Path, default=DEFAULT_LEGACY_ROOT)
     parser.add_argument("--skip-tests", action="store_true", help="reserved for recovery; normal upgrades must run assurance")
+    parser.add_argument("--rollback-snapshot", type=Path, help="reuse a verified snapshot only if its database state still matches the stopped service")
     args = parser.parse_args()
     lattice_revision = git_revision(SOURCE_ROOT) if args.skip_tests else verify_source()
     migrate_legacy_data(args.legacy_data_root.expanduser().resolve())
@@ -1066,7 +1088,7 @@ def main() -> None:
             unload_job(SERVICE_LABEL)
             unload_job(BACKUP_LABEL)
         print("Capturing pre-upgrade rollback snapshot", flush=True)
-        snapshot = backup_before_upgrade()
+        snapshot = reuse_rollback_snapshot(args.rollback_snapshot) if args.rollback_snapshot else backup_before_upgrade()
         print("Verifying candidate compatibility with the rollback snapshot", flush=True)
         verify_candidate_backup(target, snapshot)
         qualify_candidate_migration(target, snapshot)

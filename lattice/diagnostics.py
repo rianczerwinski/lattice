@@ -304,7 +304,7 @@ def assess_data_root(data_root: Path, *, database_path: Path | None = None) -> d
 def latest_backup(backups: Path) -> Path | None:
     if not backups.is_dir():
         return None
-    candidates = sorted((path for path in backups.iterdir() if path.is_dir() and (path / "snapshot.json").is_file()), reverse=True)
+    candidates = sorted((path for path in backups.iterdir() if not path.name.startswith(".") and path.is_dir() and (path / "snapshot.json").is_file()), reverse=True)
     return candidates[0] if candidates else None
 
 

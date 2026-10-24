@@ -7,6 +7,7 @@ The [repository README](../../README.md) defines the current product and archite
 | [001 — Lattice owns subscription execution](001-lattice-owns-subscription-execution.md) | Accepted; no adoption date recorded | Root `decisions/` |
 | [002 — Stable slice successors](002-stable-slice-successors.md) | Accepted; no adoption date recorded | Root `decisions/` |
 | [003 — Provider readiness](003-provider-readiness.md) | Owner-directed correction, 20261024 | `dev/decisions/` |
+| [004 — Backup checkpoints](004-backup-checkpoints.md) | Owner-directed maintenance repair, 20261024 | `dev/decisions/` |
 | [001 — Provider-facing context is a view](001-provider-context-views.md) | No adoption date or status recorded | `dev/decisions/` |
 
 The two historical `001` labels identify different decisions. Cite the full title and file link, not a bare number; filenames and original numbering are preserved. New records use a number above the highest existing number in this collection.

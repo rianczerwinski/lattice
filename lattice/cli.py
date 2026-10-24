@@ -325,6 +325,7 @@ def command_backup(args: argparse.Namespace) -> int:
         schema_version=report["schema_version"],
         state_digest=report["state_digest"],
         require_idle=True,
+        resume=Path(args.resume) if getattr(args, "resume", None) else None,
     )
     verified = assess_backup(snapshot)
     _emit({"snapshot": str(snapshot), "artifact_id": verified["artifact_id"], "state_digest": verified["state_digest"]}, as_json=args.json)
@@ -555,6 +556,7 @@ def parser() -> argparse.ArgumentParser:
     backup = subparsers.add_parser("backup", help="create and verify a consistent Lattice snapshot")
     backup.add_argument("--to", help="backup directory; defaults to the canonical data root")
     backup.add_argument("--reason", default="operator-request")
+    backup.add_argument("--resume", help="reuse an exact unpublished capture; matching retained captures otherwise resume automatically")
     backup.add_argument("--json", action="store_true")
     backup.set_defaults(handler=command_backup)
 
