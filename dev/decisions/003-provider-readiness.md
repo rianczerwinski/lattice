@@ -8,6 +8,8 @@ The owner explicitly requested correction after advisory, prior-art and Test For
 
 ## Preserved obligations
 
+Installation verifies the Lattice application and its recorded manifest without requiring unchanged optional-provider binaries. Historical provider identities remain diagnostic evidence; the selected adapter's capability check owns execution admission.
+
 Keep selected-provider capability enforcement, tool and permission boundaries, installed application integrity, immutable history, lost-acknowledgement recovery, duplicate-dispatch prevention and budget controls. A capability probe establishes its exercised CLI controls, not universal behavioral correctness. Provider-managed models can change independently of local executable identity. No historical qualification is silently renewed.
 
 ## Verification

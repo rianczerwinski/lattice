@@ -1,6 +1,7 @@
 """Provider updates affect their own capabilities, not service availability."""
 
 import pytest
+import sys
 from fastapi.testclient import TestClient
 
 from lattice import cli
@@ -10,6 +11,37 @@ from lattice.runtime_attestation import tree_inventory
 from lattice.security import ensure_cli_token
 from lattice.server import create_app
 from ops import install
+
+
+@pytest.mark.regression
+def test_installation_verifies_application_without_freezing_optional_providers(monkeypatch, tmp_path):
+    target = tmp_path / "runtime"
+    binary = target / ".venv/bin/python"
+    binary.parent.mkdir(parents=True)
+    binary.symlink_to(sys.executable)
+    binary.with_name("lattice").write_text("fixture")
+    package = target / "package"
+    package.mkdir()
+    package.joinpath("__init__.py").write_text("original application")
+    locations = {"lattice": str(package / "__init__.py")}
+    trees = {"lattice": tree_inventory(package)}
+    attestations = [{**a.definition(), "model_code": a.model_code, "binary": str(tmp_path / "updated-provider"),
+                    "binary_sha256": "a" * 64, "installed": True, "qualified": True,
+                    "operational": True, "version": "historical", "control_surface_qualified": True,
+                    "control_surface_detail": "historical"} for a in adapters.DEFAULT_ADAPTERS]
+    manifest = install.build_runtime_manifest(target=target, runtime_id="test-runtime", lattice_revision="a" * 40,
+                                             packages=[], module_locations=locations, source_trees=trees,
+                                             provider_attestations=attestations)
+    (target / "runtime.json").write_bytes(canonical_bytes(manifest))
+    monkeypatch.setattr(install, "probe_runtime", lambda _target: locations)
+    monkeypatch.setattr(install, "canonical_runtime_manifest", lambda value, _python: canonical_bytes(value))
+    monkeypatch.setattr(install, "source_tree_inventories", lambda: trees)
+    monkeypatch.setattr("lattice.runtime_attestation.verify_provider_attestation_freshness",
+                        lambda _value: pytest.fail("installation must not freeze optional provider binaries"))
+    install.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40)
+    package.joinpath("__init__.py").write_text("changed application")
+    with pytest.raises(RuntimeError, match="application bytes disagree"):
+        install.verify_runtime_target(target, runtime_id="test-runtime", lattice_revision="a" * 40)
 
 
 @pytest.mark.regression

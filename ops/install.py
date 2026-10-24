@@ -648,15 +648,6 @@ def _validate_provider_attestations(value: object) -> list[dict]:
         raise RuntimeError(str(error)) from error
 
 
-def verify_provider_attestation_freshness(value: object) -> None:
-    from lattice.runtime_attestation import verify_provider_attestation_freshness as verify
-
-    try:
-        verify(value)
-    except ValueError as error:
-        raise RuntimeError(str(error)) from error
-
-
 def _generated_object_source(ref: str, *, revision: str | None, sha256: str | None) -> dict[str, str | None]:
     if not ref or (revision is None and sha256 is None):
         raise ValueError("runtime sources require a ref and immutable revision or digest")
@@ -764,7 +755,6 @@ def verify_runtime_target(target: Path, *, runtime_id: str, lattice_revision: st
     actual_trees = installed_tree_inventories(locations)
     if actual_trees != manifest["source_trees"]:
         raise RuntimeError("installed runtime application bytes disagree with the attested source trees")
-    verify_provider_attestation_freshness(manifest["provider_attestations"])
 
 
 def install_runtime(lattice_revision: str) -> Path:
