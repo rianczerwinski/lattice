@@ -94,7 +94,7 @@ def _copy_regular(source: Path, destination: Path, *, durable: bool = True) -> N
         raise OSError(f"snapshot copy changed bytes: {source}")
 
 
-def copy_exact_tree(source: Path, destination: Path, *, capture=None) -> None:
+def copy_exact_tree(source: Path, destination: Path, *, capture=None, deferred_blobs=None) -> None:
     if source.is_symlink():
         raise OSError(f"snapshot source directory is a symlink: {source}")
     destination.mkdir(parents=True, exist_ok=capture is not None, mode=0o700)
@@ -106,7 +106,11 @@ def copy_exact_tree(source: Path, destination: Path, *, capture=None) -> None:
         if child.is_dir():
             target.mkdir(parents=True, exist_ok=True, mode=0o700)
         elif child.is_file():
-            if capture is None:
+            if (deferred_blobs is not None and len(relative.parts) == 2
+                    and len(child.name) == 64 and all(c in "0123456789abcdef" for c in child.name)
+                    and relative.parts[0] == child.name[:2]):
+                deferred_blobs.append((child, target))
+            elif capture is None:
                 _copy_regular(child, target)
             else:
                 capture.copy(child, target)
@@ -171,7 +175,7 @@ class _CaptureProgress:
         _sync_directory(self.path.parent)
         self.last_checkpoint = time.monotonic()
 
-    def copy(self, source: Path, target: Path):
+    def copy(self, source: Path, target: Path, *, expected_sha: str | None = None):
         self.state["active"] = str(source.relative_to(Path(self.state["source_data_root"])))
         if source.is_symlink():
             raise OSError(f"snapshot source is a symlink: {source}")
@@ -183,6 +187,8 @@ class _CaptureProgress:
             # A killed copy is repaired by exact comparison on the next attempt.
             target.unlink(missing_ok=True)
             _copy_regular(source, target, durable=False)
+        if expected_sha is not None and _sha256_file(target)[0] != expected_sha:
+            raise OSError(f"content-addressed snapshot blob changed: {source}")
         os.chmod(target, 0o600)
         if not self.volume_sync:
             with target.open("rb") as handle:
@@ -292,7 +298,7 @@ def _active_work(connection: sqlite3.Connection) -> dict[str, int]:
 
 @contextmanager
 def _snapshot_guard(data_root: Path, source: Path, *, require_idle: bool) -> Iterator[dict[str, int]]:
-    """Hold SQLite's write reservation across every byte copied into a snapshot."""
+    """Hold the write reservation while capturing the database and mutable files."""
 
     with journal_capture_guard(data_root, blocking=not require_idle):
         guard = sqlite3.connect(source, timeout=30, isolation_level=None)
@@ -404,7 +410,7 @@ def create_snapshot(
     *,
     backup_root: Path | None = None,
     reason: str,
-    source_revision: str,
+    source_revision: str | None,
     schema_version: int | None,
     state_digest: str | None,
     require_idle: bool = True,
@@ -426,7 +432,7 @@ def create_snapshot(
 
 
 def _create_snapshot(data_root: Path, *, backup_root: Path | None, reason: str,
-                     source_revision: str, schema_version: int | None,
+                     source_revision: str | None, schema_version: int | None,
                      state_digest: str | None, require_idle: bool, resume: Path | None) -> Path:
     """Publish one complete snapshot only after its database and file inventory verify."""
 
@@ -474,6 +480,7 @@ def _create_snapshot(data_root: Path, *, backup_root: Path | None, reason: str,
     os.chmod(staging, 0o700)
     progress = _CaptureProgress(staging, data_root)
     try:
+        deferred_blobs: list[tuple[Path, Path]] = []
         with _snapshot_guard(data_root, database, require_idle=require_idle) as active_work:
             # A resumed capture gets one new consistent database generation.
             # Earlier file units are retained only when they still match it.
@@ -499,15 +506,22 @@ def _create_snapshot(data_root: Path, *, backup_root: Path | None, reason: str,
                 if source.exists():
                     if not source.is_dir():
                         raise OSError(f"snapshot content root is not a directory: {source}")
-                    copy_exact_tree(source, staging / name, capture=progress)
-            progress.checkpoint(phase="validating", active=None)
-        # The capture is now independent of live writers. Integrity scans and
-        # compression must not hold the live-store reservation or journal lock.
-        if state_digest is not None:
+                    copy_exact_tree(source, staging / name, capture=progress,
+                                    deferred_blobs=deferred_blobs if name == "blobs" else None)
+            progress.checkpoint(phase="copying-immutable-blobs", active=None)
+        # The captured database and mutable journals now belong to one generation.
+        # BlobStore publishes immutable SHA-addressed files; their names bind the
+        # remaining bytes independently of later live writes. Keep the locked
+        # census fixed, and reject missing/changed blobs rather than mixing data.
+        for source, target in deferred_blobs:
+            progress.copy(source, target, expected_sha=source.name)
+        progress.checkpoint(phase="validating", active=None)
+        # Integrity scans and compression also run outside the live write lock.
+        if state_digest is not None or source_revision is None:
             from .diagnostics import assess_data_root
 
             captured = assess_data_root(staging)
-            if source_revision == state_digest:
+            if source_revision is None or source_revision == state_digest:
                 source_revision = captured["state_digest"]
             schema_version = captured["schema_version"]
             state_digest = captured["state_digest"]

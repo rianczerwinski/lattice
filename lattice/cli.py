@@ -316,19 +316,22 @@ def command_status(args: argparse.Namespace) -> int:
 
 def command_backup(args: argparse.Namespace) -> int:
     config = LatticeConfig.from_environment()
-    report = assess_data_root(config.data_root)
     snapshot = create_snapshot(
         config.data_root,
         backup_root=Path(args.to).expanduser() if args.to else None,
         reason=args.reason,
-        source_revision=report["state_digest"],
-        schema_version=report["schema_version"],
-        state_digest=report["state_digest"],
+        source_revision=None,
+        schema_version=None,
+        state_digest=None,
         require_idle=True,
         resume=Path(args.resume) if getattr(args, "resume", None) else None,
     )
-    verified = assess_backup(snapshot)
-    _emit({"snapshot": str(snapshot), "artifact_id": verified["artifact_id"], "state_digest": verified["state_digest"]}, as_json=args.json)
+    # create_snapshot verifies the captured state, compressed database identity,
+    # inventory and restored SQLite bytes before publishing. Scanning the live
+    # archive before capture and verifying the same result again adds no new
+    # recovery guarantee. Independent operator verification remains available.
+    manifest = json.loads((snapshot / "snapshot.json").read_bytes())
+    _emit({"snapshot": str(snapshot), "artifact_id": manifest["generated_object"]["artifact_id"], "state_digest": manifest["state_digest"]}, as_json=args.json)
     return 0
 
 

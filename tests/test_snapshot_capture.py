@@ -229,3 +229,69 @@ def test_rollback_reuse_accepts_unchanged_state_and_rejects_new_rows(lattice_env
     lattice_env["store"].create_project(ProjectCreate(title="later", purpose="stale snapshot falsifier"))
     with pytest.raises(RuntimeError, match="stale"):
         install.reuse_rollback_snapshot(saved)
+
+
+@pytest.mark.concurrency
+@pytest.mark.oracle
+def test_blob_copy_releases_live_writers_but_keeps_captured_generation(lattice_env, monkeypatch):
+    import fcntl
+    from lattice.contracts import ProjectCreate
+    from lattice.diagnostics import assess_data_root, assess_backup
+    root = lattice_env["config"].data_root
+    before = assess_data_root(root)
+    native = snapshot._CaptureProgress.copy
+    reached = []
+    def copy(self, source, target, **kwargs):
+        if kwargs.get("expected_sha") and not reached:
+            descriptor = os.open(root / "durable-runs.lock", os.O_RDWR)
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                lattice_env["store"].create_project(ProjectCreate(title="during blob copy", purpose="excluded from saved generation"))
+                reached.append(True)
+            finally:
+                os.close(descriptor)
+        return native(self, source, target, **kwargs)
+    monkeypatch.setattr(snapshot._CaptureProgress, "copy", copy)
+    saved = snapshot.create_snapshot(root, reason="concurrent-copy", source_revision=before["state_digest"],
+                                     state_digest=before["state_digest"], schema_version=before["schema_version"])
+    assert reached == [True]
+    assert assess_backup(saved)["state_digest"] == before["state_digest"]
+    assert assess_data_root(root)["state_digest"] != before["state_digest"]
+
+
+@pytest.mark.regression
+def test_blob_address_is_an_independent_copy_oracle(tmp_path, monkeypatch):
+    import hashlib
+    root = source_tree(tmp_path)
+    content = b"content before lock release"
+    digest = hashlib.sha256(content).hexdigest()
+    blob = root / "blobs" / digest[:2] / digest
+    blob.parent.mkdir()
+    blob.write_bytes(content)
+    native = snapshot._CaptureProgress.copy
+    def mutate(self, source, target, **kwargs):
+        if kwargs.get("expected_sha"):
+            # Both source and destination will agree, so copy-equality alone
+            # cannot detect violation of the immutable content address.
+            source.write_bytes(b"wrong content with the original address")
+        return native(self, source, target, **kwargs)
+    monkeypatch.setattr(snapshot._CaptureProgress, "copy", mutate)
+    with pytest.raises(OSError, match="content-addressed snapshot blob changed"):
+        capture(root)
+
+
+@pytest.mark.oracle
+def test_backup_command_validates_captured_state_without_duplicate_live_scans(lattice_env, monkeypatch, capsys):
+    from lattice import cli
+    from lattice.diagnostics import assess_backup, assess_data_root
+    root = lattice_env["config"].data_root
+    expected = assess_data_root(root)["state_digest"]
+    monkeypatch.setattr(cli.LatticeConfig, "from_environment", lambda: lattice_env["config"])
+    monkeypatch.setattr(cli, "assess_data_root", lambda *_: pytest.fail("redundant live scan"))
+    monkeypatch.setattr(cli, "assess_backup", lambda *_: pytest.fail("redundant post-publication scan"))
+    assert cli.command_backup(SimpleNamespace(to=None, reason="bounded-command", resume=None, json=True)) == 0
+    result = json.loads(capsys.readouterr().out)
+    # The independent consumer still resolves and verifies the emitted artifact.
+    actual = assess_backup(Path(result["snapshot"]))
+    assert result["state_digest"] == actual["state_digest"] == expected
+    assert result["artifact_id"] == actual["artifact_id"]
