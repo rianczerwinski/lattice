@@ -63,6 +63,7 @@ from .operations import Lattice
 from .quaternary import QuaternaryAdapter, QuaternaryBoundaryError, QuaternaryOutcomeUnknown
 from .platform_foundry import PlatformFoundryAdapter
 from .runtime_identity import installed_runtime_identity, latest_closure_state
+from .run_journal import async_journal_startup_guard
 from .run_supervisor import DurableRunSupervisor
 from .security import OperatorBoundaryMiddleware, OperatorSessions, ServiceInstanceLock, configured_development_origin, ensure_cli_token
 from .store import LatticeConflict, LatticeNotFound, LatticeStore
@@ -332,11 +333,12 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         try:
-            await asyncio.to_thread(store.reconcile_conversation_imports, importer.boot_id)
-            await asyncio.to_thread(store.reconcile_workflow_instances, {pack_id: loaded["definition"]["initial_state"] for pack_id, loaded in loaded_packs.items()})
-            await asyncio.to_thread(store.reconcile_workflow_role_policies, {pack_id: {"canonical_sha256": loaded["canonical_sha256"], "roles": loaded["definition"]["roles"]} for pack_id, loaded in loaded_packs.items()})
-            await supervisor.start()
-            await run_supervisor.start()
+            async with async_journal_startup_guard(config.data_root):
+                await asyncio.to_thread(store.reconcile_conversation_imports, importer.boot_id)
+                await asyncio.to_thread(store.reconcile_workflow_instances, {pack_id: loaded["definition"]["initial_state"] for pack_id, loaded in loaded_packs.items()})
+                await asyncio.to_thread(store.reconcile_workflow_role_policies, {pack_id: {"canonical_sha256": loaded["canonical_sha256"], "roles": loaded["definition"]["roles"]} for pack_id, loaded in loaded_packs.items()})
+                await supervisor.start()
+                await run_supervisor.start()
             try:
                 yield
             finally:

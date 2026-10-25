@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import fcntl
+import logging
 import os
 import threading
-from contextlib import contextmanager
+import time
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -28,6 +31,59 @@ def acquire_journal_writer(data_root: Path) -> int:
     except BaseException:
         os.close(descriptor)
         raise
+
+
+def _try_startup_lock(descriptor: int, data_root: Path, warning_at: float) -> tuple[bool, float]:
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        return True, warning_at
+    except BlockingIOError:
+        now = time.monotonic()
+        if now >= warning_at:
+            logging.getLogger(__name__).warning("Lattice startup waiting for snapshot/journal capture at %s", data_root)
+            # Periodic diagnostics explain a long capture without imposing the
+            # database timeout that caused repeated startup crashes.
+            warning_at = now + 30
+        return False, warning_at
+
+
+@asynccontextmanager
+async def async_journal_startup_guard(data_root: Path):
+    """Cancellable startup wait; never leave a thread acquiring a leaked lock."""
+    data_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor = os.open(data_root / DURABLE_RUNS_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        warning_at = 0.0
+        while True:
+            acquired, warning_at = _try_startup_lock(descriptor, data_root, warning_at)
+            if acquired:
+                break
+            await asyncio.sleep(0.1)
+        yield
+    finally:
+        os.close(descriptor)
+
+
+@contextmanager
+def journal_startup_guard(data_root: Path) -> Iterator[None]:
+    """Wait outside SQLite while a backup owns its writer reservation.
+
+    Take this only after pre-migration snapshots, which need LOCK_EX themselves.
+    Shared ownership permits orphan reconciliation and journal writers while
+    excluding a new snapshot until startup's database writes have finished.
+    """
+    data_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor = os.open(data_root / DURABLE_RUNS_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        warning_at = 0.0
+        while True:
+            acquired, warning_at = _try_startup_lock(descriptor, data_root, warning_at)
+            if acquired:
+                break
+            time.sleep(0.1)
+        yield
+    finally:
+        os.close(descriptor)
 
 
 @contextmanager

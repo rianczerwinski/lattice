@@ -24,7 +24,7 @@ from .config import LatticeConfig
 from .exact_file import ExactFileCaptureError, capture_exact_file
 from .snapshot import copy_exact_tree, pre_migration_snapshot_if_needed
 from .durability import sync_tree_directories
-from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard
+from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard, journal_startup_guard
 from . import native_approvals
 from .conversation_schema import DDL as CONVERSATION_DDL, TABLES as CONVERSATION_TABLES
 from .contracts import (
@@ -683,7 +683,7 @@ class LatticeStore:
         pre_migration_snapshot_if_needed(self.config.data_root, target_schema_version=SCHEMA_VERSION)
         self.blobs = BlobStore(config.blobs)
         self._write_lock = threading.RLock()
-        with self._connect() as conn:
+        with journal_startup_guard(self.config.data_root), self._connect() as conn:
             conn.executescript(DDL)
             attempt_columns = {row[1] for row in conn.execute("PRAGMA table_info(attempts)")}
             block_columns = {row[1] for row in conn.execute("PRAGMA table_info(context_blocks)")}
