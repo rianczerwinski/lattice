@@ -66,7 +66,17 @@ def _try_clone_regular(source: Path, destination: Path) -> bool:
     raise OSError(error, os.strerror(error), destination)
 
 
-def _copy_regular(source: Path, destination: Path, *, durable: bool = True) -> None:
+def _copy_regular(source: Path, destination: Path, *, durable: bool = True, prove_bytes: bool = True) -> None:
+    """Place one regular file's exact bytes.
+
+    By default both sides are hashed here, which is the complete proof restore,
+    rebuild, and compression callers rely on. Snapshot capture passes
+    prove_bytes=False because it already hashed the source once under the write
+    guard and proves the staged bytes against that digest in the inventory pass,
+    after the guard releases. The stat comparison below is only a change
+    detector; it is never treated as byte identity.
+    """
+
     if source.is_symlink():
         raise OSError(f"snapshot source is a symlink: {source}")
     source = source.resolve(strict=True)
@@ -88,6 +98,8 @@ def _copy_regular(source: Path, destination: Path, *, durable: bool = True) -> N
     after = source.stat()
     if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
         raise OSError(f"snapshot source changed while copying: {source}")
+    if not prove_bytes:
+        return
     source_sha, source_size = _sha256_file(source)
     destination_sha, destination_size = _sha256_file(destination)
     if (source_sha, source_size) != (destination_sha, destination_size):
@@ -135,6 +147,11 @@ class _CaptureProgress:
         self.started = time.monotonic()
         self.last_checkpoint = self.started
         self.directories: set[Path] = {staging, staging.parent}
+        # Source digests taken while the write guard held, keyed by the relative
+        # path shared by source and staging. Kept in memory on purpose: a resumed
+        # attempt re-hashes every retained unit against its own new generation,
+        # so a prior attempt's digests are never trusted or persisted.
+        self.source_hashes: dict[str, tuple[str, int]] = {}
         self.volume_sync = _sync_volume(staging)
         self.state = {"source_data_root": str(source), "staging": str(staging), "pid": os.getpid(),
                       "started_at": stamp(), "phase": "capturing", "completed_files": 0,
@@ -176,19 +193,28 @@ class _CaptureProgress:
         self.last_checkpoint = time.monotonic()
 
     def copy(self, source: Path, target: Path, *, expected_sha: str | None = None):
-        self.state["active"] = str(source.relative_to(Path(self.state["source_data_root"])))
+        relative = source.relative_to(Path(self.state["source_data_root"])).as_posix()
+        self.state["active"] = relative
         if source.is_symlink():
             raise OSError(f"snapshot source is a symlink: {source}")
         if target.is_symlink():
             raise OSError(f"snapshot destination is a symlink: {target}")
-        reused = target.is_file() and _sha256_file(source) == _sha256_file(target)
+        # Exactly one source hash per file while writers are excluded. The staged
+        # bytes are proven equal to this digest by prove_staged() after the guard
+        # releases, so clonefile semantics, size, and mtime are never the proof.
+        identity = _sha256_file(source)
+        if expected_sha is not None and identity[0] != expected_sha:
+            raise OSError(f"content-addressed snapshot blob changed: {source}")
+        # A retained unit from an interrupted attempt is reused only when its
+        # bytes equal this generation's source; that costs one target hash on
+        # resume and none on a fresh capture.
+        reused = target.is_file() and _sha256_file(target) == identity
         if not reused:
             # Unpublished partial bytes are reproducible from the guarded source.
             # A killed copy is repaired by exact comparison on the next attempt.
             target.unlink(missing_ok=True)
-            _copy_regular(source, target, durable=False)
-        if expected_sha is not None and _sha256_file(target)[0] != expected_sha:
-            raise OSError(f"content-addressed snapshot blob changed: {source}")
+            _copy_regular(source, target, durable=False, prove_bytes=False)
+        self.source_hashes[relative] = identity
         os.chmod(target, 0o600)
         if not self.volume_sync:
             with target.open("rb") as handle:
@@ -202,6 +228,26 @@ class _CaptureProgress:
         self.state["completed_bytes"] += target.stat().st_size
         if time.monotonic() - self.last_checkpoint >= 1:
             self.checkpoint()
+
+    def prove_staged(self, inventory: list[dict[str, Any]]) -> None:
+        """Every captured file's staged bytes must equal the source digest taken under the guard.
+
+        The inventory pass already hashes each staged file outside the lock; this
+        comparison turns that pass into the byte proof the copy step no longer
+        performs. Missing, tampered, or torn staged files all fail here.
+        """
+
+        proven = 0
+        for item in inventory:
+            identity = self.source_hashes.get(item["path"])
+            if identity is not None:
+                if (item["sha256"], item["byte_count"]) != identity:
+                    raise OSError(f"snapshot staged bytes disagree with the locked source: {item['path']}")
+                proven += 1
+        # Inventory rows come from unique filesystem paths. Avoid building a
+        # second archive-sized mapping merely to prove membership.
+        if proven != len(self.source_hashes):
+            raise OSError("snapshot staged bytes disagree with the locked source: missing file")
 
 
 def _snapshot_files(root: Path) -> list[Path]:
@@ -482,6 +528,7 @@ def _create_snapshot(data_root: Path, *, backup_root: Path | None, reason: str,
     try:
         deferred_blobs: list[tuple[Path, Path]] = []
         with _snapshot_guard(data_root, database, require_idle=require_idle) as active_work:
+            capture_started = time.monotonic()
             # A resumed capture gets one new consistent database generation.
             # Earlier file units are retained only when they still match it.
             # Metadata in an unpublished capture is disposable/recomputed. Even
@@ -508,7 +555,7 @@ def _create_snapshot(data_root: Path, *, backup_root: Path | None, reason: str,
                         raise OSError(f"snapshot content root is not a directory: {source}")
                     copy_exact_tree(source, staging / name, capture=progress,
                                     deferred_blobs=deferred_blobs if name == "blobs" else None)
-            progress.checkpoint(phase="copying-immutable-blobs", active=None)
+        progress.checkpoint(phase="copying-immutable-blobs", active=None, writer_reservation_seconds=time.monotonic() - capture_started)
         # The captured database and mutable journals now belong to one generation.
         # BlobStore publishes immutable SHA-addressed files; their names bind the
         # remaining bytes independently of later live writes. Keep the locked
@@ -536,6 +583,9 @@ def _create_snapshot(data_root: Path, *, backup_root: Path | None, reason: str,
         (staging / SNAPSHOT_DATABASE).unlink()
         progress.checkpoint(phase="inventory")
         inventory = _inventory(staging)
+        # One hash pass over the staging tree proves every captured file against
+        # the digest recorded under the guard, then feeds the inventory unchanged.
+        progress.prove_staged(inventory)
         inventory_descriptor = _write_inventory(staging, inventory)
         manifest = {
             "generated_object": generated_object(

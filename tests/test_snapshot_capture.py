@@ -295,3 +295,214 @@ def test_backup_command_validates_captured_state_without_duplicate_live_scans(la
     actual = assess_backup(Path(result["snapshot"]))
     assert result["state_digest"] == actual["state_digest"] == expected
     assert result["artifact_id"] == actual["artifact_id"]
+
+
+# ---- R5: one locked-source hash per mutable file; staged bytes proven after release ----
+
+ORIGINAL_RUN = b"run-journal-generation-one\n"
+ORIGINAL_TOKEN = b"operator-token-original\n"
+
+
+def mutable_tree(tmp_path):
+    """Source with every mutable root class plus one content-addressed blob."""
+    import hashlib
+    root = source_tree(tmp_path)
+    (root / "durable-runs").mkdir()
+    (root / "durable-runs" / "run.jsonl").write_bytes(ORIGINAL_RUN)
+    (root / "model-runs").mkdir()
+    (root / "model-runs" / "model.json").write_bytes(b'{"model":"one"}\n')
+    (root / "acceptance").mkdir()
+    (root / "acceptance" / "accepted.txt").write_bytes(b"accepted\n")
+    (root / "operator-token").write_bytes(ORIGINAL_TOKEN)
+    content = b"immutable content-addressed blob\n"
+    digest = hashlib.sha256(content).hexdigest()
+    (root / "blobs" / digest[:2]).mkdir()
+    (root / "blobs" / digest[:2] / digest).write_bytes(content)
+    return root
+
+
+def same_size_mutation(original: bytes) -> bytes:
+    replacement = original[:-2][::-1] + original[-2:]
+    assert replacement != original and len(replacement) == len(original)
+    return replacement
+
+
+def force_copy_fallback(monkeypatch, enabled: bool) -> list:
+    consulted = []
+    if enabled:
+        def fallback(source, _destination):
+            consulted.append(source)
+            return False  # behave like a non-APFS volume: ordinary copy path
+        monkeypatch.setattr(snapshot, "_try_clone_regular", fallback)
+    return consulted
+
+
+@pytest.mark.oracle
+@pytest.mark.parametrize("fallback", [False, True], ids=["clone", "copy-fallback"])
+def test_live_mutation_after_lock_release_keeps_locked_bytes(tmp_path, monkeypatch, fallback):
+    """Writers resume once the guard drops; the snapshot still proves the locked generation."""
+    import fcntl
+    from lattice.run_journal import DURABLE_RUNS_LOCK
+    root = mutable_tree(tmp_path)
+    consulted = force_copy_fallback(monkeypatch, fallback)
+    native = snapshot._compress_database
+    mutated = []
+    def mutate_live_then_compress(*args, **kwargs):
+        descriptor = os.open(root / DURABLE_RUNS_LOCK, os.O_RDWR)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)  # proves the guard is gone
+            (root / "durable-runs" / "run.jsonl").write_bytes(same_size_mutation(ORIGINAL_RUN))
+            (root / "operator-token").write_bytes(same_size_mutation(ORIGINAL_TOKEN))
+            mutated.append(True)
+        finally:
+            os.close(descriptor)
+        return native(*args, **kwargs)
+    monkeypatch.setattr(snapshot, "_compress_database", mutate_live_then_compress)
+    saved = capture(root)
+    assert mutated == [True]
+    assert (saved / "durable-runs" / "run.jsonl").read_bytes() == ORIGINAL_RUN
+    assert (saved / "operator-token").read_bytes() == ORIGINAL_TOKEN
+    assert (root / "durable-runs" / "run.jsonl").read_bytes() != ORIGINAL_RUN
+    snapshot.verify_snapshot(saved)
+    assert bool(consulted) is fallback
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("fallback", [False, True], ids=["clone", "copy-fallback"])
+def test_staged_corruption_after_lock_release_is_rejected(tmp_path, monkeypatch, fallback):
+    """A staged unit that drifts from the locked source digest must not publish."""
+    root = mutable_tree(tmp_path)
+    force_copy_fallback(monkeypatch, fallback)
+    native = snapshot._inventory
+    tampered = []
+    def tamper_then_inventory(staging):
+        target = staging / "durable-runs" / "run.jsonl"
+        assert target.read_bytes() == ORIGINAL_RUN
+        target.write_bytes(same_size_mutation(ORIGINAL_RUN))  # same size: size is not identity
+        tampered.append(target)
+        return native(staging)
+    monkeypatch.setattr(snapshot, "_inventory", tamper_then_inventory)
+    with pytest.raises(OSError, match="disagree with the locked source: durable-runs/run.jsonl"):
+        capture(root)
+    assert len(tampered) == 1
+    published = [p for p in (root / "backups").iterdir() if p.is_dir() and not p.name.startswith(".lattice-snapshot-")]
+    assert published == []
+
+
+@pytest.mark.contract
+def test_exactly_one_source_hash_per_mutable_file_under_guard(tmp_path, monkeypatch):
+    """Fresh capture: each guarded source file is hashed once, staged files never, under the lock."""
+    import collections
+    import contextlib
+    root = mutable_tree(tmp_path)
+    held = []
+    native_guard = snapshot._snapshot_guard
+    @contextlib.contextmanager
+    def observed_guard(*args, **kwargs):
+        with native_guard(*args, **kwargs) as active:
+            held.append(True)
+            try:
+                yield active
+            finally:
+                held.pop()
+    monkeypatch.setattr(snapshot, "_snapshot_guard", observed_guard)
+    under_lock = collections.Counter()
+    overall = collections.Counter()
+    native_hash = snapshot._sha256_file
+    def counted(path):
+        key = Path(path).resolve()
+        overall[key] += 1
+        if held:
+            under_lock[key] += 1
+        return native_hash(path)
+    monkeypatch.setattr(snapshot, "_sha256_file", counted)
+    saved = capture(root)
+    root = root.resolve()
+    guarded_sources = sorted(
+        [root / "operator-token"]
+        + [p for name in ("acceptance", "model-runs", "durable-runs") for p in (root / name).rglob("*") if p.is_file()]
+        + [root / "blobs" / n for n in ("a", "b", "c")]
+    )
+    for source in guarded_sources:
+        assert under_lock[source] == 1, source
+    assert sum(under_lock.values()) == len(guarded_sources), under_lock
+    assert not any(root / "backups" in path.parents for path in under_lock), "staged files hashed under lock"
+    assert under_lock[root / "lattice.sqlite3"] == 0
+    blob = next(p for p in (root / "blobs").rglob("*") if p.is_file() and len(p.name) == 64)
+    assert overall[blob] == 1  # content-addressed unit: one source hash, outside the lock
+    snapshot.verify_snapshot(saved)
+
+
+@pytest.mark.regression
+def test_forced_copy_fallback_retains_units_and_repairs_torn_copy(tmp_path, monkeypatch):
+    """Without clonefile, interruption still retains complete units and repairs torn ones on resume."""
+    root = mutable_tree(tmp_path)
+    consulted = force_copy_fallback(monkeypatch, True)
+    native = snapshot._copy_regular
+    def broken(source, target, **kwargs):
+        native(source, target, **kwargs)
+        if source.name == "run.jsonl":
+            target.write_bytes(b"torn")
+            raise OSError("planted disk interruption")
+    monkeypatch.setattr(snapshot, "_copy_regular", broken)
+    with pytest.raises(OSError, match="planted"):
+        capture(root)
+    assert consulted, "fallback path was not exercised"
+    staging = next(p for p in (root / "backups").iterdir() if p.is_dir())
+    retained = staging / "acceptance" / "accepted.txt"
+    inode = retained.stat().st_ino
+    monkeypatch.setattr(snapshot, "_copy_regular", native)
+    saved = capture(root)
+    assert (saved / "acceptance" / "accepted.txt").stat().st_ino == inode
+    assert (saved / "durable-runs" / "run.jsonl").read_bytes() == ORIGINAL_RUN
+    snapshot.verify_snapshot(saved)
+    progress = json.loads(staging.with_name(staging.name + ".progress.json").read_text())
+    assert progress["phase"] == "complete"
+    assert progress["reused_files"] >= 1
+
+
+@pytest.mark.contract
+def test_copy_regular_default_still_proves_bytes_for_restore_callers(tmp_path, monkeypatch):
+    """Callers outside capture keep the full two-sided hash proof; only capture defers it."""
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"restore me exactly")
+    def lying_clone(_source, destination):
+        destination.write_bytes(b"restore me exactlY")  # equal length, different bytes
+        return True
+    monkeypatch.setattr(snapshot, "_try_clone_regular", lying_clone)
+    with pytest.raises(OSError, match="snapshot copy changed bytes"):
+        snapshot._copy_regular(source, tmp_path / "restored.bin")
+    # Capture's deferred mode places bytes without proof here; prove_staged owns that proof.
+    staging = tmp_path / "staging"
+    snapshot._copy_regular(source, staging / "staged.bin", durable=False, prove_bytes=False)
+    progress = snapshot._CaptureProgress.__new__(snapshot._CaptureProgress)
+    progress.source_hashes = {"staged.bin": snapshot._sha256_file(source)}
+    with pytest.raises(OSError, match="disagree with the locked source: staged.bin"):
+        progress.prove_staged(snapshot._inventory(staging))
+    progress.source_hashes = {"staged.bin": snapshot._sha256_file(staging / "staged.bin")}
+    progress.prove_staged(snapshot._inventory(staging))  # agreement passes
+
+
+@pytest.mark.oracle
+def test_corrupt_copy_is_compared_to_source_not_to_itself(tmp_path, monkeypatch):
+    root = mutable_tree(tmp_path)
+    native = snapshot._copy_regular
+    def corrupt(source, target, **kwargs):
+        native(source, target, **kwargs)
+        if source.name == "run.jsonl":
+            target.write_bytes(same_size_mutation(ORIGINAL_RUN))
+    monkeypatch.setattr(snapshot, "_copy_regular", corrupt)
+    with pytest.raises(OSError, match="disagree with the locked source: durable-runs/run.jsonl"):
+        capture(root)
+
+
+@pytest.mark.oracle
+def test_missing_staged_file_is_rejected_before_publication(tmp_path, monkeypatch):
+    root = mutable_tree(tmp_path)
+    native = snapshot._inventory
+    def missing(staging):
+        (staging / "durable-runs" / "run.jsonl").unlink()
+        return native(staging)
+    monkeypatch.setattr(snapshot, "_inventory", missing)
+    with pytest.raises(OSError, match="disagree with the locked source: missing file"):
+        capture(root)
