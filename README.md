@@ -21,6 +21,8 @@ lattice open
 lattice doctor
 ```
 
+The exact `fe9e85d` → `4aea75f` readiness repair can use [`ops/readiness_upgrade.py`](ops/readiness_upgrade.py) with a verified current `--rollback-snapshot`. It proves the installed store, schema, dependencies and migration entry are unchanged before substituting that identity proof for a copied-store rehearsal; full rollback verification and automatic rollback remain required. Other runtime pairs use the general installer. See [backup checkpoints](dev/decisions/004-backup-checkpoints.md#upgrade-reuse).
+
 Submit an ordinary model call as a one-node graph through the same boundary used by compound workflows:
 
 ```bash
