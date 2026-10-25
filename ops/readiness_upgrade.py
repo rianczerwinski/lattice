@@ -91,38 +91,35 @@ def main() -> None:
     parser.add_argument('--rollback-snapshot', type=Path, required=True)
     args = parser.parse_args()
     target = install.VERSIONS_ROOT / NEW_RUNTIME
-    old_target = install.CURRENT_LINK.resolve(strict=True)
-    if old_target.name != OLD_RUNTIME:
-        raise RuntimeError('current runtime is not the reviewed predecessor; inspect installation state')
-    proof = prove(old_target, target, args.rollback_snapshot)
-    print('Verified unchanged migration implementation and equal schema for the exact readiness repair', flush=True)
-    prior = install.capture_publication_state()
-    quiescence_started = False
-    try:
-        with install.upgrade_quiescence():
-            quiescence_started = True
-            install.unload_job(install.SERVICE_LABEL)
-            install.unload_job(install.BACKUP_LABEL)
-        print('Independently verifying the current rollback snapshot', flush=True)
-        snapshot = install.reuse_rollback_snapshot(args.rollback_snapshot)
-        from lattice.canonical import canonical_bytes, generated_object
-        proof['generated_object'] = generated_object(kind='lattice-unchanged-migration',
-            schema_name='lattice-unchanged-migration', subject=f'lattice:upgrade:{NEW_RUNTIME}', role='snapshot',
-            sources=[{'ref': str(path), 'revision': None, 'sha256': install.exact_sha256(path)}
-                     for path in (old_target / 'runtime.json', target / 'runtime.json', snapshot / 'snapshot.json', Path(__file__))],
-            producer_name='lattice-readiness-upgrade', producer_version='1.0.0')
-        receipt = install.DEFAULT_DATA_ROOT / 'acceptance' / ('unchanged-migration-' + proof['generated_object']['generated_at'] + '-' + proof['generated_object']['artifact_id'].split(':')[-1] + '.json')
-        install.write_atomic(receipt, canonical_bytes(proof), mode=0o600)
-        print(f'Unchanged migration evidence: {receipt}', flush=True)
-    except BaseException:
-        if quiescence_started:
-            install.restore_publication_state(prior)
-        raise
-    if install.CURRENT_LINK.resolve() != old_target:
-        raise RuntimeError('current runtime changed during preparation; inspect competing publication')
-    # These are the same live migration/startup and rollback functions used by
-    # the general installer. The database is never restored on a successful run.
-    install.publish_runtime(target, snapshot=snapshot, prior=prior)
+    # Same maintenance owner, cancellation, durable record and recovery as the
+    # general installer; the exact-runtime checks below are unchanged.
+    with install.maintenance_lock(), install.cancellation_scope():
+        install.recover_maintenance()
+        old_target = install.CURRENT_LINK.resolve(strict=True)
+        if old_target.name != OLD_RUNTIME:
+            raise RuntimeError('current runtime is not the reviewed predecessor; inspect installation state')
+        proof = prove(old_target, target, args.rollback_snapshot)
+        print('Verified unchanged migration implementation and equal schema for the exact readiness repair', flush=True)
+
+        def record_evidence(_target: Path, snapshot: Path | None) -> None:
+            # The snapshot was independently verified live by reuse_rollback_snapshot.
+            from lattice.canonical import canonical_bytes, generated_object
+            proof['generated_object'] = generated_object(kind='lattice-unchanged-migration',
+                schema_name='lattice-unchanged-migration', subject=f'lattice:upgrade:{NEW_RUNTIME}', role='snapshot',
+                sources=[{'ref': str(path), 'revision': None, 'sha256': install.exact_sha256(path)}
+                         for path in (old_target / 'runtime.json', target / 'runtime.json', snapshot / 'snapshot.json', Path(__file__))],
+                producer_name='lattice-readiness-upgrade', producer_version='1.0.0')
+            receipt = install.DEFAULT_DATA_ROOT / 'acceptance' / ('unchanged-migration-' + proof['generated_object']['generated_at'] + '-' + proof['generated_object']['artifact_id'].split(':')[-1] + '.json')
+            install.write_atomic(receipt, canonical_bytes(proof), mode=0o600)
+            print(f'Unchanged migration evidence: {receipt}', flush=True)
+
+        def current_unchanged() -> None:
+            if install.CURRENT_LINK.resolve() != old_target:
+                raise RuntimeError('current runtime changed during preparation; inspect competing publication')
+
+        # Same live snapshot verification, quiesced cutover, migration/startup and
+        # rollback as the general installer. The database is never restored on success.
+        install.perform_upgrade(target, rollback_snapshot=args.rollback_snapshot, verify_candidate=record_evidence, before_cutover=current_unchanged)
     print(f'Installed Lattice runtime {target.name}', flush=True)
 
 

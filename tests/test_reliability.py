@@ -361,6 +361,7 @@ def test_candidate_must_verify_the_exact_prepublication_backup(monkeypatch, tmp_
 
 @pytest.mark.regression
 def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', tmp_path)
     snapshot = tmp_path / "backup"
     target = tmp_path / "candidate"
     calls = []
@@ -385,6 +386,7 @@ def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tm
 
 @pytest.mark.regression
 def test_installer_refuses_publication_after_release_revision_changes(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', tmp_path)
     calls = []
     monkeypatch.setattr(deployment, 'upgrade_quiescence', nullcontext)
     monkeypatch.setattr(deployment, "capture_publication_state", lambda: deployment.PublicationState(None, None, None, None, None, False, False))
@@ -1414,6 +1416,7 @@ def test_runtime_selector_replacement_syncs_its_parent(monkeypatch, tmp_path) ->
 
 @pytest.mark.regression
 def test_publication_failure_always_invokes_exact_state_rollback(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(deployment, 'installed_runtime_version', lambda _target: '0.3.1')
     target = tmp_path / "candidate"
     target.mkdir()
     prior = deployment.PublicationState(None, None, None, None, None, False, False)
@@ -1464,6 +1467,7 @@ def test_failed_upgrade_verifies_the_restored_runtime_against_its_own_version(mo
 
 @pytest.mark.regression
 def test_negative_control_selector_publication_failure_also_rolls_back(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(deployment, 'installed_runtime_version', lambda _target: '0.3.1')
     target = tmp_path / "candidate"
     target.mkdir()
     prior = deployment.PublicationState(None, None, None, None, None, False, False)
@@ -1611,7 +1615,6 @@ def test_macos_default_state_is_outside_the_development_checkout() -> None:
 
 @pytest.mark.oracle
 def test_failed_candidate_restores_saved_database_before_old_runtime(lattice_env, tmp_path, monkeypatch):
-    monkeypatch.setattr(deployment, 'migrate_database_for_publication', lambda *_args: None)
     root = lattice_env['config'].data_root
     source = assess_data_root(root)
     snapshot = create_snapshot(root, backup_root=tmp_path / 'backups', reason='upgrade-rollback-oracle', source_revision=source['state_digest'], schema_version=source['schema_version'], state_digest=source['state_digest'])
@@ -1620,12 +1623,13 @@ def test_failed_candidate_restores_saved_database_before_old_runtime(lattice_env
     target = tmp_path / 'candidate'
     calls = []
     monkeypatch.setattr(deployment, 'install_links', lambda _target: None)
-    def start_candidate(_target):
+    def migrate_candidate(_target, _snapshot):
         lattice_env['store'].create_project(ProjectCreate(title='candidate-only', purpose='retained in failed upgrade evidence'))
         with sqlite3.connect(root / 'lattice.sqlite3') as conn:
             conn.execute('CREATE TABLE candidate_schema_marker(value TEXT)')
             conn.execute("INSERT INTO schema_migrations VALUES(17, '20261010T000000')")
-    monkeypatch.setattr(deployment, 'install_launchd', start_candidate)
+    monkeypatch.setattr(deployment, 'migrate_database_for_publication', migrate_candidate)
+    monkeypatch.setattr(deployment, 'install_launchd', lambda _target: None)
     monkeypatch.setattr(deployment, 'installed_runtime_version', lambda _target: '0.3.1')
     monkeypatch.setattr(deployment, 'unload_job', lambda label: calls.append(('stop', label)))
     def restore_prior(_prior):

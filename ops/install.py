@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import fcntl
 import hashlib
 import json
@@ -12,16 +13,19 @@ import plistlib
 import re
 import shlex
 import shutil
+import signal
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.request
 import uuid
 from dataclasses import dataclass
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
+from typing import Callable
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 AXISVI_ROOT = Path(os.environ.get("AXISVI_ROOT", str(SOURCE_ROOT.parents[2]))).expanduser().resolve()
@@ -37,6 +41,14 @@ LOG_ROOT = Path.home() / "Library" / "Logs" / "Lattice"
 SERVICE_LABEL = "com.axisvi.lattice"
 BACKUP_LABEL = "com.axisvi.lattice.backup"
 LAUNCHD_TRANSITION_TIMEOUT_SECONDS = 30
+# Maintenance ownership and durable recovery state live in the data root. The
+# flock on MAINTENANCE_LOCK is the only authority; pids inside are informational.
+MAINTENANCE_LOCK = "maintenance.lock"
+MAINTENANCE_WRITER_LOCK = "maintenance-writer.lock"
+MAINTENANCE_RECORD = "maintenance.json"
+MAINTENANCE_RECORD_CONTRACT = "LatticeMaintenanceRecord/1.0"
+MAINTENANCE_WRITER_WAIT_SECONDS = 600
+GRACEFUL_SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 VERSION_PATTERN = re.compile(rb'^__version__ = "([0-9]+\.[0-9]+\.[0-9]+)"$', re.MULTILINE)
 RELEASE_INPUTS = (
     "lattice", "workflow_packs", "web", "ops", "tests",
@@ -61,8 +73,8 @@ class PublicationState:
     backup_loaded: bool
 
 
-def run(arguments: list[str], *, cwd: Path = SOURCE_ROOT, env: dict[str, str] | None = None, capture: bool = False) -> subprocess.CompletedProcess[bytes]:
-    result = subprocess.run(arguments, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE if capture else None, stderr=subprocess.PIPE if capture else None, check=False)
+def run(arguments: list[str], *, cwd: Path = SOURCE_ROOT, env: dict[str, str] | None = None, capture: bool = False, pass_fds: tuple[int, ...] = ()) -> subprocess.CompletedProcess[bytes]:
+    result = subprocess.run(arguments, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE if capture else None, stderr=subprocess.PIPE if capture else None, check=False, pass_fds=pass_fds)
     if result.returncode != 0:
         detail = ""
         if capture:
@@ -432,6 +444,147 @@ def upgrade_quiescence():
 
     with _snapshot_guard(DEFAULT_DATA_ROOT, database, require_idle=True):
         yield
+
+
+class MaintenanceOwned(RuntimeError):
+    """Another installer, recovery, or driver currently owns maintenance."""
+
+
+class MaintenanceInterrupted(BaseException):
+    """A graceful stop signal arrived; the existing rollback paths handle it."""
+
+
+class MaintenanceRecoveryRefused(RuntimeError):
+    """Interrupted state exists but automatic restoration would discard admitted work."""
+
+
+class RollbackSnapshotStale(RuntimeError):
+    """The live database moved after the rollback snapshot was captured."""
+
+
+@contextmanager
+def maintenance_lock():
+    """Single maintenance owner per data root.
+
+    `flock(LOCK_EX|LOCK_NB)` on a file that is never unlinked. The kernel drops
+    the lock when the holder dies, so SIGKILL cannot leave it stuck and pid reuse
+    cannot forge ownership; the pid written inside is a diagnostic only.
+    """
+    DEFAULT_DATA_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = DEFAULT_DATA_ROOT / MAINTENANCE_LOCK
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            holder = os.read(descriptor, 256).decode("utf-8", errors="replace").strip()
+            raise MaintenanceOwned(f"maintenance already owned ({holder or 'holder unknown'}); the flock on {path} is the authority, wait for or stop that process") from error
+        os.ftruncate(descriptor, 0)
+        os.write(descriptor, f"pid={os.getpid()} started={time.strftime('%Y%m%dT%H%M%S')} argv={shlex.join(sys.argv)}\n".encode())
+        yield
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+class _Cancellation:
+    armed = False
+    cancellable = False
+    received: list[int] = []
+
+
+_cancellation = _Cancellation()
+
+
+def _graceful_signal(signum: int, _frame) -> None:
+    _cancellation.received.append(signum)
+    if _cancellation.cancellable:
+        # Raise once; rollback code below runs with cancellable=False so a second
+        # `runjob stop` or Ctrl-C cannot interrupt restoration mid-operation.
+        _cancellation.cancellable = False
+        raise MaintenanceInterrupted(f"maintenance interrupted by signal {signal.Signals(signum).name}")
+    print(f"signal {signal.Signals(signum).name} received during rollback; finishing restoration first", file=sys.stderr, flush=True)
+
+
+@contextmanager
+def cancellation_scope():
+    """Turn SIGTERM/SIGINT/SIGHUP into one MaintenanceInterrupted in the main thread.
+
+    Python delivers handlers between bytecodes of the main thread, so the
+    exception can surface inside any operation. `subprocess.run` kills and reaps
+    its direct child on that exception; grandchildren are not covered. SIGKILL
+    never invokes handlers; the durable maintenance record covers that case.
+    """
+    if threading.current_thread() is not threading.main_thread() or _cancellation.armed:
+        yield
+        return
+    previous = {signum: signal.signal(signum, _graceful_signal) for signum in GRACEFUL_SIGNALS}
+    _cancellation.received = []
+    _cancellation.armed = True
+    _cancellation.cancellable = True
+    try:
+        yield
+    finally:
+        _cancellation.cancellable = False
+        _cancellation.armed = False
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
+@contextmanager
+def rollback_section():
+    """While actually restoring, graceful signals are recorded, not raised.
+
+    The prior cancellable state is restored on every exit, so a later phase in
+    the same scope (for example a new upgrade after automatic recovery) remains
+    cancellable. A signal received during restoration is honoured as soon as the
+    restoration completes instead of being swallowed.
+    """
+    previous = _cancellation.cancellable
+    seen = len(_cancellation.received)
+    _cancellation.cancellable = False
+    try:
+        yield
+    except BaseException:
+        _cancellation.cancellable = previous
+        raise
+    _cancellation.cancellable = previous
+    if previous and len(_cancellation.received) > seen:
+        names = ",".join(signal.Signals(number).name for number in _cancellation.received[seen:])
+        raise MaintenanceInterrupted(f"maintenance interrupted by signal {names} received during restoration; restoration completed")
+
+
+def live_database_generation() -> tuple[str, int]:
+    """Current (state_digest, schema_version) from one pinned read; no blob hashing."""
+    import_source_modules()
+    from lattice.diagnostics import _begin_read_snapshot, _connect_read_only, _state_digest, _tracked_tables
+
+    connection = _connect_read_only(DEFAULT_DATA_ROOT / "lattice.sqlite3")
+    try:
+        _begin_read_snapshot(connection)
+        schema_version = int(connection.execute("SELECT COALESCE(MAX(version),0) FROM schema_migrations").fetchone()[0])
+        digest = _state_digest(connection, _tracked_tables(connection))
+    finally:
+        if connection.in_transaction:
+            connection.rollback()
+        connection.close()
+    return digest, schema_version
+
+
+def verify_rollback_snapshot_current(snapshot: Path | None) -> None:
+    """Offline cutover check: the quiesced database must equal the verified snapshot.
+
+    Full snapshot verification already ran live (`assess_backup` through the
+    candidate, or `reuse_rollback_snapshot`). Here only the database generation
+    is compared, so the stopped window does not pay for a full tree hash.
+    """
+    if snapshot is None:
+        return
+    manifest = json.loads((snapshot / "snapshot.json").read_bytes())
+    saved = (manifest["state_digest"], int(manifest["schema_version"]))
+    current = live_database_generation()
+    if current != saved:
+        raise RollbackSnapshotStale(f"rollback snapshot {snapshot.name} is stale at cutover: saved {saved} live {current}; the service was not stopped, re-run to capture the current generation")
 
 
 def backup_before_upgrade() -> Path | None:
@@ -939,43 +1092,266 @@ def restore_publication_state(state: PublicationState) -> None:
         raise BaseExceptionGroup("Lattice publication rollback was incomplete", failures)
 
 
+def _encode_file_state(state: FileState | None) -> dict | None:
+    if state is None:
+        return None
+    return {"content_b64": base64.b64encode(state.content).decode("ascii"), "mode": state.mode}
+
+
+def _decode_file_state(value: dict | None) -> FileState | None:
+    if value is None:
+        return None
+    return FileState(content=base64.b64decode(value["content_b64"], validate=True), mode=int(value["mode"]))
+
+
+def encode_publication_state(state: PublicationState) -> dict:
+    return {
+        "current_target": None if state.current_target is None else str(state.current_target),
+        "previous_target": None if state.previous_target is None else str(state.previous_target),
+        "shim": _encode_file_state(state.shim),
+        "service_plist": _encode_file_state(state.service_plist),
+        "backup_plist": _encode_file_state(state.backup_plist),
+        "service_loaded": bool(state.service_loaded),
+        "backup_loaded": bool(state.backup_loaded),
+    }
+
+
+def decode_publication_state(value: dict) -> PublicationState:
+    return PublicationState(
+        current_target=None if value["current_target"] is None else Path(value["current_target"]),
+        previous_target=None if value["previous_target"] is None else Path(value["previous_target"]),
+        shim=_decode_file_state(value["shim"]),
+        service_plist=_decode_file_state(value["service_plist"]),
+        backup_plist=_decode_file_state(value["backup_plist"]),
+        service_loaded=bool(value["service_loaded"]),
+        backup_loaded=bool(value["backup_loaded"]),
+    )
+
+
+def maintenance_record_path() -> Path:
+    return DEFAULT_DATA_ROOT / MAINTENANCE_RECORD
+
+
+def read_maintenance_record() -> dict | None:
+    path = maintenance_record_path()
+    if not path.exists():
+        return None
+    record = json.loads(path.read_bytes())
+    if not isinstance(record, dict) or record.get("contract_version") != MAINTENANCE_RECORD_CONTRACT:
+        raise RuntimeError(f"unrecognized maintenance record at {path}; inspect before continuing")
+    if record.get("phase") not in {"stopped", "migrating", "launching", "restoring", "restored"}:
+        raise RuntimeError(f"unrecognized maintenance phase at {path}; inspect before continuing")
+    return record
+
+
+def write_maintenance_record(*, phase: str, prior: PublicationState, snapshot: Path | None, target: Path, target_version: str, extra: dict | None = None) -> dict:
+    """Operational state for recovery; fsync+rename so it survives SIGKILL/power loss.
+
+    Phases: stopped (writers stopped, database untouched), migrating (candidate
+    may have changed the database), launching (candidate jobs bootstrapped and
+    may admit new work). Written before the action each phase names.
+    """
+    record = {
+        "contract_version": MAINTENANCE_RECORD_CONTRACT,
+        "pid": os.getpid(),
+        "argv": sys.argv,
+        "started_at": time.strftime("%Y%m%dT%H%M%S"),
+        "phase": phase,
+        "snapshot": None if snapshot is None else str(snapshot),
+        "target": str(target),
+        "target_version": target_version,
+        "prior": encode_publication_state(prior),
+    }
+    record.update(extra or {})
+    write_atomic(maintenance_record_path(), json.dumps(record, sort_keys=True, indent=1).encode(), mode=0o600)
+    return record
+
+
+def clear_maintenance_record() -> None:
+    path = maintenance_record_path()
+    path.unlink(missing_ok=True)
+    sync_directory(path.parent)
+
+
+def append_stream_heads(database: Path) -> dict[str, list]:
+    """(count, max seq) of the append-only streams: cheap admitted-work evidence."""
+    heads: dict[str, list] = {}
+    if not database.is_file():
+        return heads
+    connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=30)
+    try:
+        present = {str(row[0]) for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        for table in ("events", "ledger_changes", "append_integrity", "attempts", "runs", "workflow_commands", "conversation_imports"):
+            if table in present:
+                count = connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
+                seq = connection.execute(f'SELECT MAX(seq) FROM "{table}"').fetchone()[0] if table in ("events", "ledger_changes", "append_integrity") else None
+                heads[table] = [int(count), seq]
+    finally:
+        connection.close()
+    return heads
+
+
+@contextmanager
+def candidate_writer_exclusion():
+    """Hold LOCK_EX on the writer lock for the whole restore.
+
+    The migration child inherits a LOCK_SH description taken by the installer
+    before spawning (`migrate_database_for_publication`), so an orphan left by
+    SIGKILL still holds it from its first instruction until exit. Exclusive
+    acquisition therefore proves no migration writer exists, and keeping it held
+    through the restore keeps one from appearing.
+    """
+    path = DEFAULT_DATA_ROOT / MAINTENANCE_WRITER_LOCK
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        deadline = time.monotonic() + MAINTENANCE_WRITER_WAIT_SECONDS
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"a candidate migration process still holds {path}; stop it before recovery")
+                time.sleep(0.2)
+        yield
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def protected_rollback(*, prior: PublicationState, snapshot: Path | None, target: Path, started: bool, baseline_heads: dict | None, record: bool, exclude_writers: bool) -> None:
+    """Refuse admitted work under the same admission locks used for cutover.
+
+    Recovery owns the writer exclusion through database restoration. The
+    restored phase is durable before restarting prior jobs, so an interrupted
+    restart never causes a later operator to overwrite work served by the prior
+    runtime. Internal non-recorded calls retain the legacy test seam.
+    """
+    database = DEFAULT_DATA_ROOT / "lattice.sqlite3"
+    with rollback_section():
+        with candidate_writer_exclusion() if exclude_writers else nullcontext():
+            with upgrade_quiescence() if record else nullcontext():
+                if snapshot is not None and started:
+                    heads = append_stream_heads(database)
+                    if heads != baseline_heads:
+                        message = (
+                            f"candidate {target.name} admitted work after it started; "
+                            "candidate preserved, database not restored; inspect the retained maintenance record"
+                        )
+                        if record:
+                            retained = read_maintenance_record()
+                            if retained is not None:
+                                retained.update(refusal=message, refused_at=time.strftime("%Y%m%dT%H%M%S"))
+                                write_atomic(maintenance_record_path(), json.dumps(retained, sort_keys=True).encode(), mode=0o600)
+                        raise MaintenanceRecoveryRefused(message)
+                if record or snapshot is not None:
+                    unload_job(SERVICE_LABEL)
+                    unload_job(BACKUP_LABEL)
+            if snapshot is not None:
+                if record:
+                    write_maintenance_record(phase="restoring", prior=prior, snapshot=snapshot, target=target, target_version=installed_runtime_version(target))
+                restore_upgrade_database(snapshot)
+            if record:
+                write_maintenance_record(phase="restored", prior=prior, snapshot=snapshot, target=target, target_version=installed_runtime_version(target))
+        restore_publication_state(prior)
+        if prior.current_target is not None and prior.service_loaded:
+            verify_live_service(prior.current_target.name, installed_runtime_version(prior.current_target))
+        if record:
+            clear_maintenance_record()
+
+
+def recover_maintenance() -> bool:
+    """Consume an interrupted maintenance record. Caller holds `maintenance_lock`.
+
+    Returns True when a record was found and resolved. A candidate that answers
+    exact health is retained. Otherwise `protected_rollback` applies the same
+    admission guard, writer exclusion, and restore as in-process failure.
+    """
+    record = read_maintenance_record()
+    if record is None:
+        return False
+    phase = record["phase"]
+    prior = decode_publication_state(record["prior"])
+    snapshot = None if record["snapshot"] is None else Path(record["snapshot"])
+    target = Path(record["target"])
+    print(f"Recovering interrupted maintenance: phase {phase}, pid {record['pid']}, started {record['started_at']}", flush=True)
+    if phase == "launching":
+        try:
+            verify_live_service(target.name, record["target_version"], timeout_seconds=60)
+        except RuntimeError:
+            pass
+        else:
+            print("Interrupted publication is already healthy; keeping the candidate", flush=True)
+            clear_maintenance_record()
+            return True
+    if phase in ("stopped", "restored") and prior.service_loaded and prior.current_target is not None and capture_publication_state() == prior:
+        # Loaded flags and bytes alone do not prove a usable daemon; ask it.
+        try:
+            verify_live_service(prior.current_target.name, installed_runtime_version(prior.current_target), timeout_seconds=60)
+        except RuntimeError:
+            pass
+        else:
+            clear_maintenance_record()
+            print("Prior publication intact and healthy; nothing to restore", flush=True)
+            return True
+    protected_rollback(prior=prior, snapshot=snapshot if phase not in ("stopped", "restored") else None, target=target, started=phase == "launching", baseline_heads=record.get("post_migration_heads"), record=True, exclude_writers=phase not in ("stopped", "restored"))
+    print("Interrupted maintenance recovered; prior publication restored", flush=True)
+    return True
+
+
 def migrate_database_for_publication(target: Path, snapshot: Path | None) -> None:
     """Finish fallible migration before starting the service-readiness clock.
 
     Store migration may first take a full crash-consistent snapshot. That work
     has its own retained process/log boundary and cannot fit a small HTTP boot
     deadline. Publication's rollback owns any database changes from this point.
+    The installer takes LOCK_SH on the writer lock before spawning and passes the
+    same descriptor to the child, so the child holds it from exec until exit even
+    if the installer dies first; recovery proves absence with LOCK_EX.
     """
     if snapshot is None:
         return
     print(f"Migrating canonical state with {target.name} before service startup", flush=True)
-    run([
-        str(target / '.venv' / 'bin' / 'python'), '-c',
-        'import sys; from pathlib import Path; from lattice import LatticeStore,LatticeConfig; LatticeStore(LatticeConfig(data_root=Path(sys.argv[1]),axisvi_root=Path(sys.argv[2])))',
-        str(DEFAULT_DATA_ROOT), str(AXISVI_ROOT),
-    ], cwd=target)
+    descriptor = os.open(DEFAULT_DATA_ROOT / MAINTENANCE_WRITER_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_SH)
+        run([
+            str(target / '.venv' / 'bin' / 'python'), '-c',
+            'import sys; from pathlib import Path; from lattice import LatticeStore,LatticeConfig; LatticeStore(LatticeConfig(data_root=Path(sys.argv[1]),axisvi_root=Path(sys.argv[2])))',
+            str(DEFAULT_DATA_ROOT), str(AXISVI_ROOT),
+        ], cwd=target, pass_fds=(descriptor,))
+    finally:
+        os.close(descriptor)
     print('Canonical migration completed; starting service readiness', flush=True)
 
 
-def publish_runtime(target: Path, *, snapshot: Path | None = None, prior: PublicationState | None = None) -> None:
+def publish_runtime(target: Path, *, snapshot: Path | None = None, prior: PublicationState | None = None, record: bool = False) -> None:
     prior = prior or capture_publication_state()
+    started = False
+    baseline_heads: dict | None = None
     try:
+        version = installed_runtime_version(target)
+        if record:
+            write_maintenance_record(phase="migrating", prior=prior, snapshot=snapshot, target=target, target_version=version)
         migrate_database_for_publication(target, snapshot)
+        if snapshot is not None:
+            baseline_heads = append_stream_heads(DEFAULT_DATA_ROOT / "lattice.sqlite3")
+        if record:
+            write_maintenance_record(phase="launching", prior=prior, snapshot=snapshot, target=target, target_version=version, extra={"post_migration_heads": baseline_heads})
         install_links(target)
+        started = True
         install_launchd(target)
-        verify_live_service(target.name, installed_runtime_version(target))
+        verify_live_service(target.name, version)
     except BaseException as publication_error:
+        if record:
+            raise
         try:
-            if snapshot is not None:
-                unload_job(SERVICE_LABEL)
-                unload_job(BACKUP_LABEL)
-                restore_upgrade_database(snapshot)
-            restore_publication_state(prior)
-            if prior.current_target is not None and prior.service_loaded:
-                verify_live_service(prior.current_target.name, installed_runtime_version(prior.current_target))
+            protected_rollback(prior=prior, snapshot=snapshot, target=target, started=started, baseline_heads=baseline_heads, record=False, exclude_writers=False)
         except BaseException as rollback_error:
             raise BaseExceptionGroup("Lattice publication and automatic rollback both failed", [publication_error, rollback_error])
         raise publication_error
+    if record:
+        clear_maintenance_record()
 
 
 def plist_payload(label: str, *, backup: bool, runtime_id: str | None = None) -> dict:
@@ -1059,40 +1435,73 @@ def verify_live_service(expected_runtime_id: str, expected_version: str, timeout
     raise RuntimeError(f"installed Lattice did not become healthy: {last_error}")
 
 
+def perform_upgrade(target: Path, *, rollback_snapshot: Path | None, verify_candidate: Callable[[Path, Path | None], None], before_cutover: Callable[[], None]) -> None:
+    """Shared locked lifecycle for every installer entrypoint.
+
+    Order: prior publication captured under the lock; rollback snapshot captured
+    or reused and fully verified while the old service still serves; candidate
+    verification live; then, under `upgrade_quiescence` (both admission locks,
+    active work refused), one database-generation comparison against the
+    snapshot, the durable record, and the stop. Publication follows with the
+    record advanced per phase. Stopping is the last reversible step, so drift
+    refuses with the service still up instead of paying for another backup.
+    The snapshot capture itself may hold writers briefly (`require_idle` capture).
+    """
+    prior = capture_publication_state()
+    print("Capturing pre-upgrade rollback snapshot while the service runs", flush=True)
+    snapshot = reuse_rollback_snapshot(rollback_snapshot) if rollback_snapshot else backup_before_upgrade()
+    print("Verifying candidate compatibility with the rollback snapshot", flush=True)
+    verify_candidate(target, snapshot)
+    before_cutover()
+    try:
+        with upgrade_quiescence():
+            print("Comparing quiesced database generation with the rollback snapshot", flush=True)
+            verify_rollback_snapshot_current(snapshot)
+            write_maintenance_record(phase="stopped", prior=prior, snapshot=snapshot, target=target, target_version=installed_runtime_version(target))
+            print("Stopping service for cutover", flush=True)
+            unload_job(SERVICE_LABEL)
+            unload_job(BACKUP_LABEL)
+        publish_runtime(target, snapshot=snapshot, prior=prior, record=True)
+    except BaseException as upgrade_error:
+        # The record, not an in-memory flag set after writing it, is authoritative.
+        # This also catches signals between stopping and entering publication.
+        if read_maintenance_record() is not None:
+            try:
+                with rollback_section():
+                    recover_maintenance()
+            except BaseException as rollback_error:
+                raise BaseExceptionGroup("Lattice upgrade and recovery both failed", [upgrade_error, rollback_error])
+        raise
+
+
+def default_candidate_verification(target: Path, snapshot: Path | None) -> None:
+    verify_candidate_backup(target, snapshot)
+    qualify_candidate_migration(target, snapshot)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--legacy-data-root", type=Path, default=DEFAULT_LEGACY_ROOT)
     parser.add_argument("--skip-tests", action="store_true", help="reserved for recovery; normal upgrades must run assurance")
     parser.add_argument("--rollback-snapshot", type=Path, help="reuse a verified snapshot only if its database state still matches the stopped service")
+    parser.add_argument("--recover", action="store_true", help="only resolve an interrupted maintenance record; do not build or publish")
     args = parser.parse_args()
-    lattice_revision = git_revision(SOURCE_ROOT) if args.skip_tests else verify_source()
-    migrate_legacy_data(args.legacy_data_root.expanduser().resolve())
-    target = install_runtime(lattice_revision)
-    # Build while the old service is usable, then stop all database writers before
-    # the rollback boundary. Publication never revives an older runtime first.
-    prior = capture_publication_state()
-    quiescence_started = False
-    try:
-        with upgrade_quiescence():
-            quiescence_started = True
-            unload_job(SERVICE_LABEL)
-            unload_job(BACKUP_LABEL)
-        print("Capturing pre-upgrade rollback snapshot", flush=True)
-        snapshot = reuse_rollback_snapshot(args.rollback_snapshot) if args.rollback_snapshot else backup_before_upgrade()
-        print("Verifying candidate compatibility with the rollback snapshot", flush=True)
-        verify_candidate_backup(target, snapshot)
-        qualify_candidate_migration(target, snapshot)
-        if git_revision(SOURCE_ROOT) != lattice_revision:
-            raise RuntimeError("source revision changed before runtime publication")
-    except BaseException as preparation_error:
-        if not quiescence_started:
-            raise
-        try:
-            restore_publication_state(prior)
-        except BaseException as rollback_error:
-            raise BaseExceptionGroup("Lattice upgrade preparation and rollback both failed", [preparation_error, rollback_error])
-        raise
-    publish_runtime(target, snapshot=snapshot, prior=prior)
+    with maintenance_lock(), cancellation_scope():
+        # Interrupted state is consumed explicitly before any new attempt captures
+        # a "prior" publication; a retry never records an outage as the baseline.
+        recovered = recover_maintenance()
+        if args.recover:
+            print("Recovered interrupted maintenance" if recovered else "No interrupted maintenance recorded", flush=True)
+            return
+        lattice_revision = git_revision(SOURCE_ROOT) if args.skip_tests else verify_source()
+        migrate_legacy_data(args.legacy_data_root.expanduser().resolve())
+        target = install_runtime(lattice_revision)
+
+        def revision_unchanged() -> None:
+            if git_revision(SOURCE_ROOT) != lattice_revision:
+                raise RuntimeError("source revision changed before runtime publication")
+
+        perform_upgrade(target, rollback_snapshot=args.rollback_snapshot, verify_candidate=default_candidate_verification, before_cutover=revision_unchanged)
     print(f"Installed Lattice runtime {target.name}")
     print(f"CLI: {SHIM}")
     print(f"State: {DEFAULT_DATA_ROOT}")

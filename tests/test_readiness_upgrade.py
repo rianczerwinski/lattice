@@ -58,6 +58,10 @@ def test_rejects_changed_entry_and_noncurrent_schema():
 
 
 def test_busy_upgrade_does_not_restore_or_reload_unrelated_work(tmp_path, monkeypatch):
+    monkeypatch.setattr(upgrade.install, 'DEFAULT_DATA_ROOT', tmp_path)
+    monkeypatch.setattr(upgrade.install, 'reuse_rollback_snapshot', lambda path: path)
+    monkeypatch.setattr(upgrade.install, 'exact_sha256', lambda _path: '0' * 64)
+    monkeypatch.setattr(upgrade.install, 'installed_runtime_version', lambda _target: '0.3.1')
     old = tmp_path / upgrade.OLD_RUNTIME
     old.mkdir()
     current = tmp_path / 'current'
