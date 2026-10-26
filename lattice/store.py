@@ -19,6 +19,7 @@ from typing import Any
 from .execution import DEFAULT_ADAPTERS, SubscriptionRouteUnavailable, validate_execution_policy
 
 from .blob_store import BlobStore
+from .recovery_references import referenced_blob_digests
 from .canonical import canonical_bytes, opaque_id, sha256_bytes, stamp
 from .config import LatticeConfig
 from .exact_file import ExactFileCaptureError, capture_exact_file
@@ -4288,76 +4289,11 @@ class LatticeStore:
                     bind(dict(row))
         return digest.hexdigest()
 
-    @staticmethod
-    def _collect_blob_refs(value: Any, refs: set[str]) -> None:
-        if isinstance(value, str) and value.startswith((CURRENT_BLOB_PREFIX, LEGACY_BLOB_PREFIX)):
-            prefix = CURRENT_BLOB_PREFIX if value.startswith(CURRENT_BLOB_PREFIX) else LEGACY_BLOB_PREFIX
-            digest = value.removeprefix(prefix)
-            if len(digest) == 64 and all(character in "0123456789abcdef" for character in digest):
-                refs.add(digest)
-        elif isinstance(value, dict):
-            for child in value.values():
-                LatticeStore._collect_blob_refs(child, refs)
-        elif isinstance(value, list):
-            for child in value:
-                LatticeStore._collect_blob_refs(child, refs)
-
-    def _required_blob_bytes(self, digest: str) -> bytes:
-        try:
-            return self.blobs.get(digest)
-        except FileNotFoundError as error:
-            raise OSError(f"missing blob required by Lattice state: {digest}") from error
-
     def referenced_blob_digests(self) -> set[str]:
         """Return every CAS object needed to reconstruct current and historical Lattice truth."""
-        refs: set[str] = set()
-        structured_blobs: set[str] = set()
         with self._connect() as conn:
-            for table, column in (
-                ("context_blocks", "content_sha256"),
-                ("invocations", "compiled_prompt_sha256"),
-                ("attempts", "output_sha256"),
-                ("artifacts", "content_sha256"),
-                ("workflow_commands", "result_sha256"),
-                ("conversation_imports", "result_sha256"),
-                ("workflow_transitions", "payload_sha256"),
-                ("workflow_instances", "pack_definition_sha256"),
-            ):
-                values = {str(row[0]) for row in conn.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL')}
-                refs.update(values)
-                if (table, column) in {("workflow_commands", "result_sha256"), ("conversation_imports", "result_sha256"), ("workflow_transitions", "payload_sha256")}:
-                    structured_blobs.update(values)
-            for table, column in (
-                ("invocations", "manifest_json"),
-                ("artifacts", "generated_json"),
-                ("context_blocks", "transformation_json"),
-                ("workflow_commands", "receipt_json"),
-                ("workflow_commands", "arguments_json"),
-                ("attempts", "runtime_receipt_json"),
-                ("runs", "declaration_json"),
-                ("runs", "authority_json"),
-                ("run_attempts", "request_json"),
-                ("run_attempts", "executor_binding_json"),
-                ("run_units", "declaration_json"),
-                ("events", "payload_json"),
-            ):
-                for row in conn.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL'):
-                    self._collect_blob_refs(json.loads(row[0]), refs)
-            for row in conn.execute("SELECT storage_locator FROM run_artifacts WHERE state='present' AND storage_locator LIKE 'lattice:blob/%'"):
-                self._collect_blob_refs(row[0], refs)
-            for row in conn.execute("SELECT record_json,regeneration_json FROM run_artifacts WHERE state='present'"):
-                self._collect_blob_refs(json.loads(row["record_json"]), refs)
-                if row["regeneration_json"] is not None:
-                    self._collect_blob_refs(json.loads(row["regeneration_json"]), refs)
-            for row in conn.execute("SELECT result_ref FROM workflow_triggers WHERE result_ref LIKE 'lattice:blob/%' OR result_ref LIKE 'loom:blob/%'"):
-                self._collect_blob_refs(row[0], refs)
-        for digest in sorted(structured_blobs):
-            try:
-                value = json.loads(self._required_blob_bytes(digest))
-            except json.JSONDecodeError as error:
-                raise OSError(f"structured Lattice blob is not valid JSON: {digest}") from error
-            self._collect_blob_refs(value, refs)
-        return refs
+            conn.execute("BEGIN")
+            return referenced_blob_digests(conn, self.blobs.root)
 
     def rebuild_database(self, destination: Path) -> str:
         """Reconstruct a complete Lattice data root off-path, then publish it atomically."""

@@ -11,11 +11,9 @@ from typing import Any
 from .execution import load_checkpoint
 
 from .canonical import canonical_bytes
+from .recovery_references import referenced_blob_digests
 from .snapshot import materialized_snapshot_database, verify_snapshot
 from .store import CHANGE_TABLES, LatticeStore, SCHEMA_VERSION
-
-
-CURRENT_BLOB_PREFIXES = ("lattice:blob/", "loom:blob/")
 
 
 def _connect_read_only(database: Path) -> sqlite3.Connection:
@@ -78,86 +76,8 @@ def _tracked_tables(connection: sqlite3.Connection) -> tuple[str, ...]:
     return tables
 
 
-def _collect_blob_refs(value: Any, refs: set[str]) -> None:
-    if isinstance(value, str):
-        for prefix in CURRENT_BLOB_PREFIXES:
-            if value.startswith(prefix):
-                digest = value.removeprefix(prefix)
-                if len(digest) == 64 and all(character in "0123456789abcdef" for character in digest):
-                    refs.add(digest)
-                return
-    elif isinstance(value, dict):
-        for child in value.values():
-            _collect_blob_refs(child, refs)
-    elif isinstance(value, list):
-        for child in value:
-            _collect_blob_refs(child, refs)
-
-
 def _referenced_blobs(connection: sqlite3.Connection, blobs: Path) -> set[str]:
-    refs: set[str] = set()
-    structured: set[str] = set()
-    present_tables = {str(row[0]) for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    for table, column in (
-        ("context_blocks", "content_sha256"),
-        ("invocations", "compiled_prompt_sha256"),
-        ("attempts", "output_sha256"),
-        ("artifacts", "content_sha256"),
-        ("workflow_commands", "result_sha256"),
-        ("conversation_imports", "result_sha256"),
-        ("workflow_transitions", "payload_sha256"),
-        ("workflow_instances", "pack_definition_sha256"),
-    ):
-        if table not in present_tables:
-            continue
-        values = {str(row[0]) for row in connection.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL')}
-        refs.update(values)
-        if (table, column) in {("workflow_commands", "result_sha256"), ("conversation_imports", "result_sha256"), ("workflow_transitions", "payload_sha256")}:
-            structured.update(values)
-    for table, column in (
-        ("invocations", "manifest_json"),
-        ("artifacts", "generated_json"),
-        ("context_blocks", "transformation_json"),
-        ("workflow_commands", "receipt_json"),
-        ("workflow_commands", "arguments_json"),
-        ("attempts", "runtime_receipt_json"),
-        ("runs", "declaration_json"),
-        ("runs", "authority_json"),
-        ("run_attempts", "request_json"),
-        ("run_attempts", "executor_binding_json"),
-        ("run_units", "declaration_json"),
-        ("events", "payload_json"),
-        ("conversation_rounds", "request_json"),
-        ("conversation_executions", "recovery_json"),
-        ("conversation_checkpoints", "content_json"),
-        ("provider_qualifications", "receipt_json"),
-    ):
-        if table not in present_tables:
-            continue
-        for row in connection.execute(f'SELECT "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL'):
-            value = json.loads(row[0])
-            _collect_blob_refs(value, refs)
-            if table == "provider_qualifications" and value.get("contract_version") == "ConversationRecoveryQualification/1.0":
-                _collect_blob_refs(value.get("evidence_refs", {}), structured)
-    for row in connection.execute("SELECT result_ref FROM workflow_triggers WHERE result_ref LIKE 'lattice:blob/%' OR result_ref LIKE 'loom:blob/%'"):
-        _collect_blob_refs(row[0], refs)
-    if "run_artifacts" in present_tables:
-        for row in connection.execute("SELECT storage_locator FROM run_artifacts WHERE state='present' AND storage_locator LIKE 'lattice:blob/%'"):
-            _collect_blob_refs(row[0], refs)
-        for row in connection.execute("SELECT record_json,regeneration_json FROM run_artifacts WHERE state='present'"):
-            _collect_blob_refs(json.loads(row["record_json"]), refs)
-            if row["regeneration_json"] is not None:
-                _collect_blob_refs(json.loads(row["regeneration_json"]), refs)
-    for digest in sorted(structured):
-        path = blobs / digest[:2] / digest
-        try:
-            value = json.loads(path.read_bytes())
-        except FileNotFoundError as error:
-            raise OSError(f"missing blob required by Lattice state: {digest}") from error
-        except json.JSONDecodeError as error:
-            raise OSError(f"structured Lattice blob is not valid JSON: {digest}") from error
-        _collect_blob_refs(value, refs)
-    return refs
+    return referenced_blob_digests(connection, blobs)
 
 
 def _verify_blob(path: Path, expected: str) -> int:
