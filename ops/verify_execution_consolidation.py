@@ -504,11 +504,18 @@ def verify_runtime_manifest(path: Path, *, database_profiles: dict[str, dict[str
         expected_profile_id = f"provider-profile:{sha256_bytes(canonical_bytes({key: value for key, value in definition.items() if key != 'profile_id'}))}"
         if profile_id != expected_profile_id or database_profiles is not None and database_profiles.get(profile_id) != definition:
             raise ConsolidationVerificationError(f"installed provider profile is not exact: {item.get('provider_code')}")
+        # Provider CLI identities are retained install-time evidence, not a
+        # liveness claim (dev/decisions/003-provider-readiness.md). Closure
+        # verifies their recorded shape exactly as lattice/runtime_attestation
+        # .validate_provider_attestations does; it does not require the historic
+        # executable to still exist or to match its installed-time bytes. Route
+        # availability is owned by doctor and provider qualification.
         binary = item.get("binary")
+        digest = item.get("binary_sha256")
         if item.get("installed"):
-            if not isinstance(binary, str) or not Path(binary).is_absolute() or sha256_file(Path(binary).resolve(strict=True)) != item.get("binary_sha256"):
-                raise ConsolidationVerificationError(f"installed provider binary changed: {item.get('provider_code')}")
-        elif binary is not None or item.get("binary_sha256") is not None:
+            if not isinstance(binary, str) or not Path(binary).is_absolute() or not isinstance(digest, str) or len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+                raise ConsolidationVerificationError(f"installed provider binary attestation is malformed: {item.get('provider_code')}")
+        elif binary is not None or digest is not None:
             raise ConsolidationVerificationError(f"uninstalled provider claims binary evidence: {item.get('provider_code')}")
     runtime_tree_digest = sha256_bytes(canonical_bytes(expected))
     provider_attestation_digest = sha256_bytes(canonical_bytes(attestations))
