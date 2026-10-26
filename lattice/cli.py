@@ -496,8 +496,8 @@ def command_doctor(args: argparse.Namespace) -> int:
             raise RuntimeError("running Lattice uses a different canonical data root")
         if health.get("startup_recovery_failures"):
             raise RuntimeError(f"Lattice startup left batch members undispatched: {health['startup_recovery_failures']}")
-        if health.get("workflow_pack_failures"):
-            raise RuntimeError(f"Lattice quarantined invalid workflow packs: {health['workflow_pack_failures']}")
+        if health.get("conversation_ready") is False or health.get("durable_run_ready") is False:
+            raise RuntimeError(f"Lattice core service is not ready: {health}")
         selected_runtime = _runtime_status()
         if health.get("runtime_id") != selected_runtime["runtime_id"]:
             raise RuntimeError(f"running Lattice uses runtime {health.get('runtime_id')!r} but the selected runtime is {selected_runtime['runtime_id']!r}")

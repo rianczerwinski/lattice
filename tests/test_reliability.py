@@ -361,6 +361,7 @@ def test_candidate_must_verify_the_exact_prepublication_backup(monkeypatch, tmp_
 
 @pytest.mark.regression
 def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(deployment, "verify_candidate_workflow_packs", lambda _target: None)
     monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', tmp_path)
     snapshot = tmp_path / "backup"
     target = tmp_path / "candidate"
@@ -386,6 +387,7 @@ def test_installer_never_publishes_when_candidate_rejects_backup(monkeypatch, tm
 
 @pytest.mark.regression
 def test_installer_refuses_publication_after_release_revision_changes(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(deployment, "verify_candidate_workflow_packs", lambda _target: None)
     monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', tmp_path)
     calls = []
     monkeypatch.setattr(deployment, 'upgrade_quiescence', nullcontext)
@@ -799,13 +801,13 @@ def test_negative_control_doctor_reports_undispatched_startup_recovery(monkeypat
 
 
 @pytest.mark.regression
-def test_negative_control_doctor_reports_quarantined_workflow_pack(monkeypatch, tmp_path, capsys) -> None:
+def test_doctor_keeps_workflow_failure_visible_without_failing_core_service(monkeypatch, tmp_path, capsys) -> None:
     service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
     failure = {"pack_id": "platform-foundry", "detail": "planted malformed pack"}
     monkeypatch.setattr(cli, "_service", lambda _config: service)
-    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "ok", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime", "workflow_pack_failures": [failure]})
+    monkeypatch.setattr(cli, "_health", lambda _service: {"status": "degraded", "conversation_ready": True, "durable_run_ready": True, "version": "0.3.0", "service": "lattice", "port": 9010, "data_root": str(tmp_path), "runtime_id": "test-runtime", "workflow_pack_failures": [failure]})
     monkeypatch.setattr(cli, "_launchd_status", lambda: {"loaded": True})
-    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime"})
+    monkeypatch.setattr(cli, "_runtime_status", lambda: {"editable": False, "runtime_id": "test-runtime", "version": "0.3.0"})
     monkeypatch.setattr(cli, "_adapter_status", lambda _service=None, _token=None: {"anthropic": {}, "openai": {}})
     monkeypatch.setattr(cli, "_backup_status", lambda _config: {"fresh": True})
     monkeypatch.setattr(cli, "assess_data_root", lambda _root: {"state_digest": "0" * 64, "schema_version": 10, "expected_schema_version": 10})
@@ -814,10 +816,10 @@ def test_negative_control_doctor_reports_quarantined_workflow_pack(monkeypatch, 
     status = cli.command_doctor(argparse.Namespace(json=True))
     output = json.loads(capsys.readouterr().out)
 
-    assert status == 1
+    assert status == 0
     check = next(item for item in output["checks"] if item["name"] == "service")
-    assert "quarantined invalid workflow packs" in check["detail"]
-    assert "platform-foundry" in check["detail"]
+    assert check["state"] == "pass"
+    assert check["detail"]["workflow_pack_failures"] == [failure]
 
 
 @pytest.mark.contract
@@ -1309,7 +1311,7 @@ def test_negative_control_live_publication_rejects_wrong_package_version(monkeyp
 
 
 @pytest.mark.regression
-def test_negative_control_live_publication_rejects_quarantined_workflows(monkeypatch) -> None:
+def test_live_publication_uses_core_readiness_with_legacy_workflow_failure(monkeypatch) -> None:
     service = OutportService(project="axisvi", instance="main", name="lattice", port=9010, hostname="lattice.axisvi.test", url="https://lattice.axisvi.test", up=True)
     monkeypatch.setattr("lattice.outport.resolve_lattice_service", lambda _root: service)
 
@@ -1321,15 +1323,14 @@ def test_negative_control_live_publication_rejects_quarantined_workflows(monkeyp
             return None
 
         def read(self):
-            return json.dumps({"status": "ok", "port": 9010, "data_root": str(deployment.DEFAULT_DATA_ROOT), "runtime_id": "candidate-runtime", "workflow_pack_failures": [{"pack_id": "broken", "detail": "planted"}]}).encode()
+            return json.dumps({"status": "degraded", "conversation_ready": True, "durable_run_ready": True, "version": "0.3.1", "port": 9010, "data_root": str(deployment.DEFAULT_DATA_ROOT), "runtime_id": "candidate-runtime", "workflow_pack_failures": [{"pack_id": "broken", "detail": "planted"}]}).encode()
 
     monkeypatch.setattr(deployment.urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
     monkeypatch.setattr(deployment.time, "sleep", lambda _seconds: None)
     ticks = iter((0.0, 0.5, 1.0))
     monkeypatch.setattr(deployment.time, "monotonic", lambda: next(ticks))
 
-    with pytest.raises(RuntimeError, match="workflow_pack_failures"):
-        deployment.verify_live_service("candidate-runtime", "0.3.1", timeout_seconds=1)
+    deployment.verify_live_service("candidate-runtime", "0.3.1", timeout_seconds=1)
 
 
 @pytest.mark.regression
@@ -1794,6 +1795,7 @@ def test_every_captured_integrity_scan_releases_live_writer_lock(lattice_env, tm
 
 @pytest.mark.oracle
 def test_installer_does_not_stop_or_restart_active_provider_work(lattice_env, tmp_path, monkeypatch):
+    monkeypatch.setattr(deployment, "verify_candidate_workflow_packs", lambda _target: None)
     store = lattice_env['store']
     draft = store.create_draft(DraftCreate(project_id=lattice_env['project']['project_id'], role_session_id=lattice_env['session']['role_session_id'], prompt='Unrelated work must remain running.', route=lattice_env['route']))
     invocation = lattice_env['lattice'].seal(draft['draft_id'])

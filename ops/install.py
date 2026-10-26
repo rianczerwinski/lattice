@@ -688,6 +688,16 @@ def verify_candidate_backup(target: Path, snapshot: Path | None) -> None:
     ], cwd=target, capture=True)
 
 
+def verify_candidate_workflow_packs(target: Path) -> None:
+    """Validate shipped definitions before cutover, independently of external packs."""
+    run([
+        str(target / ".venv" / "bin" / "python"), "-c",
+        "from lattice.config import WORKFLOW_PACK_ROOT; from lattice.workflows import WorkflowRegistry; "
+        "failures=WorkflowRegistry(WORKFLOW_PACK_ROOT).catalogue()['failures']; "
+        "\nif failures: raise RuntimeError(f'invalid bundled workflow packs: {failures}')",
+    ], cwd=target, capture=True)
+
+
 def candidate_provider_profile_catalog(target: Path) -> dict:
     """Read admitted definitions from the frozen candidate without opening state."""
 
@@ -1459,7 +1469,11 @@ def verify_live_service(expected_runtime_id: str, expected_version: str, timeout
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{service.port}/api/health", timeout=2) as response:
                 payload = json.loads(response.read())
-            if payload.get("status") == "ok" and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and payload.get("version") == expected_version and not payload.get("startup_recovery_failures") and not payload.get("workflow_pack_failures"):
+            # Overall health can be degraded by external workflow definitions
+            # that neither this upgrade nor rollback can repair. Use the core
+            # readiness contract, including older payloads without attribution.
+            core_ready = payload.get("conversation_ready", payload.get("status") == "ok") is True and payload.get("durable_run_ready", True) is True
+            if payload.get("status") in ("ok", "degraded") and core_ready and payload.get("port") == service.port and Path(payload.get("data_root", "")).resolve() == DEFAULT_DATA_ROOT.resolve() and payload.get("runtime_id") == expected_runtime_id and payload.get("version") == expected_version and not payload.get("startup_recovery_failures"):
                 return
             last_error = RuntimeError(f"health identity mismatch: {payload}")
         except Exception as error:
@@ -1508,6 +1522,7 @@ def perform_upgrade(target: Path, *, rollback_snapshot: Path | None, verify_cand
 
 
 def default_candidate_verification(target: Path, snapshot: Path | None) -> None:
+    verify_candidate_workflow_packs(target)
     verify_candidate_backup(target, snapshot)
     qualify_candidate_migration(target, snapshot)
 
