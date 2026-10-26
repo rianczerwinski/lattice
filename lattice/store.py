@@ -69,7 +69,7 @@ from .contracts import (
 MAX_AXIAL_CONCERNS = 10_000
 MAX_AXIAL_SOURCE_CLAIMS = 100_000
 MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
 RUN_LOG_RECEIPT_PAGE = 64
@@ -405,7 +405,7 @@ CREATE TABLE IF NOT EXISTS external_operations(
     request_json TEXT NOT NULL CHECK(json_valid(request_json)),
     actor TEXT NOT NULL,
     workflow_role TEXT,
-    state TEXT NOT NULL CHECK(state IN ('reserved','sealed','dispatched','terminal')),
+    state TEXT NOT NULL CHECK(state IN ('reserved','sealed','dispatched','terminal','withdrawn')),
     invocation_id TEXT UNIQUE REFERENCES invocations(invocation_id),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -843,9 +843,36 @@ class LatticeStore:
                 conn.execute("DROP INDEX IF EXISTS one_running_run_unit")
                 conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(15,?)", (stamp(),))
             conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(16,?)", (stamp(),))
+            if conn.execute("SELECT 1 FROM schema_migrations WHERE version=17").fetchone() is None:
+                self._migrate_external_withdrawal(conn)
             self._register_provider_profiles(conn)
             self._verify_integrity_chain(conn)
             self._verify_current_views_against_change_ledger(conn)
+
+    def _migrate_external_withdrawal(self, conn: sqlite3.Connection) -> None:
+        """Rebuild only the state CHECK; retain exact rows and append-only history.
+
+        SQLite transactional DDL keeps the table, tracking triggers and version
+        barrier indivisible. No table references external_operations as a parent.
+        """
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            for operation in ("insert", "update", "delete"):
+                conn.execute(f'DROP TRIGGER IF EXISTS "ledger_external_operations_{operation}"')
+            definition = DDL.split("CREATE TABLE IF NOT EXISTS external_operations(", 1)[1].split(") STRICT;", 1)[0]
+            conn.execute("CREATE TABLE external_operations_v17(" + definition + ") STRICT")
+            conn.execute("INSERT INTO external_operations_v17 SELECT * FROM external_operations")
+            conn.execute("DROP TABLE external_operations")
+            conn.execute("ALTER TABLE external_operations_v17 RENAME TO external_operations")
+            self._install_change_triggers(conn)
+            if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
+                raise OSError("withdrawal migration violates foreign keys")
+            self._verify_current_views_against_change_ledger(conn)
+            conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES(17,?)", (stamp(),))
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
 
     @staticmethod
     def _register_provider_profiles(conn: sqlite3.Connection) -> None:
@@ -2527,6 +2554,8 @@ class LatticeStore:
         operation_key = request["operation_key"]
         idempotency_key = request["idempotency_key"]
         encoded = canonical_bytes(request).decode("utf-8")
+        if sha256_bytes(encoded.encode()) != request_sha256:
+            raise LatticeConflict("external request SHA does not bind exact request")
         now = stamp()
         with self.transaction() as conn:
             existing = conn.execute(
@@ -2540,6 +2569,10 @@ class LatticeStore:
             if existing is not None:
                 if existing["request_sha256"] != request_sha256 or existing["request_json"] != encoded or existing["idempotency_key"] != idempotency_key:
                     raise LatticeConflict("external operation key was reused with different bytes")
+                if existing["state"] == "withdrawn":
+                    raise LatticeConflict("withdrawn operation requires successor operation and idempotency keys")
+                identities = self.external_submission_identity(external_key, operation_key, request_sha256)
+                self._check_batch_fence(conn, identities["batch_id"], identities["batch_idempotency_key"])
                 mapping = self._row(conn.execute("SELECT project_id FROM external_projects WHERE external_project_key=?", (external_key,)).fetchone(), external_key)
                 result = dict(existing)
                 result["project_id"] = mapping["project_id"]
@@ -2569,7 +2602,7 @@ class LatticeStore:
                    VALUES(?,?,?,?,?,?,?,'reserved',?,?)""",
                 (external_key, operation_key, idempotency_key, request_sha256, encoded, request["actor"], request.get("workflow_role"), now, now),
             )
-            self._event(conn, project_id=project_id, event_type="execution-submission.reserved", subject_type="external-operation", subject_id=f"{external_key}:{operation_key}", payload={"request_sha256": request_sha256, "actor": request["actor"], "workflow_role": request.get("workflow_role")})
+            self._event(conn, project_id=project_id, event_type="execution-submission.reserved", subject_type="external-operation", subject_id=f"{external_key}:{operation_key}", payload={"external_project_key": external_key, "operation_key": operation_key, "request_sha256": request_sha256, "actor": request["actor"], "workflow_role": request.get("workflow_role")})
         return self.get_external_submission(external_key, operation_key)
 
     def import_historical_execution(self, request: dict[str, Any], request_sha256: str) -> dict[str, Any]:
@@ -2618,28 +2651,154 @@ class LatticeStore:
         row["files"] = json.loads(row.pop("census_json"))
         return row
 
-    def bind_external_submission(self, external_project_key: str, operation_key: str, invocation_id: str) -> dict[str, Any]:
-        """Bind the reserved external identity before dispatch, idempotently."""
+    @staticmethod
+    def external_submission_identity(external_project_key: str, operation_key: str, request_sha256: str) -> dict[str, str]:
+        full = sha256_bytes(canonical_bytes({"external_project_key": external_project_key, "operation_key": operation_key, "request_sha256": request_sha256}))
+        batch_id = "batch_" + full[:32]
+        draft_id = "draft_" + sha256_bytes(canonical_bytes({"batch_id": batch_id, "spec_id": "direct"}))[:32]
+        return {"batch_identity": full, "batch_id": batch_id, "batch_idempotency_key": "external:" + full,
+                "draft_id": draft_id, "invocation_id": "invocation_" + sha256_bytes((draft_id + ":1").encode())[:32]}
 
+    def _external_row(self, conn: sqlite3.Connection, external_project_key: str, operation_key: str, expected_request_sha256: str | None = None) -> dict[str, Any]:
+        row = self._row(conn.execute(
+            """SELECT o.*,p.project_id FROM external_operations o JOIN external_projects p USING(external_project_key)
+               WHERE o.external_project_key=? AND o.operation_key=?""", (external_project_key, operation_key)).fetchone(), f"{external_project_key}:{operation_key}")
+        request = json.loads(row["request_json"])
+        if (canonical_bytes(request).decode() != row["request_json"] or sha256_bytes(canonical_bytes(request)) != row["request_sha256"]
+                or expected_request_sha256 is not None and expected_request_sha256 != row["request_sha256"]
+                or request.get("external_project_key") != external_project_key or request.get("operation_key") != operation_key
+                or request.get("idempotency_key") != row["idempotency_key"] or request.get("actor") != row["actor"]
+                or request.get("workflow_role") != row["workflow_role"]):
+            raise LatticeConflict("external request identity or expected SHA differs")
+        return row
+
+    @staticmethod
+    def _check_batch_fence(conn: sqlite3.Connection, batch_id: str, idempotency_key: str) -> None:
+        full = idempotency_key.removeprefix("external:") if idempotency_key.startswith("external:") else None
+        candidates = {batch_id}
+        if full is not None:
+            candidates.add("batch_" + full[:32])
+        for candidate in candidates:
+            if conn.execute("SELECT 1 FROM events WHERE subject_type='invocation-batch' AND subject_id=? AND event_type='execution-submission.withdrawal-fence' LIMIT 1", (candidate,)).fetchone():
+                raise LatticeConflict("withdrawn batch is fenced; use successor operation and idempotency keys")
+
+    @staticmethod
+    def _require_unadmitted(conn: sqlite3.Connection, row: dict, identities: dict) -> None:
+        for query, args in (
+            ("SELECT 1 FROM invocation_batches WHERE batch_id=? OR idempotency_key=?", (identities["batch_id"], identities["batch_idempotency_key"])),
+            ("SELECT 1 FROM invocation_batch_members WHERE batch_id=? OR invocation_id=?", (identities["batch_id"], identities["invocation_id"])),
+            ("SELECT 1 FROM drafts WHERE draft_id=? OR invocation_id=?", (identities["draft_id"], identities["invocation_id"])),
+            ("SELECT 1 FROM invocations WHERE invocation_id=? OR draft_id=?", (identities["invocation_id"], identities["draft_id"])),
+            ("SELECT 1 FROM attempts WHERE invocation_id=?", (identities["invocation_id"],)),
+            ("SELECT 1 FROM edges WHERE (source_type='invocation' AND source_id=?) OR (target_type='invocation' AND target_id=?)", (identities["invocation_id"], identities["invocation_id"])),
+            ("SELECT 1 FROM events WHERE subject_type='invocation-batch' AND subject_id=? AND event_type<>'execution-submission.withdrawal-fence'", (identities["batch_id"],)),
+            ("SELECT 1 FROM events WHERE subject_type IN ('draft','invocation') AND subject_id IN (?,?)", (identities["draft_id"], identities["invocation_id"])),
+            ("SELECT 1 FROM events WHERE project_id=? AND subject_type='external-operation' AND subject_id=? AND event_type NOT IN ('execution-submission.reserved','execution-submission.withdrawn')", (row["project_id"], row["external_project_key"] + ":" + row["operation_key"])),
+        ):
+            if conn.execute(query, args).fetchone() is not None:
+                raise LatticeConflict("external operation has admitted batch or execution evidence; recovery required")
+
+    def withdraw_external_submission(self, external_project_key: str, operation_key: str, *, expected_request_sha256: str, reason: str, authority: dict[str, str]) -> dict[str, Any]:
+        """Close a never-admitted reservation and fence its batch in one writer transaction."""
+        if not reason.strip() or authority != {"kind": "operator", "boundary": "authenticated-local-operator"}:
+            raise LatticeConflict("withdrawal requires a reason and authenticated operator authority")
         with self.transaction() as conn:
-            row = self._row(conn.execute(
-                """SELECT o.*,p.project_id FROM external_operations o JOIN external_projects p USING(external_project_key)
-                   WHERE o.external_project_key=? AND o.operation_key=?""",
-                (external_project_key, operation_key),
-            ).fetchone(), f"{external_project_key}:{operation_key}")
-            invocation = self._row(conn.execute("SELECT project_id FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
-            if invocation["project_id"] != row["project_id"]:
-                raise LatticeConflict("external operation invocation belongs to another project")
-            if row["invocation_id"] is not None and row["invocation_id"] != invocation_id:
-                raise LatticeConflict("external operation is already bound to another invocation")
-            if row["invocation_id"] is None:
-                now = stamp()
-                conn.execute(
-                    "UPDATE external_operations SET invocation_id=?,state='sealed',updated_at=? WHERE external_project_key=? AND operation_key=? AND state='reserved'",
-                    (invocation_id, now, external_project_key, operation_key),
-                )
-                self._event(conn, project_id=row["project_id"], event_type="execution-submission.sealed", subject_type="external-operation", subject_id=f"{external_project_key}:{operation_key}", payload={"invocation_id": invocation_id})
+            row = self._external_row(conn, external_project_key, operation_key, expected_request_sha256)
+            identities = self.external_submission_identity(external_project_key, operation_key, row["request_sha256"])
+            material = {"contract_version": "ExternalOperationWithdrawalReceipt/1.0", "external_project_key": external_project_key,
+                "operation_key": operation_key, "project_id": row["project_id"], "request_sha256": row["request_sha256"],
+                "idempotency_key": row["idempotency_key"], **identities, "reason": reason, "authority": authority}
+            self._require_unadmitted(conn, row, identities)
+            reservations = list(conn.execute("SELECT seq,payload_json,payload_sha256 FROM events WHERE project_id=? AND subject_type='external-operation' AND subject_id=? AND event_type='execution-submission.reserved'", (row["project_id"], external_project_key + ":" + operation_key)))
+            if len(reservations) != 1 or sha256_bytes(reservations[0]["payload_json"].encode()) != reservations[0]["payload_sha256"]:
+                raise LatticeConflict("reservation evidence is missing or corrupt")
+            reserved = json.loads(reservations[0]["payload_json"])
+            if (reserved.get("request_sha256") != row["request_sha256"] or reserved.get("actor") != row["actor"]
+                    or reserved.get("workflow_role") != row["workflow_role"]
+                    or any(key in reserved and reserved[key] != row[key] for key in ("external_project_key", "operation_key"))):
+                raise LatticeConflict("reservation evidence identity differs")
+            if row["state"] == "withdrawn" and row["invocation_id"] is None:
+                events = list(conn.execute("SELECT seq,payload_json,payload_sha256 FROM events WHERE project_id=? AND subject_type='external-operation' AND subject_id=? AND event_type='execution-submission.withdrawn'", (row["project_id"], external_project_key + ":" + operation_key)))
+                if len(events) != 1 or events[0]["payload_sha256"] != sha256_bytes(events[0]["payload_json"].encode()):
+                    raise LatticeConflict("withdrawal receipt is missing or corrupt")
+                receipt = json.loads(events[0]["payload_json"])
+                if {key: value for key, value in receipt.items() if key not in {"withdrawn_at", "receipt_sha256"}} != material or receipt.get("receipt_sha256") != sha256_bytes(canonical_bytes({key: value for key, value in receipt.items() if key != "receipt_sha256"})):
+                    raise LatticeConflict("withdrawal retry differs from original receipt")
+                fences = list(conn.execute("SELECT seq,project_id,payload_json,payload_sha256 FROM events WHERE subject_type='invocation-batch' AND subject_id=? AND event_type='execution-submission.withdrawal-fence'", (identities["batch_id"],)))
+                if (len(fences) != 1 or json.loads(fences[0]["payload_json"]) != receipt
+                        or fences[0]["payload_sha256"] != sha256_bytes(fences[0]["payload_json"].encode())
+                        or fences[0]["project_id"] != row["project_id"]
+                        or not reservations[0]["seq"] < events[0]["seq"] < fences[0]["seq"]):
+                    raise LatticeConflict("withdrawal fence is missing or conflicting")
+            else:
+                if row["state"] != "reserved" or row["invocation_id"] is not None:
+                    raise LatticeConflict("only reserved unbound operations can be withdrawn")
+                self._check_batch_fence(conn, identities["batch_id"], identities["batch_idempotency_key"])
+                if conn.execute("SELECT 1 FROM events WHERE project_id=? AND subject_type='external-operation' AND subject_id=? AND event_type='execution-submission.withdrawn'", (row["project_id"], external_project_key + ":" + operation_key)).fetchone():
+                    raise LatticeConflict("reservation has conflicting withdrawal evidence")
+                receipt = {**material, "withdrawn_at": stamp()}
+                receipt["receipt_sha256"] = sha256_bytes(canonical_bytes(receipt))
+                conn.execute("UPDATE external_operations SET state='withdrawn',updated_at=? WHERE external_project_key=? AND operation_key=?", (receipt["withdrawn_at"], external_project_key, operation_key))
+                self._event(conn, project_id=row["project_id"], event_type="execution-submission.withdrawn", subject_type="external-operation", subject_id=external_project_key + ":" + operation_key, payload=receipt)
+                self._event(conn, project_id=row["project_id"], event_type="execution-submission.withdrawal-fence", subject_type="invocation-batch", subject_id=identities["batch_id"], payload=receipt)
+        return {"contract_version": "ExternalOperationWithdrawal/1.0", "state": "withdrawn", "invocation_id": None, "receipt": receipt}
+
+    def _bind_external_in_transaction(self, conn: sqlite3.Connection, external_project_key: str, operation_key: str, invocation_id: str, expected_request_sha256: str | None = None) -> None:
+        row = self._external_row(conn, external_project_key, operation_key, expected_request_sha256)
+        identities = self.external_submission_identity(external_project_key, operation_key, row["request_sha256"])
+        self._check_batch_fence(conn, identities["batch_id"], identities["batch_idempotency_key"])
+        if row["state"] == "withdrawn":
+            raise LatticeConflict("withdrawn operation requires successor keys")
+        members = list(conn.execute("""SELECT m.*,b.idempotency_key,b.project_id FROM invocation_batch_members m
+            JOIN invocation_batches b USING(batch_id) WHERE m.batch_id=?""", (identities["batch_id"],)))
+        invocation = self._row(conn.execute("SELECT * FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone(), invocation_id)
+        request = json.loads(row["request_json"])
+        draft = self._row(conn.execute("SELECT * FROM drafts WHERE draft_id=?", (identities["draft_id"],)).fetchone(), identities["draft_id"])
+        if (invocation_id != identities["invocation_id"] or len(members) != 1 or members[0]["spec_id"] != "direct"
+                or members[0]["ordinal"] != 0 or members[0]["invocation_id"] != invocation_id
+                or members[0]["idempotency_key"] != identities["batch_idempotency_key"]
+                or members[0]["project_id"] != row["project_id"] or invocation["project_id"] != row["project_id"]
+                or invocation["draft_id"] != identities["draft_id"] or draft["invocation_id"] != invocation_id
+                or draft["actor_kind"] != "direct" or draft["context_mode"] != "standard" or draft["revision"] != 1
+                or json.loads(draft["selections_json"]) != [{"block_id": block, "disposition": "selected", "plane": "knowledge", "label": f"external-context-{ordinal}", "derived_from_block_ids": [], "reason": None} for ordinal, block in enumerate(request["context_block_ids"])]
+                or json.loads(invocation["response_schema_json"]) != request["output_contract"]
+                or json.loads(draft["parents_json"]) != request["parent_invocation_ids"]
+                or self.blobs.get(conn.execute("SELECT content_sha256 FROM context_blocks WHERE block_id=?", (draft["prompt_block_id"],)).fetchone()[0]) != request["prompt"].encode()):
+            raise LatticeConflict("external operation batch membership or request identity differs")
+        route = json.loads(invocation["route_json"])
+        if any(route.get(key) != value for key, value in request["route"].items() if value is not None):
+            raise LatticeConflict("external operation route differs from request")
+        if row["invocation_id"] is not None:
+            if row["invocation_id"] != invocation_id or row["state"] not in {"sealed", "dispatched", "terminal"}:
+                raise LatticeConflict("external operation binding conflicts")
+            return
+        if row["state"] != "reserved":
+            raise LatticeConflict("external operation is not reserved")
+        terminal = invocation["state"] in {"succeeded", "failed", "interrupted", "imported"}
+        updated = conn.execute("UPDATE external_operations SET invocation_id=?,state=?,updated_at=? WHERE external_project_key=? AND operation_key=? AND state='reserved' AND invocation_id IS NULL", (invocation_id, "terminal" if terminal else "sealed", stamp(), external_project_key, operation_key))
+        if updated.rowcount != 1:
+            raise LatticeConflict("external operation binding lost its reservation")
+        self._event(conn, project_id=row["project_id"], event_type="execution-submission.sealed", subject_type="external-operation", subject_id=external_project_key + ":" + operation_key,
+            payload={"external_project_key": external_project_key, "operation_key": operation_key, "request_sha256": row["request_sha256"], **identities, "invocation_id": invocation_id, "recovered_terminal": terminal})
+
+    def bind_external_submission(self, external_project_key: str, operation_key: str, invocation_id: str) -> dict[str, Any]:
+        """Recover an exact historical binding; never append evidence after a no-op update."""
+        with self.transaction() as conn:
+            self._bind_external_in_transaction(conn, external_project_key, operation_key, invocation_id)
         return self.get_external_submission(external_project_key, operation_key)
+
+    def admit_existing_invocation_batch(self, *, batch_id: str, idempotency_key: str, create_request_sha256: str, external_binding: dict | None = None) -> dict[str, Any]:
+        with self.transaction() as conn:
+            self._check_batch_fence(conn, batch_id, idempotency_key)
+            row = self._row(conn.execute("SELECT * FROM invocation_batches WHERE idempotency_key=?", (idempotency_key,)).fetchone(), idempotency_key)
+            if row["batch_id"] != batch_id or row["request_sha256"] != create_request_sha256:
+                raise LatticeConflict("batch idempotency key was already used for different bytes")
+            if external_binding is not None:
+                invocation = conn.execute("SELECT invocation_id FROM invocation_batch_members WHERE batch_id=? ORDER BY ordinal", (batch_id,)).fetchone()
+                if invocation is None:
+                    raise LatticeConflict(f"invocation batch has no members for external binding: {batch_id}")
+                self._bind_external_in_transaction(conn, invocation_id=invocation[0], **external_binding)
+        return self.get_invocation_batch(batch_id)
 
     def mark_external_submission_dispatched(self, external_project_key: str, operation_key: str) -> dict[str, Any]:
         with self.transaction() as conn:
@@ -3647,12 +3806,19 @@ class LatticeStore:
         prepared: list[dict[str, Any]],
         context_blocks: list[ContextBlockCreate] | None = None,
         conversation_binding: dict | None = None,
+        external_binding: dict | None = None,
     ) -> dict[str, Any]:
         """Seal every batch member and its shared receipt in one transaction."""
 
         batch_id = receipt["batch_id"]
         now = receipt["generated_object"]["generated_at"]
         with self.transaction() as conn:
+            self._check_batch_fence(conn, batch_id, idempotency_key)
+            if external_binding is not None:
+                reservation = self._external_row(conn, **external_binding)
+                identity = self.external_submission_identity(reservation["external_project_key"], reservation["operation_key"], reservation["request_sha256"])
+                if reservation["state"] == "withdrawn" or identity["batch_id"] != batch_id or identity["batch_idempotency_key"] != idempotency_key:
+                    raise LatticeConflict("external batch reservation differs or is withdrawn")
             existing = conn.execute("SELECT batch_id,request_sha256 FROM invocation_batches WHERE idempotency_key=?", (idempotency_key,)).fetchone()
             if existing is not None:
                 if existing["request_sha256"] != create_request_sha256:
@@ -3737,6 +3903,11 @@ class LatticeStore:
                     bind_in_transaction(self, conn, invocation_id=prepared[0]["manifest"]["invocation_id"], **conversation_binding)
                 self._event(conn, project_id=receipt["project_id"], event_type="invocation-batch.sealed", subject_type="invocation-batch", subject_id=batch_id, payload={"receipt_sha256": receipt["receipt_sha256"], "invocation_ids": receipt["invocation_ids"]})
                 existing_id = batch_id
+            if external_binding is not None:
+                member = conn.execute("SELECT invocation_id FROM invocation_batch_members WHERE batch_id=? ORDER BY ordinal", (existing_id,)).fetchone()
+                if member is None:
+                    raise LatticeConflict(f"invocation batch has no members for external binding: {existing_id}")
+                self._bind_external_in_transaction(conn, invocation_id=member[0], **external_binding)
         return self.get_invocation_batch(existing_id)
 
     @staticmethod

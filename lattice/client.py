@@ -12,7 +12,7 @@ from typing import Any
 
 from .canonical import canonical_bytes
 from .config import LatticeConfig
-from .contracts import DurableRunDeclarationV1, DurableRunDeclarationV2, ExecuteRequest, ExecutionResultV1, ExecutionSubmissionV1, HistoricalExecutionImportResultV1, HistoricalExecutionImportV1, InvocationBatchCreateV1, InvocationBatchPreviewV1, ProjectCreate
+from .contracts import ExternalOperationWithdrawalRequestV1, ExternalOperationWithdrawalV1, DurableRunDeclarationV1, DurableRunDeclarationV2, ExecuteRequest, ExecutionResultV1, ExecutionSubmissionV1, HistoricalExecutionImportResultV1, HistoricalExecutionImportV1, InvocationBatchCreateV1, InvocationBatchPreviewV1, ProjectCreate
 from .outport import resolve_lattice_service
 from .security import ensure_cli_token
 
@@ -207,6 +207,10 @@ class LatticeClient:
         if not isinstance(result, dict):
             raise LatticeClientError("Lattice invocation execution response is malformed")
         return result
+
+    def withdraw_external_operation(self, request: ExternalOperationWithdrawalRequestV1 | dict[str, Any]) -> ExternalOperationWithdrawalV1:
+        value = request if isinstance(request, ExternalOperationWithdrawalRequestV1) else ExternalOperationWithdrawalRequestV1.model_validate(request)
+        return ExternalOperationWithdrawalV1.model_validate(self._request("POST", "/api/v1/external-operations/withdraw", value.model_dump(mode="json")))
 
     def result(self, external_project_key: str, operation_key: str) -> ExecutionResultV1:
         query = urllib.parse.urlencode({"external_project_key": external_project_key, "operation_key": operation_key})

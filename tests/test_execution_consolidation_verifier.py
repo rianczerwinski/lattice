@@ -130,15 +130,15 @@ def test_independent_verifier_reconciles_external_execution_from_base_records(la
 
 
 @pytest.mark.oracle
-@pytest.mark.parametrize("unsupported_version", [15, 17])
+@pytest.mark.parametrize("unsupported_version", [16, 18])
 def test_independent_verifier_rejects_unsupported_schema_boundaries(lattice_env, unsupported_version) -> None:
     database = lattice_env['config'].database
     with sqlite3.connect(database) as connection:
         connection.execute('DROP TRIGGER schema_migrations_no_delete')
-        connection.execute('DELETE FROM schema_migrations WHERE version=16')
-        if unsupported_version == 17:
-            connection.execute("INSERT INTO schema_migrations VALUES(17, '20261014T000000')")
-    with pytest.raises(verifier.ConsolidationVerificationError, match=f'database schema is {unsupported_version}, expected 16'):
+        connection.execute('DELETE FROM schema_migrations WHERE version=17')
+        if unsupported_version == 18:
+            connection.execute("INSERT INTO schema_migrations VALUES(18, '20261014T000000')")
+    with pytest.raises(verifier.ConsolidationVerificationError, match=f'database schema is {unsupported_version}, expected 17'):
         verifier.verify_database(lattice_env['config'].data_root)
 
 

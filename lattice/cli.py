@@ -22,7 +22,7 @@ from .execution import installed_adapter_status
 
 from .canonical import canonical_bytes, generated_object, sha256_bytes, strict_json_loads
 from .client import LatticeClient
-from .contracts import ExecutionSubmissionV1, HistoricalExecutionImportV1, InvocationBatchCreateV1, InvocationBatchPreviewV1
+from .contracts import ExternalOperationWithdrawalRequestV1, ExecutionSubmissionV1, HistoricalExecutionImportV1, InvocationBatchCreateV1, InvocationBatchPreviewV1
 from .__about__ import __version__
 from .config import LatticeConfig
 from .diagnostics import assess_backup, assess_data_root, latest_backup
@@ -373,6 +373,14 @@ def command_execution_result(args: argparse.Namespace) -> int:
     return 0 if result.state.value not in {"failed", "interrupted"} else 1
 
 
+def command_withdraw_operation(args: argparse.Namespace) -> int:
+    request = ExternalOperationWithdrawalRequestV1(external_project_key=args.external_project_key,
+        operation_key=args.operation_key, expected_request_sha256=args.expected_request_sha256, reason=args.reason)
+    result = LatticeClient.from_environment().withdraw_external_operation(request)
+    _emit(result.model_dump(mode="json"), as_json=True)
+    return 0
+
+
 def command_cancel_attempt(args: argparse.Namespace) -> int:
     _emit(LatticeClient.from_environment().cancel_attempt(args.attempt_id), as_json=True)
     return 0
@@ -579,6 +587,13 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--external-project-key", required=True)
     result.add_argument("--operation-key", required=True)
     result.set_defaults(handler=command_execution_result)
+
+    withdraw = subparsers.add_parser("withdraw-operation", help="close a never-admitted external operation and fence its execution identity")
+    withdraw.add_argument("--external-project-key", required=True)
+    withdraw.add_argument("--operation-key", required=True)
+    withdraw.add_argument("--expected-request-sha256", required=True)
+    withdraw.add_argument("--reason", required=True)
+    withdraw.set_defaults(handler=command_withdraw_operation)
 
     cancel_attempt = subparsers.add_parser("cancel-attempt", help="request cancellation of one provider attempt")
     cancel_attempt.add_argument("attempt_id")

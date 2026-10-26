@@ -887,6 +887,28 @@ class ExecutionSubmissionV1(StrictModel):
         return self
 
 
+class ExternalOperationWithdrawalRequestV1(StrictModel):
+    contract_version: Literal["ExternalOperationWithdrawalRequest/1.0"] = "ExternalOperationWithdrawalRequest/1.0"
+    external_project_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    operation_key: str = Field(min_length=1, max_length=300, pattern=r"^[^\x00-\x1f\x7f]+$")
+    expected_request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    reason: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("reason")
+    @classmethod
+    def reason_is_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("withdrawal reason must not be blank")
+        return value
+
+
+class ExternalOperationWithdrawalV1(StrictModel):
+    contract_version: Literal["ExternalOperationWithdrawal/1.0"] = "ExternalOperationWithdrawal/1.0"
+    state: Literal["withdrawn"] = "withdrawn"
+    invocation_id: None = None
+    receipt: dict[str, Any]
+
+
 class ExecutionResultV1(StrictModel):
     contract_version: Literal["ExecutionResult/1.0"] = "ExecutionResult/1.0"
     external_project_key: str

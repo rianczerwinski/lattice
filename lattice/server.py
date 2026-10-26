@@ -32,6 +32,8 @@ from .contracts import (
     DurableRunDeclarationV1,
     DurableRunDeclarationV2,
     ExecuteRequest,
+    ExternalOperationWithdrawalRequestV1,
+    ExternalOperationWithdrawalV1,
     ExecutionResultV1,
     ExecutionSubmissionV1,
     HistoricalExecutionImportResultV1,
@@ -695,6 +697,16 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
             store.mark_external_submission_dispatched(value.external_project_key, value.operation_key)
             await supervisor.execute(invocation["invocation_id"], ExecuteRequest(idempotency_key=f"external:{value.idempotency_key}"))
         return external_result(value.external_project_key, value.operation_key)
+
+    @app.post("/api/v1/external-operations/withdraw")
+    async def withdraw_external_operation(value: ExternalOperationWithdrawalRequestV1):
+        # The operator middleware authenticates both bearer and browser controls.
+        # Attribution names that shared authority, never a caller-supplied principal.
+        result = await asyncio.to_thread(store.withdraw_external_submission,
+            value.external_project_key, value.operation_key,
+            expected_request_sha256=value.expected_request_sha256, reason=value.reason,
+            authority={"kind": "operator", "boundary": "authenticated-local-operator"})
+        return ExternalOperationWithdrawalV1.model_validate(result).model_dump(mode="json")
 
     @app.get("/api/v1/executions")
     async def get_execution(external_project_key: str = Query(min_length=1), operation_key: str = Query(min_length=1)):

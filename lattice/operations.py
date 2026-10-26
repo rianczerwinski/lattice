@@ -69,15 +69,14 @@ class Lattice:
             specifications=[InvocationSpecV1(spec_id="direct", assembly=assembly, route=value.route)],
         )
         preview = self.preview_invocation_batch(preview_request)
-        receipt = self.create_invocation_batch(InvocationBatchCreateV1(
+        self.create_invocation_batch(InvocationBatchCreateV1(
             batch_id=batch_id,
             specifications=preview_request.specifications,
             idempotency_key=f"external:{batch_identity}",
             expected_preview_sha256=preview["preview_sha256"],
             confirmed_reason_sha256s=[item["reason_sha256"] for item in preview["confirmation_reasons"]],
-        ))
-        invocation_id = receipt["invocation_ids"][0]
-        return self.store.bind_external_submission(value.external_project_key, value.operation_key, invocation_id)
+        ), external_binding={"external_project_key": value.external_project_key, "operation_key": value.operation_key, "expected_request_sha256": request_sha})
+        return self.store.get_external_submission(value.external_project_key, value.operation_key)
 
     @staticmethod
     def _batch_prompt_block(assembly: ContextAssemblyV1) -> tuple[str, dict[str, Any], bytes]:
@@ -244,7 +243,7 @@ class Lattice:
         }
         return {**material, "preview_sha256": sha256_json(material)}
 
-    def create_invocation_batch(self, value: InvocationBatchCreateV1, *, context_blocks: list[ContextBlockCreate] | None = None, conversation_binding: dict | None = None) -> dict[str, Any]:
+    def create_invocation_batch(self, value: InvocationBatchCreateV1, *, context_blocks: list[ContextBlockCreate] | None = None, conversation_binding: dict | None = None, external_binding: dict | None = None) -> dict[str, Any]:
         request_material = value.model_dump(mode="json")
         if context_blocks or conversation_binding:
             request_material["bound_context"] = [item.model_dump(mode="json") for item in context_blocks or []]
@@ -254,7 +253,7 @@ class Lattice:
         if existing is not None:
             if existing["create_request_sha256"] != create_request_sha:
                 raise LatticeConflict("batch idempotency key was already used for different bytes")
-            return existing
+            return self.store.admit_existing_invocation_batch(batch_id=value.batch_id, idempotency_key=value.idempotency_key, create_request_sha256=create_request_sha, external_binding=external_binding)
         preview_input = InvocationBatchPreviewV1(batch_id=value.batch_id, specifications=value.specifications)
         preview = self.preview_invocation_batch(preview_input, **({"context_blocks":context_blocks} if context_blocks else {}))
         if preview["preview_sha256"] != value.expected_preview_sha256:
@@ -328,6 +327,7 @@ class Lattice:
             prepared=prepared,
             context_blocks=context_blocks,
             conversation_binding=conversation_binding,
+            external_binding=external_binding,
         )
 
     @staticmethod

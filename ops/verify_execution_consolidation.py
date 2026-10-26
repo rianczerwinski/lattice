@@ -26,7 +26,7 @@ from typing import Any, Iterable, Iterator
 import rfc8785
 
 
-EXPECTED_SCHEMA_VERSION = 16
+EXPECTED_SCHEMA_VERSION = 17
 TERMINAL_INVOCATION_STATES = {"succeeded", "failed", "interrupted", "imported"}
 TERMINAL_ATTEMPT_STATES = {"succeeded", "failed", "interrupted", "orphaned"}
 PROVIDER_HARNESSES = {"anthropic": "claude", "openai": "codex", "google": "antigravity", "moonshot": "kimi", "xai": "grok", "meta": "muse"}
@@ -334,12 +334,77 @@ def _verify_historical_source(source: Path, expected_files: Any, *, label: str) 
         raise ConsolidationVerificationError(f"{label} source bytes no longer match the imported census")
 
 
+def _verify_withdrawn_operation(connection: sqlite3.Connection, row: sqlite3.Row, request: dict[str, Any]) -> None:
+    """Read base evidence independently; no Store lifecycle/identity helpers."""
+    label = f"withdrawn operation {row['external_project_key']}:{row['operation_key']}"
+    def reject(detail: str) -> None:
+        raise ConsolidationVerificationError(f"{label}: {detail}")
+    if row["invocation_id"] is not None:
+        reject("has an invocation")
+    if canonical_bytes(request).decode() != row["request_json"]:
+        reject("request bytes are not canonical")
+    project = connection.execute("SELECT project_id FROM external_projects WHERE external_project_key=?", (row["external_project_key"],)).fetchone()
+    if project is None:
+        reject("project mapping is missing")
+    project_id = project[0]
+    if (request.get("external_project_key") != row["external_project_key"] or request.get("operation_key") != row["operation_key"]
+            or request.get("actor") != row["actor"] or request.get("workflow_role") != row["workflow_role"]):
+        reject("request keys or attribution differ")
+    full = hashlib.sha256(canonical_bytes({"external_project_key": row["external_project_key"], "operation_key": row["operation_key"], "request_sha256": row["request_sha256"]})).hexdigest()
+    batch = "batch_" + full[:32]
+    draft = "draft_" + hashlib.sha256(canonical_bytes({"batch_id": batch, "spec_id": "direct"})).hexdigest()[:32]
+    invocation = "invocation_" + hashlib.sha256((draft + ":1").encode()).hexdigest()[:32]
+    events = list(connection.execute("SELECT * FROM events WHERE project_id=? AND subject_type='external-operation' AND subject_id=? ORDER BY seq", (project_id, row["external_project_key"] + ":" + row["operation_key"])))
+    if [event["event_type"] for event in events] != ["execution-submission.reserved", "execution-submission.withdrawn"]:
+        reject("reservation/withdrawal event order differs or later lifecycle evidence exists")
+    reservation, withdrawal = events
+    fences = list(connection.execute("SELECT * FROM events WHERE subject_type='invocation-batch' AND subject_id=? ORDER BY seq", (batch,)))
+    if len(fences) != 1 or fences[0]["event_type"] != "execution-submission.withdrawal-fence" or fences[0]["project_id"] != project_id or fences[0]["seq"] <= withdrawal["seq"]:
+        reject("batch fence is missing, conflicting or out of order")
+    for event in [*events, *fences]:
+        if hashlib.sha256(event["payload_json"].encode()).hexdigest() != event["payload_sha256"]:
+            reject("event payload hash differs")
+    reserved = parse_json(reservation["payload_json"], label=label)
+    if reserved.get("request_sha256") != row["request_sha256"] or reserved.get("actor") != row["actor"] or reserved.get("workflow_role") != row["workflow_role"]:
+        reject("reservation identity differs")
+    # Legacy reservation subjects concatenated keys; project mapping scopes them.
+    for key in ("external_project_key", "operation_key"):
+        if key in reserved and reserved[key] != row[key]:
+            reject("reservation keys differ")
+    receipt = parse_json(withdrawal["payload_json"], label=label)
+    expected = {"contract_version": "ExternalOperationWithdrawalReceipt/1.0", "external_project_key": row["external_project_key"],
+        "operation_key": row["operation_key"], "project_id": project_id, "request_sha256": row["request_sha256"],
+        "idempotency_key": row["idempotency_key"], "batch_identity": full, "batch_id": batch,
+        "batch_idempotency_key": "external:" + full, "draft_id": draft, "invocation_id": invocation,
+        "authority": {"kind": "operator", "boundary": "authenticated-local-operator"}}
+    if set(receipt) != set(expected) | {"reason", "withdrawn_at", "receipt_sha256"} or any(receipt.get(key) != value for key, value in expected.items()):
+        reject("receipt identity differs")
+    if not isinstance(receipt["reason"], str) or not receipt["reason"].strip() or receipt["withdrawn_at"] != row["updated_at"]:
+        reject("receipt reason or timestamp differs")
+    if receipt["receipt_sha256"] != hashlib.sha256(canonical_bytes({key: value for key, value in receipt.items() if key != "receipt_sha256"})).hexdigest():
+        reject("receipt content hash differs")
+    if parse_json(fences[0]["payload_json"], label=label) != receipt:
+        reject("fence receipt differs")
+    for query, args in (
+        ("SELECT 1 FROM invocation_batches WHERE batch_id=? OR idempotency_key=?", (batch, "external:" + full)),
+        ("SELECT 1 FROM invocation_batch_members WHERE batch_id=? OR invocation_id=?", (batch, invocation)),
+        ("SELECT 1 FROM drafts WHERE draft_id=? OR invocation_id=?", (draft, invocation)),
+        ("SELECT 1 FROM invocations WHERE invocation_id=? OR draft_id=?", (invocation, draft)),
+        ("SELECT 1 FROM attempts WHERE invocation_id=?", (invocation,)),
+        ("SELECT 1 FROM edges WHERE (source_type='invocation' AND source_id=?) OR (target_type='invocation' AND target_id=?)", (invocation, invocation)),
+        ("SELECT 1 FROM events WHERE subject_type IN ('draft','invocation') AND subject_id IN (?,?)", (draft, invocation)),
+    ):
+        if connection.execute(query, args).fetchone() is not None:
+            reject("admitted batch or execution evidence exists")
+
+
 def verify_database(data_root: Path, *, require_terminal_external: bool = True, historical_roots: dict[str, Path] | None = None) -> dict[str, Any]:
     database = data_root / "lattice.sqlite3"
     connection = sqlite3.connect(f"file:{database.resolve(strict=True)}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     refs: set[str] = set()
     try:
+        connection.execute("BEGIN")
         if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
             raise ConsolidationVerificationError("SQLite quick_check failed")
         foreign = list(connection.execute("PRAGMA foreign_key_check"))
@@ -393,12 +458,17 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True, 
             invocations[invocation_id] = row
             routes[invocation_id] = route
         external_count = 0
+        withdrawn_count = 0
         for row in connection.execute("SELECT * FROM external_operations ORDER BY external_project_key,operation_key"):
             external_count += 1
             label = f"external operation {row['external_project_key']}:{row['operation_key']}"
             request = parse_json(row["request_json"], label=label)
             if sha256_bytes(canonical_bytes(request)) != row["request_sha256"] or request.get("idempotency_key") != row["idempotency_key"]:
                 raise ConsolidationVerificationError(f"{label} request identity is corrupt")
+            if row["state"] == "withdrawn":
+                _verify_withdrawn_operation(connection, row, request)
+                withdrawn_count += 1
+                continue
             invocation_id = row["invocation_id"]
             if invocation_id is None or invocation_id not in invocations:
                 raise ConsolidationVerificationError(f"{label} is not bound to exactly one invocation")
@@ -465,7 +535,7 @@ def verify_database(data_root: Path, *, require_terminal_external: bool = True, 
     finally:
         connection.close()
     blob_bytes = sum(verify_blob(data_root, digest) for digest in sorted(refs))
-    return {"schema_version": EXPECTED_SCHEMA_VERSION, "provider_profiles": len(profiles), "invocations": len(invocations), "legacy_profileless_invocations": legacy_profileless, "legacy_unqualified_failures": legacy_unqualified_failures, "external_operations": external_count, "historical_imports": historical_count, "historical_sources_verified": historical_sources_verified, "legacy_historical_sources_unavailable": legacy_historical_sources_unavailable, "referenced_blobs": len(refs), "referenced_blob_bytes": blob_bytes}
+    return {"schema_version": EXPECTED_SCHEMA_VERSION, "provider_profiles": len(profiles), "invocations": len(invocations), "legacy_profileless_invocations": legacy_profileless, "legacy_unqualified_failures": legacy_unqualified_failures, "external_operations": external_count, "withdrawn_external_operations": withdrawn_count, "executed_external_operations": external_count - withdrawn_count, "historical_imports": historical_count, "historical_sources_verified": historical_sources_verified, "legacy_historical_sources_unavailable": legacy_historical_sources_unavailable, "referenced_blobs": len(refs), "referenced_blob_bytes": blob_bytes}
 
 
 def verify_runtime_manifest(path: Path, *, database_profiles: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
