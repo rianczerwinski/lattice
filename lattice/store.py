@@ -787,17 +787,23 @@ class LatticeStore:
                     raise
                 else:
                     conn.commit()
-            conn.execute("""UPDATE workflow_instances SET current_blackboard_block_id=(
+            # Startup backfills must be idempotent. A row rewritten with its own
+            # value still fires the AFTER UPDATE ledger trigger, so an unconditional
+            # UPDATE appended ledger_changes/append_integrity rows on every boot and
+            # made a clean candidate boot indistinguishable from admitted work for
+            # the installer's rollback guard. Touch only rows whose value resolves.
+            blackboard_backfill = """(
                                 SELECT b.block_id FROM context_blocks b JOIN block_status s USING(block_id)
                                 JOIN events e ON e.subject_type='context-block' AND e.subject_id=b.block_id AND e.event_type='context-block.created'
                                 WHERE b.project_id=workflow_instances.project_id AND b.semantic_type='workflow-blackboard-snapshot' AND s.status='active'
                                 ORDER BY e.seq DESC LIMIT 1
-                            ) WHERE current_blackboard_block_id IS NULL""")
-            conn.execute("""UPDATE workflow_instances SET state_entry_seq=COALESCE(
+                            )"""
+            conn.execute(f"UPDATE workflow_instances SET current_blackboard_block_id={blackboard_backfill} WHERE current_blackboard_block_id IS NULL AND {blackboard_backfill} IS NOT NULL")
+            entry_backfill = """COALESCE(
                                 (SELECT MAX(e.seq) FROM events e WHERE e.project_id=workflow_instances.project_id AND e.event_type='workflow.transitioned' AND json_extract(e.payload_json,'$.to')=workflow_instances.state),
-                                (SELECT MAX(e.seq) FROM events e WHERE e.project_id=workflow_instances.project_id AND e.event_type IN ('workflow.instance-created','workflow.instance-reconciled')),
-                                0
-                            ) WHERE state_entry_seq=0""")
+                                (SELECT MAX(e.seq) FROM events e WHERE e.project_id=workflow_instances.project_id AND e.event_type IN ('workflow.instance-created','workflow.instance-reconciled'))
+                            )"""
+            conn.execute(f"UPDATE workflow_instances SET state_entry_seq={entry_backfill} WHERE state_entry_seq=0 AND {entry_backfill} IS NOT NULL")
             conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)",
                 (stamp(),),
