@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 import threading
 import time
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -63,7 +64,7 @@ def test_quiescence_waits_for_startup_lock_release_instead_of_failing(lattice_en
             assert holder.released_at is not None and entered >= holder.released_at
             assert entered - started >= 0.9
             # Both admission locks are held once entered, exactly as before.
-            with sqlite3.connect(root / "lattice.sqlite3", timeout=0) as connection:
+            with closing(sqlite3.connect(root / "lattice.sqlite3", timeout=0)) as connection, connection:
                 with pytest.raises(sqlite3.OperationalError, match="locked"):
                     connection.execute("BEGIN IMMEDIATE")
     assert "Waiting for a service startup, snapshot or journal writer" in capsys.readouterr().out
@@ -117,7 +118,7 @@ def test_active_durable_work_still_refuses_without_waiting(lattice_env, monkeypa
             with deployment.upgrade_quiescence():
                 pass
         assert holder.released_at is not None
-    with sqlite3.connect(root / "lattice.sqlite3") as connection:
+    with closing(sqlite3.connect(root / "lattice.sqlite3")) as connection, connection:
         assert connection.execute("SELECT state FROM attempts WHERE attempt_id=?", (attempt["attempt_id"],)).fetchone()[0] == "running"
 
 
@@ -128,7 +129,7 @@ def test_recovery_rollback_waits_out_a_booting_candidate_then_restores(tmp_path,
     root = tmp_path / "state"
     root.mkdir()
     database = root / "lattice.sqlite3"
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("CREATE TABLE attempts(state TEXT)")
     fast_quiescence(monkeypatch, root, wait=10)
     calls: list[tuple[str, float]] = []

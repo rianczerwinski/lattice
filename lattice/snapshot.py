@@ -437,10 +437,28 @@ def _decompress_database(source: Path, destination: Path, descriptor: dict[str, 
 
 @contextmanager
 def materialized_snapshot_database(snapshot_root: Path, manifest: dict[str, Any]) -> Iterator[Path]:
-    """Yield a readable SQLite file for legacy and compressed snapshots."""
+    """Yield a private readable SQLite image without opening published bytes.
+
+    SQLite mode=ro can create or rewrite WAL/SHM files beside a WAL-header
+    database. Legacy inventories may also declare WAL state: copy it with the
+    database rather than silently reading only checkpointed pages. This is an
+    isolated clone/copy, not an immutable assertion about a live database.
+    """
 
     if manifest.get("contract_version") not in {"LatticeBackup/3.0", "LatticeBackup/4.0"}:
-        yield snapshot_root / SNAPSHOT_DATABASE
+        inventory = manifest.get("inventory", [])
+        declared = {item["path"] for item in inventory} if isinstance(inventory, list) else set()
+        with tempfile.TemporaryDirectory(prefix="lattice-snapshot-database-") as temporary_root:
+            database = Path(temporary_root) / SNAPSHOT_DATABASE
+            _copy_regular(snapshot_root / SNAPSHOT_DATABASE, database, durable=False)
+            for suffix in ("-wal", "-shm", "-journal"):
+                name = SNAPSHOT_DATABASE + suffix
+                source = snapshot_root / name
+                if name in declared:
+                    _copy_regular(source, database.with_name(name), durable=False)
+                elif source.exists() or source.is_symlink():
+                    raise OSError(f"snapshot has an undeclared database sidecar: {name}")
+            yield database
         return
     descriptor = manifest.get("database")
     if not isinstance(descriptor, dict) or set(descriptor) != {"path", "encoding", "sha256", "byte_count"} or descriptor.get("path") != COMPRESSED_SNAPSHOT_DATABASE or descriptor.get("encoding") != "gzip":

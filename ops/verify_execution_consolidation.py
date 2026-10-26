@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import argparse
 import ast
+import ctypes
+import errno
 import gzip
 import hashlib
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -1010,10 +1013,48 @@ def _database_state_digest(database: Path) -> str:
     return digest.hexdigest()
 
 
+def _copy_legacy_snapshot_file(source: Path, destination: Path) -> None:
+    """Independent byte proof over a private clone/copy; never open source SQLite."""
+    if source.is_symlink() or not source.is_file():
+        raise ConsolidationVerificationError(f"legacy snapshot file is absent or redirected: {source}")
+    before = source.stat()
+    cloned = False
+    if sys.platform == "darwin":
+        # Same clonefile transport as snapshot capture, with verifier-owned proof.
+        clonefile = ctypes.CDLL(None, use_errno=True).clonefile
+        clonefile.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint32)
+        clonefile.restype = ctypes.c_int
+        cloned = clonefile(os.fsencode(source), os.fsencode(destination), 0) == 0
+        if not cloned:
+            error = ctypes.get_errno()
+            if error not in {errno.EACCES, errno.EPERM, errno.EXDEV, errno.EINVAL, errno.ENOTSUP, errno.ENOSYS}:
+                raise OSError(error, os.strerror(error), destination)
+    if not cloned:
+        with source.open("rb") as input_handle, destination.open("xb") as output_handle:
+            shutil.copyfileobj(input_handle, output_handle, length=1024 * 1024)
+    destination.chmod(0o600)
+    if sha256_file(source) != sha256_file(destination):
+        raise ConsolidationVerificationError(f"legacy snapshot copy changed bytes: {source}")
+    after = source.stat()
+    if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+        raise ConsolidationVerificationError(f"legacy snapshot changed during materialization: {source}")
+
+
 @contextmanager
 def _snapshot_database(snapshot_root: Path, snapshot: dict[str, Any]) -> Iterator[Path]:
-    if snapshot.get("contract_version") == "LatticeBackup/2.0":
-        yield snapshot_root / "lattice.sqlite3"
+    if snapshot.get("contract_version") in {"LatticeBackup/1.0", "LatticeBackup/2.0"}:
+        declared = {item["path"] for item in snapshot.get("inventory", [])}
+        with tempfile.TemporaryDirectory(prefix="lattice-verifier-snapshot-") as temporary_root:
+            database = Path(temporary_root) / "lattice.sqlite3"
+            _copy_legacy_snapshot_file(snapshot_root / database.name, database)
+            for suffix in ("-wal", "-shm", "-journal"):
+                name = database.name + suffix
+                source = snapshot_root / name
+                if name in declared:
+                    _copy_legacy_snapshot_file(source, database.with_name(name))
+                elif source.exists() or source.is_symlink():
+                    raise ConsolidationVerificationError(f"legacy snapshot has an undeclared database sidecar: {name}")
+            yield database
         return
     descriptor = snapshot.get("database")
     if not isinstance(descriptor, dict) or set(descriptor) != {"path", "encoding", "sha256", "byte_count"} or descriptor.get("path") != "lattice.sqlite3.gz" or descriptor.get("encoding") != "gzip":

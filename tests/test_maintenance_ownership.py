@@ -16,7 +16,7 @@ import subprocess
 import sys
 import textwrap
 import time
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 import pytest
@@ -43,7 +43,7 @@ def reap_test_children():
 
 HARNESS = textwrap.dedent('''
     import json, os, signal, sys, time
-    from contextlib import contextmanager
+    from contextlib import closing, contextmanager
     from pathlib import Path
     sys.path.insert(0, sys.argv[1])
     import install
@@ -80,6 +80,7 @@ HARNESS = textwrap.dedent('''
     install.git_revision = lambda _root, **_k: "rev"
     install.migrate_legacy_data = lambda _root: None
     target = root / "versions" / "candidate"; target.mkdir(parents=True, exist_ok=True)
+    (target / "runtime.json").write_text("synthetic-runtime")
     install.install_runtime = lambda _revision: target
     install.installed_runtime_version = lambda _target: "0.0.0"
     def backup():
@@ -98,6 +99,15 @@ HARNESS = textwrap.dedent('''
         note("quiescence-enter"); yield; note("quiescence-exit")
     install.upgrade_quiescence = quiescence
     install.live_database_generation = lambda: tuple(plan.get("live_generation", ["d0", 1]))
+    class SyntheticIdentity:
+        def assert_unchanged(self): pass
+        def bind_snapshot(self, _snapshot): pass
+        def verify(self): pass
+        def close(self): pass
+    @contextmanager
+    def identity(_target, _snapshot):
+        yield SyntheticIdentity()
+    install.qualified_cutover_identity = identity
     if plan.get("orphan_migration"):
         # Real migrate_database_for_publication (inherited LOCK_SH descriptor); the
         # child is a shell that holds the descriptor before any Python runs.
@@ -113,7 +123,7 @@ HARNESS = textwrap.dedent('''
     install.install_links = lambda _target: note("links")
     def admit():
         import sqlite3
-        with sqlite3.connect(root / "lattice.sqlite3") as connection:
+        with closing(sqlite3.connect(root / "lattice.sqlite3")) as connection, connection:
             connection.execute("INSERT INTO events(body) VALUES('admitted after candidate start')")
     def launch(_target):
         note("launch"); set_loaded(install.SERVICE_LABEL, True); set_loaded(install.BACKUP_LABEL, True)
@@ -330,7 +340,7 @@ def test_retry_consumes_record_before_capturing_prior_and_stays_cancellable(tmp_
 
 
 def events_table(root: Path) -> None:
-    with sqlite3.connect(root / "lattice.sqlite3") as connection:
+    with closing(sqlite3.connect(root / "lattice.sqlite3")) as connection, connection:
         connection.execute("CREATE TABLE events(seq INTEGER PRIMARY KEY, body TEXT)")
 
 
@@ -343,7 +353,7 @@ def test_recovery_preserves_candidate_that_admitted_work_after_start(tmp_path):
     process.kill()
     process.wait()
     assert record(root)["phase"] == "launching"
-    with sqlite3.connect(root / "lattice.sqlite3") as connection:
+    with closing(sqlite3.connect(root / "lattice.sqlite3")) as connection, connection:
         connection.execute("INSERT INTO events(body) VALUES('admitted after candidate start')")
     reset_log(root)
     code, err = finish(launch(root, {"health": "fail"}, "--recover"))
@@ -479,6 +489,16 @@ def test_readiness_upgrade_holds_the_same_lock_and_lifecycle(tmp_path, monkeypat
     monkeypatch.setattr(upgrade.install, "verify_rollback_snapshot_current", lambda _snapshot: None)
 
     @contextmanager
+    def synthetic_identity(_target, _snapshot):
+        class Identity:
+            def assert_unchanged(self): pass
+            def bind_snapshot(self, _snapshot): pass
+            def verify(self): pass
+            def close(self): pass
+        yield Identity()
+    monkeypatch.setattr(upgrade.install, "qualified_cutover_identity", synthetic_identity)
+
+    @contextmanager
     def busy():
         raise RuntimeError("busy")
         yield
@@ -498,7 +518,7 @@ def test_readiness_upgrade_holds_the_same_lock_and_lifecycle(tmp_path, monkeypat
 
 
 # Proof limits:
-# - launchd, the real snapshot guard, the migration child and the live digest are
+# - launchd, the real snapshot guard, the migration child, bounded cutover identity and the live digest are
 #   faked; the real functions are covered by tests/test_reliability.py.
 # - SIGKILL never runs handlers; recovery after it is proven only through the
 #   durable record and a fresh process.
@@ -513,7 +533,7 @@ def test_recovery_after_prior_restart_never_restores_database_again(tmp_path):
     process = launch(root, {"health": "fail", "sleep_in": "reload-service"})
     wait_for(root, ["sleeping", "reload-service"])
     assert record(root) is not None
-    with sqlite3.connect(root / "lattice.sqlite3") as connection:
+    with closing(sqlite3.connect(root / "lattice.sqlite3")) as connection, connection:
         connection.execute("INSERT INTO events(body) VALUES('work served by restored runtime')")
     process.kill()
     process.wait()
@@ -521,7 +541,7 @@ def test_recovery_after_prior_restart_never_restores_database_again(tmp_path):
     code, err = finish(launch(root, {}, "--recover"))
     assert code == 0, err
     assert "restore-database" not in names(root) and "unload" not in names(root)
-    with sqlite3.connect(root / "lattice.sqlite3") as connection:
+    with closing(sqlite3.connect(root / "lattice.sqlite3")) as connection, connection:
         assert connection.execute("SELECT body FROM events").fetchone()[0] == 'work served by restored runtime'
     assert record(root) is None
 
@@ -531,13 +551,13 @@ def test_recovery_after_prior_restart_never_restores_database_again(tmp_path):
 def test_rollback_checks_real_admission_guard_before_stopping_writers(tmp_path, monkeypatch):
     root = data_root(tmp_path)
     database = root / 'lattice.sqlite3'
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute('CREATE TABLE attempts(state TEXT)')
         connection.execute("INSERT INTO attempts VALUES('running')")
     monkeypatch.setattr(deployment, 'DEFAULT_DATA_ROOT', root)
     calls = []
     def stop(label):
-        with sqlite3.connect(database, timeout=0) as observer:
+        with closing(sqlite3.connect(database, timeout=0)) as observer, observer:
             with pytest.raises(sqlite3.OperationalError, match='locked'):
                 observer.execute('BEGIN IMMEDIATE')
         calls.append(label)
@@ -551,7 +571,7 @@ def test_rollback_checks_real_admission_guard_before_stopping_writers(tmp_path, 
     with pytest.raises(RuntimeError, match='durable work is active'):
         deployment.protected_rollback(**arguments)
     assert calls == []
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute("UPDATE attempts SET state='completed'")
     deployment.protected_rollback(**arguments)
     assert calls == [SERVICE, BACKUP, 'restore']

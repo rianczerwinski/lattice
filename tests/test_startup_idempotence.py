@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -16,7 +17,7 @@ def heads(config: LatticeConfig) -> dict:
 
 
 def counts(config: LatticeConfig) -> tuple[int, int, int]:
-    with sqlite3.connect(config.database) as connection:
+    with closing(sqlite3.connect(config.database)) as connection, connection:
         return tuple(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in ("events", "ledger_changes", "append_integrity"))
 
 
@@ -46,7 +47,7 @@ def test_repeated_boot_of_current_schema_appends_nothing(tmp_path, monkeypatch):
     # a valid legacy shape that must remain unchanged when there is no backfill.
     store.create_project(ProjectCreate(title="Legacy B", purpose="", workflow_pack="quaternary"))
     assert store.reconcile_workflow_instances({"quaternary": "initial"}) == 1
-    with sqlite3.connect(config.database) as connection:
+    with closing(sqlite3.connect(config.database)) as connection, connection:
         assert connection.execute("SELECT COUNT(*) FROM workflow_instances WHERE current_blackboard_block_id IS NULL").fetchone()[0] == 2
         assert connection.execute("SELECT COUNT(*) FROM workflow_instances WHERE state_entry_seq=0").fetchone()[0] == 1
 
@@ -83,7 +84,7 @@ def test_backfill_still_resolves_once_and_then_stays_quiet(tmp_path, monkeypatch
 
     before = heads(config)
     LatticeStore(config)
-    with sqlite3.connect(config.database) as connection:
+    with closing(sqlite3.connect(config.database)) as connection, connection:
         row = connection.execute(
             "SELECT current_blackboard_block_id,state_entry_seq FROM workflow_instances WHERE project_id=?", (project["project_id"],)
         ).fetchone()
@@ -104,14 +105,14 @@ def test_boot_leaves_no_unresolved_rows_rewritten(tmp_path):
     config = LatticeConfig(data_root=tmp_path / "data", axisvi_root=None)
     store = LatticeStore(config)
     project_id = unresolvable_instance(store, "Legacy C")
-    with sqlite3.connect(config.database) as connection:
+    with closing(sqlite3.connect(config.database)) as connection, connection:
         before = connection.execute(
             "SELECT COUNT(*) FROM ledger_changes WHERE table_name='workflow_instances' AND operation='update' AND json_extract(primary_key_json,'$.project_id')=?",
             (project_id,),
         ).fetchone()[0]
     LatticeStore(config)
     LatticeStore(config)
-    with sqlite3.connect(config.database) as connection:
+    with closing(sqlite3.connect(config.database)) as connection, connection:
         after = connection.execute(
             "SELECT COUNT(*) FROM ledger_changes WHERE table_name='workflow_instances' AND operation='update' AND json_extract(primary_key_json,'$.project_id')=?",
             (project_id,),

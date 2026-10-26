@@ -11,6 +11,7 @@ import json
 import os
 import plistlib
 import re
+import select
 import shlex
 import shutil
 import signal
@@ -23,7 +24,7 @@ import time
 import urllib.request
 import uuid
 from dataclasses import dataclass
-from contextlib import ExitStack, contextmanager, nullcontext
+from contextlib import ExitStack, closing, contextmanager, nullcontext
 from pathlib import Path
 from typing import Callable
 
@@ -605,11 +606,12 @@ def live_database_generation() -> tuple[str, int]:
 
 
 def verify_rollback_snapshot_current(snapshot: Path | None) -> None:
-    """Offline cutover check: the quiesced database must equal the verified snapshot.
+    """Online semantic binding for current and legacy rollback snapshots.
 
-    Full snapshot verification already ran live (`assess_backup` through the
-    candidate, or `reuse_rollback_snapshot`). Here only the database generation
-    is compared, so the stopped window does not pay for a full tree hash.
+    This growing-history comparison runs before admission exclusion. The
+    retained CutoverIdentity detects changes through the final bounded check.
+    Snapshot integrity and required blob bytes are independently verified by
+    the candidate or reuse path; a token alone cannot establish them.
     """
     if snapshot is None:
         return
@@ -619,6 +621,244 @@ def verify_rollback_snapshot_current(snapshot: Path | None) -> None:
     if current != saved:
         raise RollbackSnapshotStale(f"rollback snapshot {snapshot.name} is stale at cutover: saved {saved} live {current}; the service was not stopped, re-run to capture the current generation")
 
+
+
+def database_change_token(connection: sqlite3.Connection, *, schema_cookie: bool = True) -> dict:
+    """Schema-sized coverage checks and indexed heads; never an integrity proof.
+
+    Actual table columns generate the expected tracking triggers, including old
+    schemas. Fixed stream/immutability triggers come from the shipped DDL. The
+    full semantic verifier remains the independent baseline authority.
+    """
+    from lattice.store import CHANGE_TABLES, DDL, LatticeStore
+
+    if connection.in_transaction:
+        raise RuntimeError("change token requires its own short read transaction")
+    connection.execute("BEGIN")
+    try:
+        schema = [tuple(row) for row in connection.execute("SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name")]
+        tables = {row[1] for row in schema if row[0] == "table"}
+        streams = {"events", "ledger_changes", "append_integrity", "schema_migrations"}
+        if not streams <= tables or tables - set(CHANGE_TABLES) - streams - {"sqlite_sequence"}:
+            raise RollbackSnapshotStale("database has missing streams or unclassified tables")
+        # No live-store initialization: build only schema in a private memory DB.
+        reference = sqlite3.connect(":memory:")
+        reference.row_factory = sqlite3.Row
+        try:
+            for kind, name, _table, sql in schema:
+                if kind == "table" and name in CHANGE_TABLES:
+                    reference.execute(sql)
+            reference.executescript(DDL)
+            LatticeStore._install_change_triggers(reference)
+            expected = {row[0]: row[1] for row in reference.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name IN (" + ",".join("?" for _ in tables) + ")", tuple(tables))}
+        finally:
+            reference.close()
+        actual = {row[1]: row[3] for row in schema if row[0] == "trigger"}
+
+        def normalized(sql: str) -> tuple[str, ...]:
+            # Compare only the shipped trigger templates' lexical grammar. This
+            # is not SQL semantic equivalence: comments and unknown punctuation
+            # refuse; quoted contents remain exact (including whitespace).
+            # The only identifier aliases are the three registered by _open_connection.
+            grammar = r'''\s+|'(?:[^']|'')*'|"(?:[^"]|"")*"|[A-Za-z_][A-Za-z_0-9]*|[0-9]+|<>|[(),.;=]'''
+            aliases = {"loom_replaying": "lattice_replaying", "loom_integrity_hash": "lattice_integrity_hash", "loom_stamp": "lattice_stamp"}
+            tokens = []
+            offset = 0
+            for match in re.finditer(grammar, sql):
+                if match.start() != offset:
+                    raise RollbackSnapshotStale("database trigger contains unsupported SQL spelling")
+                offset = match.end()
+                token = match.group()
+                if not token.isspace():
+                    tokens.append(aliases.get(token, token))
+            if offset != len(sql):
+                raise RollbackSnapshotStale("database trigger contains unsupported SQL spelling")
+            return tuple(tokens)
+
+        if actual.keys() != expected.keys() or any(normalized(actual[name]) != normalized(sql) for name, sql in expected.items()):
+            raise RollbackSnapshotStale("database trigger coverage or definitions changed")
+        heads = {}
+        for table, columns in (("events", "seq"), ("ledger_changes", "seq"), ("append_integrity", "seq,entry_sha256")):
+            row = connection.execute(f'SELECT {columns} FROM "{table}" ORDER BY seq DESC LIMIT 1').fetchone()
+            heads[table] = None if row is None else list(row)
+        token = {
+            "heads": heads,
+            "migrations": [list(row) for row in connection.execute("SELECT * FROM schema_migrations ORDER BY version")],
+            "schema_sha256": hashlib.sha256(json.dumps(schema, separators=(",", ":")).encode()).hexdigest(),
+        }
+        if schema_cookie:
+            token["schema_cookie"] = connection.execute("PRAGMA schema_version").fetchone()[0]
+        return token
+    finally:
+        connection.rollback()
+
+
+class WatchedControl:
+    """Online content binding plus a retained macOS kernel mutation detector.
+
+    kqueue(2), EVFILT_VNODE: NOTE_WRITE observes writes, not timestamps. Watch
+    before hashing and never clear events: mutate-and-restore also invalidates.
+    The file watch covers manifest replacement; the containing directory watch
+    covers its own rename/removal, not unrelated sibling entries.
+    This covers normal local filesystem syscalls, not raw-device corruption,
+    writable mmap stores or transient replacement of higher path ancestors.
+    Other platforms retain exact hashing; only the macOS path has the byte bound.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.queue = None
+        self.descriptors: list[int] = []
+        self.identities = []
+        self.invalid = False
+        self.closed = False
+        try:
+            if hasattr(select, "kqueue"):
+                self.queue = select.kqueue()
+                flags = (select.KQ_NOTE_WRITE | select.KQ_NOTE_EXTEND | select.KQ_NOTE_ATTRIB |
+                         select.KQ_NOTE_LINK | select.KQ_NOTE_RENAME | select.KQ_NOTE_DELETE | select.KQ_NOTE_REVOKE)
+                directory_flags = select.KQ_NOTE_ATTRIB | select.KQ_NOTE_RENAME | select.KQ_NOTE_DELETE | select.KQ_NOTE_REVOKE
+                for watched, watched_flags in ((path, flags), (path.parent, directory_flags)):
+                    descriptor = os.open(watched, os.O_RDONLY)
+                    self.descriptors.append(descriptor)
+                    info = os.fstat(descriptor)
+                    self.identities.append((info.st_dev, info.st_ino))
+                    self.queue.control([select.kevent(descriptor, filter=select.KQ_FILTER_VNODE,
+                                       flags=select.KQ_EV_ADD | select.KQ_EV_ENABLE, fflags=watched_flags)], 0, 0)
+            self.digest = exact_sha256(path)
+            self.verify()
+        except BaseException:
+            self.close()
+            raise
+
+    def verify(self) -> None:
+        if self.closed:
+            raise RollbackSnapshotStale(f"qualified publication input watch lost: {self.path}")
+        try:
+            if self.queue is None:
+                changed = exact_sha256(self.path) != self.digest
+            else:
+                changed = bool(self.queue.control(None, 1, 0))
+                for path, identity in zip((self.path, self.path.parent), self.identities, strict=True):
+                    info = path.stat()
+                    changed |= (info.st_dev, info.st_ino) != identity
+            self.invalid |= changed
+            if self.invalid:
+                raise RollbackSnapshotStale(f"qualified publication input changed: {self.path}")
+        except (OSError, ValueError) as error:
+            raise RollbackSnapshotStale(f"qualified publication input watch invalidated: {self.path}") from error
+
+    def close(self) -> None:
+        self.closed = True
+        if self.queue is not None:
+            self.queue.close()
+            self.queue = None
+        for descriptor in self.descriptors:
+            os.close(descriptor)
+        self.descriptors.clear()
+
+
+class CutoverIdentity:
+    """Process-local sentinel, bound by an online full comparison to recovery bytes.
+
+    data_version is meaningful only on this same read-only connection. No long
+    transaction is held; a lost connection invalidates qualification. File
+    replacement is checked separately because a connection follows its inode.
+    """
+
+    def __init__(self, database: Path) -> None:
+        self.database = database
+        self.connection: sqlite3.Connection | None = None
+        self.identity = None
+        self.token = None
+        self.version = None
+        self.controls: list[tuple[Path, str]] = []
+        self.watched_controls: list[WatchedControl] = []
+        self.qualified = False
+        try:
+            self.identity = self.file_identity()
+            self.connection = sqlite3.connect(database.resolve(strict=True).as_uri() + "?mode=ro", uri=True)
+            self.version = self.data_version()
+            self.token = database_change_token(self.connection)
+            self.assert_unchanged()
+        except BaseException:
+            self.close()
+            raise
+
+    def file_identity(self) -> tuple[int, int]:
+        info = self.database.stat()
+        return info.st_dev, info.st_ino
+
+    def data_version(self) -> int:
+        if self.connection is None or self.connection.in_transaction:
+            raise RollbackSnapshotStale("cutover sentinel lost or holds a read transaction; requalify")
+        return self.connection.execute("PRAGMA data_version").fetchone()[0]
+
+    def assert_unchanged(self) -> None:
+        try:
+            if self.file_identity() != self.identity or self.data_version() != self.version:
+                raise RollbackSnapshotStale("database changed during online qualification; service was not stopped")
+            if database_change_token(self.connection) != self.token or self.data_version() != self.version:
+                raise RollbackSnapshotStale("database token changed; service was not stopped")
+        except (OSError, sqlite3.Error) as error:
+            raise RollbackSnapshotStale("cutover sentinel invalidated; requalify before stopping") from error
+
+    def bind_file(self, path: Path, *, watch: bool = False) -> None:
+        if watch:
+            self.watched_controls.append(WatchedControl(path))
+        else:
+            self.controls.append((path, exact_sha256(path)))
+
+    def bind_snapshot(self, snapshot: Path) -> None:
+        from lattice.snapshot import materialized_snapshot_database
+
+        manifest = json.loads((snapshot / "snapshot.json").read_bytes())
+        with materialized_snapshot_database(snapshot, manifest) as database:
+            connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
+            try:
+                saved = database_change_token(connection, schema_cookie=False)
+            finally:
+                connection.close()
+        current = {key: value for key, value in self.token.items() if key != "schema_cookie"}
+        if saved != current:
+            raise RollbackSnapshotStale("rollback snapshot schema, migration history or heads differ from live baseline")
+
+    def verify(self) -> None:
+        if not self.qualified:
+            raise RollbackSnapshotStale("cutover identity has no independently verified baseline")
+        self.assert_unchanged()
+        for control in self.watched_controls:
+            control.verify()
+        for path, digest in self.controls:
+            if exact_sha256(path) != digest:
+                raise RollbackSnapshotStale(f"qualified publication input changed: {path}")
+
+    def close(self) -> None:
+        for control in self.watched_controls:
+            control.close()
+        self.watched_controls.clear()
+        if self.connection is not None:
+            self.connection.close()
+            self.connection = None
+
+
+@contextmanager
+def qualified_cutover_identity(target: Path, snapshot: Path | None):
+    """Bracket expensive candidate and semantic checks while service stays online."""
+    database = DEFAULT_DATA_ROOT / "lattice.sqlite3"
+    if snapshot is None:
+        if database.exists():
+            raise RollbackSnapshotStale("database exists without a rollback snapshot")
+        yield None
+        return
+    import_source_modules()
+    identity = CutoverIdentity(database)
+    try:
+        identity.bind_file(snapshot / "snapshot.json", watch=True)
+        identity.bind_file(target / "runtime.json")
+        yield identity
+    finally:
+        identity.close()
 
 def backup_before_upgrade() -> Path | None:
     def source_backup(reason: str) -> Path | None:
@@ -779,7 +1019,24 @@ def restore_upgrade_database(snapshot: Path) -> None:
         os.close(descriptor)
         staged = Path(name)
         try:
-            shutil.copyfile(source, staged)
+            with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as saved, closing(sqlite3.connect(staged)) as destination:
+                schema_query = "SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name"
+                migrations_query = "SELECT * FROM schema_migrations ORDER BY version"
+                saved_schema = saved.execute(schema_query).fetchall()
+                saved_migrations = saved.execute(migrations_query).fetchall()
+                # Materialization retains declared WAL; only SQLite's backup
+                # API copies the committed database rather than just main pages.
+                saved.backup(destination)
+                if destination.execute("PRAGMA journal_mode=DELETE").fetchone()[0] != "delete":
+                    raise RuntimeError("rollback staging could not produce a standalone database")
+            with closing(sqlite3.connect(staged.as_uri() + "?mode=ro", uri=True)) as check:
+                if check.execute(schema_query).fetchall() != saved_schema or check.execute(migrations_query).fetchall() != saved_migrations:
+                    raise RuntimeError("rollback staging changed snapshot schema or migration history; active database retained")
+            # Validate the staged image against the snapshot before moving any
+            # active bytes. State digests alone do not bind schema/migrations.
+            prepared = assess_data_root(DEFAULT_DATA_ROOT, database_path=staged)
+            if (prepared["state_digest"], prepared["schema_version"]) != (manifest["state_digest"], int(manifest["schema_version"])):
+                raise RuntimeError("rollback staging did not reproduce pre-upgrade state; active database retained")
             staged.chmod(0o600)
             with staged.open("rb") as handle:
                 sync_file(handle.fileno())
@@ -1217,7 +1474,11 @@ def clear_maintenance_record() -> None:
 
 
 def append_stream_heads(database: Path) -> dict[str, list]:
-    """(count, max seq) of the append-only streams: cheap admitted-work evidence."""
+    """(count, max seq) of the append-only streams: admitted-work evidence.
+
+    Kept for legacy and current recovery records: a cutover sentinel is process
+    local and cannot strengthen a fresh recovery operator's durable evidence.
+    """
     heads: dict[str, list] = {}
     if not database.is_file():
         return heads
@@ -1483,42 +1744,59 @@ def verify_live_service(expected_runtime_id: str, expected_version: str, timeout
 
 
 def perform_upgrade(target: Path, *, rollback_snapshot: Path | None, verify_candidate: Callable[[Path, Path | None], None], before_cutover: Callable[[], None]) -> None:
-    """Shared locked lifecycle for every installer entrypoint.
+    """Qualify online, then compare bounded identity under admission exclusion.
 
-    Order: prior publication captured under the lock; rollback snapshot captured
-    or reused and fully verified while the old service still serves; candidate
-    verification live; then, under `upgrade_quiescence` (both admission locks,
-    active work refused), one database-generation comparison against the
-    snapshot, the durable record, and the stop. Publication follows with the
-    record advanced per phase. Stopping is the last reversible step, so drift
-    refuses with the service still up instead of paying for another backup.
-    The snapshot capture itself may hold writers briefly (`require_idle` capture).
+    Full snapshot checks, semantic equality and candidate rehearsal run while
+    service remains available. The same read-only sentinel spans those checks
+    through the final writer reservation, idle check and publication-control
+    comparison. Migration and existing candidate-write recovery remain separate.
     """
     prior = capture_publication_state()
     print("Capturing pre-upgrade rollback snapshot while the service runs", flush=True)
     snapshot = reuse_rollback_snapshot(rollback_snapshot) if rollback_snapshot else backup_before_upgrade()
-    print("Verifying candidate compatibility with the rollback snapshot", flush=True)
-    verify_candidate(target, snapshot)
-    before_cutover()
-    try:
-        with upgrade_quiescence():
-            print("Comparing quiesced database generation with the rollback snapshot", flush=True)
-            verify_rollback_snapshot_current(snapshot)
-            write_maintenance_record(phase="stopped", prior=prior, snapshot=snapshot, target=target, target_version=installed_runtime_version(target))
-            print("Stopping service for cutover", flush=True)
-            unload_job(SERVICE_LABEL)
-            unload_job(BACKUP_LABEL)
-        publish_runtime(target, snapshot=snapshot, prior=prior, record=True)
-    except BaseException as upgrade_error:
-        # The record, not an in-memory flag set after writing it, is authoritative.
-        # This also catches signals between stopping and entering publication.
-        if read_maintenance_record() is not None:
-            try:
-                with rollback_section():
-                    recover_maintenance()
-            except BaseException as rollback_error:
-                raise BaseExceptionGroup("Lattice upgrade and recovery both failed", [upgrade_error, rollback_error])
-        raise
+    candidate_manifest_sha256 = exact_sha256(target / "runtime.json")
+    with qualified_cutover_identity(target, snapshot) as identity:
+        print("Verifying candidate compatibility with the rollback snapshot", flush=True)
+        verify_candidate(target, snapshot)
+        # Legacy snapshots have no source token: bind through the full logical
+        # comparison here, before taking admission locks or stopping service.
+        verify_rollback_snapshot_current(snapshot)
+        if identity is not None:
+            identity.bind_snapshot(snapshot)
+            identity.assert_unchanged()
+            identity.qualified = True
+            identity.verify()
+        before_cutover()
+        try:
+            with upgrade_quiescence():
+                print("Comparing bounded cutover identity", flush=True)
+                if identity is not None:
+                    identity.verify()
+                elif (DEFAULT_DATA_ROOT / "lattice.sqlite3").exists():
+                    raise RollbackSnapshotStale("database appeared during first-install qualification")
+                if exact_sha256(target / "runtime.json") != candidate_manifest_sha256:
+                    raise RollbackSnapshotStale("candidate runtime manifest changed; service was not stopped")
+                if capture_publication_state() != prior:
+                    raise RollbackSnapshotStale("publication controls changed; service was not stopped")
+                write_maintenance_record(phase="stopped", prior=prior, snapshot=snapshot, target=target, target_version=installed_runtime_version(target))
+                print("Stopping service for cutover", flush=True)
+                unload_job(SERVICE_LABEL)
+                unload_job(BACKUP_LABEL)
+            # The cutover sentinel must end before expected migration/startup DDL.
+            if identity is not None:
+                identity.close()
+            publish_runtime(target, snapshot=snapshot, prior=prior, record=True)
+        except BaseException as upgrade_error:
+            if identity is not None:
+                identity.close()
+            # The record, not a flag set after writing, is authoritative.
+            if read_maintenance_record() is not None:
+                try:
+                    with rollback_section():
+                        recover_maintenance()
+                except BaseException as rollback_error:
+                    raise BaseExceptionGroup("Lattice upgrade and recovery both failed", [upgrade_error, rollback_error])
+            raise
 
 
 def default_candidate_verification(target: Path, snapshot: Path | None) -> None:
