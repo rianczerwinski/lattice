@@ -306,7 +306,7 @@ async def test_oracle_restart_repeats_only_the_interrupted_semantic_unit(lattice
     second = await resumed.execute(run["run_id"], "resume-oracle-attempt-two")
     terminal = await resumed.wait(second["attempt_id"])
 
-    assert terminal["state"] == "completed"
+    assert terminal["state"] == "completed", json.dumps(terminal, sort_keys=True)
     completed = rebuilt.get_run(run["run_id"])
     assert completed["unit_counts"]["completed"] == 3
     assert (work_root / "result-one.txt").read_bytes() == unit_one_before
@@ -727,7 +727,8 @@ async def test_snapshot_and_rebuild_preserve_production_journals_and_log_project
     supervisor = DurableRunSupervisor(lattice_env["store"])
     await supervisor.start()
     attempt = await supervisor.execute(run["run_id"], "journal-continuity-attempt")
-    assert (await supervisor.wait(attempt["attempt_id"]))["state"] == "completed"
+    terminal = await supervisor.wait(attempt["attempt_id"])
+    assert terminal["state"] == "completed", json.dumps(terminal, sort_keys=True)
 
     source_attempt_root = supervisor.journal_root / run["run_id"] / attempt["attempt_id"]
     source_bytes = {

@@ -109,6 +109,7 @@ class DurableRunJournal:
         self._coordination_fd = coordination_fd
         self.root.mkdir(parents=True, exist_ok=False, mode=0o700)
         os.chmod(self.root, 0o700)
+        sync_directory(self.root.parent)
         self.events_path = root / "events.jsonl"
         self.stdout_path = root / "stdout.log"
         self.stderr_path = root / "stderr.log"
@@ -130,10 +131,14 @@ class DurableRunJournal:
             os.chmod(path, 0o600)
             handle.write(raw)
             sync_file(handle.fileno())
+        sync_directory(self.root)
 
-    def append_event(self, raw: bytes) -> None:
-        self._events.write(raw + b"\n")
-        sync_file(self._events.fileno())
+    def append_event(self, raw: bytes, *, framed: bool = False, sync: bool = True) -> int:
+        offset = self._events.tell()
+        self._events.write(raw if framed else raw + b"\n")
+        if sync:
+            sync_file(self._events.fileno())
+        return offset
 
     def write_unit_plan(self, *, run_id: str, attempt_id: str, remaining_unit_keys: list[str]) -> tuple[Path, str]:
         value = {
@@ -187,3 +192,22 @@ class DurableRunJournal:
             os.close(self._coordination_fd)
             self._coordination_fd = None
         self._closed = True
+
+    def reconcile_terminal(self, receipt: dict[str, Any]) -> None:
+        """Retry only a committed terminal projection after its writer closed.
+
+        An existing different/partial receipt needs explicit diagnosis; it is
+        never overwritten. SQLite remains the semantic completion authority.
+        """
+        for path in (self.events_path, self.stdout_path, self.stderr_path):
+            with path.open("r+b", buffering=0) as handle:
+                sync_file(handle.fileno())
+        terminal = self.root / "terminal.json"
+        if terminal.exists():
+            if terminal.read_bytes() != canonical_bytes(receipt):
+                raise OSError("terminal projection differs from committed receipt")
+            with terminal.open("r+b", buffering=0) as handle:
+                sync_file(handle.fileno())
+            sync_directory(self.root)
+        else:
+            self._write_once("terminal.json", receipt)

@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import sqlite3
+import stat
 import tempfile
 import threading
 import time
@@ -26,6 +27,7 @@ from .exact_file import ExactFileCaptureError, capture_exact_file
 from .snapshot import copy_exact_tree, pre_migration_snapshot_if_needed
 from .durability import sync_tree_directories
 from .run_journal import DURABLE_RUNS_DIRECTORY, journal_capture_guard, journal_startup_guard
+from .run_protocol import decode_worker_event
 from . import native_approvals
 from .conversation_schema import DDL as CONVERSATION_DDL, TABLES as CONVERSATION_TABLES
 from .contracts import (
@@ -70,6 +72,7 @@ MAX_AXIAL_PROJECTION_BYTES = 16 * 1024 * 1024
 SCHEMA_VERSION = 16
 CURRENT_BLOB_PREFIX = "lattice:blob/"
 LEGACY_BLOB_PREFIX = "loom:blob/"
+RUN_LOG_RECEIPT_PAGE = 64
 
 
 DDL = """
@@ -1808,7 +1811,109 @@ class LatticeStore:
             row = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
         return self._decode_run_attempt(row)
 
-    def record_run_process(self, attempt_id: str, value: RunProcessIdentityV2) -> dict[str, Any]:
+    def _run_evidence_rows(self, conn: sqlite3.Connection, attempt_id: str, kind: str) -> list[dict[str, Any]]:
+        return [json.loads(row[0]) for row in conn.execute(
+            "SELECT payload_json FROM events WHERE subject_type='durable-run-attempt' AND subject_id=? AND event_type=? ORDER BY seq",
+            (attempt_id, f"durable-run-attempt.{kind}"),
+        )]
+
+    def _evidence_bytes(self, receipt: dict[str, Any]) -> bytes:
+        ref = receipt["content_ref"]
+        if not isinstance(ref, str) or not ref.startswith(CURRENT_BLOB_PREFIX):
+            raise LatticeConflict("run evidence requires a Lattice CAS reference")
+        digest = ref[len(CURRENT_BLOB_PREFIX):]
+        self.blobs.verify_file(digest)
+        raw = self.blobs.get(digest)
+        if len(raw) != receipt["byte_count"]:
+            raise LatticeConflict("run evidence byte count changed")
+        return raw
+
+    def _prepare_worker_evidence(self, conn: sqlite3.Connection, attempt_id: str | None, evidence: dict[str, Any] | None, expected: dict[str, Any], *, run_id: str | None = None) -> tuple[dict[str, Any] | None, Any]:
+        """Validate before transition; the caller inserts the receipt in this transaction.
+
+        Trusted legacy callers may omit evidence. Their semantic events do not
+        acquire emitted-byte proof retroactively. Retries return the original
+        result, even if subsequent events have changed the current projection.
+        """
+        if evidence is None:
+            return None, None
+        if attempt_id is None or evidence.get("attempt_id") != attempt_id:
+            raise LatticeConflict("worker evidence belongs to another attempt")
+        if run_id is not None:
+            attempt = self._row(conn.execute("SELECT run_id FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            if attempt["run_id"] != run_id:
+                raise LatticeConflict("worker evidence belongs to another run")
+        raw = self._evidence_bytes(evidence)
+        if not raw.endswith(b"\n"):
+            raise LatticeConflict("worker evidence requires the exact LF-delimited frame")
+        event = decode_worker_event(raw[:-1]).model_dump(mode="json")
+        if evidence["worker_sequence"] != event["sequence"]:
+            raise LatticeConflict("worker evidence sequence disagrees with frame")
+        observed = {key: event.get(key) for key in expected}
+        # File capture changes only the locator, never the original frame.
+        if "artifact" in expected and observed["artifact"] != expected["artifact"]:
+            artifact = dict(observed["artifact"])
+            captured = expected["artifact"]
+            if captured["storage_locator"] == f"{CURRENT_BLOB_PREFIX}{artifact['content_sha256']}":
+                artifact["storage_locator"] = captured["storage_locator"]
+            observed["artifact"] = artifact
+        if observed != expected:
+            raise LatticeConflict("worker frame disagrees with the semantic transition")
+        row = conn.execute(
+            "SELECT payload_json FROM events WHERE subject_type='durable-run-attempt' AND subject_id=? AND event_type='durable-run-attempt.worker-admitted' AND json_extract(payload_json,'$.worker_sequence')=? ORDER BY seq DESC LIMIT 1",
+            (attempt_id, event["sequence"]),
+        ).fetchone()
+        if row is not None:
+            prior = json.loads(row[0])
+            if any(prior[key] != evidence[key] for key in ("content_ref", "byte_count", "worker_sequence")):
+                raise LatticeConflict("worker sequence was reused with conflicting bytes")
+            return None, prior["result"]
+        attempt = self._row(conn.execute("SELECT state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+        if attempt["state"] not in {"running", "waiting", "stopping"}:
+            raise LatticeConflict("worker admission requires an active attempt")
+        latest = conn.execute(
+            "SELECT payload_json FROM events WHERE subject_type='durable-run-attempt' AND subject_id=? AND event_type='durable-run-attempt.worker-admitted' ORDER BY seq DESC LIMIT 1",
+            (attempt_id,),
+        ).fetchone()
+        previous = json.loads(latest[0]) if latest else None
+        if event["sequence"] != (previous["worker_sequence"] if previous else 0) + 1:
+            raise LatticeConflict("worker admission cannot skip sequences")
+        if previous and previous["event_type"] in {"run_completed", "run_failed"}:
+            raise LatticeConflict("worker emitted an event after its terminal disposition")
+        raw_offset = evidence.get("raw_offset")
+        if type(raw_offset) is not int or raw_offset < 0 or (previous and raw_offset < previous["raw_offset"] + previous["byte_count"]):
+            raise LatticeConflict("worker evidence raw offset overlaps an admitted frame")
+        receipt = {key: evidence[key] for key in ("attempt_id", "content_ref", "byte_count", "worker_sequence", "raw_offset")}
+        receipt.update(contract_version="RunWorkerAdmission/1.0", event_type=event["event_type"])
+        return receipt, None
+
+    def _commit_worker_evidence(self, conn: sqlite3.Connection, receipt: dict[str, Any] | None, result: Any) -> Any:
+        if receipt is not None:
+            attempt = self._row(conn.execute("SELECT r.project_id FROM runs r JOIN run_attempts a USING(run_id) WHERE a.attempt_id=?", (receipt["attempt_id"],)).fetchone(), receipt["attempt_id"])
+            self._event(conn, project_id=attempt["project_id"], event_type="durable-run-attempt.worker-admitted", subject_type="durable-run-attempt", subject_id=receipt["attempt_id"], payload={**receipt, "result": result})
+        return result
+
+    def record_run_terminal_event(self, attempt_id: str, evidence: dict[str, Any]) -> dict[str, Any]:
+        raw = self._evidence_bytes(evidence)
+        event = decode_worker_event(raw[:-1]).model_dump(mode="json")
+        if event["event_type"] not in {"run_completed", "run_failed"}:
+            raise LatticeConflict("terminal admission requires a typed terminal frame")
+        with self.transaction() as conn:
+            receipt, replay = self._prepare_worker_evidence(conn, attempt_id, evidence, event)
+            if replay is not None:
+                return replay
+            return self._commit_worker_evidence(conn, receipt, event)
+
+    def replay_run_worker_event(self, attempt_id: str, evidence: dict[str, Any]) -> Any:
+        raw = self._evidence_bytes(evidence)
+        event = decode_worker_event(raw[:-1]).model_dump(mode="json")
+        with self.transaction() as conn:
+            receipt, replay = self._prepare_worker_evidence(conn, attempt_id, evidence, event)
+            if receipt is not None:
+                raise LatticeConflict("worker retry has not previously been admitted")
+            return replay
+
+    def record_run_process(self, attempt_id: str, value: RunProcessIdentityV2, *, controls: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         encoded = canonical_bytes(value.model_dump(mode="json"))
         with self.transaction() as conn:
             attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
@@ -1817,7 +1922,12 @@ class LatticeStore:
             if attempt["process_identity_json"] is not None:
                 if attempt["process_identity_json"].encode("utf-8") != encoded:
                     raise LatticeConflict("run-process identity changed after admission")
+                prior = self._run_evidence_rows(conn, attempt_id, "process-bound")
+                if prior[-1].get("controls") != controls:
+                    raise LatticeConflict("run-process controls changed after admission")
                 return self._decode_run_attempt(attempt)
+            if controls is not None:
+                self._validate_run_controls(conn, attempt, value, controls)
             if attempt["state"] != DurableRunAttemptState.running.value:
                 raise LatticeConflict("run-process identity requires a running attempt")
             run = self._row(conn.execute("SELECT project_id FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
@@ -1828,9 +1938,167 @@ class LatticeStore:
                 event_type="durable-run-attempt.process-bound",
                 subject_type="durable-run-attempt",
                 subject_id=attempt_id,
-                payload={"run_id": attempt["run_id"], "process_identity": value.model_dump(mode="json")},
+                payload={"run_id": attempt["run_id"], "process_identity": value.model_dump(mode="json"), "controls": controls, "evidence_limit": None if controls is not None else "trusted caller supplied no immutable controls"},
             )
         return self.get_run_attempt(attempt_id)
+
+    def _validate_run_controls(self, conn: sqlite3.Connection, attempt: dict[str, Any], identity: RunProcessIdentityV2, controls: list[dict[str, Any]]) -> None:
+        names = {item["name"] for item in controls}
+        if names != {"launch.json", "unit-plan.json", "target-environment.json", "process.json"} or len(controls) != 4:
+            raise LatticeConflict("initial run controls are incomplete or duplicated")
+        values = {item["name"]: json.loads(self._evidence_bytes(item)) for item in controls}
+        root = Path(identity.record_path).parent
+        if any(item.get("path") != str(root / item["name"]) for item in controls):
+            raise LatticeConflict("initial run control path disagrees with process binding")
+        if values["process.json"] != identity.model_dump(mode="json"):
+            raise LatticeConflict("process control disagrees with process identity")
+        environment = next(item for item in controls if item["name"] == "target-environment.json")
+        if environment["content_ref"] != f"{CURRENT_BLOB_PREFIX}{identity.target_environment_sha256}":
+            raise LatticeConflict("target environment control changed")
+        launch = values["launch.json"]
+        expected_launch = {"contract_version": "LocalRunLaunchReceipt/1.0", "run_id": attempt["run_id"], "attempt_id": attempt["attempt_id"], "attempt_number": attempt["attempt_number"], "started_at": attempt["started_at"], "binding": json.loads(attempt["executor_binding_json"]), "checkpoint_artifact_id": attempt["checkpoint_artifact_id"]}
+        if launch != expected_launch:
+            raise LatticeConflict("launch control disagrees with admitted attempt")
+        remaining = [row[0] for row in conn.execute("SELECT unit_key FROM run_units WHERE run_id=? AND state<>'completed' ORDER BY ordinal", (attempt["run_id"],))]
+        if values["unit-plan.json"] != {"contract_version": "RunUnitPlan/1.0", "run_id": attempt["run_id"], "attempt_id": attempt["attempt_id"], "remaining_unit_keys": remaining}:
+            raise LatticeConflict("unit plan control disagrees with admitted frontier")
+
+    def _latest_run_stream(self, conn: sqlite3.Connection, attempt_id: str, channel: str) -> dict[str, Any] | None:
+        row = conn.execute(
+            "SELECT payload_json FROM events WHERE subject_type='durable-run-attempt' AND subject_id=? AND event_type=? ORDER BY seq DESC LIMIT 1",
+            (attempt_id, f"durable-run-attempt.{channel}-admitted"),
+        ).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def record_run_stream_chunk(self, attempt_id: str, channel: str, offset: int, evidence: dict[str, Any]) -> dict[str, Any]:
+        if channel not in {"stdout", "stderr"} or type(offset) is not int or offset < 0:
+            raise LatticeConflict("invalid run stream identity or offset")
+        raw = self._evidence_bytes(evidence)
+        if not 0 < len(raw) <= 64 * 1024:
+            raise LatticeConflict("run stream admission requires a bounded nonempty chunk")
+        receipt = {"contract_version": "RunStreamAdmission/1.0", "attempt_id": attempt_id, "channel": channel, "offset": offset, "byte_count": len(raw), "content_ref": evidence["content_ref"]}
+        with self.transaction() as conn:
+            attempt = self._row(conn.execute("SELECT a.state,r.project_id FROM run_attempts a JOIN runs r USING(run_id) WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            latest = self._latest_run_stream(conn, attempt_id, channel)
+            end = latest["offset"] + latest["byte_count"] if latest else 0
+            if offset < end:
+                row = conn.execute("SELECT payload_json FROM events WHERE subject_type='durable-run-attempt' AND subject_id=? AND event_type=? AND json_extract(payload_json,'$.offset')=? LIMIT 1", (attempt_id, f"durable-run-attempt.{channel}-admitted", offset)).fetchone()
+                if row is not None and json.loads(row[0]) == receipt:
+                    return receipt
+                raise LatticeConflict("run stream retry overlaps or changes admitted bytes")
+            if offset != end:
+                raise LatticeConflict("run stream admission cannot skip bytes")
+            if attempt["state"] not in {"running", "waiting", "stopping"}:
+                raise LatticeConflict("run stream admission requires an active attempt")
+            self._event(conn, project_id=attempt["project_id"], event_type=f"durable-run-attempt.{channel}-admitted", subject_type="durable-run-attempt", subject_id=attempt_id, payload=receipt)
+        return receipt
+
+    def run_log_evidence(self, attempt_id: str, channel: str) -> dict[str, Any]:
+        """Materializing compatibility helper; HTTP uses boundary plus keyset pages."""
+        if channel not in {"stdout", "stderr"}:
+            raise LatticeConflict("invalid run log channel")
+        with self._connect() as conn:
+            conn.execute("BEGIN")
+            self._row(conn.execute("SELECT attempt_id FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            controls = self._run_evidence_rows(conn, attempt_id, "process-bound")
+            chunks = self._run_evidence_rows(conn, attempt_id, f"{channel}-admitted")
+            terminals = self._run_evidence_rows(conn, attempt_id, "terminal-evidence")
+        end = 0
+        for chunk in chunks:
+            if chunk["offset"] != end:
+                raise LatticeConflict("admitted run log contains a gap")
+            end += chunk["byte_count"]
+        qualified = bool(controls and controls[-1].get("controls") is not None)
+        admission_known = qualified or bool(chunks) or bool(terminals and terminals[-1].get("contract_version") == "RunTerminalEvidence/1.0")
+        return {"chunks": chunks, "admitted_bytes": end, "admission_known": admission_known, "qualified": qualified, "proof_limit": None if qualified else "legacy or trusted attempt lacks immutable initial controls; raw logs are diagnostic"}
+
+    @staticmethod
+    def _validate_log_receipt(receipt: dict[str, Any], attempt_id: str, channel: str, offset: int) -> int:
+        if (receipt.get("contract_version") != "RunStreamAdmission/1.0"
+                or receipt.get("attempt_id") != attempt_id or receipt.get("channel") != channel
+                or type(receipt.get("offset")) is not int or receipt["offset"] != offset
+                or type(receipt.get("byte_count")) is not int or not 0 < receipt["byte_count"] <= 64 * 1024):
+            raise LatticeConflict("admitted run log contains a gap or invalid receipt")
+        return offset + receipt["byte_count"]
+
+    def run_log_boundary(self, attempt_id: str, channel: str, *, run_id: str | None = None) -> dict[str, Any]:
+        """Pin a finite append-only ledger extent without retaining a read transaction.
+
+        Later pages use this sequence ceiling, not a live cursor or OFFSET. Only
+        the latest receipt/control/terminal is read here; no receipt list or CAS
+        content is materialized. Contiguity is checked while consuming pages.
+        """
+        if channel not in {"stdout", "stderr"}:
+            raise LatticeConflict("invalid run log channel")
+        with self._connect() as conn:
+            conn.execute("BEGIN")
+            attempt = self._row(conn.execute("SELECT run_id FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            if run_id is not None and attempt["run_id"] != run_id:
+                raise LatticeConflict("durable-run attempt belongs to another run")
+            ceiling = conn.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+            def latest(kind: str) -> dict[str, Any] | None:
+                row = conn.execute("SELECT payload_json FROM events WHERE seq<=? AND subject_type='durable-run-attempt' AND subject_id=? AND event_type=? ORDER BY seq DESC LIMIT 1", (ceiling, attempt_id, f"durable-run-attempt.{kind}")).fetchone()
+                return json.loads(row[0]) if row else None
+            chunk = latest(f"{channel}-admitted")
+            controls = latest("process-bound")
+            terminal = latest("terminal-evidence")
+        end = self._validate_log_receipt(chunk, attempt_id, channel, chunk.get("offset")) if chunk else 0
+        if chunk and chunk["offset"] < 0:
+            raise LatticeConflict("admitted run log contains a negative offset")
+        qualified = bool(controls and controls.get("controls") is not None)
+        known = qualified or chunk is not None or bool(terminal and terminal.get("contract_version") == "RunTerminalEvidence/1.0")
+        return {"attempt_id": attempt_id, "channel": channel, "through_seq": ceiling, "admitted_bytes": end, "admission_known": known, "qualified": qualified, "proof_limit": None if qualified else "legacy or trusted attempt lacks immutable initial controls; raw logs are diagnostic"}
+
+    def run_log_receipt_page(self, boundary: dict[str, Any], after: int) -> list[tuple[int, dict[str, Any]]]:
+        """A bounded page, with its connection closed before any consumer I/O."""
+        with self._connect() as conn:
+            rows = conn.execute("SELECT seq,payload_json FROM events WHERE seq>? AND seq<=? AND subject_type='durable-run-attempt' AND subject_id=? AND event_type=? ORDER BY seq LIMIT ?", (after, boundary["through_seq"], boundary["attempt_id"], f"durable-run-attempt.{boundary['channel']}-admitted", RUN_LOG_RECEIPT_PAGE)).fetchall()
+        return [(row[0], json.loads(row[1])) for row in rows]
+
+    def read_run_log_chunk(self, receipt: dict[str, Any]) -> bytes:
+        """Verify a bounded CAS object before exposing any of its exact bytes."""
+        count = receipt.get("byte_count")
+        ref = receipt.get("content_ref")
+        if type(count) is not int or not 0 < count <= 64 * 1024 or not isinstance(ref, str) or not ref.startswith(CURRENT_BLOB_PREFIX):
+            raise LatticeConflict("invalid admitted run log CAS receipt")
+        digest = ref[len(CURRENT_BLOB_PREFIX):]
+        try:
+            path = self.blobs.path_for(digest)
+            descriptor = os.open(path, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+            with os.fdopen(descriptor, "rb") as handle:
+                if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                    raise OSError("admitted run log CAS object is not a regular file")
+                raw = handle.read(count + 1)
+        except (OSError, ValueError) as error:
+            raise LatticeConflict(f"admitted run log CAS unavailable: {error}") from error
+        if len(raw) != count or sha256_bytes(raw) != digest:
+            raise LatticeConflict("admitted run log CAS bytes do not match receipt identity")
+        return raw
+
+    def _run_attempt_evidence_boundary(self, conn: sqlite3.Connection, attempt_id: str) -> dict[str, Any]:
+        prefixes = {}
+        for channel in ("stdout", "stderr"):
+            latest = self._latest_run_stream(conn, attempt_id, channel)
+            prefixes[channel] = latest["offset"] + latest["byte_count"] if latest else 0
+        row = conn.execute("SELECT payload_json FROM events WHERE subject_type='durable-run-attempt' AND subject_id=? AND event_type='durable-run-attempt.worker-admitted' ORDER BY seq DESC LIMIT 1", (attempt_id,)).fetchone()
+        frame = json.loads(row[0]) if row else None
+        terminal = frame if frame and frame["event_type"] in {"run_completed", "run_failed"} else None
+        ref = terminal["content_ref"] if terminal else None
+        return {"stream_prefixes": prefixes, "terminal_event_ref": ref, "terminal_event_type": terminal["event_type"] if terminal else None, "worker_event_count": frame["worker_sequence"] if frame else 0}
+
+    def run_attempt_evidence_boundary(self, attempt_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            conn.execute("BEGIN")
+            self._row(conn.execute("SELECT attempt_id FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            return self._run_attempt_evidence_boundary(conn, attempt_id)
+
+    def _terminal_run_evidence(self, conn: sqlite3.Connection, attempt_id: str, value: RunAttemptFinishV1, evidence: dict[str, Any]) -> dict[str, Any]:
+        boundary = self._run_attempt_evidence_boundary(conn, attempt_id)
+        if any(evidence.get(key) != boundary[key] for key in ("stream_prefixes", "terminal_event_ref")):
+            raise LatticeConflict("terminal evidence disagrees with admitted stream prefixes or terminal frame")
+        if value.state == DurableRunAttemptState.completed and (type(evidence.get("returncode")) is not int or evidence["returncode"] != 0 or boundary["terminal_event_type"] != "run_completed"):
+            raise LatticeConflict("successful terminal evidence requires run_completed and zero process exit")
+        return {**evidence, **boundary, "contract_version": "RunTerminalEvidence/1.0"}
 
     def active_run_attempts(self) -> list[dict[str, Any]]:
         with self._connect() as conn:
@@ -1842,15 +2110,18 @@ class LatticeStore:
             row = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
         return self._decode_run_unit(row)
 
-    def start_run_unit(self, run_id: str, attempt_id: str, unit_key: str, *, allow_stopping: bool = False) -> dict[str, Any]:
+    def start_run_unit(self, run_id: str, attempt_id: str, unit_key: str, *, allow_stopping: bool = False, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
         with self.transaction() as conn:
+            receipt, replay = self._prepare_worker_evidence(conn, attempt_id, evidence, {"event_type": "unit_started", "unit_key": unit_key}, run_id=run_id)
+            if replay is not None:
+                return replay
             run = self._row(conn.execute("SELECT project_id,state,declaration_json FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
             attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             unit = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
             if attempt["run_id"] != run_id:
                 raise LatticeConflict("run attempt belongs to another run")
             if unit["state"] == DurableRunUnitState.running.value and unit["active_attempt_id"] == attempt_id:
-                return self._decode_run_unit(unit)
+                return self._commit_worker_evidence(conn, receipt, self._decode_run_unit(unit))
             active_states = {
                 (DurableRunState.running.value, DurableRunAttemptState.running.value),
             }
@@ -1888,7 +2159,8 @@ class LatticeStore:
                 (DurableRunUnitState.running.value, attempt_id, attempt_id, now, run_id, unit_key),
             )
             self._event(conn, project_id=run["project_id"], event_type="durable-run-unit.started", subject_type="durable-run-unit", subject_id=f"{run_id}:{unit_key}", payload={"attempt_id": attempt_id})
-        return self.get_run_unit(run_id, unit_key)
+            result = self._commit_worker_evidence(conn, receipt, self._decode_run_unit(self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), unit_key)))
+        return result
 
     def _promote_eligible_units(self, conn: sqlite3.Connection, run_id: str, project_id: str) -> None:
         states = {row["unit_key"]: row["state"] for row in conn.execute("SELECT unit_key,state FROM run_units WHERE run_id=?", (run_id,))}
@@ -1898,8 +2170,13 @@ class LatticeStore:
                 conn.execute("UPDATE run_units SET state=? WHERE run_id=? AND unit_key=?", (DurableRunUnitState.eligible.value, run_id, row["unit_key"]))
                 self._event(conn, project_id=project_id, event_type="durable-run-unit.eligible", subject_type="durable-run-unit", subject_id=f"{run_id}:{row['unit_key']}", payload={})
 
-    def finish_run_unit(self, run_id: str, attempt_id: str, unit_key: str, value: RunUnitResultV1) -> dict[str, Any]:
+    def finish_run_unit(self, run_id: str, attempt_id: str, unit_key: str, value: RunUnitResultV1, *, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
+        fields = ("output_sha256",) if value.state == DurableRunUnitState.completed else ("failure_kind", "error_text")
+        expected = {"event_type": f"unit_{value.state.value}", "unit_key": unit_key, **{key: getattr(value, key) for key in fields}}
         with self.transaction() as conn:
+            receipt, replay = self._prepare_worker_evidence(conn, attempt_id, evidence, expected, run_id=run_id)
+            if replay is not None:
+                return replay
             run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
             attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             unit = self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), f"{run_id}:{unit_key}")
@@ -1908,7 +2185,7 @@ class LatticeStore:
             if unit["state"] == value.state.value and unit["last_attempt_id"] == attempt_id:
                 if unit["output_sha256"] != value.output_sha256 or unit["failure_kind"] != value.failure_kind or unit["error_text"] != value.error_text:
                     raise LatticeConflict("run-unit terminal result changed after admission")
-                return self._decode_run_unit(unit)
+                return self._commit_worker_evidence(conn, receipt, self._decode_run_unit(unit))
             if run["state"] not in {DurableRunState.running.value, DurableRunState.stopping.value} or attempt["state"] not in {DurableRunAttemptState.running.value, DurableRunAttemptState.stopping.value}:
                 raise LatticeConflict("run-unit completion requires an active run attempt")
             if unit["state"] != DurableRunUnitState.running.value or unit["active_attempt_id"] != attempt_id:
@@ -1929,39 +2206,48 @@ class LatticeStore:
             )
             if value.state == DurableRunUnitState.completed:
                 self._promote_eligible_units(conn, run_id, run["project_id"])
-        return self.get_run_unit(run_id, unit_key)
+            result = self._commit_worker_evidence(conn, receipt, self._decode_run_unit(self._row(conn.execute("SELECT * FROM run_units WHERE run_id=? AND unit_key=?", (run_id, unit_key)).fetchone(), unit_key)))
+        return result
 
-    def set_run_waiting(self, attempt_id: str, reason: str) -> dict[str, Any]:
+    def set_run_waiting(self, attempt_id: str, reason: str, *, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
         if not reason or any(ord(char) < 32 and char not in "\n\t" for char in reason):
             raise ValueError("waiting reason must be non-empty printable text")
         with self.transaction() as conn:
+            receipt, replay = self._prepare_worker_evidence(conn, attempt_id, evidence, {"event_type": "waiting", "reason": reason})
+            if replay is not None:
+                return replay
             attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
             if attempt["state"] == DurableRunAttemptState.waiting.value and run["state"] == DurableRunState.waiting.value:
-                return self._decode_run_attempt(attempt)
+                return self._commit_worker_evidence(conn, receipt, self._decode_run_attempt(attempt))
             if attempt["state"] != DurableRunAttemptState.running.value or run["state"] != DurableRunState.running.value:
                 raise LatticeConflict("only a running durable run can become waiting")
             now = stamp()
             conn.execute("UPDATE run_attempts SET state=? WHERE attempt_id=?", (DurableRunAttemptState.waiting.value, attempt_id))
             conn.execute("UPDATE runs SET state=?,updated_at=? WHERE run_id=?", (DurableRunState.waiting.value, now, attempt["run_id"]))
             self._event(conn, project_id=run["project_id"], event_type="durable-run.waiting", subject_type="durable-run", subject_id=attempt["run_id"], payload={"attempt_id": attempt_id, "reason": reason})
-        return self.get_run_attempt(attempt_id)
+            result = self._commit_worker_evidence(conn, receipt, self._decode_run_attempt(self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)))
+        return result
 
-    def continue_run(self, attempt_id: str) -> dict[str, Any]:
+    def continue_run(self, attempt_id: str, *, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
         with self.transaction() as conn:
+            receipt, replay = self._prepare_worker_evidence(conn, attempt_id, evidence, {"event_type": "continued"})
+            if replay is not None:
+                return replay
             attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
             if attempt["state"] == DurableRunAttemptState.running.value and run["state"] == DurableRunState.running.value:
-                return self._decode_run_attempt(attempt)
+                return self._commit_worker_evidence(conn, receipt, self._decode_run_attempt(attempt))
             if attempt["state"] != DurableRunAttemptState.waiting.value or run["state"] != DurableRunState.waiting.value:
                 raise LatticeConflict("only a waiting durable run can continue")
             now = stamp()
             conn.execute("UPDATE run_attempts SET state=? WHERE attempt_id=?", (DurableRunAttemptState.running.value, attempt_id))
             conn.execute("UPDATE runs SET state=?,updated_at=? WHERE run_id=?", (DurableRunState.running.value, now, attempt["run_id"]))
             self._event(conn, project_id=run["project_id"], event_type="durable-run.continued", subject_type="durable-run", subject_id=attempt["run_id"], payload={"attempt_id": attempt_id})
-        return self.get_run_attempt(attempt_id)
+            result = self._commit_worker_evidence(conn, receipt, self._decode_run_attempt(self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)))
+        return result
 
-    def record_run_progress_event(self, attempt_id: str, *, kind: str, payload: dict[str, Any]) -> str:
+    def record_run_progress_event(self, attempt_id: str, *, kind: str, payload: dict[str, Any], evidence: dict[str, Any] | None = None) -> str:
         """Append one bounded structured observation without inventing another run ledger."""
 
         if kind not in {"progress", "resource"}:
@@ -1969,14 +2255,22 @@ class LatticeStore:
         raw = canonical_bytes(payload)
         if len(raw) > 1024 * 1024:
             raise ValueError("durable-run progress event exceeds its byte limit")
+        fields = ("metrics",) if kind == "resource" else ("message", "completed", "total", "safe_to_stop")
+        if evidence is not None and set(payload) != {*fields, "worker_sequence", "monotonic_ns"}:
+            raise LatticeConflict("progress evidence requires the complete emitted semantic payload")
+        expected = {"event_type": kind, **{key: payload.get(key) for key in fields}, "sequence": payload.get("worker_sequence"), "monotonic_ns": payload.get("monotonic_ns")}
         with self.transaction() as conn:
+            receipt, replay = self._prepare_worker_evidence(conn, attempt_id, evidence, expected)
+            if replay is not None:
+                return replay
             attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             if attempt["state"] not in {DurableRunAttemptState.running.value, DurableRunAttemptState.waiting.value, DurableRunAttemptState.stopping.value}:
                 raise LatticeConflict("durable-run progress requires an active attempt")
             run = self._row(conn.execute("SELECT project_id FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
-            return self._event(conn, project_id=run["project_id"], event_type=f"durable-run.{kind}", subject_type="durable-run-attempt", subject_id=attempt_id, payload=payload)
+            result = self._event(conn, project_id=run["project_id"], event_type=f"durable-run.{kind}", subject_type="durable-run-attempt", subject_id=attempt_id, payload=payload)
+            return self._commit_worker_evidence(conn, receipt, result)
 
-    def record_run_artifact(self, run_id: str, attempt_id: str | None, unit_key: str | None, value: RunArtifactCreateV1) -> dict[str, Any]:
+    def record_run_artifact(self, run_id: str, attempt_id: str | None, unit_key: str | None, value: RunArtifactCreateV1, *, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
         in_lattice_custody = value.storage_locator.startswith(CURRENT_BLOB_PREFIX)
         is_external_file = value.storage_locator.startswith("file:")
         if value.artifact_class != RunArtifactClass.disposable and not in_lattice_custody:
@@ -1995,6 +2289,9 @@ class LatticeStore:
         record_sha256 = sha256_bytes(encoded)
         artifact_id: str
         with self.transaction() as conn:
+            receipt, replay = self._prepare_worker_evidence(conn, attempt_id, evidence, {"event_type": "checkpoint" if value.artifact_class == RunArtifactClass.checkpoint else "artifact", "unit_key": unit_key, "artifact": value.model_dump(mode="json")}, run_id=run_id)
+            if replay is not None:
+                return replay
             run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (run_id,)).fetchone(), run_id)
             if attempt_id is not None:
                 attempt = self._row(conn.execute("SELECT run_id,state FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
@@ -2045,12 +2342,12 @@ class LatticeStore:
                     subject_id=artifact_id,
                     payload={"run_id": run_id, "attempt_id": attempt_id, "unit_key": unit_key, "artifact_key": value.artifact_key, "artifact_class": value.artifact_class.value, "content_sha256": value.content_sha256, "byte_count": value.byte_count, "record_sha256": record_sha256},
                 )
-        with self._connect() as conn:
             artifact = self._row(conn.execute("SELECT * FROM run_artifacts WHERE artifact_id=?", (artifact_id,)).fetchone(), artifact_id)
             observations = [row[0] for row in conn.execute("SELECT json_extract(payload_json,'$.attempt_id') FROM events WHERE subject_type='durable-run-artifact' AND subject_id=? AND event_type IN ('durable-run-artifact.recorded','durable-run-artifact.reobserved') ORDER BY seq", (artifact_id,))]
-        decoded = self._decode_run_artifact(artifact)
-        decoded["observed_attempt_ids"] = observations
-        return decoded
+            decoded = self._decode_run_artifact(artifact)
+            decoded["observed_attempt_ids"] = observations
+            result = self._commit_worker_evidence(conn, receipt, decoded)
+        return result
 
     def mark_run_artifact_removed(self, artifact_id: str, *, reason: str) -> dict[str, Any]:
         """Record a completed storage-layer removal; only declared disposable material qualifies."""
@@ -2101,13 +2398,17 @@ class LatticeStore:
                 raise LatticeConflict(f"durable run cannot stop from {run['state']}")
         return self.get_run(run_id)
 
-    def finish_run_attempt(self, attempt_id: str, value: RunAttemptFinishV1) -> dict[str, Any]:
+    def finish_run_attempt(self, attempt_id: str, value: RunAttemptFinishV1, *, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
         with self.transaction() as conn:
             attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             run = self._row(conn.execute("SELECT project_id,state FROM runs WHERE run_id=?", (attempt["run_id"],)).fetchone(), attempt["run_id"])
+            terminal_evidence = self._terminal_run_evidence(conn, attempt_id, value, evidence) if evidence is not None else None
             if attempt["state"] == value.state.value:
                 if attempt["failure_kind"] != value.failure_kind or attempt["error_text"] != value.error_text:
                     raise LatticeConflict("run-attempt terminal result changed after admission")
+                prior = self._run_evidence_rows(conn, attempt_id, "terminal-evidence")
+                if terminal_evidence is not None and (not prior or prior[-1] != terminal_evidence):
+                    raise LatticeConflict("run-attempt terminal evidence changed after admission")
                 return self._decode_run_attempt(attempt)
             if attempt["state"] not in {DurableRunAttemptState.running.value, DurableRunAttemptState.waiting.value, DurableRunAttemptState.stopping.value}:
                 raise LatticeConflict(f"run attempt cannot finish from {attempt['state']}")
@@ -2138,6 +2439,7 @@ class LatticeStore:
                 DurableRunAttemptState.orphaned: DurableRunState.stopped,
             }[value.state]
             conn.execute("UPDATE runs SET state=?,updated_at=?,terminal_at=? WHERE run_id=?", (run_state.value, now, now, attempt["run_id"]))
+            self._event(conn, project_id=run["project_id"], event_type="durable-run-attempt.terminal-evidence", subject_type="durable-run-attempt", subject_id=attempt_id, payload=terminal_evidence if terminal_evidence is not None else {"proof_limit": "trusted caller supplied no drain, exit or emitted terminal proof"})
             self._event(
                 conn,
                 project_id=run["project_id"],

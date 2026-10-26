@@ -729,7 +729,7 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/v1/runs/{run_id}")
     async def inspect_durable_run(run_id: str):
-        return store.get_run(run_id)
+        return run_supervisor.inspect_run(run_id)
 
     @app.post("/api/v1/runs/{run_id}/admit")
     async def admit_durable_run(run_id: str):
@@ -753,19 +753,20 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/v1/runs/{run_id}/attempts/{attempt_id}/logs/{stream}")
     async def durable_run_attempt_log(run_id: str, attempt_id: str, stream: Literal["stdout", "stderr"]):
-        descriptor, byte_count = run_supervisor.open_attempt_log(run_id, attempt_id, stream)
+        byte_count, chunks = await run_supervisor.stream_attempt_log(run_id, attempt_id, stream)
+        # Reject first-chunk failures before headers. Later corruption aborts the
+        # stream: Content-Length remains the pinned full extent, never a shorter
+        # successful log. A status change is impossible once headers are sent.
+        first = await anext(chunks, b"")
 
         async def generate():
-            remaining = byte_count
             try:
-                while remaining:
-                    chunk = await asyncio.to_thread(os.read, descriptor, min(64 * 1024, remaining))
-                    if not chunk:
-                        return
-                    remaining -= len(chunk)
+                if first:
+                    yield first
+                async for chunk in chunks:
                     yield chunk
             finally:
-                os.close(descriptor)
+                await chunks.aclose()
 
         return StreamingResponse(
             generate(),
