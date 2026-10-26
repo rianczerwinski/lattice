@@ -90,6 +90,9 @@ HARNESS = textwrap.dedent('''
     install.backup_before_upgrade = backup
     install.verify_candidate_backup = lambda *_a: note("verify-backup")
     install.qualify_candidate_migration = lambda *_a: note("qualify")
+    # Empty fake candidate has no .venv; bundled-pack validation is proven
+    # by tests/test_workflow_readiness_boundary.py.
+    install.verify_candidate_workflow_packs = lambda *_a: None
     @contextmanager
     def quiescence():
         note("quiescence-enter"); yield; note("quiescence-exit")
