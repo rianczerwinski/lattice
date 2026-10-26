@@ -425,15 +425,85 @@ class DurableRunSupervisor:
         run["attempts"] = [self.inspect_attempt(attempt["attempt_id"]) for attempt in run["attempts"]]
         return run
 
+    def _inspect_terminal_projection(self, attempt: dict[str, Any], *, repair: bool) -> dict[str, Any]:
+        """Generation-local hook for historical attempts; never touches processes.
+
+        A future restored-generation resolver must supply that generation's
+        store and journal_root. Current paths alone are not restore receipts.
+        """
+        descriptor = None
+        try:
+            source = self.store.run_terminal_projection_source(attempt["attempt_id"])
+            if source["status"] != "known":
+                return source
+            root = (self.journal_root / attempt["run_id"] / attempt["attempt_id"]).resolve()
+            if root.parent.parent != self.journal_root:
+                raise LatticeConflict("terminal projection escaped its configured journal root")
+            details = {"source": source["source"], "stream_prefixes": source["stream_prefixes"],
+                       "logs": "admitted-cas", "proof_limit": "stream extents are ledger claims; log downloads verify each required CAS chunk"}
+            if repair:
+                if self._production_journals:
+                    descriptor = acquire_journal_writer(self.store.config.data_root)
+                DurableRunJournal.recover_terminal_projection(root, source["receipt"], source["source"])
+            return {**details, "status": DurableRunJournal.terminal_projection_status(root, source["receipt"])}
+        except Exception as error:
+            logging.getLogger(__name__).warning("terminal projection inspection failed for %s: %s", attempt["attempt_id"], error)
+            return {"status": "failed", "error_text": f"{type(error).__name__}: {error}", "retryable": True}
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
+
+    async def inspect_public_attempt(self, run_id: str, attempt_id: str, *, repair: bool = False) -> dict[str, Any]:
+        attempt = await _complete_io(self.inspect_attempt, attempt_id)
+        if attempt["run_id"] != run_id:
+            raise LatticeConflict("durable-run attempt belongs to another run")
+        if attempt_id in self._executions:
+            # Semantic commit precedes journal.finish; do not race its writer.
+            attempt["terminal_projection"] = {"status": "pending", "reason": "current supervisor still owns publication"}
+        else:
+            failed = self._failed_executions.get(attempt_id)
+            if repair and failed is not None and failed.terminal_receipt is not None:
+                # This boot still knows the richer diagnostic receipt. Preserve
+                # it, and resolve its overlay without signalling any process.
+                try:
+                    await _complete_io(failed.journal.reconcile_terminal, failed.terminal_receipt)
+                except Exception as error:
+                    logging.getLogger(__name__).warning("terminal projection retry failed for %s: %s", attempt_id, error)
+                    attempt["terminal_projection"] = {"status": "failed", "error_text": f"{type(error).__name__}: {error}", "retryable": True}
+                    return attempt
+                self._failures[attempt_id].update(projection_status="repaired", reconciliation="resolved")
+                self._failures[attempt_id].pop("reconciliation_error", None)
+                self._failed_executions.pop(attempt_id, None)
+                attempt["supervision_failure"] = dict(self._failures[attempt_id])
+            attempt["terminal_projection"] = await _complete_io(self._inspect_terminal_projection, attempt, repair=repair)
+        return attempt
+
+    async def inspect_public_run(self, run_id: str) -> dict[str, Any]:
+        """Inspect one terminal projection, with explicit lazy historical work.
+
+        Startup never enumerates terminal attempts or their CAS. The existing
+        run representation includes history; older projections have their own
+        focused endpoint so per-request filesystem work does not grow with it.
+        """
+        run = await _complete_io(self.inspect_run, run_id)
+        for attempt in run["attempts"]:
+            attempt["terminal_projection"] = {"status": "pending", "reason": "inspect the focused attempt endpoint"}
+        if run["attempts"]:
+            latest = run["attempts"][-1]
+            run["attempts"][-1] = await self.inspect_public_attempt(run_id, latest["attempt_id"])
+        return run
+
     async def reconcile_attempt(self, attempt_id: str) -> dict[str, Any]:
         """Retry failed terminal storage after proven exit; never undo completion.
 
-        Runtime errors survive task removal. A service restart instead uses the
-        existing durable process identity and orphan reconciliation protocol.
+        Runtime errors survive task removal. Restart handles active processes
+        through orphan reconciliation and terminal projections through retained
+        admission evidence, without signalling historical process identities.
         """
         execution = self._failed_executions.get(attempt_id)
         if execution is None:
-            return self.inspect_attempt(attempt_id)
+            attempt = self.store.get_run_attempt(attempt_id)
+            return await self.inspect_public_attempt(attempt["run_id"], attempt_id, repair=True)
         try:
             await self._terminate(execution)
         except Exception as error:

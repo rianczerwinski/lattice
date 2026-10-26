@@ -729,7 +729,15 @@ def create_app(config: LatticeConfig | None = None) -> FastAPI:
 
     @app.get("/api/v1/runs/{run_id}")
     async def inspect_durable_run(run_id: str):
-        return run_supervisor.inspect_run(run_id)
+        return await run_supervisor.inspect_public_run(run_id)
+
+    @app.get("/api/v1/runs/{run_id}/attempts/{attempt_id}")
+    async def inspect_durable_run_attempt(run_id: str, attempt_id: str):
+        return await run_supervisor.inspect_public_attempt(run_id, attempt_id)
+
+    @app.post("/api/v1/runs/{run_id}/attempts/{attempt_id}/reconcile-projection")
+    async def reconcile_durable_run_projection(run_id: str, attempt_id: str):
+        return await run_supervisor.inspect_public_attempt(run_id, attempt_id, repair=True)
 
     @app.post("/api/v1/runs/{run_id}/admit")
     async def admit_durable_run(run_id: str):

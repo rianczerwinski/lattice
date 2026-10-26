@@ -47,6 +47,226 @@ def _plant_log(store, run, attempt, chunks, channel="stdout", *, offset=0):
 
 
 @pytest.mark.asyncio
+async def test_restart_projection_failure_is_public_and_recoverable(lattice_env, tmp_path, monkeypatch):
+    """A new controller must derive recovery without the old task or receipt."""
+    import httpx
+    import lattice.server as server
+    from lattice import Lattice, LatticeStore
+    store = lattice_env["store"]
+    raw = b"completed output\x00\xff\n"
+    run = _lifecycle_run(lattice_env, tmp_path, f"os.write(1, {raw!r})\n" + _completed_worker())
+    def fail(*args, **kwargs):
+        raise OSError("planted terminal projection failure")
+    monkeypatch.setattr(DurableRunJournal, "finish", fail)
+    first = DurableRunSupervisor(store, journal_root=tmp_path / "journals")
+    attempt = await first.execute(run["run_id"], "restart-projection")
+    result = await first.wait(attempt["attempt_id"])
+    assert result["state"] == "completed" and result["supervision_failure"]["phase"] == "projection"
+    original = store.get_run(run["run_id"])
+    # Real store/controller reassembly: neither dictionary crosses the boundary.
+    fresh = LatticeStore(lattice_env["config"])
+    supervisor = DurableRunSupervisor(fresh, journal_root=first.journal_root)
+    def no_signal(*args, **kwargs):
+        raise AssertionError("projection recovery must never signal a historical process")
+    monkeypatch.setattr(supervisor, "_terminate", no_signal)
+    await supervisor.start()
+    sessions = server.OperatorSessions()
+    monkeypatch.setattr(server, "_initialize_runtime", lambda config: (fresh, Lattice(fresh), None, supervisor, sessions, "fixture-token", None, None, None, {}, [], None))
+    app = server.create_app(lattice_env["config"])
+    base = f"/api/v1/runs/{run['run_id']}"
+    attempt_url = f"{base}/attempts/{attempt['attempt_id']}"
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver", headers={"authorization": "Bearer fixture-token"}) as client:
+        response = await client.get(base)
+        public = response.json()["attempts"][-1]
+        assert public["state"] == "completed"
+        assert public["terminal_projection"]["status"] == "missing"
+        assert public["terminal_projection"]["stream_prefixes"] == {"stdout": len(raw), "stderr": 0}
+        # A recovery write failure is public and retryable, independent of boot.
+        publish = DurableRunJournal.recover_terminal_projection
+        monkeypatch.setattr(DurableRunJournal, "recover_terminal_projection", fail)
+        failed = await client.post(attempt_url + "/reconcile-projection")
+        assert failed.status_code == 200
+        assert failed.json()["terminal_projection"]["status"] == "failed"
+        assert "planted" in failed.json()["terminal_projection"]["error_text"]
+        monkeypatch.setattr(DurableRunJournal, "recover_terminal_projection", publish)
+        recovered = (await client.post(attempt_url + "/reconcile-projection")).json()
+        assert recovered["state"] == "completed"
+        assert recovered["terminal_projection"]["status"] == "ready"
+        receipt_path = first.journal_root / run["run_id"] / attempt["attempt_id"] / "terminal.json"
+        receipt = receipt_path.read_bytes()
+        value = json.loads(receipt)
+        assert value["stdout_bytes"] == len(raw) and value["stderr_bytes"] == 0
+        assert value["returncode"] == 0 and value["worker_event_count"] == 7
+        for key in ("state", "completed_at", "failure_kind", "error_text"):
+            assert value[key] == original["attempts"][-1][key]
+        assert "raw_stdout_bytes" not in value  # no invented observation after restart
+        assert (await client.post(attempt_url + "/reconcile-projection")).json()["terminal_projection"]["status"] == "ready"
+        assert receipt_path.read_bytes() == receipt
+        downloaded = await client.get(attempt_url + "/logs/stdout")
+        assert downloaded.status_code == 200 and downloaded.content == raw
+    assert fresh.get_run(run["run_id"]) == original
+
+
+def _terminal_projection_fixture(lattice_env):
+    store, run, attempt = _attempt(lattice_env)
+    raw = b"exact admitted binary\x00\xff"
+    _plant_log(store, run, attempt, [raw])
+    frame = _frame(store, attempt, 1, "run_completed")
+    store.record_run_terminal_event(attempt, frame)
+    for unit in ("one", "two", "three"):
+        store.start_run_unit(run, attempt, unit)
+        store.finish_run_unit(run, attempt, unit, RunUnitResultV1(state="completed", output_sha256=hashlib.sha256(unit.encode()).hexdigest()))
+    store.finish_run_attempt(attempt, RunAttemptFinishV1(state="completed"), evidence={"returncode": 0, "stream_prefixes": {"stdout": len(raw), "stderr": 0}, "terminal_event_ref": frame["content_ref"]})
+    return store, run, attempt, raw
+
+
+@pytest.mark.asyncio
+async def test_projection_retry_current_boot_preserves_original_receipt(lattice_env, tmp_path, monkeypatch):
+    run = _lifecycle_run(lattice_env, tmp_path, _completed_worker())
+    def fail(*args, **kwargs):
+        raise OSError("planted projection publication failure")
+    monkeypatch.setattr(DurableRunJournal, "finish", fail)
+    supervisor = DurableRunSupervisor(lattice_env["store"], journal_root=tmp_path / "journals")
+    attempt = await supervisor.execute(run["run_id"], "current-boot-projection")
+    terminal = await supervisor.wait(attempt["attempt_id"])
+    assert terminal["state"] == "completed"
+    original = lattice_env["store"].get_run(run["run_id"])
+    def no_signal(*args, **kwargs):
+        raise AssertionError("projection retry attempted to signal a terminal process")
+    monkeypatch.setattr(supervisor, "_terminate", no_signal)
+    status = await supervisor.inspect_public_attempt(run["run_id"], attempt["attempt_id"], repair=True)
+    assert status["terminal_projection"]["status"] == "ready"
+    assert status["supervision_failure"]["reconciliation"] == "resolved"
+    root = supervisor.journal_root / run["run_id"] / attempt["attempt_id"]
+    receipt = (root / "terminal.json").read_bytes()
+    assert "raw_stdout_bytes" in json.loads(receipt)
+    stopped = await supervisor.request_stop(run["run_id"])
+    assert stopped["state"] == "completed"
+    assert stopped["attempts"][-1]["supervision_failure"]["projection_status"] == "repaired"
+    assert (root / "terminal.json").read_bytes() == receipt
+    assert lattice_env["store"].get_run(run["run_id"]) == original
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fault", ["corrupt", "state", "extent", "boolean_extent", "oversized"])
+async def test_projection_conflict_survives_restart_without_changing_results(lattice_env, monkeypatch, fault):
+    store, run, attempt, raw = _terminal_projection_fixture(lattice_env)
+    supervisor, _, _ = _log_endpoint(lattice_env, monkeypatch)
+    repaired = await supervisor.inspect_public_attempt(run, attempt, repair=True)
+    assert repaired["terminal_projection"]["status"] == "ready"
+    root = supervisor.journal_root / run / attempt
+    path = root / "terminal.json"
+    value = json.loads(path.read_bytes())
+    if fault == "state":
+        value["state"] = "failed"
+    if fault == "extent":
+        value["stdout_bytes"] += 1
+    if fault == "boolean_extent":
+        value["stderr_bytes"] = False
+    damaged = b"{broken" if fault == "corrupt" else b" " * (128 * 1024 + 1) if fault == "oversized" else json.dumps(value).encode()
+    path.write_bytes(damaged)
+    original = store.get_run(run)
+    # New controller each time, no cached success or failure authority.
+    for _ in range(2):
+        fresh = DurableRunSupervisor(store, journal_root=supervisor.journal_root)
+        await fresh.start()
+        status = await fresh.inspect_public_attempt(run, attempt, repair=True)
+        assert status["state"] == "completed"
+        assert status["terminal_projection"]["status"] == "failed"
+        assert path.read_bytes() == damaged
+    # Retain conflicting bytes for diagnosis, then retry without the fault.
+    path.rename(root / "conflicting-terminal.evidence")
+    status = await fresh.inspect_public_attempt(run, attempt, repair=True)
+    assert status["terminal_projection"]["status"] == "ready"
+    assert store.get_run(run) == original
+    assert not (root / "stdout.log").exists()  # absence is not fabricated diagnostics
+    count, chunks = await fresh.stream_attempt_log(run, attempt, "stdout")
+    assert count == len(raw) and b"".join([chunk async for chunk in chunks]) == raw
+
+
+@pytest.mark.asyncio
+async def test_projection_preserves_existing_diagnostics_and_setup_compatibility(lattice_env, monkeypatch):
+    store, run, attempt, raw = _terminal_projection_fixture(lattice_env)
+    supervisor, _, endpoint = _log_endpoint(lattice_env, monkeypatch)
+    # Independent historical receipt, rather than a receipt from the repairer.
+    terminal = store.get_run_attempt(attempt)
+    value = {"contract_version": "LocalRunTerminal/1.0", "run_id": run, "attempt_id": attempt,
+             "state": "completed", "failure_kind": None, "error_text": None, "completed_at": terminal["completed_at"],
+             "stdout_bytes": len(raw), "stderr_bytes": 0, "raw_stdout_bytes": len(raw) + 9,
+             "lifecycle_diagnostics": {"planted": "historical observation"}}
+    root = supervisor.journal_root / run / attempt
+    root.mkdir(parents=True)
+    path = root / "terminal.json"
+    encoded = json.dumps(value).encode()
+    path.write_bytes(encoded)
+    for _ in range(2):
+        status = await supervisor.inspect_public_attempt(run, attempt, repair=True)
+        assert status["terminal_projection"]["status"] == "ready"
+        assert path.read_bytes() == encoded
+    assert (await endpoint(run))["attempts"][-1]["terminal_projection"]["status"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_projection_legacy_and_history_do_not_add_startup_scans(lattice_env, monkeypatch):
+    store, run, attempt, _ = _terminal_projection_fixture(lattice_env)
+    # Irrelevant historical rows in the same run, planted without any journals.
+    with store.transaction() as conn:
+        conn.executemany("""INSERT INTO run_attempts(attempt_id,run_id,attempt_number,idempotency_key,request_sha256,request_json,state,owner_boot_id,executor_binding_json,started_at,completed_at)
+            SELECT ?,run_id,?,?,request_sha256,request_json,'failed',owner_boot_id,executor_binding_json,started_at,completed_at FROM run_attempts WHERE attempt_id=?""", [(f"historical-{n}", n + 2, f"historical-key-{n}", attempt) for n in range(256)])
+    supervisor, _, endpoint = _log_endpoint(lattice_env, monkeypatch)
+    calls = []
+    source = store.run_terminal_projection_source
+    loop_thread = threading.get_ident()
+    def inspected(attempt_id):
+        assert threading.get_ident() != loop_thread
+        calls.append(attempt_id)
+        return source(attempt_id)
+    def no_history_or_cas(*args, **kwargs):
+        raise AssertionError("projection inspection scanned historical receipts or CAS")
+    monkeypatch.setattr(store, "run_terminal_projection_source", inspected)
+    monkeypatch.setattr(store, "_run_evidence_rows", no_history_or_cas)
+    monkeypatch.setattr(store, "read_run_log_chunk", no_history_or_cas)
+    await supervisor.start()
+    assert calls == []
+    result = await endpoint(run)
+    assert calls == ["historical-255"]
+    assert result["attempts"][-1]["terminal_projection"]["status"] == "legacy"
+    assert result["attempts"][0]["terminal_projection"]["status"] == "pending"
+    focused = await supervisor.inspect_public_attempt(run, attempt, repair=True)
+    assert focused["terminal_projection"]["status"] == "ready"
+    legacy = await supervisor.inspect_public_attempt(run, "historical-0", repair=True)
+    assert legacy["terminal_projection"]["status"] == "legacy" and "proof_limit" in legacy["terminal_projection"]
+    assert not (supervisor.journal_root / run / "historical-0").exists()
+    print("PROJECTION_HISTORY_SAMPLE " + json.dumps({"historical_attempts": 256, "startup_projection_queries": 0, "run_inspection_projection_queries": 1}), flush=True)
+
+
+def test_projection_recovery_in_fresh_python_process(lattice_env, tmp_path):
+    store, run, attempt, raw = _terminal_projection_fixture(lattice_env)
+    original = store.get_run(run)
+    root = tmp_path / "fresh-process-journals"
+    code = """
+import asyncio, json, sys
+from pathlib import Path
+from lattice import LatticeConfig, LatticeStore
+from lattice.run_supervisor import DurableRunSupervisor
+store = LatticeStore(LatticeConfig(data_root=Path(sys.argv[1]), axisvi_root=None))
+supervisor = DurableRunSupervisor(store, journal_root=Path(sys.argv[2]))
+async def inspect():
+    await supervisor.start()
+    return await supervisor.inspect_public_attempt(sys.argv[3], sys.argv[4], repair=True)
+print(json.dumps(asyncio.run(inspect())))
+"""
+    for _ in range(2):
+        result = subprocess.run([sys.executable, "-c", code, str(store.config.data_root), str(root), run, attempt], capture_output=True, text=True, timeout=15)
+        assert result.returncode == 0, result.stderr
+        value = json.loads(result.stdout)
+        assert value["state"] == "completed"
+        assert value["terminal_projection"]["status"] == "ready"
+        assert value["terminal_projection"]["stream_prefixes"] == {"stdout": len(raw), "stderr": 0}
+    assert store.get_run(run) == original
+
+
+@pytest.mark.asyncio
 async def test_log_endpoint_cas_io_is_off_loop(lattice_env, monkeypatch):
     store, run, attempt = _attempt(lattice_env)
     raw = bytes(range(256)) * 512

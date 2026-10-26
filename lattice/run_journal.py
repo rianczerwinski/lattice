@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import fcntl
+import json
 import logging
 import os
+import stat
 import threading
 import time
 from contextlib import asynccontextmanager, contextmanager
@@ -104,6 +106,56 @@ def journal_capture_guard(data_root: Path, *, blocking: bool = True) -> Iterator
 
 
 class DurableRunJournal:
+    @staticmethod
+    def terminal_projection_status(root: Path, expected: dict[str, Any]) -> str:
+        """Validate the authoritative subset, preserving historical diagnostics.
+
+        Setup-failure receipts historically omitted exit/frame fields. Their
+        absence is compatible; a present contradictory field is always an error.
+        Raw counts and lifecycle diagnostics cannot be re-derived after restart.
+        """
+        try:
+            descriptor = os.open(root / "terminal.json", os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+        except FileNotFoundError:
+            return "missing"
+        with os.fdopen(descriptor, "rb") as handle:
+            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                raise OSError("terminal projection is not a regular file")
+            # Bound inspection of an untrusted derived projection, not log size.
+            raw = handle.read(128 * 1024 + 1)
+        if len(raw) > 128 * 1024:
+            raise OSError("terminal projection exceeds inspection limit")
+        value = json.loads(raw)
+        if not isinstance(value, dict):
+            raise OSError("terminal projection is not an object")
+        optional = {"returncode", "worker_event_count", "terminal_event_ref"}
+        if any(key not in value or canonical_bytes(value[key]) != canonical_bytes(item)
+               for key, item in expected.items() if key not in optional or key in value):
+            raise OSError("terminal projection differs from committed evidence")
+        return "ready"
+
+    @staticmethod
+    def recover_terminal_projection(root: Path, expected: dict[str, Any], source: dict[str, Any]) -> None:
+        """Publish a missing derived receipt only; never overwrite a conflict.
+
+        Admitted logs remain CAS-backed. Missing raw files are not recreated as
+        diagnostics, and unknown historical observations are never fabricated.
+        """
+        if DurableRunJournal.terminal_projection_status(root, expected) == "ready":
+            return
+        root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        value = {**expected, "projection_recovery": {**source, "proof_limit": "raw diagnostic counts and lifecycle observations unavailable after restart; logs use admitted CAS evidence"}}
+        try:
+            with (root / "terminal.json").open("xb", buffering=0) as handle:
+                os.fchmod(handle.fileno(), 0o600)
+                handle.write(canonical_bytes(value))
+                sync_file(handle.fileno())
+        except FileExistsError:
+            # Another inspection may have published the same immutable result.
+            DurableRunJournal.terminal_projection_status(root, expected)
+        sync_directory(root)
+        sync_directory(root.parent)
+
     def __init__(self, root: Path, launch_receipt: dict[str, Any], *, coordination_fd: int | None = None) -> None:
         self.root = root
         self._coordination_fd = coordination_fd

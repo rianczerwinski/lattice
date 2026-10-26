@@ -2092,6 +2092,37 @@ class LatticeStore:
             self._row(conn.execute("SELECT attempt_id FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
             return self._run_attempt_evidence_boundary(conn, attempt_id)
 
+    def run_terminal_projection_source(self, attempt_id: str) -> dict[str, Any]:
+        """One terminal plus latest stream receipts; never enumerate historical logs.
+
+        A restored generation can use this query with its own journal-root
+        resolver. No historical process identity is used to authorize recovery.
+        """
+        with self._connect() as conn:
+            conn.execute("BEGIN")
+            attempt = self._row(conn.execute("SELECT * FROM run_attempts WHERE attempt_id=?", (attempt_id,)).fetchone(), attempt_id)
+            if attempt["state"] in {"running", "waiting", "stopping"}:
+                return {"status": "active"}
+            row = conn.execute("SELECT seq,payload_json FROM events WHERE subject_type='durable-run-attempt' AND subject_id=? AND event_type='durable-run-attempt.terminal-evidence' ORDER BY seq DESC LIMIT 1", (attempt_id,)).fetchone()
+            evidence = json.loads(row[1]) if row else None
+            if not evidence or evidence.get("contract_version") != "RunTerminalEvidence/1.0":
+                return {"status": "legacy", "proof_limit": "no retained terminal admission evidence; historical projection is unverified"}
+            boundary = self._run_attempt_evidence_boundary(conn, attempt_id)
+        if any(evidence.get(key) != value for key, value in boundary.items()):
+            raise LatticeConflict("terminal projection source disagrees with admitted evidence")
+        prefixes = evidence["stream_prefixes"]
+        if any(type(prefixes.get(channel)) is not int or prefixes[channel] < 0 for channel in ("stdout", "stderr")):
+            raise LatticeConflict("invalid terminal projection stream extents")
+        receipt = {
+            "contract_version": "LocalRunTerminal/1.0", "run_id": attempt["run_id"], "attempt_id": attempt_id,
+            "state": attempt["state"], "failure_kind": attempt["failure_kind"], "error_text": attempt["error_text"],
+            "completed_at": attempt["completed_at"], "returncode": evidence["returncode"],
+            "worker_event_count": evidence["worker_event_count"], "terminal_event_ref": evidence["terminal_event_ref"],
+            "stdout_bytes": prefixes["stdout"], "stderr_bytes": prefixes["stderr"],
+        }
+        return {"status": "known", "receipt": receipt, "stream_prefixes": prefixes,
+                "source": {"terminal_evidence_seq": row[0], "terminal_evidence_sha256": sha256_bytes(canonical_bytes(evidence))}}
+
     def _terminal_run_evidence(self, conn: sqlite3.Connection, attempt_id: str, value: RunAttemptFinishV1, evidence: dict[str, Any]) -> dict[str, Any]:
         boundary = self._run_attempt_evidence_boundary(conn, attempt_id)
         if any(evidence.get(key) != boundary[key] for key in ("stream_prefixes", "terminal_event_ref")):
