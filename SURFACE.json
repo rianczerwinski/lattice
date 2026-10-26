@@ -1,6 +1,6 @@
 {
   "surface_schema_version": 2,
-  "surface_id": "surface:f7afda6d-b834-4a06-8982-e65addf68273",
+  "surface_id": "surface:666706f7-bde4-4233-87bb-e04526827f50",
   "generated_object": {
     "contract_version": 1,
     "role": "canonical",
@@ -9,8 +9,8 @@
       "name": "surface",
       "version": 2
     },
-    "artifact_id": "artifact:f7afda6d-b834-4a06-8982-e65addf68273",
-    "generated_at": "20261015T112712",
+    "artifact_id": "artifact:666706f7-bde4-4233-87bb-e04526827f50",
+    "generated_at": "20261026T015838",
     "producer": {
       "name": "surface-skill",
       "version": "2.1.0"
@@ -19,11 +19,11 @@
     "sources": [
       {
         "ref": "git:workframe",
-        "revision": "07a3a6993af8b29b0a7fdb91429e749918823fd3",
+        "revision": "95104e4caae989db509cd103391ae8677e312353",
         "sha256": null
       }
     ],
-    "parent_artifact_id": "artifact:1d37e455-8e7a-4a4d-92ca-1a34f5321fd9"
+    "parent_artifact_id": "artifact:f7afda6d-b834-4a06-8982-e65addf68273"
   },
   "workframe": {
     "name": "Lattice",
@@ -31,13 +31,13 @@
   },
   "operation": "reconcile",
   "generated": {
-    "at": "20261015T112712",
-    "source_revision": "07a3a6993af8b29b0a7fdb91429e749918823fd3",
+    "at": "20261026T015838",
+    "source_revision": "95104e4caae989db509cd103391ae8677e312353",
     "compiler": "surface-skill/2.1.0"
   },
   "source_census": {
     "method": "git-ls-tree",
-    "revision": "07a3a6993af8b29b0a7fdb91429e749918823fd3",
+    "revision": "95104e4caae989db509cd103391ae8677e312353",
     "excluded_paths": [
       "ONTOLOGY.md",
       "ROADMAP.md",
@@ -68,7 +68,7 @@
       {
         "path": "README.md",
         "mode": "100644",
-        "object_id": "e523b0a4354c883b0c0f1999e5ffcdcfa8359fb5"
+        "object_id": "1dfbe779fc69e8590ad9fa6736cadbca3c414504"
       },
       {
         "path": "assurance/README.md",
@@ -2003,7 +2003,7 @@
       {
         "path": "dev/README.md",
         "mode": "100644",
-        "object_id": "f6e1257e87ab00d2b2691ef8511c8762eadebc7e"
+        "object_id": "e688dc31ee83a832d23281b8c830f68356e7a273"
       },
       {
         "path": "dev/decisions/001-lattice-owns-subscription-execution.md",
@@ -2021,9 +2021,19 @@
         "object_id": "461ab1824406a1dbca865cc5a7d4d3307f21d47d"
       },
       {
+        "path": "dev/decisions/003-provider-readiness.md",
+        "mode": "100644",
+        "object_id": "ce5e7214cbe925892c66fc19247e286af1cb746d"
+      },
+      {
+        "path": "dev/decisions/004-backup-checkpoints.md",
+        "mode": "100644",
+        "object_id": "6c450aef382d3cde1ac618f3997e4a2bf48871f6"
+      },
+      {
         "path": "dev/decisions/README.md",
         "mode": "100644",
-        "object_id": "5553f006c663816b0759c2ef04521f521932fb47"
+        "object_id": "ead8842ad9de6e4635fac6a6e40fa0d6101126a1"
       },
       {
         "path": "lattice/__about__.py",
@@ -2053,7 +2063,7 @@
       {
         "path": "lattice/cli.py",
         "mode": "100644",
-        "object_id": "30e75492369633ca16ac7439a57c99463de31378"
+        "object_id": "379e9e64ab39917d49f59ea65e820d97861b7d2e"
       },
       {
         "path": "lattice/client.py",
@@ -2118,12 +2128,12 @@
       {
         "path": "lattice/diagnostics.py",
         "mode": "100644",
-        "object_id": "4003845614c94d33e1d4b1685b907c246d987322"
+        "object_id": "1c9d224821f91a143268525c47932fcdb6b73ad2"
       },
       {
         "path": "lattice/durability.py",
         "mode": "100644",
-        "object_id": "e23cbaff71c4dc4950fab1c409e8ae7b4d301ea4"
+        "object_id": "07e5fce22dee89a636ddb6450a777bb82b058003"
       },
       {
         "path": "lattice/exact_file.py",
@@ -2133,7 +2143,7 @@
       {
         "path": "lattice/execution/README.md",
         "mode": "100644",
-        "object_id": "5036d0b0446284430b6cf3cd323527890df5e3a6"
+        "object_id": "857ff5642e825b5f40e01772342037105bf6331e"
       },
       {
         "path": "lattice/execution/__init__.py",
@@ -2143,7 +2153,7 @@
       {
         "path": "lattice/execution/adapters.py",
         "mode": "100644",
-        "object_id": "458f6db48903324f41a18125ecaf18f6b58fc0d4"
+        "object_id": "2f256e3151604058d65f87559e7a7c033d4ace63"
       },
       {
         "path": "lattice/execution/checkpoint.py",
@@ -2168,7 +2178,7 @@
       {
         "path": "lattice/execution/providers/README.md",
         "mode": "100644",
-        "object_id": "6667f8a3e298f275ae6d7d11c9e23b34edfd3edb"
+        "object_id": "bf6e4b7a31fa72878e5fc67f6b67d6344b6a6195"
       },
       {
         "path": "lattice/execution/providers/__init__.py",
@@ -2178,12 +2188,12 @@
       {
         "path": "lattice/execution/providers/antigravity.py",
         "mode": "100644",
-        "object_id": "1c543fb6072af26489fc999e936f1a3cea3c9a2c"
+        "object_id": "6a8d1ae2acbc8f4e3f0a8d2176cf03358ef95187"
       },
       {
         "path": "lattice/execution/providers/claude.py",
         "mode": "100644",
-        "object_id": "320d4d88dbf4300d15e621fe68741d87110f32c5"
+        "object_id": "a9c00e427027bbad79c987cac2c006059bdcc7d5"
       },
       {
         "path": "lattice/execution/providers/codex.py",
@@ -2238,7 +2248,7 @@
       {
         "path": "lattice/observations.py",
         "mode": "100644",
-        "object_id": "4f82fe41548db3fbbb2b5013938a04b380722cec"
+        "object_id": "0a18c5654167a54696c71ab2a220cf6516543b17"
       },
       {
         "path": "lattice/octopus_import.py",
@@ -2278,7 +2288,7 @@
       {
         "path": "lattice/run_journal.py",
         "mode": "100644",
-        "object_id": "832841db20fab81309015a74c6f3019624cc1853"
+        "object_id": "439cfb00240bbf916f824956e8ae4957e2aa1881"
       },
       {
         "path": "lattice/run_launcher.py",
@@ -2318,12 +2328,12 @@
       {
         "path": "lattice/server.py",
         "mode": "100644",
-        "object_id": "e90367c02178d5fe18fb0406d047b22ded08d2d2"
+        "object_id": "f4002fc002bd138930016c6cb596b041032cf019"
       },
       {
         "path": "lattice/snapshot.py",
         "mode": "100644",
-        "object_id": "e8b241f522ebb102f43715b379f8f2595a01c89d"
+        "object_id": "326d0a49d65f56eb1439f53443171a326318d229"
       },
       {
         "path": "lattice/snapshot_reuse.py",
@@ -2333,12 +2343,12 @@
       {
         "path": "lattice/store.py",
         "mode": "100644",
-        "object_id": "2444fdf0a0af6a1af948040153d65c75e582a674"
+        "object_id": "f05637c33fc0839ced95fa10cfaf1bd8e68d99ab"
       },
       {
         "path": "lattice/supervisor.py",
         "mode": "100644",
-        "object_id": "e96e7a7327646fb57bbc504cf0c892a0726852a0"
+        "object_id": "6fed74cee3a86bbfc411890e832c55382e149a3d"
       },
       {
         "path": "lattice/workflow_template_reader.py",
@@ -2358,7 +2368,7 @@
       {
         "path": "ops/README.md",
         "mode": "100644",
-        "object_id": "d8497d7825cb179822452f9b1212fd9629e82122"
+        "object_id": "ce8fb04a4862650d6e0c8671e1193b5cbf41b0d5"
       },
       {
         "path": "ops/authenticated_acceptance.py",
@@ -2373,7 +2383,7 @@
       {
         "path": "ops/install.py",
         "mode": "100755",
-        "object_id": "27a24fc2628d2b308fe1499eeb9870b63ae535ea"
+        "object_id": "6bae16032b91506937e4bbcceb212cc9fe81681a"
       },
       {
         "path": "ops/qualify_browser.py",
@@ -2383,7 +2393,7 @@
       {
         "path": "ops/qualify_context.py",
         "mode": "100644",
-        "object_id": "7cda85e1cf027d66313a3eece87346d080a632f5"
+        "object_id": "20396007d7783e2c95e7dbdb291800331ba28aa6"
       },
       {
         "path": "ops/qualify_conversation_native.py",
@@ -2398,12 +2408,17 @@
       {
         "path": "ops/qualify_release.py",
         "mode": "100755",
-        "object_id": "be29465c9f6a2274e91f744fe762599119508147"
+        "object_id": "9572700b5dd318694ab16d75d71f80a18c480670"
       },
       {
         "path": "ops/qualify_restore.py",
         "mode": "100755",
         "object_id": "d4473e357c14c07b70e0427d6fcadfd34154a7e7"
+      },
+      {
+        "path": "ops/readiness_upgrade.py",
+        "mode": "100644",
+        "object_id": "037be567c195aec23a2bc429b6dc7be9a0972f11"
       },
       {
         "path": "ops/verify_execution_consolidation.py",
@@ -2476,6 +2491,11 @@
         "object_id": "aefba353b26d33e83725e5f97d29ce226e490205"
       },
       {
+        "path": "surface-history/20261015T112712.json",
+        "mode": "100644",
+        "object_id": "3881b951b96989311ff5f1277b581bcf66ceb8c9"
+      },
+      {
         "path": "surface-history/README.md",
         "mode": "100644",
         "object_id": "c530e42e32d979b62062b44b6577a0ff3ac5c847"
@@ -2518,7 +2538,7 @@
       {
         "path": "tests/test_api.py",
         "mode": "100644",
-        "object_id": "6af7720aabdcdc905673845b0aeb736104031247"
+        "object_id": "3003a98279335ba419b1f05bbbafbb9f54fde4d6"
       },
       {
         "path": "tests/test_authenticated_acceptance.py",
@@ -2533,7 +2553,12 @@
       {
         "path": "tests/test_claude_research.py",
         "mode": "100644",
-        "object_id": "49d2535be5ffdeac3fc50b717e3e0607c16caaec"
+        "object_id": "48533b4d2c3a72e5540a894e6873c704be6fecd2"
+      },
+      {
+        "path": "tests/test_claude_stream_input.py",
+        "mode": "100644",
+        "object_id": "e4ad3c30e5783ed1165a41c4c0582efa33406a29"
       },
       {
         "path": "tests/test_client.py",
@@ -2588,12 +2613,17 @@
       {
         "path": "tests/test_conversation_route_guarantees.py",
         "mode": "100644",
-        "object_id": "302c2db2f947bc60815b4507a769749cc4483b14"
+        "object_id": "ae381c72034ebc920cda2f43db750e092e5e2f71"
       },
       {
         "path": "tests/test_dependency_closure.py",
         "mode": "100644",
         "object_id": "bcfca520d2aec15f2909ada680b64e741de246fb"
+      },
+      {
+        "path": "tests/test_diagnostics_snapshot.py",
+        "mode": "100644",
+        "object_id": "5edc2eb4ab2ec279727663bbfbb2985f15598276"
       },
       {
         "path": "tests/test_durable_runs.py",
@@ -2613,12 +2643,12 @@
       {
         "path": "tests/test_execution_consolidation_verifier.py",
         "mode": "100644",
-        "object_id": "b4ca303e47706afbb23b326e600ee749038c473d"
+        "object_id": "2b1775bb3a489f2675518eb451fe469f8ef47caf"
       },
       {
         "path": "tests/test_execution_kernel.py",
         "mode": "100644",
-        "object_id": "b0f5a8da922267076be9c7beb76ab8834c096a34"
+        "object_id": "a5c4414dc7a05d1fb712b80f77b2f9dacffb8062"
       },
       {
         "path": "tests/test_install_scope.py",
@@ -2638,12 +2668,22 @@
       {
         "path": "tests/test_kernel.py",
         "mode": "100644",
-        "object_id": "b7cdeaf519163708c5c45b17fa259bb7478f25b4"
+        "object_id": "1215803e8fe5c37097684b1c4bf7d3b34b418b45"
+      },
+      {
+        "path": "tests/test_maintenance_contention.py",
+        "mode": "100644",
+        "object_id": "9cc4ad181e6e4bf6c806c892200750e49a117552"
+      },
+      {
+        "path": "tests/test_maintenance_ownership.py",
+        "mode": "100644",
+        "object_id": "20baf185d510eba5d91154c63bbe1d937836279b"
       },
       {
         "path": "tests/test_model_catalog.py",
         "mode": "100644",
-        "object_id": "f1a63a56acdabd403a736ddba7d0f4e550200e7b"
+        "object_id": "6d750a0664e0edfa244797c282ead013f1f07e0b"
       },
       {
         "path": "tests/test_native_approval_live.py",
@@ -2663,7 +2703,7 @@
       {
         "path": "tests/test_native_conversation_recovery.py",
         "mode": "100644",
-        "object_id": "4039d4fa045b5daeebe7f6c64f26649f3c97e822"
+        "object_id": "586696ba91b998f7ccf6efab0ac5f3f696ca05ab"
       },
       {
         "path": "tests/test_native_recovery_proof.py",
@@ -2673,7 +2713,7 @@
       {
         "path": "tests/test_observation_recovery.py",
         "mode": "100644",
-        "object_id": "dacf7bffba14fa3a462b5ad27ff2f5a085e56858"
+        "object_id": "1289c20c1f764f11502975e29f43ef8e99af5eb6"
       },
       {
         "path": "tests/test_octopus_import.py",
@@ -2703,7 +2743,17 @@
       {
         "path": "tests/test_provider_boundaries.py",
         "mode": "100644",
-        "object_id": "1dab9f0cefdb554d66d92808aae787c0e5ff5282"
+        "object_id": "e9f322563722a10ceb3547f393236a1752d5f5ba"
+      },
+      {
+        "path": "tests/test_provider_readiness.py",
+        "mode": "100644",
+        "object_id": "5a6cc7bd6d1b1c04f6cac93a0a1260323283617e"
+      },
+      {
+        "path": "tests/test_readiness_upgrade.py",
+        "mode": "100644",
+        "object_id": "dd552533d931ae74eee3f28647067bffeb1b0790"
       },
       {
         "path": "tests/test_recoverable_conversations.py",
@@ -2713,12 +2763,12 @@
       {
         "path": "tests/test_release_qualification.py",
         "mode": "100644",
-        "object_id": "e00c329e0ac684330f98b12cb52616e5029db9dc"
+        "object_id": "59519d9c5c44b7a3e24d8f9b16723f04f52ca179"
       },
       {
         "path": "tests/test_reliability.py",
         "mode": "100644",
-        "object_id": "59dfcf59b2b085b7db1075ac7290d1dd440bd26c"
+        "object_id": "1d423143c2343fe9539cbdfa8205875ffbc8ba21"
       },
       {
         "path": "tests/test_restore_qualification.py",
@@ -2746,14 +2796,39 @@
         "object_id": "828dc0a2e3bb8139c08f8587226505b2fe2b90bd"
       },
       {
+        "path": "tests/test_snapshot_capture.py",
+        "mode": "100644",
+        "object_id": "291dc0c5161da35e971d29176d81df88b4214a92"
+      },
+      {
         "path": "tests/test_snapshot_reuse.py",
         "mode": "100644",
         "object_id": "b5808d748319600e7dca78769ef3b5235beefb11"
       },
       {
+        "path": "tests/test_startup_idempotence.py",
+        "mode": "100644",
+        "object_id": "1421b58a85bf7b6f48d30f868c755aca0b2ddabf"
+      },
+      {
+        "path": "tests/test_startup_snapshot_guard.py",
+        "mode": "100644",
+        "object_id": "7a75f651abb5f7990068635febbf66011c126f41"
+      },
+      {
         "path": "tests/test_supervisor.py",
         "mode": "100644",
         "object_id": "2b0c0ee074636bb4aeb1a2fe3490834642caf71f"
+      },
+      {
+        "path": "tests/test_temporary_restore.py",
+        "mode": "100644",
+        "object_id": "f667fec1321b49cd0144ca910d37f0c89e69af4c"
+      },
+      {
+        "path": "tests/test_workflow_readiness_boundary.py",
+        "mode": "100644",
+        "object_id": "ec2c0b870a069191c8e70c61116ae65bb860901d"
       },
       {
         "path": "tests/test_workflows.py",
@@ -3101,7 +3176,7 @@
         "object_id": "9204970b81d8ff7342c44dcd6f718408e275004f"
       }
     ],
-    "entries_sha256": "e06781e9874d1491347b22704cb76039b0b559241df8df858abbf0c9410d164e",
+    "entries_sha256": "f8672dc5aed295a5073a64b6c2025cba7a9a235f8fecf55f6b5e19080f0bc46a",
     "mappings": [
       {
         "path": ".gitignore",
@@ -7449,6 +7524,28 @@
         "reason": "Standing execution-authority decision."
       },
       {
+        "path": "dev/decisions/003-provider-readiness.md",
+        "disposition": "decoration",
+        "item_ids": [
+          "item:96c62565-d5e2-5a07-924a-47fea90f3ff8"
+        ],
+        "node_ids": [
+          "node:1bed9604-7f0c-589c-a954-1508e9e796f2"
+        ],
+        "reason": "Architectural policy or historical lineage distributed onto its substantive ownership boundary."
+      },
+      {
+        "path": "dev/decisions/004-backup-checkpoints.md",
+        "disposition": "decoration",
+        "item_ids": [
+          "item:61f602e8-8307-5e47-aedd-e51e2f1b1dee"
+        ],
+        "node_ids": [
+          "node:3cca2ddd-43c9-51b2-82b6-251f3a7541ac"
+        ],
+        "reason": "Architectural policy or historical lineage distributed onto its substantive ownership boundary."
+      },
+      {
         "path": "dev/decisions/README.md",
         "disposition": "decoration",
         "item_ids": [
@@ -8296,6 +8393,17 @@
         "reason": "Primary source for the operations and assurance capability boundary."
       },
       {
+        "path": "ops/readiness_upgrade.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:a276b0ea-d92b-55e8-b7ee-94d22211be37"
+        ],
+        "node_ids": [
+          "node:3cca2ddd-43c9-51b2-82b6-251f3a7541ac"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
         "path": "ops/verify_execution_consolidation.py",
         "disposition": "mapped",
         "item_ids": [
@@ -8450,6 +8558,17 @@
         "reason": "Primary home follows the observed ownership boundary; evidence and constraints stay on the substantive modules."
       },
       {
+        "path": "surface-history/20261015T112712.json",
+        "disposition": "decoration",
+        "item_ids": [
+          "item:30794768-3016-55b9-aa72-11a620a4f14f"
+        ],
+        "node_ids": [
+          "node:3cca2ddd-43c9-51b2-82b6-251f3a7541ac"
+        ],
+        "reason": "Architectural policy or historical lineage distributed onto its substantive ownership boundary."
+      },
+      {
         "path": "surface-history/README.md",
         "disposition": "decoration",
         "item_ids": [
@@ -8580,6 +8699,17 @@
           "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
         ],
         "reason": "Verification check for a lattice capability."
+      },
+      {
+        "path": "tests/test_claude_stream_input.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:288831d0-3b80-53e7-b4f0-582998e83650"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
       },
       {
         "path": "tests/test_client.py",
@@ -8714,6 +8844,17 @@
         "reason": "Primary source for the operations and assurance capability boundary."
       },
       {
+        "path": "tests/test_diagnostics_snapshot.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:ca65aeda-9cdf-5dcc-9275-767d60e8a6e3"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
         "path": "tests/test_durable_runs.py",
         "disposition": "mapped",
         "item_ids": [
@@ -8811,6 +8952,28 @@
           "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_maintenance_contention.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:6a0bae29-1db3-5d28-b2a4-9fd791b35534"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
+        "path": "tests/test_maintenance_ownership.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b672babf-6128-5306-abab-679ee37855a2"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
       },
       {
         "path": "tests/test_model_catalog.py",
@@ -8956,6 +9119,28 @@
         "reason": "Primary source for the operations and assurance capability boundary."
       },
       {
+        "path": "tests/test_provider_readiness.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:db0cb147-7260-5f6a-937c-21c92434a80c"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
+        "path": "tests/test_readiness_upgrade.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:99ecbd74-3f2b-5135-b017-d250d9d0c3f8"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
         "path": "tests/test_recoverable_conversations.py",
         "disposition": "mapped",
         "item_ids": [
@@ -9044,6 +9229,17 @@
         "reason": "Verification check for a lattice capability."
       },
       {
+        "path": "tests/test_snapshot_capture.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:b84d8a0f-d719-5868-8a5d-04dad6f34aa9"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
         "path": "tests/test_snapshot_reuse.py",
         "disposition": "mapped",
         "item_ids": [
@@ -9055,6 +9251,28 @@
         "reason": "Primary home follows the observed ownership boundary; evidence and constraints stay on the substantive modules."
       },
       {
+        "path": "tests/test_startup_idempotence.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:2c296bd2-4f9f-5160-8dfd-6128f85462bc"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
+        "path": "tests/test_startup_snapshot_guard.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:33da35f5-4e1b-5667-afa8-fdc115738791"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
         "path": "tests/test_supervisor.py",
         "disposition": "mapped",
         "item_ids": [
@@ -9064,6 +9282,28 @@
           "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
         ],
         "reason": "Primary source for the assurance capability boundary."
+      },
+      {
+        "path": "tests/test_temporary_restore.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:51bb2a9c-64c6-504f-8cda-675afacdd689"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
+      },
+      {
+        "path": "tests/test_workflow_readiness_boundary.py",
+        "disposition": "mapped",
+        "item_ids": [
+          "item:c143ed4d-49d4-5bc4-b6c4-2ca08d3522c9"
+        ],
+        "node_ids": [
+          "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+        ],
+        "reason": "Source belongs to the existing runtime or verification ownership boundary."
       },
       {
         "path": "tests/test_workflows.py",
@@ -9827,8 +10067,8 @@
     ]
   },
   "evidence_census": {
-    "method": "declared-inputs",
-    "scope": "Approved plan inputs plus installed qualification, independent attestation, final pilot and frozen retention/input/browser/health observations. Historical proof stays historical; Google fleet drift and inherited untracked approval evidence remain outside the qualified slice.",
+    "method": "combined",
+    "scope": "Approved plan inputs plus installed qualification, independent attestation, final pilot and frozen retention/input/browser/health observations. Historical proof stays historical; Google fleet drift and inherited untracked approval evidence remain outside the qualified slice. Reconciliation additionally includes every completed Sol/Gemini/Grok/Muse round, retained failed Opus participation, current installed health and the live owner requirements. No unavailable participant is counted as completed.",
     "entries": [
       {
         "ref": "audit/20260821T223204-pagani-remediation/audit.validation.json",
@@ -9965,6 +10205,134 @@
         "disposition": "included",
         "source_id": "source:dd72345a-4465-593a-ae3f-205240d6f080",
         "reason": "Exact historical baseline binding and direct Git-object refusal control are retained separately from provider qualification."
+      },
+      {
+        "ref": "lattice:block/block_d57a2b7ba47c437ea3b0351797bfdbef",
+        "kind": "advice",
+        "state_token": "sha256:1f1b89c412f0ad70eae11c57aeaef9f2a5fdfdca339cf2d7368462a6369e960d",
+        "disposition": "included",
+        "source_id": "source:86ba4438-82e9-57fa-84d1-3ae34252012e",
+        "reason": "gpt-6.1-sol, retained round 1. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+      },
+      {
+        "ref": "lattice:block/block_ccb7a7c73e694f1bad364909b92e718f",
+        "kind": "advice",
+        "state_token": "sha256:3d3cb8f30015af5bc3330ec16ba2beb42546d03aec457f0f492fe30f673d83cf",
+        "disposition": "included",
+        "source_id": "source:7406b5ef-8801-59f1-8878-9e3aeece4a3b",
+        "reason": "gpt-6.1-sol, retained round 2. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+      },
+      {
+        "ref": "lattice:block/block_f318be09472047698df1f37db587db28",
+        "kind": "advice",
+        "state_token": "sha256:a28c5ddd7b3be53d7617653d3cc800816fdb01384373d52c6a1c6510d0815ed9",
+        "disposition": "included",
+        "source_id": "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+        "reason": "gpt-6.1-sol, retained round 3. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+      },
+      {
+        "ref": "lattice:block/block_3fa49c4cc2274e68a51ca1e164f6c795",
+        "kind": "advice",
+        "state_token": "sha256:aa85bcee50b40ceb0495d507671741b85f1d8d65c9772f65e68220ec6ccc77a9",
+        "disposition": "included",
+        "source_id": "source:3f35cfad-71a9-51a7-ad2b-8e4ce88cf5e9",
+        "reason": "gemini-3.8-flash-high, retained round 1. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+      },
+      {
+        "ref": "lattice:block/block_9a3a57f75e8d48348669af9d5a82c291",
+        "kind": "advice",
+        "state_token": "sha256:019c4e0595f6f9496041e98978271d932fe930f1ca7863ab44a8fd8c28c0ab17",
+        "disposition": "included",
+        "source_id": "source:f4c9e041-d13e-5441-9cce-78394752b7c4",
+        "reason": "grok-4.7, retained round 1. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+      },
+      {
+        "ref": "lattice:block/block_6190297d1990492b92d82cbd9cb29bb5",
+        "kind": "advice",
+        "state_token": "sha256:b5eb51b9ee8bc5125ca172244e5047e71a3c3017f414eb4e9c395d38c6de190e",
+        "disposition": "included",
+        "source_id": "source:85ee6a25-6a81-5197-a79f-7e58e3ff6269",
+        "reason": "grok-4.7, retained round 2. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+      },
+      {
+        "ref": "lattice:block/block_a6406abaedb44a10b3bff01694aeb204",
+        "kind": "advice",
+        "state_token": "sha256:a38cd34fa4c05c94a9190ccad135ce29023bcccc46de5a1013dd1aa6fdffb4d7",
+        "disposition": "included",
+        "source_id": "source:f4113124-4d83-5994-a16b-35176a1f44ad",
+        "reason": "muse-spark-1.3, retained round 1. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+      },
+      {
+        "ref": "file:/Users/rian/AXISVI/axis/chariots/lattice/dev/maintenance-ensemble-20261026T011245/health-before-surface.json",
+        "kind": "materialized_state",
+        "state_token": "sha256:a7a673dd58781917778365a4c9f5b7e849e4adbf4f74e85bc4f0215e7078136e",
+        "disposition": "included",
+        "source_id": "source:5d5ba799-38a0-53b2-8c32-991f83c67b67",
+        "reason": "Bounded installed-health observation: service, conversations, durable runs and workflows ready on runtime 0.3.1-4aea75faf143-ecdca2e239e5. This does not prove installed remediation or interrupted-provider recovery."
+      },
+      {
+        "ref": "codex:01a1586f-62a5-73d1-9ec4-cbff9afec0f0:maintenance-owner-instructions",
+        "kind": "owner_statement",
+        "state_token": "sha256:06cda02ddbcf94efdca25d31a457b399c827ecabe4d50dadc29e40fa4ae7d8c6",
+        "disposition": "included",
+        "source_id": "source:db815929-5415-5015-80c1-4359c2658c8d",
+        "reason": "Routine backups must preserve normal application availability. Repairs must leave Lattice operationally accessible to other services so held conversations can resume. Synthesize the available model ensemble into the Surface before an implementation goal."
+      },
+      {
+        "ref": "lattice:conversation/conversation_8440fef110c24fe5b172d7fad5a5314f",
+        "kind": "materialized_state",
+        "state_token": "revision:4",
+        "disposition": "included",
+        "source_id": "source:2b7cfc7b-6cd8-5732-88af-b3da5e52db29",
+        "reason": "Opus 5.5 request is retained with subscription_exhausted/monthly_spend_limit. Its review is pending; the owner reports an upcoming reset. No Opus position or five-model consensus is claimed."
+      },
+      {
+        "ref": "investigation:lattice-maintenance:1",
+        "kind": "other",
+        "state_token": "git:95104e4caae989db509cd103391ae8677e312353",
+        "disposition": "unresolved",
+        "source_id": null,
+        "reason": "Where are accepted mid-round observations, tool results, continuation cursors and acceptance/model-runs dependencies persisted, and which are already reproduced by SQLite plus CAS? This audit is mandatory."
+      },
+      {
+        "ref": "investigation:lattice-maintenance:2",
+        "kind": "other",
+        "state_token": "git:95104e4caae989db509cd103391ae8677e312353",
+        "disposition": "unresolved",
+        "source_id": null,
+        "reason": "Which current references, stream registrations and synchronization settings already establish publication-before-commit and durable local checkpoint behavior?"
+      },
+      {
+        "ref": "investigation:lattice-maintenance:3",
+        "kind": "other",
+        "state_token": "git:95104e4caae989db509cd103391ae8677e312353",
+        "disposition": "unresolved",
+        "source_id": null,
+        "reason": "Which collectors, retention jobs, journal rebuilds or other deleters exist, and how do they coordinate with publication intervals, capture roots and rollback roots?"
+      },
+      {
+        "ref": "investigation:lattice-maintenance:4",
+        "kind": "other",
+        "state_token": "git:95104e4caae989db509cd103391ae8677e312353",
+        "disposition": "unresolved",
+        "source_id": null,
+        "reason": "Can existing revision or append-head mechanisms cover every rollback-relevant mutation, and what are their measured costs compared with state_digest?"
+      },
+      {
+        "ref": "investigation:lattice-maintenance:5",
+        "kind": "other",
+        "state_token": "git:95104e4caae989db509cd103391ae8677e312353",
+        "disposition": "unresolved",
+        "source_id": null,
+        "reason": "What are representative journal sizes, mutation rates, foreground latency, Backup API progress, WAL growth and per-phase memory/I/O costs? Is sqlite3_rsync packaged and beneficial?"
+      },
+      {
+        "ref": "investigation:lattice-maintenance:6",
+        "kind": "other",
+        "state_token": "git:95104e4caae989db509cd103391ae8677e312353",
+        "disposition": "unresolved",
+        "source_id": null,
+        "reason": "Does actual worker ownership support restart and reattachment without duplicate dispatch or lost exposed results? Until demonstrated, active attempts must drain."
       }
     ]
   },
@@ -10442,11 +10810,113 @@
         "is"
       ],
       "observation": "Direct Git-object verification resolves the original baseline revision and rejects an all-zero revision. The generic filesystem sweep cannot interpret git:workframe as a URI; the baseline itself remains unchanged."
+    },
+    {
+      "id": "source:86ba4438-82e9-57fa-84d1-3ae34252012e",
+      "ref": "lattice:block/block_d57a2b7ba47c437ea3b0351797bfdbef",
+      "kind": "advice",
+      "provenance": "generated",
+      "mode_affinity": [
+        "could"
+      ],
+      "observation": "gpt-6.1-sol, retained round 1. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+    },
+    {
+      "id": "source:7406b5ef-8801-59f1-8878-9e3aeece4a3b",
+      "ref": "lattice:block/block_ccb7a7c73e694f1bad364909b92e718f",
+      "kind": "advice",
+      "provenance": "generated",
+      "mode_affinity": [
+        "could"
+      ],
+      "observation": "gpt-6.1-sol, retained round 2. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+    },
+    {
+      "id": "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+      "ref": "lattice:block/block_f318be09472047698df1f37db587db28",
+      "kind": "advice",
+      "provenance": "generated",
+      "mode_affinity": [
+        "could"
+      ],
+      "observation": "gpt-6.1-sol, retained round 3. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+    },
+    {
+      "id": "source:3f35cfad-71a9-51a7-ad2b-8e4ce88cf5e9",
+      "ref": "lattice:block/block_3fa49c4cc2274e68a51ca1e164f6c795",
+      "kind": "advice",
+      "provenance": "generated",
+      "mode_affinity": [
+        "could"
+      ],
+      "observation": "gemini-3.8-flash-high, retained round 1. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+    },
+    {
+      "id": "source:f4c9e041-d13e-5441-9cce-78394752b7c4",
+      "ref": "lattice:block/block_9a3a57f75e8d48348669af9d5a82c291",
+      "kind": "advice",
+      "provenance": "generated",
+      "mode_affinity": [
+        "could"
+      ],
+      "observation": "grok-4.7, retained round 1. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+    },
+    {
+      "id": "source:85ee6a25-6a81-5197-a79f-7e58e3ff6269",
+      "ref": "lattice:block/block_6190297d1990492b92d82cbd9cb29bb5",
+      "kind": "advice",
+      "provenance": "generated",
+      "mode_affinity": [
+        "could"
+      ],
+      "observation": "grok-4.7, retained round 2. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+    },
+    {
+      "id": "source:f4113124-4d83-5994-a16b-35176a1f44ad",
+      "ref": "lattice:block/block_a6406abaedb44a10b3bff01694aeb204",
+      "kind": "advice",
+      "provenance": "generated",
+      "mode_affinity": [
+        "could"
+      ],
+      "observation": "muse-spark-1.3, retained round 1. Generated architecture advice; earlier claims remain available even where later cross-examination corrects them. Model agreement is not implementation proof."
+    },
+    {
+      "id": "source:5d5ba799-38a0-53b2-8c32-991f83c67b67",
+      "ref": "file:/Users/rian/AXISVI/axis/chariots/lattice/dev/maintenance-ensemble-20261026T011245/health-before-surface.json",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "is",
+        "could"
+      ],
+      "observation": "Bounded installed-health observation: service, conversations, durable runs and workflows ready on runtime 0.3.1-4aea75faf143-ecdca2e239e5. This does not prove installed remediation or interrupted-provider recovery."
+    },
+    {
+      "id": "source:db815929-5415-5015-80c1-4359c2658c8d",
+      "ref": "codex:01a1586f-62a5-73d1-9ec4-cbff9afec0f0:maintenance-owner-instructions",
+      "kind": "owner_statement",
+      "provenance": "owner_stated",
+      "mode_affinity": [
+        "constraints",
+        "could"
+      ],
+      "observation": "Routine backups must preserve normal application availability. Repairs must leave Lattice operationally accessible to other services so held conversations can resume. Synthesize the available model ensemble into the Surface before an implementation goal."
+    },
+    {
+      "id": "source:2b7cfc7b-6cd8-5732-88af-b3da5e52db29",
+      "ref": "lattice:conversation/conversation_8440fef110c24fe5b172d7fad5a5314f",
+      "kind": "materialized_state",
+      "provenance": "observed",
+      "mode_affinity": [
+        "could"
+      ],
+      "observation": "Opus 5.5 request is retained with subscription_exhausted/monthly_spend_limit. Its review is pending; the owner reports an upcoming reset. No Opus position or five-model consensus is claimed."
     }
   ],
   "module_map": {
     "schema_version": 2,
-    "artifact_id": "carve:9cbbc98d-c122-4a74-acb4-43381facd9ea",
+    "artifact_id": "carve:666706f7-bde4-4233-87bb-e04526827f50",
     "subject": "Lattice conversational lattice harness",
     "operation": "reconcile",
     "mode": "medium",
@@ -17179,6 +17649,171 @@
             "note": "Tracked Lattice entry at the frozen Git revision."
           }
         ]
+      },
+      {
+        "id": "item:96c62565-d5e2-5a07-924a-47fea90f3ff8",
+        "label": "dev/decisions/003-provider-readiness.md",
+        "role": "decoration",
+        "evidence": [
+          {
+            "ref": "dev/decisions/003-provider-readiness.md",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:61f602e8-8307-5e47-aedd-e51e2f1b1dee",
+        "label": "dev/decisions/004-backup-checkpoints.md",
+        "role": "decoration",
+        "evidence": [
+          {
+            "ref": "dev/decisions/004-backup-checkpoints.md",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:a276b0ea-d92b-55e8-b7ee-94d22211be37",
+        "label": "ops/readiness_upgrade.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "ops/readiness_upgrade.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:30794768-3016-55b9-aa72-11a620a4f14f",
+        "label": "surface-history/20261015T112712.json",
+        "role": "decoration",
+        "evidence": [
+          {
+            "ref": "surface-history/20261015T112712.json",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:288831d0-3b80-53e7-b4f0-582998e83650",
+        "label": "tests/test_claude_stream_input.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_claude_stream_input.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:ca65aeda-9cdf-5dcc-9275-767d60e8a6e3",
+        "label": "tests/test_diagnostics_snapshot.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_diagnostics_snapshot.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:6a0bae29-1db3-5d28-b2a4-9fd791b35534",
+        "label": "tests/test_maintenance_contention.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_maintenance_contention.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:b672babf-6128-5306-abab-679ee37855a2",
+        "label": "tests/test_maintenance_ownership.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_maintenance_ownership.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:db0cb147-7260-5f6a-937c-21c92434a80c",
+        "label": "tests/test_provider_readiness.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_provider_readiness.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:99ecbd74-3f2b-5135-b017-d250d9d0c3f8",
+        "label": "tests/test_readiness_upgrade.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_readiness_upgrade.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:b84d8a0f-d719-5868-8a5d-04dad6f34aa9",
+        "label": "tests/test_snapshot_capture.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_snapshot_capture.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:2c296bd2-4f9f-5160-8dfd-6128f85462bc",
+        "label": "tests/test_startup_idempotence.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_startup_idempotence.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:33da35f5-4e1b-5667-afa8-fdc115738791",
+        "label": "tests/test_startup_snapshot_guard.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_startup_snapshot_guard.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:51bb2a9c-64c6-504f-8cda-675afacdd689",
+        "label": "tests/test_temporary_restore.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_temporary_restore.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
+      },
+      {
+        "id": "item:c143ed4d-49d4-5bc4-b6c4-2ca08d3522c9",
+        "label": "tests/test_workflow_readiness_boundary.py",
+        "role": "constituent",
+        "evidence": [
+          {
+            "ref": "tests/test_workflow_readiness_boundary.py",
+            "note": "Tracked entry at the current declared Git source revision."
+          }
+        ]
       }
     ],
     "relations": [
@@ -17236,9 +17871,9 @@
       }
     ],
     "lineage": {
-      "parent_artifact_id": "carve:1d37e455-8e7a-4a4d-92ca-1a34f5321fd9",
+      "parent_artifact_id": "carve:9cbbc98d-c122-4a74-acb4-43381facd9ea",
       "reconciliation_scope": "local",
-      "decision": "Implemented persistence, observation, continuation and controls fit existing ownership seams. The lifecycle challenger duplicates those boundaries. Preserve node identities, record the service seam and advance only qualified R0–R5.",
+      "decision": "Compare the existing ownership map with a fresh live-commit/checkpoint/archive/deployment lifecycle cut. The lifecycle cut duplicates kernel publication, execution journals and runtime operations; retain ownership and represent the lifecycle through sequenced claims and explicit cross-boundary relations.",
       "preserved_node_ids": [
         "node:0123f24e-b8ff-544d-959a-444272f7d0ff",
         "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
@@ -17464,7 +18099,8 @@
                 "item:81059fa1-5943-55f3-ada4-baffe4cd7240",
                 "item:36a66af8-39d6-5833-830f-826f9944c424",
                 "item:55e3a70a-5de8-53dc-b547-cd77dc619f3a",
-                "item:b8f6b8de-2778-5874-918c-5de87ab48289"
+                "item:b8f6b8de-2778-5874-918c-5de87ab48289",
+                "item:a276b0ea-d92b-55e8-b7ee-94d22211be37"
               ],
               "children": [],
               "facets": []
@@ -17915,7 +18551,18 @@
                 "item:2d4d8ad7-c149-55bc-830a-1bf4ee055b2a",
                 "item:515300a2-aa71-5244-9946-3116181f8143",
                 "item:bbc86f17-5f84-5a1c-a07a-cba0c774c265",
-                "item:20466786-9d37-5c0b-949f-23120dd66eb0"
+                "item:20466786-9d37-5c0b-949f-23120dd66eb0",
+                "item:288831d0-3b80-53e7-b4f0-582998e83650",
+                "item:ca65aeda-9cdf-5dcc-9275-767d60e8a6e3",
+                "item:6a0bae29-1db3-5d28-b2a4-9fd791b35534",
+                "item:b672babf-6128-5306-abab-679ee37855a2",
+                "item:db0cb147-7260-5f6a-937c-21c92434a80c",
+                "item:99ecbd74-3f2b-5135-b017-d250d9d0c3f8",
+                "item:b84d8a0f-d719-5868-8a5d-04dad6f34aa9",
+                "item:2c296bd2-4f9f-5160-8dfd-6128f85462bc",
+                "item:33da35f5-4e1b-5667-afa8-fdc115738791",
+                "item:51bb2a9c-64c6-504f-8cda-675afacdd689",
+                "item:c143ed4d-49d4-5bc4-b6c4-2ca08d3522c9"
               ],
               "children": [],
               "facets": []
@@ -17931,11 +18578,11 @@
       "checks": {
         "population_sanity": {
           "status": "passed",
-          "claim": "Lattice remains a differentiated persistence/execution/operator/assurance service. Conversations are managed instances rather than architectural peer modules.",
+          "claim": "New maintenance mechanisms and provider controls extend differentiated service responsibilities; model conversations are instances, not architectural sibling modules.",
           "evidence": [
-            "lattice/conversations.py",
-            "lattice/conversation_service.py",
-            "lattice/server.py"
+            "lattice/snapshot.py",
+            "lattice/run_journal.py",
+            "ops/install.py"
           ]
         },
         "paradigm_sweep": {
@@ -17950,31 +18597,31 @@
         },
         "one_ply_lookahead": {
           "status": "passed",
-          "claim": "Implemented round/checkpoint lineage fits kernel; admission/native eligibility/reconstruction fits execution; child controls/inspection fits cockpit; installed receipts and regressions fit separate assurance homes. The next recovery variants retain those boundaries.",
+          "claim": "Durable publication stays in kernel, journal/capture membership crosses execution, and scheduling/startup/upgrade ownership stays in operations. Proposed finer storage choices are possibilities rather than invented implemented modules.",
           "evidence": [
+            "lattice/blob_store.py",
             "lattice/conversations.py",
-            "lattice/conversation_service.py",
-            "lattice/native_recovery.py",
-            "web/src/components/DurableConversations.svelte",
-            "assurance/recoverable-conversations/qualification.validation.json"
+            "lattice/run_journal.py",
+            "ops/install.py"
           ]
         },
         "kind_homogeneity": {
           "status": "passed",
-          "claim": "Root children remain capability subsystems. Operations separates runtime operations, qualification evidence and verification machinery. The weakest sibling remains verification: tests prove properties of a capability rather than perform it, so their home stays assurance.",
+          "claim": "Root siblings remain capability subsystems. Operations children retain runtime machinery, qualification evidence and verification machinery as positive kinds; additional tests extend verification rather than creating a maintenance-status bucket.",
           "evidence": [
-            "tests/test_recoverable_conversations.py checks lattice/conversations.py; inspect_persistence.py reads rather than authors history",
-            "ops/qualify_conversation_native.py"
+            "ops/install.py",
+            "tests/test_maintenance_ownership.py",
+            "tests/test_snapshot_capture.py"
           ]
         },
         "incumbent_challenge": {
           "status": "passed",
-          "claim": "A fresh admission/live-work/recovery lifecycle cut was compared against implemented changes. Each stage duplicates persistence, authority and cockpit seams. Preserve ownership, record conversation-service straddling and express R0–R5 as sequenced claims.",
+          "claim": "Compare the existing ownership map with a fresh live-commit/checkpoint/archive/deployment lifecycle cut. The lifecycle cut duplicates kernel publication, execution journals and runtime operations; retain ownership and represent the lifecycle through sequenced claims and explicit cross-boundary relations.",
           "evidence": [
-            "lattice/conversations.py",
-            "lattice/conversation_service.py",
-            "lattice/observations.py",
-            "web/src/components/DurableConversations.svelte"
+            "lattice/store.py",
+            "lattice/run_journal.py",
+            "lattice/snapshot.py",
+            "ops/install.py"
           ]
         }
       }
@@ -18239,6 +18886,27 @@
           "evidence": [
             "uv.lock"
           ]
+        },
+        {
+          "item_id": "item:96c62565-d5e2-5a07-924a-47fea90f3ff8",
+          "distributed_as": "Architectural policy or historical lineage distributed onto its substantive ownership boundary.",
+          "evidence": [
+            "dev/decisions/003-provider-readiness.md"
+          ]
+        },
+        {
+          "item_id": "item:61f602e8-8307-5e47-aedd-e51e2f1b1dee",
+          "distributed_as": "Architectural policy or historical lineage distributed onto its substantive ownership boundary.",
+          "evidence": [
+            "dev/decisions/004-backup-checkpoints.md"
+          ]
+        },
+        {
+          "item_id": "item:30794768-3016-55b9-aa72-11a620a4f14f",
+          "distributed_as": "Architectural policy or historical lineage distributed onto its substantive ownership boundary.",
+          "evidence": [
+            "surface-history/20261015T112712.json"
+          ]
         }
       ],
       "unresolved_items": [],
@@ -18272,6 +18940,16 @@
             "node:3cca2ddd-43c9-51b2-82b6-251f3a7541ac",
             "node:f1a80ab5-baba-5e93-ba14-889cf57b2f37",
             "node:56ac65a9-61eb-5343-8704-df2fdeb5f234"
+          ]
+        },
+        {
+          "decision": "Keep the existing ownership tree and put the recovery lifecycle in claim sequencing.",
+          "alternative": "Rebuild the root around live state, local checkpoints, archive custody and upgrades.",
+          "reason": "Publication, journals and installer contracts cross lifecycle stages; repeating those constituents would weaken single ownership.",
+          "node_ids": [
+            "node:1bed9604-7f0c-589c-a954-1508e9e796f2",
+            "node:3cca2ddd-43c9-51b2-82b6-251f3a7541ac",
+            "node:2b629e4f-7e1a-584e-a53f-a2740cdbacd8"
           ]
         }
       ],
@@ -18349,6 +19027,22 @@
           "after": [
             "claim:c99186a9-1973-41be-9e5e-1c712f66908c"
           ]
+        },
+        {
+          "id": "claim:981fb989-ec3c-5d81-a911-4a83b1ce822c",
+          "mode": "could",
+          "state": "HEADLAND",
+          "summary": "Establish the smallest complete recovery set without changing live behavior.",
+          "detail": "Ownership: kernel and execution. Trace actual writers, readers, continuation paths and deleters across SQLite, blobs, durable-runs/, acceptance/, model-runs/ and required control files. Reuse existing references; identify missing membership and durability ordering. Distinguish local crash recovery, restoration of a historical generation and machine-loss recovery. Keep present consistency controls throughout this audit. The result is a concrete coverage map with unresolved dependencies blocking a completeness claim, not a mandatory general-purpose catalog. Observable acceptance: An independent trace from application consumers and captured request/response/observation fixtures accounts for every required byte and continuation identity; the proposed capture inventory is not its own completeness oracle. False case to reject: Remove an accepted model-run observation, unit plan or required external reference from the proposed set. The coverage check must reject completeness even when the database opens and a completed round remains readable.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+            "source:db815929-5415-5015-80c1-4359c2658c8d"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": []
         }
       ]
     },
@@ -18431,6 +19125,24 @@
           "awaiting_disposition": null,
           "blocked_on": [],
           "after": []
+        },
+        {
+          "id": "claim:284c56f8-abec-59ca-86b1-89a006b0011b",
+          "mode": "could",
+          "state": "HEADLAND",
+          "summary": "Make committed references and recorded journal prefixes sufficient for consistent capture.",
+          "detail": "Ownership: kernel and execution. Enforce file publication before committing its reference: write, synchronize, publish immutable name, synchronize directory, then commit and acknowledge. Persist requests before dispatch. For recoverable streamed output, synchronize bounded batches before recording their durable offsets and exposing the corresponding recoverability claim. Register stream membership and immutable launch/unit-plan identities so one captured database determines its required files. Preserve diagnostic tails without presenting them as committed output. Retain native checkpoint-in-terminalization behavior in lattice/conversations.py:300–328. Keep broad capture controls until this replacement invariant is working. Observable acceptance: Using independently retained submitted inputs and acknowledged outputs as the oracle, crash recovery preserves every completed round and admitted output prefix, and a replacement operator can inspect and continue the pending request. False case to reject: Inject a committed reference before durable file publication, an offset beyond synchronized bytes, or output acknowledgment before persistence. Crash injection must reveal the violation and reject the durability claim.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+            "source:db815929-5415-5015-80c1-4359c2658c8d"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": [
+            "claim:981fb989-ec3c-5d81-a911-4a83b1ce822c"
+          ]
         }
       ]
     },
@@ -18539,15 +19251,16 @@
           "id": "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
           "mode": "is",
           "state": "partial",
-          "summary": "Pinned installation, supervision, snapshots and independent qualification support the installed recovery slice.",
-          "detail": "Current Fable/Codex package and actual cancellation/restore/pilot evidence are bound by qualification and attestation. Google drift degrades aggregate fleet health; older Muse/doctor receipts remain historical. Broader execution consolidation is still unqualified.",
+          "summary": "The installed runtime serves conversations while the maintenance redesign remains undeployed.",
+          "detail": "Observed runtime 0.3.1-4aea75faf143-ecdca2e239e5 reports ready conversations, durable runs and workflows. Source repairs through 73acdf5 and the proposed recovery protocol are distinct from this availability observation. Earlier qualification receipts remain bound to their historical packages and routes.",
           "source_ids": [
             "source:fe486c6a-ebde-53a5-a596-41ae28c5aaf0",
             "source:4d2555e9-d112-524b-80e4-9ece1a9b49d6",
             "source:2b48a935-78ad-52a8-ae65-be4c5341def8",
             "source:31b9fc75-e950-5299-bc37-dc1137ecb62c",
             "source:737b4cdb-4801-5964-8374-f589e4867e5c",
-            "source:b0fcfa1c-06d2-5939-a42a-853c091df30f"
+            "source:b0fcfa1c-06d2-5939-a42a-853c091df30f",
+            "source:5d5ba799-38a0-53b2-8c32-991f83c67b67"
           ],
           "origin": null,
           "owner_confirmed": null,
@@ -18623,6 +19336,208 @@
           "awaiting_disposition": null,
           "blocked_on": [],
           "after": []
+        },
+        {
+          "id": "claim:c19d0c4a-45d1-5741-bedb-c4545e620a0e",
+          "mode": "constraints",
+          "state": "owner_rejection",
+          "summary": "Routine backup must not take Lattice offline or suspend normal conversation work.",
+          "detail": "The owner also requires development to leave the installed service usable by other services. Any real single-process deployment interruption must be coordinated and stated; routine archive work is not a service-readiness gate.",
+          "source_ids": [
+            "source:db815929-5415-5015-80c1-4359c2658c8d"
+          ],
+          "origin": null,
+          "owner_confirmed": null,
+          "awaiting_disposition": null,
+          "blocked_on": [],
+          "after": []
+        },
+        {
+          "id": "claim:6ab626d7-629b-53cb-9355-40f56046cc00",
+          "mode": "could",
+          "state": "HEADLAND",
+          "summary": "Rebuild checkpoint capture, background maintenance, startup and upgrades so ordinary conversation work remains usable.",
+          "detail": "This is a bounded repair of durability boundaries, backup, recovery and deployment—not a database-engine replacement. Kernel owns committed references and recovery membership; execution owns durable requests, journal prefixes and continuation; operations owns capture, restore, resource limits and upgrades; cockpit exposes service and protection status separately; integration retains off-machine custody as a captured possibility. Preserve completed-round recovery, unfinished-conversation history, accepted observations, artifacts, legacy snapshot readability and protection against overwriting candidate-admitted work. Segmentation, a general external-file catalog and custody transfer are not prerequisites unless the reference audit establishes their necessity. Four-model synthesis; Opus review remains pending after subscription exhaustion. No target implementation or performance result is claimed.",
+          "source_ids": [
+            "source:86ba4438-82e9-57fa-84d1-3ae34252012e",
+            "source:7406b5ef-8801-59f1-8878-9e3aeece4a3b",
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+            "source:3f35cfad-71a9-51a7-ad2b-8e4ce88cf5e9",
+            "source:f4c9e041-d13e-5441-9cce-78394752b7c4",
+            "source:85ee6a25-6a81-5197-a79f-7e58e3ff6269",
+            "source:f4113124-4d83-5994-a16b-35176a1f44ad"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": []
+        },
+        {
+          "id": "claim:1f0568bb-1ba7-510f-8ab3-afeead11be32",
+          "mode": "could",
+          "state": "HEADLAND",
+          "summary": "Build an unpublished background recovery generation without the broad writer reservation.",
+          "detail": "Ownership: operations and kernel. Use the supported Backup API in a bounded worker and derive required membership from the successfully sealed image. Protect against deletion before capture begins, then retain exact roots before releasing broader protection. Stream manifests and files with disk-backed indexing where needed; copy only recorded journal prefixes while appenders continue. Preserve private candidates, completed transfers and the previous published generation. Synchronize payloads and metadata before final publication and parent-directory synchronization. Report missing, unreadable or changed required content as capture failure. Routine capture no longer requires idle conversations or lifetime journal exclusion; retain locks needed by destructive journal rebuilds. Observable acceptance: Independent foreground clients complete and retrieve rounds during capture. Restoring the published image and its bound files reproduces the selected generation and unfinished-request evidence while later live appends remain outside that generation. False case to reject: Delete a required object during capture, reuse a pathname for another stream, or attempt to publish before all bound prefixes exist. Publication must fail visibly while the previous generation and foreground service remain usable.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+            "source:db815929-5415-5015-80c1-4359c2658c8d"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": [
+            "claim:284c56f8-abec-59ca-86b1-89a006b0011b"
+          ]
+        },
+        {
+          "id": "claim:759501f5-4e30-5ee7-b4d2-3db64160d8ab",
+          "mode": "could",
+          "state": "HEADLAND",
+          "summary": "Keep new and existing recovery generations usable and detect corruption.",
+          "detail": "Ownership: operations and kernel. Support the new capture contract alongside existing LatticeBackup/4.0 snapshots. Validate database integrity, reference closure and expected content identities without making duplicate live-tree scans or whole-file database equality readiness requirements. Verify new transfers during copying; record reused-content verification history and retain independent restore drills and scrubs. Exercise process interruption at publication boundaries. Preserve inspectable partial work; no delete-on-startup. Keep each validated failure as a regression check, remediate and repeat before closing its claim. Observable acceptance: A separate restore path in an isolated store recovers fixtures derived from retained source evidence, including completed rounds, required observations and unfinished requests. Old snapshots remain readable, and interrupted publication leaves the last published generation valid. False case to reject: Corrupt a referenced payload, truncate a committed journal prefix or omit a manifest dependency. Restore must report the actual failure rather than render empty success. A logically equivalent SQLite replica with different header bytes must not fail solely for that physical difference.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+            "source:db815929-5415-5015-80c1-4359c2658c8d"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": [
+            "claim:1f0568bb-1ba7-510f-8ab3-afeead11be32"
+          ]
+        },
+        {
+          "id": "claim:a2a888dd-2153-5fd8-8758-7657a25c314d",
+          "mode": "could",
+          "state": "HEADLAND",
+          "summary": "Make resource pressure and stale protection visible without turning archive failure into service failure.",
+          "detail": "Ownership: operations and cockpit. Measure representative foreground use, journal churn, capture throughput, memory, I/O, WAL retention and staging growth; choose budgets from those measurements and owner requirements. Bound concurrency, work buffers and attempt lifetime, release database readers on abort, and yield to foreground demand. Expose completed, active, remaining and failed work, latest sealed checkpoint, publication age and useful resource measurements through existing status/progress mechanisms. Coordinate retention with capture and rollback roots. A killed worker’s durable pin requires reconciliation, not PID expiry; explicit abandonment releases protection only after preserving the evidence and reusable units that still have a function. Archive failures stop expansion; canonical persistence failures reach users. Observable acceptance: Under measured continual writes and constrained capacity, foreground behavior remains within the agreed workload target, aborted attempts release readers, and missed publications visibly increase protection age. Separate archive-full and canonical-store-full exercises produce their distinct failure behavior. False case to reject: Force repeated capture restarts, kill a worker holding a pin, deny file access, and exhaust archive space. Healthy backup status, automatic loss of capture protection, silent errors or archive-only admission refusal must fail the checks. On a full canonical store, a successful durability acknowledgment must also fail.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+            "source:db815929-5415-5015-80c1-4359c2658c8d"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": [
+            "claim:1f0568bb-1ba7-510f-8ab3-afeead11be32"
+          ]
+        },
+        {
+          "id": "claim:0d9f006d-6eb3-5ac9-8f22-d726e84e6157",
+          "mode": "could",
+          "state": "HEADLAND",
+          "summary": "Keep expensive preparation online and make the final change check bounded and complete.",
+          "detail": "Ownership: operations and kernel. Prepare and verify the candidate and rollback image while the old runtime serves. Establish whether an existing revision mechanism covers all rollback-relevant mutations; otherwise add a transactional application revision token, excluding maintenance bookkeeping that does not change recoverable application state. Compare the prepared image’s revision under writer exclusion without copying the database or hashing the tree there. Drift leaves the old service running and defers cutover. Obtain a stable baseline after draining affected work; any admission hold needed to do so is distinct from process downtime and must be measured. Keep durable maintenance records. Rehearse compatible and incompatible migrations separately, including predecessor behavior after candidate writes. Observable acceptance: Independent mutation coverage shows the final token changes for every rollback-relevant writer, and a rehearsed cutover rejects stale baselines before stopping service. A candidate-written round survives failed candidate startup or recovery without baseline restoration over it. False case to reject: Change a relevant table, journal offset or format version without moving the token; the coverage check must detect the omission. Attempt executable rollback with an incompatible candidate-written record or restore over admitted work; recovery must refuse the destructive path.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+            "source:db815929-5415-5015-80c1-4359c2658c8d"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": [
+            "claim:759501f5-4e30-5ee7-b4d2-3db64160d8ab",
+            "claim:a2a888dd-2153-5fd8-8758-7657a25c314d"
+          ]
+        },
+        {
+          "id": "claim:741e3b6d-4bce-5b7d-ae24-28c9a0654f0b",
+          "mode": "could",
+          "state": "HEADLAND",
+          "summary": "Replace the live coupling only after isolated qualification, with a coordinated handover.",
+          "detail": "Ownership: operations, execution and cockpit. Keep development, replay and shadow outputs outside the live root and suppress duplicate provider dispatch. Before deployment, stop admitting affected new attempts and let existing attempts finish unless restart-and-reattachment has independently been demonstrated. Publish the qualified service and its scheduled backup path as one coordinated change using the maintenance record and writer exclusion. Remove startup’s wait on routine archive work only when the corresponding backup no longer needs that exclusion. Measure the single-process interruption. Retire obsolete guarded tree capture, redundant proof passes, file-count-sized capture maps and exhausted scratch apparatus after their replacements pass. Keep legacy restore support and unresolved custody integration visible in the Surface. Observable acceptance: Independent clients verify conversation use before and after handover, retained completed rounds and interruption evidence, and successful startup during a new backup pass. The installed service version and scheduled-job command both resolve to the qualified implementation; adversarial regressions from earlier phases pass before closure is recorded. False case to reject: Leave the old backup command scheduled, retain an active attempt without demonstrated reattachment, or start the service while capture holds the former lifetime lock. Handover qualification must reject the mismatch or preservation claim.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+            "source:db815929-5415-5015-80c1-4359c2658c8d"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": [
+            "claim:0d9f006d-6eb3-5ac9-8f22-d726e84e6157"
+          ]
+        },
+        {
+          "id": "claim:d39be140-38af-5310-94a4-d5ad9c1fff50",
+          "mode": "could",
+          "state": "HORIZON",
+          "summary": "Package sqlite3_rsync for private candidate replicas",
+          "detail": "Representative continual-write measurements show the Backup API repeatedly misses the required protection age or copies excessive unchanged data, and supported packaging demonstrates better progress and resource use. Use the official tool, preserving the same external-content boundary.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": []
+        },
+        {
+          "id": "claim:0eae963a-bf44-51ec-97aa-871784e5dc19",
+          "mode": "could",
+          "state": "HORIZON",
+          "summary": "Rotate journals into immutable segments",
+          "detail": "Prefix copying, retention or long-stream recovery becomes materially costly. Segments improve reuse and reclamation but are unnecessary for correctness when recorded prefixes remain stable and protected.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": []
+        },
+        {
+          "id": "claim:321ec0d0-bacb-5057-a988-c479d903433d",
+          "mode": "could",
+          "state": "HORIZON",
+          "summary": "Consolidate modest journal chunks or payloads into SQLite",
+          "detail": "The reference audit demonstrates that maintaining external atomicity costs more than consolidating the affected data, and measured database/WAL growth remains favorable. Large-payload migration requires separate justification.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": []
+        },
+        {
+          "id": "claim:b91c352a-4a4e-53ff-ac3d-0e1e48b17e4c",
+          "mode": "could",
+          "state": "HORIZON",
+          "summary": "Use filesystem snapshots as a capture accelerator",
+          "detail": "Actual deployment proves unprivileged support, suitable volume boundaries, bounded retained blocks and correct cross-store behavior. No privileged or whole-system snapshot dependency is assumed.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": []
+        },
+        {
+          "id": "claim:4e4a32b8-33f3-5ec5-8fab-0058882c47c4",
+          "mode": "could",
+          "state": "HORIZON",
+          "summary": "Connect published recovery sets to existing AXISVI custody",
+          "detail": "The owner elects machine-loss protection through the existing restic infrastructure. Add the explicit Lattice adapter and separately authorized transfer; retain encryption, metered-network policy, scrubs and restore drills without making custody availability a conversation dependency.",
+          "source_ids": [
+            "source:f26b09f9-7971-599f-aa33-8d9ce5839233"
+          ],
+          "origin": "advised",
+          "owner_confirmed": false,
+          "awaiting_disposition": "confirm",
+          "blocked_on": [],
+          "after": []
         }
       ]
     },
@@ -18692,7 +19607,7 @@
     }
   ],
   "lineage": {
-    "parent_surface_id": "surface:1d37e455-8e7a-4a4d-92ca-1a34f5321fd9",
+    "parent_surface_id": "surface:f7afda6d-b834-4a06-8982-e65addf68273",
     "preserved_claim_ids": [
       "claim:0b0a8b3b-ff50-4359-99d4-fba95def66be",
       "claim:151818d8-6f73-5756-bc91-66146c2bfea7",
@@ -18715,57 +19630,82 @@
       "claim:d5bb0427-2ab8-5939-8aba-59ff22f5a082",
       "claim:ff215dc6-d94e-5eef-a0d6-69b049b7a328"
     ],
-    "added_claim_ids": [],
+    "added_claim_ids": [
+      "claim:0d9f006d-6eb3-5ac9-8f22-d726e84e6157",
+      "claim:0eae963a-bf44-51ec-97aa-871784e5dc19",
+      "claim:1f0568bb-1ba7-510f-8ab3-afeead11be32",
+      "claim:284c56f8-abec-59ca-86b1-89a006b0011b",
+      "claim:321ec0d0-bacb-5057-a988-c479d903433d",
+      "claim:4e4a32b8-33f3-5ec5-8fab-0058882c47c4",
+      "claim:6ab626d7-629b-53cb-9355-40f56046cc00",
+      "claim:741e3b6d-4bce-5b7d-ae24-28c9a0654f0b",
+      "claim:759501f5-4e30-5ee7-b4d2-3db64160d8ab",
+      "claim:981fb989-ec3c-5d81-a911-4a83b1ce822c",
+      "claim:a2a888dd-2153-5fd8-8758-7657a25c314d",
+      "claim:b91c352a-4a4e-53ff-ac3d-0e1e48b17e4c",
+      "claim:c19d0c4a-45d1-5741-bedb-c4545e620a0e",
+      "claim:d39be140-38af-5310-94a4-d5ad9c1fff50"
+    ],
     "retired_claim_ids": [],
     "preserved_source_ids": [
       "source:0021accc-dc24-45ab-af24-45a75eca6650",
       "source:0123f24e-b8ff-544d-959a-444272f7d0ff",
+      "source:01b79a3e-ff2f-5018-b4e4-7e7ade58fe16",
       "source:020b6359-622a-52e0-976e-8b22e2a61f1b",
       "source:07deb160-3199-5d53-a17e-4ce5ce6c5f15",
       "source:1bed9604-7f0c-589c-a954-1508e9e796f2",
       "source:2289413e-b3ba-52a0-9325-e7aa9fa452e8",
-      "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
-      "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
-      "source:7bf182e2-7d4a-58a0-b9c1-16a3766d87b8",
-      "source:916b865f-31fa-4edb-b1b5-0eb5b7d47c9d",
-      "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
-      "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
-      "source:adb769f3-7122-41ed-992f-92182a32bcc4",
-      "source:b3e0c933-4cab-5109-9171-c4c45392c8bf",
-      "source:b8f38ef6-8ac7-4fdf-9565-5aafafd0a58f",
-      "source:be924094-db39-433c-a457-44fb91c98bbe",
-      "source:c2979b19-2dfb-48e5-be3e-55c8ae0fc2d2",
-      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
-      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
-      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
-      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
-      "source:e1c00f6c-2a1f-4aed-9fd9-12c89aad937f",
-      "source:efc86831-120e-50ac-bfe0-8b001f3fb395",
-      "source:f1a798a9-c118-5ccf-840c-d3e652ff9150",
-      "source:f333a39f-3890-565c-82cb-93805cfab6c6"
-    ],
-    "added_source_ids": [
-      "source:01b79a3e-ff2f-5018-b4e4-7e7ade58fe16",
       "source:2b48a935-78ad-52a8-ae65-be4c5341def8",
+      "source:2b629e4f-7e1a-584e-a53f-a2740cdbacd8",
       "source:31b9fc75-e950-5299-bc37-dc1137ecb62c",
       "source:4bba28a3-e9bb-585d-8413-c7b40a427928",
+      "source:4c954f2b-fdd4-5a86-b879-0303d39b26fe",
       "source:4d2555e9-d112-524b-80e4-9ece1a9b49d6",
       "source:737b4cdb-4801-5964-8374-f589e4867e5c",
       "source:7973f381-69ac-5c26-adc7-f2b6259feb36",
+      "source:7bf182e2-7d4a-58a0-b9c1-16a3766d87b8",
       "source:7e6d5efc-01a2-5ecb-903e-94b6e245fefd",
       "source:7f3bd6f7-a528-54de-9085-72cd1489d420",
+      "source:916b865f-31fa-4edb-b1b5-0eb5b7d47c9d",
       "source:a09e5384-58e9-5a12-85d8-27bf92320781",
       "source:a3ff4744-740e-5dd3-99cc-e179c4716a60",
+      "source:a67ac2c4-e97d-40a8-9d10-18b0fcce5869",
+      "source:a7c67d5f-688b-50ec-a92b-d14257cef778",
+      "source:adb769f3-7122-41ed-992f-92182a32bcc4",
       "source:b0fcfa1c-06d2-5939-a42a-853c091df30f",
+      "source:b3e0c933-4cab-5109-9171-c4c45392c8bf",
+      "source:b8f38ef6-8ac7-4fdf-9565-5aafafd0a58f",
       "source:b9ce0ee4-92af-5deb-8034-f32d6674960c",
+      "source:be924094-db39-433c-a457-44fb91c98bbe",
+      "source:c2979b19-2dfb-48e5-be3e-55c8ae0fc2d2",
       "source:ca92f6a9-8176-533d-8a53-6bc8e48add90",
+      "source:cdfeb109-7a08-55d3-b0fc-3a93472c6b05",
       "source:d076bcdf-5738-5100-ad25-823ab21f125e",
+      "source:d1e4eb51-7845-4fd3-bd4d-3213e12e30b3",
       "source:d4194b06-d6d4-5800-a97b-01da13e35582",
+      "source:d8ccdbad-93a7-58ca-90ef-9064091f3a7c",
+      "source:d9045688-5fa2-514f-8e4b-52d24a945d56",
       "source:dd72345a-4465-593a-ae3f-205240d6f080",
       "source:dd92eabd-23d6-549e-9793-cc8b9067917e",
+      "source:e1c00f6c-2a1f-4aed-9fd9-12c89aad937f",
       "source:e7e2d79f-7a03-5c37-a80d-0bf036fd357d",
       "source:eb55e32d-4345-5199-9a75-bc8ddd0907a0",
+      "source:efc86831-120e-50ac-bfe0-8b001f3fb395",
+      "source:f1a798a9-c118-5ccf-840c-d3e652ff9150",
+      "source:f333a39f-3890-565c-82cb-93805cfab6c6",
       "source:fe486c6a-ebde-53a5-a596-41ae28c5aaf0"
+    ],
+    "added_source_ids": [
+      "source:2b7cfc7b-6cd8-5732-88af-b3da5e52db29",
+      "source:3f35cfad-71a9-51a7-ad2b-8e4ce88cf5e9",
+      "source:5d5ba799-38a0-53b2-8c32-991f83c67b67",
+      "source:7406b5ef-8801-59f1-8878-9e3aeece4a3b",
+      "source:85ee6a25-6a81-5197-a79f-7e58e3ff6269",
+      "source:86ba4438-82e9-57fa-84d1-3ae34252012e",
+      "source:db815929-5415-5015-80c1-4359c2658c8d",
+      "source:f26b09f9-7971-599f-aa33-8d9ce5839233",
+      "source:f4113124-4d83-5994-a16b-35176a1f44ad",
+      "source:f4c9e041-d13e-5441-9cce-78394752b7c4"
     ],
     "retired_source_ids": []
   },
@@ -18776,6 +19716,36 @@
         "ref": "scope:uncommitted-native-approval-evidence",
         "reason": "Pre-existing untracked native-approval evidence and an intent-to-add historical Surface remain outside the committed source boundary.",
         "next_evidence": "Reconcile in their owning session; no claims here rely on their contents."
+      },
+      {
+        "ref": "investigation:lattice-maintenance:1",
+        "reason": "Where are accepted mid-round observations, tool results, continuation cursors and acceptance/model-runs dependencies persisted, and which are already reproduced by SQLite plus CAS? This audit is mandatory.",
+        "next_evidence": "Inspect the actual source and isolated execution evidence during the named remediation phase; do not treat the model proposal as proof."
+      },
+      {
+        "ref": "investigation:lattice-maintenance:2",
+        "reason": "Which current references, stream registrations and synchronization settings already establish publication-before-commit and durable local checkpoint behavior?",
+        "next_evidence": "Inspect the actual source and isolated execution evidence during the named remediation phase; do not treat the model proposal as proof."
+      },
+      {
+        "ref": "investigation:lattice-maintenance:3",
+        "reason": "Which collectors, retention jobs, journal rebuilds or other deleters exist, and how do they coordinate with publication intervals, capture roots and rollback roots?",
+        "next_evidence": "Inspect the actual source and isolated execution evidence during the named remediation phase; do not treat the model proposal as proof."
+      },
+      {
+        "ref": "investigation:lattice-maintenance:4",
+        "reason": "Can existing revision or append-head mechanisms cover every rollback-relevant mutation, and what are their measured costs compared with state_digest?",
+        "next_evidence": "Inspect the actual source and isolated execution evidence during the named remediation phase; do not treat the model proposal as proof."
+      },
+      {
+        "ref": "investigation:lattice-maintenance:5",
+        "reason": "What are representative journal sizes, mutation rates, foreground latency, Backup API progress, WAL growth and per-phase memory/I/O costs? Is sqlite3_rsync packaged and beneficial?",
+        "next_evidence": "Inspect the actual source and isolated execution evidence during the named remediation phase; do not treat the model proposal as proof."
+      },
+      {
+        "ref": "investigation:lattice-maintenance:6",
+        "reason": "Does actual worker ownership support restart and reattachment without duplicate dispatch or lost exposed results? Until demonstrated, active attempts must drain.",
+        "next_evidence": "Inspect the actual source and isolated execution evidence during the named remediation phase; do not treat the model proposal as proof."
       }
     ],
     "mode_judgments": [
@@ -18833,6 +19803,21 @@
         "claim_id": "claim:82a6fee2-1039-4d7f-b67a-5977149e4323",
         "alternative_mode": "doing",
         "reason": "Expert-horizon review preserves document co-creation as an unconfirmed possibility rather than active work."
+      },
+      {
+        "claim_id": "claim:6ab626d7-629b-53cb-9355-40f56046cc00",
+        "alternative_mode": "doing",
+        "reason": "Owner preference remaining: What maximum published-generation age and retention history should the measured workload support, and should local archives share the canonical volume or use another disk?"
+      },
+      {
+        "claim_id": "claim:6ab626d7-629b-53cb-9355-40f56046cc00",
+        "alternative_mode": "doing",
+        "reason": "Owner preference remaining: What coordinated admission hold or maintenance window is acceptable for an incompatible migration after preparation and draining?"
+      },
+      {
+        "claim_id": "claim:6ab626d7-629b-53cb-9355-40f56046cc00",
+        "alternative_mode": "is",
+        "reason": "Four model contributions were considered: Sol, Gemini, Muse and Grok. Opus remains subscription-exhausted and has supplied no review; the reported reset estimate is not a completed fifth review or five-model consensus. The packet contains selected source excerpts at revision 73acdf537a1dd0ac532c15617f4052d3ef23d4ab, not a complete repository audit. Missing invariants remain investigations, not established guarantees. This conversation performs no implementation, test run, runtime installation, scheduling change or live deployment. The current 03:00 backup has not been disabled, and worker reattachment has not been proven. The last supplied health report indicated readiness. It establishes reported present accessibility, not that the backup/startup defect is repaired or that future availability is guaranteed. No candidate performance benchmark exists. Retention, CPU, memory, latency and capture-age targets must follow workload evidence and owner requirements; bounded attempts alone do not guarantee eventual publication. Local crash recovery preserves current durable state; restoring a historical generation preserves only that generation. Same-disk recovery sets do not survive machine or disk loss, and a published generation cannot include later writes. Custody integration remains captured separately. Model review supplies architectural arguments, not implemented proof. Phase acceptance observations and deliberate false cases are future closure requirements; completion follows implementation, independent checks, adversarial failure injection and remediation."
       }
     ],
     "staleness": [
