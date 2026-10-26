@@ -721,7 +721,7 @@ def verify_qualification_receipt(value: dict[str, Any], *, runtime: dict[str, An
                 raise ConsolidationVerificationError(f"provider canary exercised the wrong execution profile: {item['provider']}:{profile}")
             expected_parents: list[str] = []
             if item["provider"] in {"anthropic", "openai"} and profile != "compiled-fresh":
-                parent_profile = "compiled-fresh" if profile == "workspace-agent" else "workspace-agent"
+                parent_profile = "compiled-fresh" if profile == "workspace-agent" else "native-continuation:resume" if profile == "native-continuation:fork" else "workspace-agent"
                 expected_parents = [canary_map[(item["provider"], parent_profile)]["invocation_id"]]
             if parents != expected_parents:
                 raise ConsolidationVerificationError(f"provider canary ancestry is wrong: {item['provider']}:{profile}")

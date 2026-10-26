@@ -6,6 +6,7 @@ import copy
 import importlib.util
 import json
 import os
+import re
 import sqlite3
 from pathlib import Path
 
@@ -617,6 +618,193 @@ def test_negative_control_octopus_consumer_canary_rejects_nonexact_sentinel(latt
         canary = {field: report[field] for field in ("consumer_id", "external_project_key", "invocation_id", "manifest_sha256")}
         with pytest.raises(verifier.ConsolidationVerificationError, match="exact sentinel"):
             verifier._verify_octopus_consumer_canary(connection, report_path, canary)
+
+
+QUALIFICATION_PROJECT_KEY = "lattice.release-qualification"
+WORKSPACE_SESSION = "11111111-1111-4111-8111-111111111111"
+FORK_SESSION = "22222222-2222-4222-8222-222222222222"
+
+
+def _anthropic_canary(lattice_env, *, profile: str, parent_id: str | None, workspace: Path, session_id: str | None, operation_key: str) -> dict:
+    """Seal one Anthropic qualification canary through the real store and finish it with its marker output.
+
+    The route carries exactly the qualifier's shape for that profile; the store adds the provider profile,
+    resolves the native session from the parent's receipt, and enforces its own session-head guard. The
+    returned dict is the verifier-shaped provider canary receipt, read back from base records.
+    """
+
+    native = profile.startswith("native-continuation:")
+    workspace_bound = native or profile == "workspace-agent"
+    route = ProviderRoute(
+        provider="anthropic",
+        model="opus",
+        harness="claude",
+        effort="high",
+        execution_profile="native-continuation" if native else "compiled-fresh" if profile == "portable-fallback" else profile,
+        session_policy="visible_native_continuation" if native else "fresh",
+        continuation_mode=profile.split(":", 1)[1] if native else None,
+        native_parent_invocation_id=parent_id if native else None,
+        workspace=str(workspace) if workspace_bound else None,
+        sandbox="provider-permissions" if workspace_bound else "read-only",
+    )
+    marker = "QUAL-ANTHROPIC-" + {"workspace-agent": "WORKSPACE", "portable-fallback": "PORTABLE", "native-continuation:resume": "RESUME", "native-continuation:fork": "FORK"}.get(profile, profile.upper())
+    request = ExecutionSubmissionV1(
+        external_project_key=QUALIFICATION_PROJECT_KEY,
+        operation_key=operation_key,
+        actor="lattice-release-qualification",
+        prompt=f"Reply in one sentence containing exact marker {marker}. This is synthetic qualification evidence.",
+        parent_invocation_ids=[parent_id] if parent_id is not None else [],
+        route=route,
+        output_contract=OutputContractV2(mode="text"),
+        idempotency_key=operation_key,
+    )
+    operation = lattice_env["lattice"].seal_execution_submission(request)
+    invocation_id = operation["invocation_id"]
+    store = lattice_env["store"]
+    attempt = store.create_attempt(invocation_id, "attempt-" + operation_key.replace(":", "-"), "fixture-boot", 9_999_999_999)
+    store.mark_attempt_running(attempt["attempt_id"])
+    request_file = _blob(store, {"driver": "claude", "model": "opus", "operation_key": operation_key})
+    checkpoint_file = _blob(store, {"request_sha256": request_file["sha256"]})
+    terminal_file = _blob(store, {"status": "success"})
+    receipt = {
+        "kind": "lattice-model-runtime-receipt",
+        "journal_path": "fixture:journal",
+        "request_sha256": request_file["sha256"],
+        "checkpoint_sha256": checkpoint_file["sha256"],
+        "terminal_sha256": terminal_file["sha256"],
+        "driver": "claude",
+        "model": "opus",
+        "cli_version": "fixture",
+        "binary": "/fixture/claude",
+        "isolation": {},
+        "native_session": {"id": session_id} if session_id is not None else None,
+        "observed": {},
+        "terminal": {"status": "success"},
+        "files": {"request.json": request_file, "checkpoint.json": checkpoint_file, "terminal.json": terminal_file},
+    }
+    response = f"Synthetic evidence containing {marker}."
+    store.finish_successful_attempt(attempt["attempt_id"], response=response, artifacts=[{"name": "result.txt", "media_type": "text/plain", "content": response}], journal_path="fixture:journal", runtime_receipt=receipt)
+    with sqlite3.connect(lattice_env["config"].database) as connection:
+        connection.row_factory = sqlite3.Row
+        invocation = connection.execute("SELECT manifest_sha256,route_json FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+        stored = connection.execute("SELECT output_sha256,runtime_receipt_json FROM attempts WHERE invocation_id=? AND state='succeeded'", (invocation_id,)).fetchone()
+    return {
+        "provider": "anthropic",
+        "profile": profile,
+        "state": "succeeded",
+        "invocation_id": invocation_id,
+        "manifest_sha256": invocation["manifest_sha256"],
+        "output_sha256": stored["output_sha256"],
+        "provider_profile_id": json.loads(invocation["route_json"]).get("provider_profile_id"),
+        "runtime_receipt_sha256": sha256_bytes(canonical_bytes(json.loads(stored["runtime_receipt_json"]))),
+    }
+
+
+def _canary_placeholders() -> list[dict]:
+    """Every non-Anthropic required profile, xai:compiled-fresh first, pointing at an invocation that does not exist.
+
+    ``verify_qualification_receipt`` checks canaries in list order and stops at the first refusal, so a
+    receipt that ends in these placeholders is accepted exactly as far as its real Anthropic chain and
+    then refuses with a distinct, recognisable message for xai:compiled-fresh.
+    """
+
+    others = sorted(item for item in verifier.REQUIRED_PROVIDER_PROFILES if item[0] != "anthropic")
+    others.remove(("xai", "compiled-fresh"))
+    return [
+        {"provider": provider, "profile": profile, "state": "succeeded", "invocation_id": "invocation_absent", "manifest_sha256": "0" * 64, "output_sha256": "0" * 64, "provider_profile_id": "provider-profile:fixture", "runtime_receipt_sha256": "0" * 64}
+        for provider, profile in [("xai", "compiled-fresh"), *others]
+    ]
+
+
+def _qualification_receipt(tmp_path: Path, canaries: list[dict]) -> dict:
+    """A receipt whose only live content is its provider canaries; the interruption block is never reached."""
+
+    return {
+        "generated_object": generated_object(kind="lattice-qualification-receipt", schema_name="lattice-qualification-receipt", subject="fixture", role="snapshot", sources=[{"ref": "fixture:qualification", "revision": "one", "sha256": None}]),
+        "contract_version": "LatticeQualificationReceipt/1.0",
+        "runtime_artifact_id": "artifact:00000000-0000-4000-8000-000000000000",
+        "suites": [{"suite_id": suite_id, "truth_kinds": ["contract"], "command": [["fixture"]], "cwd": str(tmp_path), "exit_code": 0, "stdout_sha256": "1" * 64, "stderr_sha256": "2" * 64} for suite_id in verifier.REQUIRED_SUITES],
+        "consumer_source_inventories": {},
+        "consumer_canaries": [],
+        "provider_canaries": canaries,
+        "interruption": {},
+        "credential_canary_sha256s": [],
+        "kimi": {"state": "unavailable", "reason": "unqualified"},
+    }
+
+
+def _verify_canaries(lattice_env, receipt: dict) -> dict:
+    return verifier.verify_qualification_receipt(receipt, runtime={"runtime_artifact_id": receipt["runtime_artifact_id"]}, consumer_inventories={}, data_root=lattice_env["config"].data_root)
+
+
+@pytest.mark.oracle
+def test_native_fork_canary_is_accepted_from_the_resumed_session_head(lattice_env, tmp_path) -> None:
+    # The corrected qualifier chain: fresh -> workspace agent -> resume (same session, now the head)
+    # -> fork from the resume (new session); portable fallback from the workspace agent. Every row is
+    # a real store execution; the store itself admitted each native parent as its session head.
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    fresh = _anthropic_canary(lattice_env, profile="compiled-fresh", parent_id=None, workspace=workspace, session_id=None, operation_key="qualification:fixture:anthropic:compiled-fresh:a1")
+    agent = _anthropic_canary(lattice_env, profile="workspace-agent", parent_id=fresh["invocation_id"], workspace=workspace, session_id=WORKSPACE_SESSION, operation_key="qualification:fixture:anthropic:workspace-agent:a1")
+    resume = _anthropic_canary(lattice_env, profile="native-continuation:resume", parent_id=agent["invocation_id"], workspace=workspace, session_id=WORKSPACE_SESSION, operation_key="qualification:fixture:anthropic:native-continuation:resume:a1")
+    fork = _anthropic_canary(lattice_env, profile="native-continuation:fork", parent_id=resume["invocation_id"], workspace=workspace, session_id=FORK_SESSION, operation_key="qualification:fixture:anthropic:native-continuation:fork:a2")
+    portable = _anthropic_canary(lattice_env, profile="portable-fallback", parent_id=agent["invocation_id"], workspace=workspace, session_id=None, operation_key="qualification:fixture:anthropic:portable-fallback:a1")
+    receipt = _qualification_receipt(tmp_path, [fresh, agent, resume, fork, portable, *_canary_placeholders()])
+
+    # Reaching the xai placeholder's distinct refusal proves every Anthropic item, the fork's ancestry
+    # and native claims included, was accepted. (Falsifier: a verifier expecting the fork to continue the
+    # workspace agent refuses here with "ancestry is wrong: anthropic:native-continuation:fork".)
+    with pytest.raises(verifier.ConsolidationVerificationError, match=r"does not resolve to exact successful execution: xai:compiled-fresh"):
+        _verify_canaries(lattice_env, receipt)
+
+
+@pytest.mark.regression
+def test_an_admission_refused_fork_reservation_is_retained_unsealed_and_blocks_database_closure(lattice_env, tmp_path) -> None:
+    # The live failure, reproduced against the real store: after the resume became the session head, a
+    # fork naming the workspace agent is refused at admission, and the reservation made before validation
+    # (operations.seal_execution_submission) is left behind with no invocation. verify_database currently
+    # refuses every such row as unbound, so the retained live fork:a1 reservation is a closure obligation
+    # of its own, independent of the qualification receipt. This test documents that obligation; it does
+    # not decide whether the store or the verifier is the right place to resolve it.
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    fresh = _anthropic_canary(lattice_env, profile="compiled-fresh", parent_id=None, workspace=workspace, session_id=None, operation_key="qualification:fixture:anthropic:compiled-fresh:a1")
+    agent = _anthropic_canary(lattice_env, profile="workspace-agent", parent_id=fresh["invocation_id"], workspace=workspace, session_id=WORKSPACE_SESSION, operation_key="qualification:fixture:anthropic:workspace-agent:a1")
+    _anthropic_canary(lattice_env, profile="native-continuation:resume", parent_id=agent["invocation_id"], workspace=workspace, session_id=WORKSPACE_SESSION, operation_key="qualification:fixture:anthropic:native-continuation:resume:a1")
+    stale_key = "qualification:fixture:anthropic:native-continuation:fork:a1"
+
+    with pytest.raises(Exception, match="no longer the provider session head"):
+        _anthropic_canary(lattice_env, profile="native-continuation:fork", parent_id=agent["invocation_id"], workspace=workspace, session_id=FORK_SESSION, operation_key=stale_key)
+
+    with sqlite3.connect(lattice_env["config"].database) as connection:
+        residue = connection.execute("SELECT state,invocation_id FROM external_operations WHERE external_project_key=? AND operation_key=?", (QUALIFICATION_PROJECT_KEY, stale_key)).fetchone()
+    assert residue == ("reserved", None)
+    with pytest.raises(verifier.ConsolidationVerificationError, match=re.escape(f"{QUALIFICATION_PROJECT_KEY}:{stale_key} is not bound to exactly one invocation")):
+        verifier.verify_database(lattice_env["config"].data_root)
+
+
+@pytest.mark.regression
+def test_negative_control_fork_from_the_stale_workspace_head_is_refused_as_wrong_ancestry(lattice_env, tmp_path) -> None:
+    # The store admits this order: the fork is sealed while the workspace agent is still its session
+    # head, and the resume follows from the same parent. Every row is a genuine succeeded execution with
+    # the right route, profile, native claim and marker, so the only thing the verifier can refuse is the
+    # fork's ancestry. (Falsifier: a verifier expecting the fork to continue the workspace agent accepts
+    # this chain and stops at the xai placeholder instead.)
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    fresh = _anthropic_canary(lattice_env, profile="compiled-fresh", parent_id=None, workspace=workspace, session_id=None, operation_key="qualification:fixture:anthropic:compiled-fresh:a1")
+    agent = _anthropic_canary(lattice_env, profile="workspace-agent", parent_id=fresh["invocation_id"], workspace=workspace, session_id=WORKSPACE_SESSION, operation_key="qualification:fixture:anthropic:workspace-agent:a1")
+    stale_fork = _anthropic_canary(lattice_env, profile="native-continuation:fork", parent_id=agent["invocation_id"], workspace=workspace, session_id=FORK_SESSION, operation_key="qualification:fixture:anthropic:native-continuation:fork:a1")
+    resume = _anthropic_canary(lattice_env, profile="native-continuation:resume", parent_id=agent["invocation_id"], workspace=workspace, session_id=WORKSPACE_SESSION, operation_key="qualification:fixture:anthropic:native-continuation:resume:a1")
+    portable = _anthropic_canary(lattice_env, profile="portable-fallback", parent_id=agent["invocation_id"], workspace=workspace, session_id=None, operation_key="qualification:fixture:anthropic:portable-fallback:a1")
+    with sqlite3.connect(lattice_env["config"].database) as connection:
+        parents = connection.execute("SELECT d.parents_json FROM invocations i JOIN drafts d USING(draft_id) WHERE i.invocation_id=?", (stale_fork["invocation_id"],)).fetchone()[0]
+    assert json.loads(parents) == [agent["invocation_id"]]
+
+    receipt = _qualification_receipt(tmp_path, [fresh, agent, resume, stale_fork, portable, *_canary_placeholders()])
+
+    with pytest.raises(verifier.ConsolidationVerificationError, match=r"provider canary ancestry is wrong: anthropic:native-continuation:fork"):
+        _verify_canaries(lattice_env, receipt)
 
 
 @pytest.mark.regression

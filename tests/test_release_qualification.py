@@ -94,8 +94,24 @@ def _respond(request: dict[str, Any]) -> str:
     return text
 
 
+SESSION_HEAD_REFUSAL = "native continuation parent is no longer the provider session head; use portable ancestry or select the latest native invocation"
+RESERVED_UNSEALED_REFUSAL = "external execution was reserved but has no sealed invocation"
+
+
 class FakeLattice:
-    """One durable store shared by every operator handle; replays and conflicts exactly like the real store."""
+    """One durable store shared by every operator handle; replays and conflicts exactly like the real store.
+
+    Two further store behaviours are reproduced because the qualifier's recovery depends on them:
+
+    - Reservation precedes validation (``operations.seal_execution_submission`` reserves, then
+      ``store._assert_actor_route_authorized`` validates). A request refused at admission leaves its
+      key reserved with exactly its bytes and no invocation: ``lookup`` answers the reserved-unsealed
+      409, identical bytes re-validate, and different bytes are a key conflict.
+    - Provider sessions have one head (``store._native_session_state``): a workspace agent opens a
+      session, a succeeded resume keeps that session and becomes its head, a fork opens a new session,
+      and a native continuation whose parent is not its session head is refused with the store's exact
+      detail. A refusal is not a dispatch; ``dispatches`` counts paid model calls only.
+    """
 
     def __init__(self) -> None:
         self.operations: dict[tuple[str, str], dict[str, Any]] = {}
@@ -107,6 +123,42 @@ class FakeLattice:
         self.result_errors: dict[str, LatticeClientError] = {}
         self.before_dispatch: Callable[[dict[str, Any]], None] | None = None
         self.after_admission: Callable[[dict[str, Any]], None] | None = None
+        self.sessions: dict[str, str] = {}
+        self.heads: dict[tuple[str, str], str] = {}
+        self.refusals: list[tuple[tuple[str, str], str]] = []
+
+    def reserved_unsealed(self) -> list[tuple[str, str]]:
+        """Keys Lattice reserved and then refused: retained, unsealed, never dispatched."""
+
+        return [identity for identity, record in self.operations.items() if record["result"] is None]
+
+    def _admit(self, identity: tuple[str, str], request: dict[str, Any]) -> None:
+        route = request.get("route", {})
+        if route.get("execution_profile") != "native-continuation":
+            return
+        parent = route.get("native_parent_invocation_id")
+        detail: str | None = None
+        if parent not in request.get("parent_invocation_ids", []):
+            detail = "native continuation parent must be explicitly selected as invocation ancestry"
+        elif parent not in self.sessions:
+            detail = "native continuation parent has no observed provider session identity"
+        elif self.heads[(str(route["provider"]), self.sessions[parent])] != parent:
+            detail = SESSION_HEAD_REFUSAL
+        if detail is not None:
+            self.refusals.append((identity, detail))
+            raise LatticeClientError(f"Lattice returned HTTP 409: {json.dumps({'detail': detail})}")
+
+    def _record_session(self, request: dict[str, Any], invocation_id: str) -> None:
+        route = request.get("route", {})
+        profile = route.get("execution_profile")
+        if profile == "workspace-agent" or (profile == "native-continuation" and route.get("continuation_mode") == "fork"):
+            session = f"session_{len(self.dispatches)}"
+        elif profile == "native-continuation":
+            session = self.sessions[str(route["native_parent_invocation_id"])]
+        else:
+            return
+        self.sessions[invocation_id] = session
+        self.heads[(str(route["provider"]), session)] = invocation_id
 
     def submit(self, request: dict[str, Any]) -> ExecutionResultV1:
         identity = (str(request["external_project_key"]), str(request["operation_key"]))
@@ -116,20 +168,28 @@ class FakeLattice:
         if existing is not None:
             if existing["request_sha256"] != digest or existing["idempotency_key"] != idempotency:
                 raise LatticeClientError("Lattice returned HTTP 409: external operation key was reused with different bytes")
-            # Replay: a waiting submit returns once the admitted execution is terminal.
-            self.visible_state.pop(identity, None)
-            return existing["result"]
-        if idempotency in self.idempotency:
-            raise LatticeClientError("Lattice returned HTTP 409: external idempotency key was reused for another operation")
-        if self.before_dispatch is not None:
-            self.before_dispatch(request)
-            # The real store reserves inside one transaction: whatever another operator admitted
-            # while this submission was in flight wins, and this submission becomes its replay.
-            existing = self.operations.get(identity)
-            if existing is not None:
-                if existing["request_sha256"] != digest or existing["idempotency_key"] != idempotency:
-                    raise LatticeClientError("Lattice returned HTTP 409: external operation key was reused with different bytes")
+            if existing["result"] is not None:
+                # Replay: a waiting submit returns once the admitted execution is terminal.
+                self.visible_state.pop(identity, None)
                 return existing["result"]
+            # Reserved but never sealed: identical bytes are validated again, nothing new is reserved.
+        else:
+            if idempotency in self.idempotency:
+                raise LatticeClientError("Lattice returned HTTP 409: external idempotency key was reused for another operation")
+            if self.before_dispatch is not None:
+                self.before_dispatch(request)
+                # The real store reserves inside one transaction: whatever another operator admitted
+                # while this submission was in flight wins, and this submission becomes its replay.
+                existing = self.operations.get(identity)
+                if existing is not None:
+                    if existing["request_sha256"] != digest or existing["idempotency_key"] != idempotency:
+                        raise LatticeClientError("Lattice returned HTTP 409: external operation key was reused with different bytes")
+                    if existing["result"] is not None:
+                        return existing["result"]
+            if identity not in self.operations:
+                self.operations[identity] = {"request_sha256": digest, "idempotency_key": idempotency, "result": None}
+                self.idempotency[idempotency] = identity
+        self._admit(identity, request)
         self.dispatches.append(identity)
         ordinal = len(self.dispatches)
         provider = str(request.get("route", {}).get("provider", "unknown"))
@@ -157,8 +217,9 @@ class FakeLattice:
                 output_artifact_ids=[artifact_id],
                 journal_receipt={"kind": "lattice-model-runtime-receipt", "invocation_id": f"invocation_{ordinal}"},
             )
-        self.operations[identity] = {"request_sha256": digest, "idempotency_key": idempotency, "result": result}
-        self.idempotency[idempotency] = identity
+        self.operations[identity]["result"] = result
+        if result.state == InvocationState.succeeded:
+            self._record_session(request, result.invocation_id)
         if self.after_admission is not None:
             self.after_admission(request)
         return result
@@ -171,6 +232,8 @@ class FakeLattice:
         existing = self.operations.get(identity)
         if existing is None:
             raise LatticeClientError("Lattice returned HTTP 404: external operation not found")
+        if existing["result"] is None:
+            raise LatticeClientError(f"Lattice returned HTTP 409: {json.dumps({'detail': RESERVED_UNSEALED_REFUSAL})}")
         override = self.visible_state.get(identity)
         if override is not None:
             return existing["result"].model_copy(update={"state": override})
@@ -899,6 +962,149 @@ def test_provider_qualification_probes_the_shallow_subscription_gate_first(harne
         ("google", "compiled-fresh"),
         ("google", "research-fresh"),
     ]
+
+
+# --- native continuation chain and admission refusals -----------------------------
+
+
+def _superseded_provider_chain(harness: Harness, ledger: QualificationLedger) -> None:
+    """The superseded qualifier's dispatch order, byte for byte: nine canaries, then a fork from the workspace agent.
+
+    Every request here is built by the same ``_provider_unit`` the corrected loop uses, so the nine
+    completed operations carry exactly the bytes a successor ledger will resubmit. Only the fork differs:
+    the superseded loop named the workspace agent as the native parent after the resume had already
+    become the session head, which Lattice refuses at admission and leaves reserved under ``fork:a1``.
+    """
+
+    client = harness.client()
+    workspace = harness.data_root / "acceptance" / "qualification" / f"workspace-{RUNTIME_ID}"
+    workspace.mkdir(parents=True, exist_ok=True)
+    workspace = workspace.resolve()
+    for provider in ("xai", "meta", "google"):
+        for profile in qualify_release.RESEARCH_PROFILES:
+            qualify_release._provider_unit(client, ledger, provider=provider, profile_label=profile, route_profile=profile, workspace=None, parent_id=None, continuation_mode=None, research=profile == "research-fresh", timeout=1, retry=False)
+    fresh = qualify_release._provider_unit(client, ledger, provider="anthropic", profile_label="compiled-fresh", route_profile="compiled-fresh", workspace=None, parent_id=None, continuation_mode=None, research=False, timeout=1, retry=False)
+    workspace_record = qualify_release._provider_unit(client, ledger, provider="anthropic", profile_label="workspace-agent", route_profile="workspace-agent", workspace=workspace, parent_id=fresh["invocation_id"], continuation_mode=None, research=False, timeout=1, retry=False)
+    for mode in ("resume", "fork"):
+        qualify_release._provider_unit(client, ledger, provider="anthropic", profile_label=f"native-continuation:{mode}", route_profile="native-continuation", workspace=workspace, parent_id=workspace_record["invocation_id"], continuation_mode=mode, research=False, timeout=1, retry=False)
+
+
+@pytest.mark.contract
+def test_native_fork_continues_from_the_resumed_session_head(harness: Harness) -> None:
+    # Falsifier: the superseded loop forked from the workspace agent after the resume had become
+    # the session head; the store refuses that, so the run stopped at anthropic:native-continuation:fork.
+    ledger = harness.ledger()
+
+    receipts = harness.providers()
+
+    assert len(receipts) == 16 and len(harness.lattice.dispatches) == 16 and harness.lattice.refusals == []
+    for provider in ("anthropic", "openai"):
+        workspace = ledger.record(provider_unit_id(provider, "workspace-agent"))
+        resume = ledger.record(provider_unit_id(provider, "native-continuation:resume"))
+        fork = ledger.record(provider_unit_id(provider, "native-continuation:fork"))
+        portable = ledger.record(provider_unit_id(provider, "portable-fallback"))
+        assert resume["request"]["parent_invocation_ids"] == [workspace["invocation_id"]]
+        assert resume["request"]["route"]["native_parent_invocation_id"] == workspace["invocation_id"] and resume["request"]["route"]["continuation_mode"] == "resume"
+        assert fork["request"]["parent_invocation_ids"] == [resume["invocation_id"]]
+        assert fork["request"]["route"]["native_parent_invocation_id"] == resume["invocation_id"] and fork["request"]["route"]["continuation_mode"] == "fork"
+        assert portable["request"]["parent_invocation_ids"] == [workspace["invocation_id"]] and portable["request"]["route"]["native_parent_invocation_id"] is None
+        # Store view: the resume advanced the workspace agent's session head; the fork opened its own session.
+        workspace_session = harness.lattice.sessions[workspace["invocation_id"]]
+        assert harness.lattice.sessions[resume["invocation_id"]] == workspace_session
+        assert harness.lattice.heads[(provider, workspace_session)] == resume["invocation_id"]
+        assert harness.lattice.sessions[fork["invocation_id"]] != workspace_session
+    assert [key for _, key in harness.lattice.dispatches] == [operation_key(RUNTIME_ID, unit.split(":", 2)[1], unit.split(":", 2)[2], 1) for unit in PROVIDER_UNITS]
+
+
+@pytest.mark.regression
+def test_a_lattice_admission_refusal_is_not_reported_as_a_key_conflict(harness: Harness) -> None:
+    # Falsifier: the superseded _execute_canary matched every 409 as "different bytes under the key" and
+    # recommended --retry, which cannot repair a request Lattice refused on content.
+    key = operation_key(RUNTIME_ID, "anthropic", "native-continuation:fork", 1)
+    request = qualify_release._submission("anthropic", "native-continuation:fork", operation_key=key, route_profile="native-continuation", marker=canary_marker("anthropic", "native-continuation:fork"), workspace=harness.data_root, parent_id="invocation_workspace", continuation_mode="fork")
+
+    class Refusing(FakeClient):
+        def __init__(self, lattice: FakeLattice, message: str) -> None:
+            super().__init__(lattice)
+            self.message = message
+
+        def submit(self, submission: dict[str, Any], *, wait: bool = False, timeout: float = 1800.0) -> ExecutionResultV1:
+            del submission, wait, timeout
+            raise LatticeClientError(self.message)
+
+    def execute(message: str) -> QualificationFailure:
+        with pytest.raises(QualificationFailure) as refusal:
+            qualify_release._execute_canary(Refusing(harness.lattice, message), request, provider="anthropic", profile_label="native-continuation:fork", marker="QUAL-ANTHROPIC-FORK", timeout=1)
+        return refusal.value
+
+    admission = execute(f'Lattice returned HTTP 409: {json.dumps({"detail": SESSION_HEAD_REFUSAL})}')
+    assert "already holds different bytes" not in str(admission) and "rerun with --retry" not in str(admission)
+    assert f"refused admission of anthropic:native-continuation:fork under {EXTERNAL_PROJECT_KEY}:{key}" in str(admission)
+    assert SESSION_HEAD_REFUSAL in str(admission) and "reserved with exactly these bytes" in str(admission)
+
+    for detail in ("external operation key was reused with different bytes", "external idempotency key was reused for another operation"):
+        conflict = execute(f"Lattice returned HTTP 409: {detail}")
+        assert f"already holds different bytes under {EXTERNAL_PROJECT_KEY}:{key}" in str(conflict) and "rerun with --retry" in str(conflict)
+        conflict = execute(f'Lattice returned HTTP 409: {json.dumps({"detail": detail})}')
+        assert "already holds different bytes" in str(conflict)
+
+    # Anything that is not a 409 is not adjudicated at all: the attempt stays active for replay.
+    with pytest.raises(LatticeClientError, match="HTTP 503"):
+        qualify_release._execute_canary(Refusing(harness.lattice, "Lattice returned HTTP 503: service unavailable"), request, provider="anthropic", profile_label="native-continuation:fork", marker="QUAL-ANTHROPIC-FORK", timeout=1)
+    assert harness.lattice.dispatches == []
+
+
+@pytest.mark.regression
+def test_a_stale_reserved_fork_is_recovered_by_a_successor_ledger_without_repurchase(harness: Harness) -> None:
+    # Epoch 1: the superseded qualifier bought nine canaries and had its fork refused at admission.
+    superseded = QualificationLedger.open(harness.tmp_path / "superseded.ledger", runtime=harness.runtime, runtime_manifest_sha256=harness.runtime_manifest_sha256, data_root=harness.data_root)
+    stale_key = operation_key(RUNTIME_ID, "anthropic", "native-continuation:fork", 1)
+    with pytest.raises(QualificationFailure, match="refused admission of anthropic:native-continuation:fork") as refusal:
+        _superseded_provider_chain(harness, superseded)
+    assert SESSION_HEAD_REFUSAL in str(refusal.value)
+    nine = PROVIDER_UNITS[:9]
+    assert nine[-1] == "provider:anthropic:native-continuation:resume"
+    assert superseded.status()["complete"] == nine and superseded.status()["failed"] == ["provider:anthropic:native-continuation:fork"]
+    assert len(harness.lattice.dispatches) == 9
+    assert harness.lattice.reserved_unsealed() == [(EXTERNAL_PROJECT_KEY, stale_key)]
+    stale_bytes = dict(harness.lattice.operations[(EXTERNAL_PROJECT_KEY, stale_key)])
+    assert qualify_release._lattice_operation_state(harness.client(), EXTERNAL_PROJECT_KEY, stale_key) == "reserved"
+    resume_id = superseded.record("provider:anthropic:native-continuation:resume")["invocation_id"]
+
+    # Epoch 2: a successor ledger bound to the corrected code. Run 1 replays the nine completed
+    # operations without purchase and records the genuine key conflict for its corrected fork:a1,
+    # whose bytes (parent = resumed head) differ from the stale reservation under that key.
+    successor = QualificationLedger.open(harness.tmp_path / "successor.ledger", runtime=harness.runtime, runtime_manifest_sha256=harness.runtime_manifest_sha256, data_root=harness.data_root)
+    with pytest.raises(QualificationFailure, match=r"already holds different bytes under lattice\.release-qualification:" + re.escape(stale_key)):
+        qualify_release.run_provider_canaries(FakeClient(harness.lattice), harness.data_root, ledger=successor, timeout=1)
+    assert len(harness.lattice.dispatches) == 9
+    assert successor.status()["complete"] == nine and successor.status()["failed"] == ["provider:anthropic:native-continuation:fork"]
+    assert successor.record("provider:anthropic:native-continuation:fork")["request"]["route"]["native_parent_invocation_id"] == resume_id
+    for unit in nine:
+        assert successor.record(unit)["invocation_id"] == superseded.record(unit)["invocation_id"]
+    with pytest.raises(QualificationFailure, match=r"rerun with --retry to mint attempt 2"):
+        qualify_release.run_provider_canaries(FakeClient(harness.lattice), harness.data_root, ledger=successor, timeout=1)
+    assert len(harness.lattice.dispatches) == 9
+
+    # Explicit retry advances only the fork, to attempt 2 from the resumed head, then continues.
+    receipts = qualify_release.run_provider_canaries(FakeClient(harness.lattice), harness.data_root, ledger=successor, timeout=1, retry=True)
+
+    assert len(receipts) == 16 and {(item["provider"], item["profile"]) for item in receipts} == qualify_release.EXPECTED_CANARY_PROFILES
+    keys = [key for _, key in harness.lattice.dispatches]
+    assert len(keys) == 16 and len(set(keys)) == 16, "nine cached plus seven new model calls; the refusal and the conflict bought nothing"
+    assert keys.count(stale_key) == 0 and keys.count(operation_key(RUNTIME_ID, "anthropic", "native-continuation:fork", 2)) == 1
+    assert keys[9:] == [operation_key(RUNTIME_ID, "anthropic", "native-continuation:fork", 2), operation_key(RUNTIME_ID, "anthropic", "portable-fallback", 1)] + [operation_key(RUNTIME_ID, "openai", profile, 1) for profile in qualify_release.CONTINUITY_PROFILES]
+    fork = successor.record("provider:anthropic:native-continuation:fork")
+    assert fork["attempt"] == 2 and fork["state"] == "complete" and fork["request"]["parent_invocation_ids"] == [resume_id]
+    assert all(successor.record(unit)["attempt"] == 1 for unit in nine)
+    status = successor.status()
+    assert status["complete"] == PROVIDER_UNITS and status["failed"] == [] and status["active"] == []
+    # Nothing rewrote the superseded epoch: its ledger still reads as it did, and Lattice still holds
+    # the stale reservation unsealed with its original bytes. That row is retained evidence, not deleted here.
+    assert superseded.status()["complete"] == nine and superseded.status()["failed"] == ["provider:anthropic:native-continuation:fork"]
+    assert harness.lattice.operations[(EXTERNAL_PROJECT_KEY, stale_key)] == stale_bytes
+    assert harness.lattice.reserved_unsealed() == [(EXTERNAL_PROJECT_KEY, stale_key)]
+    assert len(harness.lattice.operations) == 17 and len(harness.lattice.refusals) == 1
 
 
 # --- suites ----------------------------------------------------------------------

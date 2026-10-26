@@ -672,19 +672,33 @@ def _check_canary_output(client: LatticeClient, result: Any, *, provider: str, p
 def _execute_canary(client: LatticeClient, request: dict[str, Any], *, provider: str, profile_label: str, marker: str, timeout: float) -> tuple[dict[str, Any], Any]:
     """Submit exact bytes and wait. A resubmission of an admitted request is a Lattice replay, not a purchase.
 
-    Lattice answers HTTP 409 when the key already carries different bytes (store.reserve_external_submission),
-    which happens when another ledger on the same runtime admitted a different request under this attempt's
-    key. Resubmitting can never continue or replay that, so it is adjudicated failed visibly instead of
-    leaving the attempt active forever; --retry then mints the next attempt under a fresh key.
+    Two different HTTP 409 answers exist and are told apart by the store's exact detail:
+
+    - key conflict (store.reserve_external_submission): the key already carries different bytes, or the
+      idempotency key belongs to another operation, because another ledger on the same runtime admitted a
+      different request under this attempt's key. Resubmitting can never continue or replay that, so the
+      attempt is adjudicated failed visibly, and --retry mints the next attempt under a fresh key.
+    - admission refusal (every other LatticeConflict raised after the reservation, e.g. the native
+      session-head guard): Lattice reserved the key with exactly these bytes and then refused the request
+      content. The reservation stays unsealed, an identical resubmission repeats the refusal, and a new
+      attempt under unchanged qualifier code would carry the same content. The attempt is adjudicated failed
+      with the store's own detail so the operator corrects the request instead of retrying it.
     """
 
     try:
         result = client.submit(request, wait=True, timeout=timeout)
     except LatticeClientError as error:
-        if _CONFLICT.match(str(error)):
+        message = str(error)
+        if _KEY_CONFLICT.match(message):
             raise QualificationFailure(
                 f"Lattice already holds different bytes under {request['external_project_key']}:{request['operation_key']}, "
                 f"so this attempt can neither continue nor replay ({error}); rerun with --retry to mint the next attempt under a new key"
+            ) from error
+        if _CONFLICT.match(message):
+            raise QualificationFailure(
+                f"Lattice refused admission of {provider}:{profile_label} under {request['external_project_key']}:{request['operation_key']} ({error}); "
+                "the key is now reserved with exactly these bytes, so an identical resubmission repeats the refusal and --retry under unchanged "
+                "qualifier code would resubmit the same request content under a new key; correct the request before minting another attempt"
             ) from error
         raise
     if result.external_project_key != request["external_project_key"] or result.operation_key != request["operation_key"]:
@@ -758,9 +772,18 @@ def run_provider_canaries(client: LatticeClient, data_root: Path, *, ledger: Qua
         # read back from its retained receipt, so the child's request bytes are reproduced.
         workspace_record = _provider_unit(client, ledger, provider=provider, profile_label="workspace-agent", route_profile="workspace-agent", workspace=workspace, parent_id=fresh["invocation_id"], continuation_mode=None, research=False, timeout=timeout, retry=retry)
         receipts.append(workspace_record["receipt"])
-        for mode in ("resume", "fork"):
-            record = _provider_unit(client, ledger, provider=provider, profile_label=f"native-continuation:{mode}", route_profile="native-continuation", workspace=workspace, parent_id=workspace_record["invocation_id"], continuation_mode=mode, research=False, timeout=timeout, retry=retry)
-            receipts.append(record["receipt"])
+        # Native continuations form one chain, not a fan-out. Lattice admits a native
+        # parent only while it is the latest invocation on its provider session
+        # (store._assert_actor_route_authorized: "native continuation parent is no longer
+        # the provider session head"). A succeeded resume keeps the workspace agent's
+        # session and becomes that head, so the fork must continue the resumed
+        # invocation; forking from the workspace agent afterwards is refused at
+        # admission, and the refusal is not a different-bytes key conflict.
+        resume = _provider_unit(client, ledger, provider=provider, profile_label="native-continuation:resume", route_profile="native-continuation", workspace=workspace, parent_id=workspace_record["invocation_id"], continuation_mode="resume", research=False, timeout=timeout, retry=retry)
+        receipts.append(resume["receipt"])
+        fork = _provider_unit(client, ledger, provider=provider, profile_label="native-continuation:fork", route_profile="native-continuation", workspace=workspace, parent_id=resume["invocation_id"], continuation_mode="fork", research=False, timeout=timeout, retry=retry)
+        receipts.append(fork["receipt"])
+        # Portable ancestry consumes the workspace agent's durable output without naming a session.
         portable = _provider_unit(client, ledger, provider=provider, profile_label="portable-fallback", route_profile="compiled-fresh", workspace=None, parent_id=workspace_record["invocation_id"], continuation_mode=None, research=False, timeout=timeout, retry=retry)
         receipts.append(portable["receipt"])
     observed = {(item["provider"], item["profile"]) for item in receipts}
@@ -906,8 +929,14 @@ def _verify_retained_consumer_receipt(client: LatticeClient, record: dict[str, A
 # (lattice/server.py); a key that was reserved but whose invocation was never sealed answers
 # the latter on GET with the fixed detail below, and resubmitting its identical bytes seals
 # and dispatches it (lattice/operations.py seal_execution_submission).
+# Only two 409 details are key conflicts (store.reserve_external_submission); every other 409
+# is an admission refusal of request content raised after the key was reserved.
 _NOT_FOUND = re.compile(r"\ALattice returned HTTP 404\b")
 _CONFLICT = re.compile(r"\ALattice returned HTTP 409\b")
+_KEY_CONFLICT = re.compile(
+    r"\ALattice returned HTTP 409\b.*\b(?:external operation key was reused with different bytes|external idempotency key was reused for another operation)\b",
+    re.DOTALL,
+)
 _RESERVED_UNSEALED = re.compile(r"\ALattice returned HTTP 409\b.*\bexternal execution was reserved but has no sealed invocation\b", re.DOTALL)
 
 
