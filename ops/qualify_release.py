@@ -23,6 +23,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -135,6 +136,13 @@ STATUS_CONTRACT = "LatticeQualificationStatus/1.0"
 UNIT_REQUEST_CONTRACT = "LatticeQualificationUnitRequest/1.0"
 UNIT_RECEIPT_CONTRACT = "LatticeQualificationUnitReceipt/1.0"
 UNIT_FAILURE_CONTRACT = "LatticeQualificationUnitFailure/1.0"
+SUITE_RUN_CONTRACT = "LatticeQualificationSuiteRun/1.0"
+SUITE_COMMAND_STARTED_CONTRACT = "LatticeQualificationSuiteCommandStarted/1.0"
+SUITE_COMMAND_FINISHED_CONTRACT = "LatticeQualificationSuiteCommandFinished/1.0"
+# A failed suite names its retained full stdout/stderr files and carries only this much tail in total
+# (half stderr, half stdout), so the whole detail, paths included, fits the 4000-character failure
+# record without cutting the paths. The full bytes live in the named files.
+SUITE_FAILURE_TAIL_CHARS = 2400
 # The execution-consolidation verifier recomputes the marker from the profile
 # with exactly this mapping; the qualifier must plant the same string.
 MARKER_PROFILES = {"workspace-agent": "WORKSPACE", "portable-fallback": "PORTABLE", "native-continuation:resume": "RESUME", "native-continuation:fork": "FORK"}
@@ -471,6 +479,60 @@ class QualificationLedger:
         continuation = {consumer_unit_id(consumer_id): spec["continuation"] for consumer_id, spec in CONSUMERS.items()}
         return {"contract_version": STATUS_CONTRACT, "ledger": str(self.root), "runtime_id": self.runtime_id, "consumer_continuation": continuation, **states}
 
+    # Retained command output. Expensive source suites write stdout/stderr straight to files under the
+    # ledger, one directory per unit attempt and one subdirectory per run, so an interruption cannot
+    # erase the output of commands that already completed, and a rerun never truncates a prior run.
+
+    def evidence_root(self, unit_id: str, attempt: int) -> Path:
+        return self.units / f"{self._slug(unit_id)}.a{attempt}.output"
+
+    def begin_evidence_run(self, unit_id: str, attempt: int, *, kind: str = "suite") -> Path:
+        """Create a fresh, never-reused run directory for one dispatch of ``unit_id`` attempt ``attempt``."""
+
+        root = self.evidence_root(unit_id, attempt)
+        root.mkdir(exist_ok=True)
+        os.chmod(root, 0o700)
+        # Sequence first so runs order deterministically even within one second; pid and random suffix keep names unique.
+        sequence = 1 + sum(1 for path in root.iterdir() if path.is_dir() and path.name.startswith("run-"))
+        run = root / f"run-{sequence:03d}-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{os.getpid()}-{os.urandom(4).hex()}"
+        run.mkdir()
+        os.chmod(run, 0o700)
+        _exact_write(run / "run.json", {"contract_version": SUITE_RUN_CONTRACT, "unit_id": unit_id, "kind": kind, "attempt": attempt, "run": run.name, "sequence": sequence, "pid": os.getpid(), "started_at": time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())})
+        return run
+
+    def evidence_runs(self, unit_id: str, attempt: int) -> list[dict[str, Any]]:
+        """Every retained run of one unit attempt with the truthful state of each command.
+
+        A command is ``finished`` when its finished record exists (exit code recorded), otherwise
+        ``started``: the operator or process was interrupted before the command completed, and the
+        bytes the child managed to write are still in the named files.
+        """
+
+        root = self.evidence_root(unit_id, attempt)
+        if not root.is_dir():
+            return []
+        runs = []
+        for run in sorted((path for path in root.iterdir() if path.is_dir() and path.name.startswith("run-")), key=lambda path: (int(path.name.split("-")[1]), path.name)):
+            header = _exact_read(run / "run.json")
+            commands = []
+            for started_path in sorted(run.glob("command-*.started.json"), key=lambda path: int(path.name.split("-")[1].split(".")[0])):
+                started = _exact_read(started_path)
+                finished_path = run / f"command-{started['index']}.finished.json"
+                finished = _exact_read(finished_path) if finished_path.exists() else None
+                commands.append({
+                    "index": started["index"],
+                    "command": started["command"],
+                    "cwd": started["cwd"],
+                    "state": "finished" if finished is not None else "started",
+                    "exit_code": None if finished is None else finished["exit_code"],
+                    "stdout": str(run / started["stdout"]),
+                    "stderr": str(run / started["stderr"]),
+                    "stdout_sha256": None if finished is None else finished["stdout_sha256"],
+                    "stderr_sha256": None if finished is None else finished["stderr_sha256"],
+                })
+            runs.append({"run": run.name, "sequence": header["sequence"], "path": str(run), "started_at": header["started_at"], "pid": header["pid"], "commands": commands})
+        return runs
+
 
 def run_unit(
     ledger: QualificationLedger,
@@ -535,24 +597,76 @@ def run_unit(
 # --- suites -------------------------------------------------------------------
 
 
-def _run_suite(suite_id: str, cwd: Path, commands: list[list[str]], truth_kinds: list[str]) -> dict[str, Any]:
-    stdout_parts: list[bytes] = []
-    stderr_parts: list[bytes] = []
-    for command in commands:
-        completed = subprocess.run(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-        stdout_parts.append(completed.stdout)
-        stderr_parts.append(completed.stderr)
+def _file_tail(path: Path, chars: int) -> str:
+    """Last ``chars`` characters of a retained output file without loading the whole file."""
+
+    size = path.stat().st_size
+    with path.open("rb") as handle:
+        handle.seek(max(0, size - chars * 4))
+        return handle.read().decode("utf-8", errors="replace")[-chars:]
+
+
+def _run_suite(suite_id: str, cwd: Path, commands: list[list[str]], truth_kinds: list[str], *, evidence: Path) -> dict[str, Any]:
+    """Run one suite's commands with stdout/stderr written directly to retained files under ``evidence``.
+
+    Before each command starts, its identity (command, cwd, output file names) is persisted as a
+    started record; the child writes straight to the files, so nothing already written is lost if
+    the operator or this process is interrupted. At the command boundary the files are fsynced and
+    a finished record binds exit code, byte counts, and per-file digests. The successful receipt
+    keeps its fixed shape: the aggregate digests are the digest of the canonical list of per-command
+    digests, exactly as before, now computed from the retained bytes.
+    """
+
+    stdout_digests: list[str] = []
+    stderr_digests: list[str] = []
+    for index, command in enumerate(commands, start=1):
+        stdout_path = evidence / f"command-{index}.stdout"
+        stderr_path = evidence / f"command-{index}.stderr"
+        _exact_write(evidence / f"command-{index}.started.json", {
+            "contract_version": SUITE_COMMAND_STARTED_CONTRACT,
+            "suite_id": suite_id,
+            "index": index,
+            "command": command,
+            "cwd": str(cwd.resolve()),
+            "stdout": stdout_path.name,
+            "stderr": stderr_path.name,
+            "started_at": time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()),
+        })
+        with stdout_path.open("xb") as stdout_handle, stderr_path.open("xb") as stderr_handle:
+            os.fchmod(stdout_handle.fileno(), 0o600)
+            os.fchmod(stderr_handle.fileno(), 0o600)
+            completed = subprocess.run(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout_handle, stderr=stderr_handle, check=False)
+            os.fsync(stdout_handle.fileno())
+            os.fsync(stderr_handle.fileno())
+        stdout_sha256 = _sha256_file(stdout_path)
+        stderr_sha256 = _sha256_file(stderr_path)
+        _exact_write(evidence / f"command-{index}.finished.json", {
+            "contract_version": SUITE_COMMAND_FINISHED_CONTRACT,
+            "suite_id": suite_id,
+            "index": index,
+            "exit_code": completed.returncode,
+            "stdout_sha256": stdout_sha256,
+            "stderr_sha256": stderr_sha256,
+            "stdout_byte_count": stdout_path.stat().st_size,
+            "stderr_byte_count": stderr_path.stat().st_size,
+            "finished_at": time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()),
+        })
         if completed.returncode != 0:
-            detail = (completed.stdout + b"\n" + completed.stderr).decode("utf-8", errors="replace")[-8000:]
-            raise QualificationFailure(f"suite failed: {suite_id}: {detail}")
+            raise QualificationFailure(
+                f"suite failed: {suite_id}: command {index} of {len(commands)} exited {completed.returncode}; "
+                f"full output retained: stdout {stdout_path} ({stdout_path.stat().st_size} bytes), stderr {stderr_path} ({stderr_path.stat().st_size} bytes); "
+                f"stderr tail: {_file_tail(stderr_path, SUITE_FAILURE_TAIL_CHARS // 2)}; stdout tail: {_file_tail(stdout_path, SUITE_FAILURE_TAIL_CHARS // 2)}"
+            )
+        stdout_digests.append(stdout_sha256)
+        stderr_digests.append(stderr_sha256)
     return {
         "suite_id": suite_id,
         "truth_kinds": truth_kinds,
         "command": commands,
         "cwd": str(cwd.resolve()),
         "exit_code": 0,
-        "stdout_sha256": sha256_bytes(canonical_bytes([sha256_bytes(item) for item in stdout_parts])),
-        "stderr_sha256": sha256_bytes(canonical_bytes([sha256_bytes(item) for item in stderr_parts])),
+        "stdout_sha256": sha256_bytes(canonical_bytes(stdout_digests)),
+        "stderr_sha256": sha256_bytes(canonical_bytes(stderr_digests)),
     }
 
 
@@ -563,8 +677,10 @@ def run_suites(axisvi_root: Path, *, ledger: QualificationLedger, retry: bool = 
         def build(attempt: int, suite_id: str = suite_id, cwd: Path = cwd, commands: list[list[str]] = commands) -> dict[str, Any]:
             return {"suite_id": suite_id, "cwd": str(cwd.resolve()), "command": commands, "attempt": attempt}
 
-        def execute(_attempt: int, _request: dict[str, Any], _resumed: bool, suite_id: str = suite_id, cwd: Path = cwd, commands: list[list[str]] = commands, truth_kinds: list[str] = truth_kinds) -> dict[str, Any]:
-            return {"receipt": _run_suite(suite_id, cwd, commands, truth_kinds)}
+        def execute(attempt: int, _request: dict[str, Any], _resumed: bool, suite_id: str = suite_id, cwd: Path = cwd, commands: list[list[str]] = commands, truth_kinds: list[str] = truth_kinds) -> dict[str, Any]:
+            # Each dispatch gets its own retained run directory; a resumed attempt never truncates prior output.
+            evidence = ledger.begin_evidence_run(suite_unit_id(suite_id), attempt)
+            return {"receipt": _run_suite(suite_id, cwd, commands, truth_kinds, evidence=evidence)}
 
         # Suites spend nothing, so an interrupted suite simply reruns under the same attempt.
         record = run_unit(ledger, suite_unit_id(suite_id), kind="suite", build_request=build, execute=execute, reuse=lambda _record: None, resumable=lambda _record: True, retry=retry)

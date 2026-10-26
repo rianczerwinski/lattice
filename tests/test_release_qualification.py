@@ -32,9 +32,13 @@ import importlib.util
 import json
 import os
 import re
+import select
 import shutil
+import stat
 import subprocess
 import sys
+import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1116,8 +1120,11 @@ def test_suites_are_checkpointed_and_completed_suites_never_rerun(harness: Harne
     calls: list[str] = []
     failing = {"canon"}
 
-    def fake_suite(suite_id: str, cwd: Path, commands: list[list[str]], truth_kinds: list[str]) -> dict[str, Any]:
+    def fake_suite(suite_id: str, cwd: Path, commands: list[list[str]], truth_kinds: list[str], *, evidence: Path) -> dict[str, Any]:
         calls.append(suite_id)
+        # The runner must hand every dispatch its own retained run directory under the ledger before the command starts.
+        assert evidence.is_dir() and evidence.parent.parent == ledger.units and evidence.name.startswith("run-")
+        assert (evidence / "run.json").is_file()
         if suite_id in failing:
             raise QualificationFailure(f"suite failed: {suite_id}: fixture")
         return {"suite_id": suite_id, "truth_kinds": truth_kinds, "command": commands, "cwd": str(cwd), "exit_code": 0, "stdout_sha256": "1" * 64, "stderr_sha256": "2" * 64}
@@ -1139,6 +1146,172 @@ def test_suites_are_checkpointed_and_completed_suites_never_rerun(harness: Harne
 
     assert qualify_release.run_suites(harness.axisvi_root, ledger=harness.ledger()) == receipts
     assert len(calls) == 8
+
+
+# Real, cheap subprocesses: the point of retained suite output is what survives on disk, which no fake can show.
+
+SUITE_UNIT = "suite:lattice-backend"
+RECEIPT_KEYS = {"suite_id", "truth_kinds", "command", "cwd", "exit_code", "stdout_sha256", "stderr_sha256"}
+
+
+def _python_writing(stdout: str, stderr: str = "", exit_code: int = 0) -> list[str]:
+    return [sys.executable, "-I", "-c", f"import sys; sys.stdout.write({stdout!r}); sys.stderr.write({stderr!r}); sys.stdout.flush(); sys.stderr.flush(); sys.exit({exit_code})"]
+
+
+def _aggregate(digests: list[str]) -> str:
+    return sha256_bytes(canonical_bytes(digests))
+
+
+@pytest.mark.contract
+def test_suite_success_digests_bind_the_retained_output_bytes(harness: Harness, tmp_path: Path) -> None:
+    ledger = harness.ledger()
+    evidence = ledger.begin_evidence_run(SUITE_UNIT, 1)
+    commands = [_python_writing("out-a", "err-a"), _python_writing("out-b", "")]
+
+    receipt = qualify_release._run_suite("lattice-backend", tmp_path, commands, ["contract"], evidence=evidence)
+
+    assert set(receipt) == RECEIPT_KEYS and receipt["exit_code"] == 0 and receipt["command"] == commands
+    assert (evidence / "command-1.stdout").read_bytes() == b"out-a" and (evidence / "command-1.stderr").read_bytes() == b"err-a"
+    assert (evidence / "command-2.stdout").read_bytes() == b"out-b" and (evidence / "command-2.stderr").read_bytes() == b""
+    # Aggregate semantics unchanged: digest of the canonical list of per-command digests, now of the retained bytes.
+    assert receipt["stdout_sha256"] == _aggregate([sha256_bytes(b"out-a"), sha256_bytes(b"out-b")])
+    assert receipt["stderr_sha256"] == _aggregate([sha256_bytes(b"err-a"), sha256_bytes(b"")])
+    assert stat.S_IMODE((evidence / "command-1.stdout").stat().st_mode) == 0o600
+
+    [run] = ledger.evidence_runs(SUITE_UNIT, 1)
+    assert run["path"] == str(evidence) and [item["state"] for item in run["commands"]] == ["finished", "finished"]
+    assert [item["exit_code"] for item in run["commands"]] == [0, 0]
+    assert run["commands"][0]["stdout_sha256"] == sha256_bytes(b"out-a") and run["commands"][1]["stderr_sha256"] == sha256_bytes(b"")
+    assert run["commands"][0]["command"] == commands[0] and Path(run["commands"][0]["stdout"]) == evidence / "command-1.stdout"
+    assert ledger.evidence_runs(SUITE_UNIT, 2) == []
+
+
+@pytest.mark.regression
+def test_failed_suite_output_beyond_the_old_8000_byte_tail_is_retained_and_the_failure_names_it(harness: Harness, tmp_path: Path) -> None:
+    ledger = harness.ledger()
+    evidence = ledger.begin_evidence_run(SUITE_UNIT, 1)
+    commands = [_python_writing("x" * 20_000 + "LAST-STDOUT", "e" * 9_000 + "LAST-STDERR", exit_code=3)]
+
+    with pytest.raises(QualificationFailure) as failure:
+        qualify_release._run_suite("lattice-backend", tmp_path, commands, ["contract"], evidence=evidence)
+
+    detail = str(failure.value)
+    stdout_path, stderr_path = evidence / "command-1.stdout", evidence / "command-1.stderr"
+    assert stdout_path.stat().st_size == 20_011 and stderr_path.stat().st_size == 9_011
+    assert stdout_path.read_bytes().endswith(b"LAST-STDOUT") and stderr_path.read_bytes().startswith(b"eeee")
+    assert "command 1 of 1 exited 3" in detail and str(stdout_path) in detail and str(stderr_path) in detail
+    assert "LAST-STDOUT" in detail and "LAST-STDERR" in detail
+    # Bounded: the whole detail, paths included, fits the 4000-character failure record, so persist_failure cannot cut the paths.
+    assert len(detail) <= 4000
+    [run] = ledger.evidence_runs(SUITE_UNIT, 1)
+    assert run["commands"][0]["state"] == "finished" and run["commands"][0]["exit_code"] == 3
+
+
+@pytest.mark.regression
+def test_a_resumed_suite_unit_keeps_the_interrupted_run_output_and_reports_its_state_truthfully(harness: Harness, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    helper = tmp_path / "second-command.sh"  # absent on the first run: a non-QualificationFailure error leaves the unit active
+    commands = [_python_writing("first-run"), [str(helper)]]
+    monkeypatch.setattr(qualify_release, "_suite_commands", lambda _root: {"lattice-backend": (tmp_path, commands, ["contract"])})
+
+    with pytest.raises(FileNotFoundError):
+        qualify_release.run_suites(harness.axisvi_root, ledger=harness.ledger())
+    record = harness.ledger().record(SUITE_UNIT)
+    assert record["state"] == "active" and record["attempt"] == 1
+    [first] = harness.ledger().evidence_runs(SUITE_UNIT, 1)
+    assert [item["state"] for item in first["commands"]] == ["finished", "started"]
+    assert Path(first["commands"][0]["stdout"]).read_bytes() == b"first-run"
+    assert first["commands"][1]["exit_code"] is None and Path(first["commands"][1]["stdout"]).read_bytes() == b""
+
+    helper.write_text("#!/bin/sh\nprintf second-run\n", encoding="utf-8")
+    helper.chmod(0o755)
+    [receipt] = qualify_release.run_suites(harness.axisvi_root, ledger=harness.ledger())
+
+    assert harness.ledger().record(SUITE_UNIT)["state"] == "complete" and harness.ledger().record(SUITE_UNIT)["attempt"] == 1
+    runs = harness.ledger().evidence_runs(SUITE_UNIT, 1)
+    assert len(runs) == 2 and runs[0]["path"] == first["path"]
+    # The interrupted run is untouched by the resume: same bytes, same started-only second command.
+    assert Path(runs[0]["commands"][0]["stdout"]).read_bytes() == b"first-run" and runs[0]["commands"][1]["state"] == "started"
+    assert [item["state"] for item in runs[1]["commands"]] == ["finished", "finished"]
+    assert Path(runs[1]["commands"][1]["stdout"]).read_bytes() == b"second-run"
+    assert receipt["stdout_sha256"] == _aggregate([sha256_bytes(b"first-run"), sha256_bytes(b"second-run")])
+    assert set(receipt) == RECEIPT_KEYS
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs a FIFO for process coordination")
+@pytest.mark.regression
+def test_suite_output_is_on_disk_while_the_command_is_still_running(harness: Harness, tmp_path: Path) -> None:
+    """Coordination by two FIFOs and select, not sleeps.
+
+    The parent opens both FIFOs O_RDWR|O_NONBLOCK before the worker starts, so neither side can block on open. The
+    child opens the gate non-blocking, flushes stdout, signals readiness, then blocks reading the gate until the parent
+    closes its end (EOF). The parent waits for readiness with select bounded by READINESS_BOUND seconds; a worker that
+    finishes early (crashed child, broken capture) wakes the select through a pipe so the failure is prompt. A child that
+    starts after the parent gave up opens the readiness FIFO non-blocking, gets ENXIO, and exits instead of hanging.
+    """
+
+    READINESS_BOUND = 20.0
+    ledger = harness.ledger()
+    evidence = ledger.begin_evidence_run(SUITE_UNIT, 1)
+    gate, ready = tmp_path / "gate.fifo", tmp_path / "ready.fifo"
+    os.mkfifo(gate)
+    os.mkfifo(ready)
+    child = tmp_path / "child.py"
+    child.write_text(
+        "import fcntl, os, sys\n"
+        "gate = os.open(sys.argv[1], os.O_RDONLY | os.O_NONBLOCK)  # never blocks on open\n"
+        "fcntl.fcntl(gate, fcntl.F_SETFL, fcntl.fcntl(gate, fcntl.F_GETFL) & ~os.O_NONBLOCK)\n"
+        "sys.stdout.write('alive')\n"
+        "sys.stdout.flush()\n"
+        "ready = os.open(sys.argv[2], os.O_WRONLY | os.O_NONBLOCK)  # ENXIO, not a hang, if the parent already gave up\n"
+        "os.write(ready, b'ready')\n"
+        "os.close(ready)\n"
+        "while os.read(gate, 1):  # blocks until the parent closes its end; EOF releases us\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+    commands = [[sys.executable, "-I", str(child), str(gate), str(ready)]]
+    outcome: dict[str, Any] = {}
+    gate_fd = os.open(gate, os.O_RDWR | os.O_NONBLOCK)  # we are the gate's only writer; closing it is the release
+    ready_fd = os.open(ready, os.O_RDWR | os.O_NONBLOCK)  # our writer end keeps select quiet until real data arrives
+    wake_read, wake_write = os.pipe()
+
+    def run() -> None:
+        try:
+            outcome["receipt"] = qualify_release._run_suite("lattice-backend", tmp_path, commands, ["contract"], evidence=evidence)
+        except BaseException as error:  # noqa: BLE001 - surfaced by the assertions below
+            outcome["error"] = error
+        finally:
+            os.write(wake_write, b"x")
+
+    worker = threading.Thread(target=run, daemon=True)
+    try:
+        worker.start()
+        deadline = time.monotonic() + READINESS_BOUND
+        signal = b""
+        while signal != b"ready":
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            readable, _, _ = select.select([ready_fd, wake_read], [], [], remaining)
+            if wake_read in readable:
+                break  # the worker finished before the child signalled: a crashed child or broken capture
+            if ready_fd in readable:
+                signal += os.read(ready_fd, 64)
+        assert signal == b"ready", f"child never signalled readiness within {READINESS_BOUND}s; worker alive={worker.is_alive()} outcome={outcome!r}"
+        assert worker.is_alive() and "receipt" not in outcome and "error" not in outcome
+        assert (evidence / "command-1.started.json").is_file() and not (evidence / "command-1.finished.json").exists()
+        assert (evidence / "command-1.stdout").read_bytes() == b"alive"
+        [run_state] = ledger.evidence_runs(SUITE_UNIT, 1)
+        assert run_state["commands"][0]["state"] == "started" and run_state["commands"][0]["exit_code"] is None
+    finally:
+        os.close(ready_fd)  # a late child now fails its non-blocking open with ENXIO instead of blocking
+        os.close(gate_fd)  # EOF releases the child
+        worker.join(timeout=READINESS_BOUND)
+        os.close(wake_read)
+        os.close(wake_write)
+    assert not worker.is_alive() and "error" not in outcome
+    assert outcome["receipt"]["exit_code"] == 0 and outcome["receipt"]["stdout_sha256"] == _aggregate([sha256_bytes(b"alive")])
+    assert ledger.evidence_runs(SUITE_UNIT, 1)[0]["commands"][0]["state"] == "finished"
 
 
 @pytest.mark.regression
