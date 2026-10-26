@@ -23,7 +23,7 @@ import time
 import urllib.request
 import uuid
 from dataclasses import dataclass
-from contextlib import contextmanager, nullcontext
+from contextlib import ExitStack, contextmanager, nullcontext
 from pathlib import Path
 from typing import Callable
 
@@ -48,6 +48,11 @@ MAINTENANCE_WRITER_LOCK = "maintenance-writer.lock"
 MAINTENANCE_RECORD = "maintenance.json"
 MAINTENANCE_RECORD_CONTRACT = "LatticeMaintenanceRecord/1.0"
 MAINTENANCE_WRITER_WAIT_SECONDS = 600
+# Admission (`upgrade_quiescence`) tolerates lock contention from a booting
+# service for a bounded time; active durable work is refused immediately.
+QUIESCENCE_WAIT_SECONDS = 60
+QUIESCENCE_POLL_SECONDS = 0.25
+QUIESCENCE_REPORT_SECONDS = 10
 GRACEFUL_SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 VERSION_PATTERN = re.compile(rb'^__version__ = "([0-9]+\.[0-9]+\.[0-9]+)"$', re.MULTILINE)
 RELEASE_INPUTS = (
@@ -434,15 +439,43 @@ def migrate_legacy_data(legacy_root: Path) -> None:
 
 @contextmanager
 def upgrade_quiescence():
-    """Refuse active work and block new dispatch until the old writers stop."""
+    """Refuse active work and block new dispatch until the old writers stop.
+
+    Durable work (leased/running attempts, runs, commands, imports, leases)
+    refuses immediately: the installer never stops or restarts it. Lock
+    contention is different. Every service boot holds the shared startup lock
+    on `durable-runs.lock`, and a KeepAlive crash loop re-takes it every few
+    seconds, so one non-blocking attempt fails for no durable reason exactly
+    when recovery is needed most. That case is polled for a bounded time and
+    the original refusal is raised once the budget is spent. Signals keep
+    their existing semantics: cancellable phases raise at once, rollback
+    sections honour the recorded signal after this bounded wait.
+    """
     database = DEFAULT_DATA_ROOT / "lattice.sqlite3"
     if not database.exists():
         yield
         return
     import_source_modules()
+    from lattice.run_journal import DURABLE_RUNS_LOCK
     from lattice.snapshot import _snapshot_guard
 
-    with _snapshot_guard(DEFAULT_DATA_ROOT, database, require_idle=True):
+    lock = DEFAULT_DATA_ROOT / DURABLE_RUNS_LOCK
+    deadline = time.monotonic() + QUIESCENCE_WAIT_SECONDS
+    report_at = time.monotonic() + QUIESCENCE_REPORT_SECONDS
+    with ExitStack() as stack:
+        while True:
+            try:
+                stack.enter_context(_snapshot_guard(DEFAULT_DATA_ROOT, database, require_idle=True))
+                break
+            except RuntimeError as error:
+                if not isinstance(error.__cause__, BlockingIOError):
+                    raise  # active durable work, or any refusal that is not lock contention
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"{error} (waited {QUIESCENCE_WAIT_SECONDS:g}s for {lock})") from error
+                if time.monotonic() >= report_at:
+                    print(f"Waiting for a service startup, snapshot or journal writer to release {lock}", flush=True)
+                    report_at = time.monotonic() + QUIESCENCE_REPORT_SECONDS
+                time.sleep(QUIESCENCE_POLL_SECONDS)
         yield
 
 
